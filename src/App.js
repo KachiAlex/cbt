@@ -490,8 +490,11 @@ function AdminLogin({onLogin, onBack}){
       return;
     }
 
-    // Admin authentication
-    if (username === "admin" && password === "admin123") {
+    // Admin authentication using stored password
+    const users = loadUsers();
+    const adminUser = users.find(u => u.username === "admin");
+    
+    if (adminUser && adminUser.password === password) {
       onLogin({
         username, 
         role: "admin", 
@@ -499,7 +502,7 @@ function AdminLogin({onLogin, onBack}){
         email: "admin@healthschool.com"
       });
     } else {
-      setError("Invalid admin credentials. Use admin / admin123");
+      setError("Invalid admin credentials. Please check your username and password.");
     }
   };
 
@@ -672,7 +675,8 @@ function AdminPanel(){
           { id: "exams", label: "📋 Exam Management", icon: "📋" },
           { id: "questions", label: "❓ Questions", icon: "❓" },
           { id: "results", label: "📊 Results", icon: "📊" },
-          { id: "students", label: "👥 Students", icon: "👥" }
+          { id: "students", label: "👥 Students", icon: "👥" },
+          { id: "settings", label: "⚙️ Settings", icon: "⚙️" }
         ].map(tab => (
           <button
             key={tab.id}
@@ -805,6 +809,13 @@ function AdminPanel(){
       {activeTab === "students" && (
         <Section title="Student Management">
           <StudentManagement />
+        </Section>
+      )}
+
+      {/* Settings Tab */}
+      {activeTab === "settings" && (
+        <Section title="System Settings">
+          <AdminSettings />
         </Section>
       )}
 
@@ -1040,6 +1051,215 @@ function StudentManagement() {
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+function AdminSettings() {
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [message, setMessage] = useState("");
+  const [messageType, setMessageType] = useState(""); // "success" or "error"
+
+  const handlePasswordChange = (e) => {
+    e.preventDefault();
+    setMessage("");
+    setMessageType("");
+
+    // Validation
+    if (!currentPassword || !newPassword || !confirmPassword) {
+      setMessage("Please fill in all fields");
+      setMessageType("error");
+      return;
+    }
+
+    if (newPassword !== confirmPassword) {
+      setMessage("New passwords do not match");
+      setMessageType("error");
+      return;
+    }
+
+    if (newPassword.length < 8) {
+      setMessage("New password must be at least 8 characters long");
+      setMessageType("error");
+      return;
+    }
+
+    // Check if current password is correct
+    const users = loadUsers();
+    const adminUser = users.find(u => u.username === "admin");
+    
+    if (!adminUser || adminUser.password !== currentPassword) {
+      setMessage("Current password is incorrect");
+      setMessageType("error");
+      return;
+    }
+
+    // Update admin password
+    adminUser.password = newPassword;
+    saveUsers(users);
+    
+    setMessage("Password updated successfully! Please logout and login with your new password.");
+    setMessageType("success");
+    setCurrentPassword("");
+    setNewPassword("");
+    setConfirmPassword("");
+  };
+
+  const validatePasswordStrength = (password) => {
+    const checks = {
+      length: password.length >= 8,
+      uppercase: /[A-Z]/.test(password),
+      lowercase: /[a-z]/.test(password),
+      number: /\d/.test(password),
+      special: /[!@#$%^&*(),.?":{}|<>]/.test(password)
+    };
+    
+    const score = Object.values(checks).filter(Boolean).length;
+    return { checks, score, strength: score < 3 ? "weak" : score < 4 ? "medium" : "strong" };
+  };
+
+  const passwordStrength = validatePasswordStrength(newPassword);
+
+  return (
+    <div className="space-y-6">
+      {/* Password Change Section */}
+      <div className="bg-white rounded-xl border p-6">
+        <h4 className="text-lg font-semibold mb-4">🔐 Change Admin Password</h4>
+        <p className="text-sm text-gray-600 mb-4">
+          Update your admin password to something more secure. The new password should be at least 8 characters long.
+        </p>
+
+        {message && (
+          <div className={`mb-4 p-3 rounded-lg text-sm ${
+            messageType === "success" 
+              ? "bg-green-50 border border-green-200 text-green-700" 
+              : "bg-red-50 border border-red-200 text-red-700"
+          }`}>
+            {message}
+          </div>
+        )}
+
+        <form onSubmit={handlePasswordChange} className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium mb-1">Current Password</label>
+            <input
+              type="password"
+              value={currentPassword}
+              onChange={(e) => setCurrentPassword(e.target.value)}
+              className="w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              placeholder="Enter current password"
+              required
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium mb-1">New Password</label>
+            <input
+              type="password"
+              value={newPassword}
+              onChange={(e) => setNewPassword(e.target.value)}
+              className="w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              placeholder="Enter new password"
+              required
+            />
+            
+            {/* Password Strength Indicator */}
+            {newPassword && (
+              <div className="mt-2">
+                <div className="flex gap-1 mb-2">
+                  {[1, 2, 3, 4, 5].map((level) => (
+                    <div
+                      key={level}
+                      className={`h-1 flex-1 rounded ${
+                        level <= passwordStrength.score
+                          ? passwordStrength.strength === "weak"
+                            ? "bg-red-500"
+                            : passwordStrength.strength === "medium"
+                            ? "bg-yellow-500"
+                            : "bg-green-500"
+                          : "bg-gray-200"
+                      }`}
+                    />
+                  ))}
+                </div>
+                <div className="text-xs text-gray-600">
+                  <span className={`font-medium ${
+                    passwordStrength.strength === "weak" ? "text-red-600" :
+                    passwordStrength.strength === "medium" ? "text-yellow-600" :
+                    "text-green-600"
+                  }`}>
+                    {passwordStrength.strength.charAt(0).toUpperCase() + passwordStrength.strength.slice(1)} password
+                  </span>
+                  <div className="mt-1 space-y-1">
+                    <div className={`flex items-center gap-1 ${passwordStrength.checks.length ? "text-green-600" : "text-gray-400"}`}>
+                      <span>✓</span> <span>At least 8 characters</span>
+                    </div>
+                    <div className={`flex items-center gap-1 ${passwordStrength.checks.uppercase ? "text-green-600" : "text-gray-400"}`}>
+                      <span>✓</span> <span>Uppercase letter</span>
+                    </div>
+                    <div className={`flex items-center gap-1 ${passwordStrength.checks.lowercase ? "text-green-600" : "text-gray-400"}`}>
+                      <span>✓</span> <span>Lowercase letter</span>
+                    </div>
+                    <div className={`flex items-center gap-1 ${passwordStrength.checks.number ? "text-green-600" : "text-gray-400"}`}>
+                      <span>✓</span> <span>Number</span>
+                    </div>
+                    <div className={`flex items-center gap-1 ${passwordStrength.checks.special ? "text-green-600" : "text-gray-400"}`}>
+                      <span>✓</span> <span>Special character</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium mb-1">Confirm New Password</label>
+            <input
+              type="password"
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
+              className="w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              placeholder="Confirm new password"
+              required
+            />
+            {confirmPassword && newPassword !== confirmPassword && (
+              <p className="text-red-600 text-xs mt-1">Passwords do not match</p>
+            )}
+          </div>
+
+          <button
+            type="submit"
+            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium"
+          >
+            Update Password
+          </button>
+        </form>
+      </div>
+
+      {/* Security Tips */}
+      <div className="bg-blue-50 rounded-xl border border-blue-200 p-6">
+        <h4 className="text-lg font-semibold mb-3 text-blue-800">🔒 Security Tips</h4>
+        <ul className="text-sm text-blue-700 space-y-2">
+          <li>• Use a strong password with at least 8 characters</li>
+          <li>• Include uppercase and lowercase letters, numbers, and special characters</li>
+          <li>• Avoid using personal information like names or birthdays</li>
+          <li>• Don't share your password with anyone</li>
+          <li>• Consider using a password manager for better security</li>
+        </ul>
+      </div>
+
+      {/* System Information */}
+      <div className="bg-gray-50 rounded-xl border p-6">
+        <h4 className="text-lg font-semibold mb-3">ℹ️ System Information</h4>
+        <div className="text-sm text-gray-600 space-y-2">
+          <p><strong>Current Admin:</strong> admin</p>
+          <p><strong>Default Password:</strong> admin123 (change this immediately)</p>
+          <p><strong>System Version:</strong> CBT v1.0.0</p>
+          <p><strong>Last Updated:</strong> {new Date().toLocaleDateString()}</p>
+        </div>
+      </div>
     </div>
   );
 }
