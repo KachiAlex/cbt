@@ -1262,6 +1262,26 @@ function loadResults(){
   } catch { return []; }
 }
 
+// Clean up markdown artifacts from text
+function cleanMarkdownText(text) {
+  if (!text) return text;
+  
+  return text
+    // Remove markdown backslashes and dots
+    .replace(/\\\./g, '')
+    .replace(/\\/g, '')
+    // Remove other markdown artifacts
+    .replace(/\*\*/g, '') // Remove bold markers
+    .replace(/\*/g, '')   // Remove italic markers
+    .replace(/`/g, '')    // Remove code markers
+    .replace(/#{1,6}\s/g, '') // Remove heading markers
+    .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1') // Convert links to text
+    // Remove extra spaces
+    .replace(/\s+/g, ' ')
+    // Remove leading/trailing spaces
+    .trim();
+}
+
 // Smart and flexible document parser that handles multiple formats
 function parseQuestionsFromMarkdown(md) {
   const text = md.replace(/\r/g, "").trim();
@@ -1294,7 +1314,7 @@ function parseQuestionsFromMarkdown(md) {
       
       // Start new question
       questionNumber++;
-      currentQuestion = questionMatch[2].trim();
+      currentQuestion = cleanMarkdownText(questionMatch[2].trim());
       currentOptions = [];
       currentAnswer = null;
       continue;
@@ -1311,7 +1331,7 @@ function parseQuestionsFromMarkdown(md) {
     const optionMatch = line.match(/^([A-Da-d1-4])\s*[\.\)]?\s*(.+)$/);
     if (optionMatch && currentOptions.length < 4) {
       const optionLetter = optionMatch[1].toUpperCase();
-      const optionText = optionMatch[2].trim();
+      const optionText = cleanMarkdownText(optionMatch[2].trim());
       
       // Convert 1-4 to A-D
       const optionIndex = optionLetter === '1' ? 'A' : 
@@ -1325,7 +1345,7 @@ function parseQuestionsFromMarkdown(md) {
     
     // If we have a question but no options yet, this might be continuation of question text
     if (currentQuestion && currentOptions.length === 0 && !line.match(/^[A-Da-d1-4]/)) {
-      currentQuestion += ' ' + line;
+      currentQuestion += ' ' + cleanMarkdownText(line);
     }
   }
   
@@ -1369,8 +1389,8 @@ function createQuestionObject(questionText, options, correctAnswer) {
   
   return {
     id: crypto.randomUUID(),
-    text: questionText,
-    options: sortedOptions,
+    text: cleanMarkdownText(questionText),
+    options: sortedOptions.map(opt => cleanMarkdownText(opt)),
     correctIndex: answerIndex
   };
 }
