@@ -1193,6 +1193,7 @@ function StudentPanel({user}){
   const [answers, setAnswers] = useState([]);
   const [submitted, setSubmitted] = useState(false);
   const [score, setScore] = useState(0);
+  const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
 
   useEffect(()=>{
     // Load and randomize questions for this student
@@ -1237,8 +1238,26 @@ function StudentPanel({user}){
     }).sort(() => Math.random() - 0.5); // Shuffle question order
   };
 
-  const onSelect = (qi, oi)=>{
-    const a = [...answers]; a[qi] = oi; setAnswers(a);
+  const onSelect = (oi)=>{
+    const a = [...answers]; a[currentQuestionIndex] = oi; setAnswers(a);
+  };
+
+  const goToNextQuestion = () => {
+    if (currentQuestionIndex < questions.length - 1) {
+      setCurrentQuestionIndex(currentQuestionIndex + 1);
+    }
+  };
+
+  const goToPreviousQuestion = () => {
+    if (currentQuestionIndex > 0) {
+      setCurrentQuestionIndex(currentQuestionIndex - 1);
+    }
+  };
+
+  const goToQuestion = (index) => {
+    if (index >= 0 && index < questions.length) {
+      setCurrentQuestionIndex(index);
+    }
   };
 
   const onSubmit = () => {
@@ -1292,34 +1311,115 @@ function StudentPanel({user}){
 
   return (
     <div className="space-y-6">
+      {/* Exam Header */}
       <div className="bg-white rounded-2xl shadow p-6">
         <h3 className="text-lg font-bold mb-1">{activeExam.title}</h3>
         <p className="text-sm text-gray-600 mb-2">{activeExam.description}</p>
         <div className="flex gap-4 text-xs text-gray-500 mb-2">
           <span>Duration: {activeExam.duration} minutes</span>
           <span>Questions: {questions.length}</span>
+          <span>Current: {currentQuestionIndex + 1} of {questions.length}</span>
         </div>
         <p className="text-xs text-emerald-600">⚠️ Questions are randomized for each student</p>
       </div>
-      {questions.map((q, i)=> (
-        <div key={q.id} className="bg-white rounded-2xl shadow p-6">
-          <div className="flex items-start gap-2 mb-3">
-            <span className="text-sm font-bold bg-gray-100 px-2 py-1 rounded">{i+1}</span>
-            <p className="font-medium">{q.text}</p>
+
+      {/* Question Navigation */}
+      <div className="bg-white rounded-2xl shadow p-4">
+        <div className="flex flex-wrap gap-2 mb-4">
+          {questions.map((_, index) => (
+            <button
+              key={index}
+              onClick={() => goToQuestion(index)}
+              className={`w-8 h-8 rounded-lg text-xs font-medium transition-colors ${
+                index === currentQuestionIndex
+                  ? 'bg-emerald-600 text-white'
+                  : answers[index] !== -1
+                  ? 'bg-emerald-100 text-emerald-700 border border-emerald-300'
+                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+              }`}
+              title={`Question ${index + 1}${answers[index] !== -1 ? ' (Answered)' : ''}`}
+            >
+              {index + 1}
+            </button>
+          ))}
+        </div>
+        <div className="text-xs text-gray-500">
+          <span className="inline-block w-3 h-3 bg-emerald-100 border border-emerald-300 rounded mr-1"></span>
+          Answered • 
+          <span className="inline-block w-3 h-3 bg-gray-100 rounded ml-2 mr-1"></span>
+          Not Answered
+        </div>
+      </div>
+
+      {/* Current Question */}
+      {questions.length > 0 && (
+        <div className="bg-white rounded-2xl shadow p-6">
+          <div className="flex items-start gap-2 mb-4">
+            <span className="text-sm font-bold bg-emerald-100 text-emerald-700 px-3 py-1 rounded-full">
+              Question {currentQuestionIndex + 1} of {questions.length}
+            </span>
           </div>
-          <div className="grid sm:grid-cols-2 gap-2">
-            {q.options.map((opt, oi)=> (
-              <label key={oi} className={`border rounded-xl p-3 flex items-center gap-2 cursor-pointer ${answers[i]===oi?"border-emerald-500 bg-emerald-50":""}`}>
-                <input type="radio" name={`q-${q.id}`} checked={answers[i]===oi} onChange={()=>onSelect(i,oi)} />
-                <span>{String.fromCharCode(65+oi)}. {opt}</span>
+          <p className="font-medium text-lg mb-6">{questions[currentQuestionIndex].text}</p>
+          <div className="grid sm:grid-cols-2 gap-3 mb-6">
+            {questions[currentQuestionIndex].options.map((opt, oi) => (
+              <label 
+                key={oi} 
+                className={`border-2 rounded-xl p-4 flex items-center gap-3 cursor-pointer transition-all hover:border-emerald-300 ${
+                  answers[currentQuestionIndex] === oi 
+                    ? "border-emerald-500 bg-emerald-50" 
+                    : "border-gray-200 hover:bg-gray-50"
+                }`}
+              >
+                <input 
+                  type="radio" 
+                  name={`q-${questions[currentQuestionIndex].id}`} 
+                  checked={answers[currentQuestionIndex] === oi} 
+                  onChange={() => onSelect(oi)} 
+                  className="w-4 h-4 text-emerald-600"
+                />
+                <span className="font-medium">
+                  {String.fromCharCode(65 + oi)}. {opt}
+                </span>
               </label>
             ))}
           </div>
+
+          {/* Navigation Buttons */}
+          <div className="flex justify-between items-center">
+            <button 
+              onClick={goToPreviousQuestion}
+              disabled={currentQuestionIndex === 0}
+              className={`px-4 py-2 rounded-xl font-medium transition-colors ${
+                currentQuestionIndex === 0
+                  ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                  : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+              }`}
+            >
+              ← Previous
+            </button>
+
+            <div className="text-sm text-gray-600">
+              {answers.filter(a => a !== -1).length} of {questions.length} answered
+            </div>
+
+            {currentQuestionIndex === questions.length - 1 ? (
+              <button 
+                onClick={onSubmit}
+                className="px-6 py-2 rounded-xl bg-emerald-600 text-white hover:bg-emerald-700 font-semibold transition-colors"
+              >
+                Submit Exam
+              </button>
+            ) : (
+              <button 
+                onClick={goToNextQuestion}
+                className="px-4 py-2 rounded-xl bg-emerald-600 text-white hover:bg-emerald-700 font-medium transition-colors"
+              >
+                Next →
+              </button>
+            )}
+          </div>
         </div>
-      ))}
-      <div className="flex justify-end">
-        <button onClick={onSubmit} className="px-6 py-3 rounded-2xl bg-emerald-600 text-white hover:bg-emerald-700 font-semibold">Submit Answers</button>
-      </div>
+      )}
     </div>
   );
 }
