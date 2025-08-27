@@ -5,18 +5,22 @@ import { Document, Packer, Paragraph, TextRun, Table, TableRow, TableCell } from
 import mammoth from "mammoth";
 
 // -------------------------
-// Simple In-Browser CBT System
+// Advanced In-Browser CBT System
 // Features:
 // - Login (Admin / Student)
-// - Admin uploads .docx with MCQs (auto-parsed) or creates questions manually
-// - 12-question CBT delivery for students
+// - Admin creates multiple exam events with flexible question counts
+// - Admin uploads .docx with MCQs (smart auto-parsed) or creates questions manually
+// - Flexible CBT delivery for students (1-100 questions per exam)
 // - Auto-grading, Results dashboard
 // - Export results to Excel (.xlsx) and Word (.docx)
+// - Student registration and management
+// - Question and answer randomization
 // - Tailwind styles
 // Default Admin: username: admin  | password: admin123
 // -------------------------
 
 const LS_KEYS = {
+  EXAMS: "cbt_exams_v1",
   QUESTIONS: "cbt_questions_v1",
   RESULTS: "cbt_results_v1",
   ACTIVE_EXAM: "cbt_active_exam_v1",
@@ -24,7 +28,7 @@ const LS_KEYS = {
   STUDENT_REGISTRATIONS: "cbt_student_registrations_v1"
 };
 
-const DEFAULT_EXAM_TITLE = "Health School CBT – 12 Questions";
+const DEFAULT_EXAM_TITLE = "Health School CBT";
 
 // Default admin user
 const DEFAULT_ADMIN = {
@@ -98,6 +102,75 @@ function authenticateUser(username, password) {
   return { username: user.username, role: user.role, fullName: user.fullName, email: user.email };
 }
 
+// Exam management functions
+function loadExams() {
+  const saved = localStorage.getItem(LS_KEYS.EXAMS);
+  if (!saved) return [];
+  try {
+    return JSON.parse(saved);
+  } catch {
+    return [];
+  }
+}
+
+function saveExams(exams) {
+  localStorage.setItem(LS_KEYS.EXAMS, JSON.stringify(exams));
+}
+
+function createExam(examData) {
+  const exams = loadExams();
+  const newExam = {
+    id: crypto.randomUUID(),
+    ...examData,
+    createdAt: new Date().toISOString(),
+    isActive: false
+  };
+  exams.push(newExam);
+  saveExams(exams);
+  return newExam;
+}
+
+function updateExam(examId, updates) {
+  const exams = loadExams();
+  const updatedExams = exams.map(exam => 
+    exam.id === examId ? { ...exam, ...updates } : exam
+  );
+  saveExams(updatedExams);
+}
+
+function deleteExam(examId) {
+  const exams = loadExams();
+  const filteredExams = exams.filter(exam => exam.id !== examId);
+  saveExams(filteredExams);
+}
+
+function setActiveExam(examId) {
+  const exams = loadExams();
+  // Deactivate all exams first
+  const updatedExams = exams.map(exam => ({ ...exam, isActive: false }));
+  // Activate the selected exam
+  const finalExams = updatedExams.map(exam => 
+    exam.id === examId ? { ...exam, isActive: true } : exam
+  );
+  saveExams(finalExams);
+  
+  // Update active exam in localStorage
+  const activeExam = finalExams.find(exam => exam.id === examId);
+  if (activeExam) {
+    localStorage.setItem(LS_KEYS.ACTIVE_EXAM, JSON.stringify(activeExam));
+  }
+}
+
+function getActiveExam() {
+  const saved = localStorage.getItem(LS_KEYS.ACTIVE_EXAM);
+  if (!saved) return null;
+  try {
+    return JSON.parse(saved);
+  } catch {
+    return null;
+  }
+}
+
 function registerStudent(studentData) {
   const users = loadUsers();
   
@@ -139,7 +212,7 @@ function Header({user, onLogout}){
       <div className="max-w-5xl mx-auto flex items-center justify-between p-4">
         <div className="flex items-center gap-3">
           <span className="text-xl font-bold">🏥 Health School CBT</span>
-          <span className="text-xs bg-emerald-100 text-emerald-700 px-2 py-1 rounded-full">12 Questions</span>
+          <span className="text-xs bg-emerald-100 text-emerald-700 px-2 py-1 rounded-full">Flexible Exams</span>
         </div>
         <div className="flex items-center gap-3">
           {user ? (
@@ -354,14 +427,17 @@ function Login({onLogin}){
 }
 
 function AdminPanel(){
-  const [examTitle, setExamTitle] = useState(localStorage.getItem(LS_KEYS.ACTIVE_EXAM) || DEFAULT_EXAM_TITLE);
+  const [activeTab, setActiveTab] = useState("exams"); // "exams", "questions", "results", "students"
+  const [exams, setExams] = useState(loadExams());
   const [questions, setQuestions] = useState(loadQuestions());
   const [results, setResults] = useState(loadResults());
   const [importError, setImportError] = useState("");
+  const [showCreateExam, setShowCreateExam] = useState(false);
+  const [selectedExam, setSelectedExam] = useState(null);
 
   useEffect(()=>{
-    localStorage.setItem(LS_KEYS.ACTIVE_EXAM, examTitle);
-  }, [examTitle]);
+    setExams(loadExams());
+  }, []);
 
   useEffect(()=>{
     localStorage.setItem(LS_KEYS.QUESTIONS, JSON.stringify(questions));
@@ -378,15 +454,14 @@ function AdminPanel(){
       const { value: markdown } = await mammoth.convertToMarkdown({ arrayBuffer });
       const parsed = parseQuestionsFromMarkdown(markdown);
       if (parsed.length === 0) throw new Error("No questions found. Ensure .docx uses the specified format.");
-      const take12 = parsed.slice(0,12);
-      setQuestions(take12);
+      setQuestions(parsed); // No longer limited to 12 questions
     } catch (e) {
       setImportError(e.message || "Failed to import .docx");
     }
   };
 
   const addBlankQuestion = () => {
-    setQuestions(q => [...q, {id:crypto.randomUUID(), text:"New question text", options:["Option A","Option B","Option C","Option D"], correctIndex:0}].slice(0,12));
+    setQuestions(q => [...q, {id:crypto.randomUUID(), text:"New question text", options:["Option A","Option B","Option C","Option D"], correctIndex:0}]);
   };
 
   const exportResultsToExcel = () => {
@@ -423,44 +498,274 @@ function AdminPanel(){
     saveAs(blob, "CBT_Results.docx");
   };
 
+  const handleCreateExam = (examData) => {
+    const newExam = createExam(examData);
+    setExams(loadExams());
+    setShowCreateExam(false);
+    setSelectedExam(newExam);
+    setActiveTab("questions");
+  };
+
+  const handleActivateExam = (examId) => {
+    setActiveExam(examId);
+    setExams(loadExams());
+  };
+
+  const handleDeleteExam = (examId) => {
+    if (confirm("Are you sure you want to delete this exam? This action cannot be undone.")) {
+      deleteExam(examId);
+      setExams(loadExams());
+    }
+  };
+
+  const activeExam = getActiveExam();
+
   return (
     <div className="space-y-8">
-      <Section title="Exam Settings">
-        <div className="grid sm:grid-cols-2 gap-4">
-          <div>
-            <label className="block text-sm mb-1">Exam Title</label>
-            <input value={examTitle} onChange={e=>setExamTitle(e.target.value)} className="w-full border rounded-xl px-3 py-2"/>
+      {/* Tab Navigation */}
+      <div className="flex space-x-1 bg-gray-100 p-1 rounded-xl">
+        {[
+          { id: "exams", label: "📋 Exam Management", icon: "📋" },
+          { id: "questions", label: "❓ Questions", icon: "❓" },
+          { id: "results", label: "📊 Results", icon: "📊" },
+          { id: "students", label: "👥 Students", icon: "👥" }
+        ].map(tab => (
+          <button
+            key={tab.id}
+            onClick={() => setActiveTab(tab.id)}
+            className={`flex-1 py-2 px-3 rounded-lg text-sm font-medium transition-colors ${
+              activeTab === tab.id
+                ? "bg-white text-blue-600 shadow-sm"
+                : "text-gray-600 hover:text-gray-900"
+            }`}
+          >
+            {tab.label}
+          </button>
+        ))}
+      </div>
+
+      {/* Exam Management Tab */}
+      {activeTab === "exams" && (
+        <div className="space-y-6">
+          <Section title="Exam Management">
+            <div className="flex justify-between items-center mb-4">
+              <div>
+                <h3 className="text-lg font-semibold">Available Exams</h3>
+                <p className="text-sm text-gray-600">Create and manage exam events for students</p>
+              </div>
+              <button
+                onClick={() => setShowCreateExam(true)}
+                className="px-4 py-2 bg-blue-600 text-white rounded-xl hover:bg-blue-700"
+              >
+                + Create New Exam
+              </button>
+            </div>
+
+            {exams.length === 0 ? (
+              <div className="text-center py-8 text-gray-500">
+                <p>No exams created yet.</p>
+                <p className="text-sm mt-2">Create your first exam to get started.</p>
+              </div>
+            ) : (
+              <div className="grid gap-4">
+                {exams.map(exam => (
+                  <div key={exam.id} className="border rounded-xl p-4 bg-white">
+                    <div className="flex justify-between items-start">
+                      <div className="flex-1">
+                        <h4 className="font-semibold text-lg">{exam.title}</h4>
+                        <p className="text-sm text-gray-600">{exam.description}</p>
+                        <div className="flex gap-4 mt-2 text-xs text-gray-500">
+                          <span>Questions: {exam.questionCount || 0}</span>
+                          <span>Duration: {exam.duration} minutes</span>
+                          <span>Created: {new Date(exam.createdAt).toLocaleDateString()}</span>
+                        </div>
+                      </div>
+                      <div className="flex gap-2">
+                        {exam.isActive ? (
+                          <span className="px-2 py-1 bg-green-100 text-green-700 rounded-full text-xs">
+                            Active
+                          </span>
+                        ) : (
+                          <button
+                            onClick={() => handleActivateExam(exam.id)}
+                            className="px-3 py-1 bg-blue-600 text-white rounded-lg text-xs hover:bg-blue-700"
+                          >
+                            Activate
+                          </button>
+                        )}
+                        <button
+                          onClick={() => handleDeleteExam(exam.id)}
+                          className="px-3 py-1 bg-red-600 text-white rounded-lg text-xs hover:bg-red-700"
+                        >
+                          Delete
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </Section>
+
+          {activeExam && (
+            <Section title="Active Exam">
+              <div className="p-4 bg-green-50 border border-green-200 rounded-xl">
+                <h4 className="font-semibold text-green-800">{activeExam.title}</h4>
+                <p className="text-sm text-green-700">{activeExam.description}</p>
+                <div className="flex gap-4 mt-2 text-sm text-green-600">
+                  <span>Questions: {activeExam.questionCount || 0}</span>
+                  <span>Duration: {activeExam.duration} minutes</span>
+                </div>
+              </div>
+            </Section>
+          )}
+        </div>
+      )}
+
+      {/* Questions Tab */}
+      {activeTab === "questions" && (
+        <div className="space-y-6">
+          <Section title="Upload Questions from Microsoft Word (.docx)">
+            <UploadDocx onFile={handleDocxUpload} />
+            {importError && <div className="text-red-600 text-sm mt-2">{importError}</div>}
+            <FormatHelp />
+          </Section>
+
+          <Section title={`Questions (${questions.length})`}>
+            <div className="mb-4 p-3 bg-emerald-50 border border-emerald-200 rounded-xl">
+              <p className="text-sm text-emerald-800">
+                <strong>🔄 Randomization Active:</strong> Questions and answer options are automatically randomized for each student to prevent cheating.
+              </p>
+            </div>
+            <QuestionsEditor questions={questions} setQuestions={setQuestions} />
+          </Section>
+        </div>
+      )}
+
+      {/* Results Tab */}
+      {activeTab === "results" && (
+        <Section title="Exam Results">
+          <div className="mb-4 flex gap-2">
+            <button onClick={exportResultsToExcel} className="px-4 py-2 bg-green-600 text-white rounded-xl hover:bg-green-700">
+              Export to Excel
+            </button>
+            <button onClick={exportResultsToWord} className="px-4 py-2 bg-blue-600 text-white rounded-xl hover:bg-blue-700">
+              Export to Word
+            </button>
           </div>
-          <div className="text-sm text-gray-600 self-end">Exactly 12 questions are delivered to students. If more are uploaded, only the first 12 are used.</div>
-        </div>
-        <div className="mt-4 p-3 bg-emerald-50 border border-emerald-200 rounded-xl">
-          <p className="text-sm text-emerald-800">
-            <strong>🔄 Randomization Active:</strong> Questions and answer options are automatically randomized for each student to prevent cheating.
-          </p>
-        </div>
-      </Section>
+          <ResultsTable results={results} setResults={setResults} />
+        </Section>
+      )}
 
-      <Section title="Upload Questions from Microsoft Word (.docx)">
-        <UploadDocx onFile={handleDocxUpload} />
-        {importError && <div className="text-red-600 text-sm mt-2">{importError}</div>}
-        <FormatHelp />
-      </Section>
+      {/* Students Tab */}
+      {activeTab === "students" && (
+        <Section title="Student Management">
+          <StudentManagement />
+        </Section>
+      )}
 
-      <Section title={`Questions (${questions.length}/12)`}>
-        <QuestionsEditor questions={questions} setQuestions={setQuestions} />
-      </Section>
+      {/* Create Exam Modal */}
+      {showCreateExam && (
+        <CreateExamModal onClose={() => setShowCreateExam(false)} onCreate={handleCreateExam} />
+      )}
+    </div>
+  );
+}
 
-      <Section title="Student Management">
-        <StudentManagement />
-      </Section>
+function CreateExamModal({ onClose, onCreate }) {
+  const [title, setTitle] = useState("");
+  const [description, setDescription] = useState("");
+  const [duration, setDuration] = useState(60);
+  const [questionCount, setQuestionCount] = useState(12);
 
-      <Section title="Results">
-        <ResultsTable results={results} setResults={setResults} />
-        <div className="flex flex-wrap gap-3 mt-4">
-          <button onClick={exportResultsToExcel} className="px-4 py-2 rounded-xl bg-blue-600 text-white hover:bg-blue-700">Export to Excel (.xlsx)</button>
-          <button onClick={exportResultsToWord} className="px-4 py-2 rounded-xl bg-indigo-600 text-white hover:bg-indigo-700">Export to Word (.docx)</button>
-        </div>
-      </Section>
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    if (!title.trim()) {
+      alert("Please enter an exam title");
+      return;
+    }
+    
+    onCreate({
+      title: title.trim(),
+      description: description.trim(),
+      duration: parseInt(duration),
+      questionCount: parseInt(questionCount)
+    });
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+      <div className="bg-white rounded-xl p-6 max-w-md mx-4 w-full">
+        <h3 className="text-lg font-bold mb-4">Create New Exam</h3>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <label className="block text-sm mb-1">Exam Title *</label>
+            <input
+              type="text"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              className="w-full border rounded-xl px-3 py-2"
+              placeholder="e.g., Midterm Exam - Biology 101"
+              required
+            />
+          </div>
+          
+          <div>
+            <label className="block text-sm mb-1">Description</label>
+            <textarea
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              className="w-full border rounded-xl px-3 py-2"
+              placeholder="Brief description of the exam"
+              rows="3"
+            />
+          </div>
+          
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm mb-1">Duration (minutes)</label>
+              <input
+                type="number"
+                value={duration}
+                onChange={(e) => setDuration(e.target.value)}
+                className="w-full border rounded-xl px-3 py-2"
+                min="15"
+                max="300"
+                required
+              />
+            </div>
+            
+            <div>
+              <label className="block text-sm mb-1">Question Count</label>
+              <input
+                type="number"
+                value={questionCount}
+                onChange={(e) => setQuestionCount(e.target.value)}
+                className="w-full border rounded-xl px-3 py-2"
+                min="1"
+                max="100"
+                required
+              />
+            </div>
+          </div>
+          
+          <div className="flex gap-2 pt-4">
+            <button
+              type="button"
+              onClick={onClose}
+              className="flex-1 px-4 py-2 border border-gray-300 rounded-xl hover:bg-gray-50"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-xl hover:bg-blue-700"
+            >
+              Create Exam
+            </button>
+          </div>
+        </form>
+      </div>
     </div>
   );
 }
@@ -690,7 +995,7 @@ function QuestionsEditor({questions, setQuestions}){
     setQuestions(questions.map((q,idx)=> idx===i ? {...q, ...patch} : q));
   };
   const removeQ = (i) => setQuestions(questions.filter((_,idx)=>idx!==i));
-  const add = () => setQuestions((qs)=>[...qs, {id:crypto.randomUUID(), text:"New question text", options:["Option A","Option B","Option C","Option D"], correctIndex:0}].slice(0,12));
+  const add = () => setQuestions((qs)=>[...qs, {id:crypto.randomUUID(), text:"New question text", options:["Option A","Option B","Option C","Option D"], correctIndex:0}]);
 
   return (
     <div className="space-y-4">
@@ -718,16 +1023,14 @@ function QuestionsEditor({questions, setQuestions}){
           </div>
         </div>
       ))}
-      {questions.length < 12 && (
-        <button onClick={add} className="px-4 py-2 rounded-xl bg-emerald-600 text-white">Add Question</button>
-      )}
+      <button onClick={add} className="px-4 py-2 rounded-xl bg-emerald-600 text-white">Add Question</button>
     </div>
   );
 }
 
 function StudentPanel({user}){
   const [questions, setQuestions] = useState([]);
-  const [examTitle] = useState(localStorage.getItem(LS_KEYS.ACTIVE_EXAM) || DEFAULT_EXAM_TITLE);
+  const [activeExam, setActiveExam] = useState(getActiveExam());
   const [answers, setAnswers] = useState([]);
   const [submitted, setSubmitted] = useState(false);
   const [score, setScore] = useState(0);
@@ -735,10 +1038,15 @@ function StudentPanel({user}){
   useEffect(()=>{
     // Load and randomize questions for this student
     const originalQuestions = loadQuestions();
-    if (originalQuestions.length > 0) {
-      const randomizedQuestions = randomizeQuestions(originalQuestions);
+    const currentActiveExam = getActiveExam();
+    
+    if (originalQuestions.length > 0 && currentActiveExam) {
+      // Limit questions to the exam's question count
+      const limitedQuestions = originalQuestions.slice(0, currentActiveExam.questionCount);
+      const randomizedQuestions = randomizeQuestions(limitedQuestions);
       setQuestions(randomizedQuestions);
       setAnswers(Array(randomizedQuestions.length).fill(-1));
+      setActiveExam(currentActiveExam);
     }
   }, []);
 
@@ -786,7 +1094,7 @@ function StudentPanel({user}){
       percent: Math.round((s/questions.length)*100),
       submittedAt: new Date().toISOString(),
       answers,
-      examTitle,
+      examTitle: activeExam ? activeExam.title : DEFAULT_EXAM_TITLE,
       questionOrder: questions.map(q => q.originalId), // Store question order for admin review
     };
     const old = loadResults();
@@ -794,11 +1102,20 @@ function StudentPanel({user}){
     localStorage.setItem(LS_KEYS.RESULTS, JSON.stringify(old));
   };
 
+  if (!activeExam) {
+    return (
+      <div className="bg-white rounded-2xl shadow p-6">
+        <h3 className="text-lg font-bold mb-2">No Active Exam</h3>
+        <p className="text-sm text-gray-600">There is currently no active exam. Please contact your administrator.</p>
+      </div>
+    );
+  }
+
   if (questions.length === 0) {
     return (
       <div className="bg-white rounded-2xl shadow p-6">
-        <h3 className="text-lg font-bold mb-2">No active exam</h3>
-        <p className="text-sm text-gray-600">Please contact your administrator.</p>
+        <h3 className="text-lg font-bold mb-2">No Questions Available</h3>
+        <p className="text-sm text-gray-600">The exam "{activeExam.title}" has no questions. Please contact your administrator.</p>
       </div>
     );
   }
@@ -807,7 +1124,7 @@ function StudentPanel({user}){
     return (
       <div className="bg-white rounded-2xl shadow p-6">
         <h3 className="text-lg font-bold mb-2">Submission Successful</h3>
-        <p className="mb-2">Exam: <b>{examTitle}</b></p>
+        <p className="mb-2">Exam: <b>{activeExam.title}</b></p>
         <p className="mb-4">Score: <b>{score}</b> / {questions.length} ({Math.round((score/questions.length)*100)}%)</p>
         <p className="text-sm text-gray-600">You may close this page. Your result has been recorded.</p>
       </div>
@@ -817,9 +1134,13 @@ function StudentPanel({user}){
   return (
     <div className="space-y-6">
       <div className="bg-white rounded-2xl shadow p-6">
-        <h3 className="text-lg font-bold mb-1">{examTitle}</h3>
-        <p className="text-sm text-gray-600">Answer all questions. Select the best option.</p>
-        <p className="text-xs text-emerald-600 mt-1">⚠️ Questions are randomized for each student</p>
+        <h3 className="text-lg font-bold mb-1">{activeExam.title}</h3>
+        <p className="text-sm text-gray-600 mb-2">{activeExam.description}</p>
+        <div className="flex gap-4 text-xs text-gray-500 mb-2">
+          <span>Duration: {activeExam.duration} minutes</span>
+          <span>Questions: {questions.length}</span>
+        </div>
+        <p className="text-xs text-emerald-600">⚠️ Questions are randomized for each student</p>
       </div>
       {questions.map((q, i)=> (
         <div key={q.id} className="bg-white rounded-2xl shadow p-6">
