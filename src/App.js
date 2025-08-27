@@ -452,10 +452,21 @@ function AdminPanel(){
     try {
       const arrayBuffer = await file.arrayBuffer();
       const { value: markdown } = await mammoth.convertToMarkdown({ arrayBuffer });
+      
+      console.log("Raw markdown from document:", markdown.substring(0, 500) + "...");
+      
       const parsed = parseQuestionsFromMarkdown(markdown);
-      if (parsed.length === 0) throw new Error("No questions found. Ensure .docx uses the specified format.");
-      setQuestions(parsed); // No longer limited to 12 questions
+      console.log("Parsed questions:", parsed.length, parsed);
+      
+      if (parsed.length === 0) {
+        throw new Error("No questions found. Please check the document format. Make sure each question starts with a number (1, 2, 3...) or Q, has 4 options (A, B, C, D), and ends with 'Answer: X'.");
+      }
+      
+      setQuestions(parsed);
+      setImportError(`Successfully imported ${parsed.length} questions!`);
+      setTimeout(() => setImportError(""), 3000); // Clear success message after 3 seconds
     } catch (e) {
+      console.error("Upload error:", e);
       setImportError(e.message || "Failed to import .docx");
     }
   };
@@ -935,42 +946,33 @@ function UploadDocx({onFile}){
 function FormatHelp(){
   return (
     <details className="mt-4 text-sm cursor-pointer">
-      <summary className="font-semibold">📄 Flexible .docx Question Formats (Multiple Options)</summary>
+      <summary className="font-semibold">📄 Flexible .docx Question Formats (Multiple Questions)</summary>
       <div className="mt-2 bg-gray-50 border rounded-xl p-3">
         <div className="space-y-4">
           <div>
-            <h4 className="font-semibold text-green-700">✅ Format 1: Traditional</h4>
+            <h4 className="font-semibold text-green-700">✅ Complete Example with Multiple Questions</h4>
             <pre className="whitespace-pre-wrap text-xs bg-white p-2 rounded">{`1) What is the normal adult resting heart rate?
 A) 10-20 bpm
 B) 30-40 bpm
 C) 60-100 bpm
 D) 120-160 bpm
-Answer: C`}</pre>
-          </div>
-          
-          <div>
-            <h4 className="font-semibold text-blue-700">✅ Format 2: With Periods</h4>
-            <pre className="whitespace-pre-wrap text-xs bg-white p-2 rounded">{`2. Which vitamin is synthesized by sunlight?
-A. Vitamin A
-B. Vitamin C
-C. Vitamin D
-D. Vitamin K
-Answer: C`}</pre>
-          </div>
-          
-          <div>
-            <h4 className="font-semibold text-purple-700">✅ Format 3: Numbers Instead of Letters</h4>
-            <pre className="whitespace-pre-wrap text-xs bg-white p-2 rounded">{`3) What is the capital of Nigeria?
-1) Lagos
-2) Abuja
-3) Kano
-4) Ibadan
-Answer: 2`}</pre>
-          </div>
-          
-          <div>
-            <h4 className="font-semibold text-orange-700">✅ Format 4: Q Prefix</h4>
-            <pre className="whitespace-pre-wrap text-xs bg-white p-2 rounded">{`Q4. What does CBT stand for?
+Answer: C
+
+2) Which vitamin is primarily synthesized by sunlight exposure?
+A) Vitamin A
+B) Vitamin C
+C) Vitamin D
+D) Vitamin K
+Answer: C
+
+3) What is the primary function of red blood cells?
+A) Fight infection
+B) Carry oxygen
+C) Form blood clots
+D) Produce antibodies
+Answer: B
+
+4) What does CBT stand for?
 A) Computer Based Training
 B) Computer Based Testing
 C) Computer Based Technology
@@ -978,10 +980,34 @@ D) Computer Based Teaching
 Answer: B`}</pre>
           </div>
           
+          <div>
+            <h4 className="font-semibold text-blue-700">✅ Alternative Formats Supported</h4>
+            <pre className="whitespace-pre-wrap text-xs bg-white p-2 rounded">{`Q1. Question with Q prefix?
+A. Option A
+B. Option B
+C. Option C
+D. Option D
+Answer: C
+
+2. Question with periods?
+1) Option 1
+2) Option 2
+3) Option 3
+4) Option 4
+Answer: 2`}</pre>
+          </div>
+          
           <div className="mt-3 p-2 bg-yellow-50 border-l-4 border-yellow-400">
             <p className="text-xs text-yellow-800">
-              <strong>💡 Smart Parser:</strong> The system automatically detects and handles all these formats. 
-              Just make sure each question has exactly 4 options and an answer line.
+              <strong>💡 Smart Parser:</strong> The system automatically detects multiple questions in your document. 
+              Each question must have exactly 4 options and an answer line. Questions can be separated by blank lines.
+            </p>
+          </div>
+          
+          <div className="mt-3 p-2 bg-blue-50 border-l-4 border-blue-400">
+            <p className="text-xs text-blue-800">
+              <strong>🔍 Debugging:</strong> Check the browser console (F12) to see detailed parsing information 
+              when you upload a document.
             </p>
           </div>
         </div>
@@ -1241,58 +1267,49 @@ function parseQuestionsFromMarkdown(md) {
   const text = md.replace(/\r/g, "").trim();
   const questions = [];
   
-  // Split into potential question blocks (separated by double newlines or question numbers)
-  const blocks = text.split(/\n\s*\n/).map(b => b.trim()).filter(Boolean);
+  // Split the text into lines
+  const lines = text.split('\n').map(line => line.trim());
   
-  for (const block of blocks) {
-    try {
-      const question = parseQuestionBlock(block);
-      if (question) {
-        questions.push(question);
-      }
-    } catch (error) {
-      console.log("Skipping invalid block:", block.substring(0, 100));
-    }
-  }
+  let currentQuestion = null;
+  let currentOptions = [];
+  let currentAnswer = null;
+  let questionNumber = 0;
   
-  return questions;
-}
-
-function parseQuestionBlock(block) {
-  const lines = block.split('\n').map(line => line.trim()).filter(Boolean);
-  if (lines.length < 5) return null; // Need at least question + 4 options
-  
-  let questionText = "";
-  const options = [];
-  let correctAnswer = null;
-  
-  // Find question line (starts with number or Q)
-  let questionLineIndex = -1;
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
-    if (/^(\d+|[Qq])\s*[\.\)]?\s*/.test(line)) {
-      questionLineIndex = i;
-      questionText = line.replace(/^(\d+|[Qq])\s*[\.\)]?\s*/, '').trim();
-      break;
+    
+    // Skip empty lines
+    if (!line) continue;
+    
+    // Check if this line starts a new question
+    const questionMatch = line.match(/^(\d+|[Qq])\s*[\.\)]?\s*(.+)$/);
+    if (questionMatch) {
+      // Save previous question if it exists
+      if (currentQuestion && currentOptions.length === 4 && currentAnswer !== null) {
+        const question = createQuestionObject(currentQuestion, currentOptions, currentAnswer);
+        if (question) {
+          questions.push(question);
+        }
+      }
+      
+      // Start new question
+      questionNumber++;
+      currentQuestion = questionMatch[2].trim();
+      currentOptions = [];
+      currentAnswer = null;
+      continue;
     }
-  }
-  
-  if (questionLineIndex === -1) return null;
-  
-  // Parse options (look for A-D, 1-4, or a-d patterns)
-  for (let i = questionLineIndex + 1; i < lines.length; i++) {
-    const line = lines[i];
     
     // Check if this is an answer line
-    if (/^[Aa]nswer\s*[:\-]?\s*([A-Da-d1-4])/i.test(line)) {
-      const match = line.match(/^[Aa]nswer\s*[:\-]?\s*([A-Da-d1-4])/i);
-      correctAnswer = match[1].toUpperCase();
+    const answerMatch = line.match(/^[Aa]nswer\s*[:\-]?\s*([A-Da-d1-4])/i);
+    if (answerMatch) {
+      currentAnswer = answerMatch[1].toUpperCase();
       continue;
     }
     
     // Check if this is an option line
     const optionMatch = line.match(/^([A-Da-d1-4])\s*[\.\)]?\s*(.+)$/);
-    if (optionMatch && options.length < 4) {
+    if (optionMatch && currentOptions.length < 4) {
       const optionLetter = optionMatch[1].toUpperCase();
       const optionText = optionMatch[2].trim();
       
@@ -1302,24 +1319,53 @@ function parseQuestionBlock(block) {
                          optionLetter === '3' ? 'C' : 
                          optionLetter === '4' ? 'D' : optionLetter;
       
-      options.push({ letter: optionIndex, text: optionText });
+      currentOptions.push({ letter: optionIndex, text: optionText });
+      continue;
+    }
+    
+    // If we have a question but no options yet, this might be continuation of question text
+    if (currentQuestion && currentOptions.length === 0 && !line.match(/^[A-Da-d1-4]/)) {
+      currentQuestion += ' ' + line;
     }
   }
   
+  // Don't forget the last question
+  if (currentQuestion && currentOptions.length === 4 && currentAnswer !== null) {
+    const question = createQuestionObject(currentQuestion, currentOptions, currentAnswer);
+    if (question) {
+      questions.push(question);
+    }
+  }
+  
+  console.log(`Parsed ${questions.length} questions from document`);
+  return questions;
+}
+
+function createQuestionObject(questionText, options, correctAnswer) {
   // Validate we have enough data
   if (!questionText || options.length !== 4 || !correctAnswer) {
+    console.log("Invalid question data:", { questionText, optionsLength: options.length, correctAnswer });
     return null;
   }
   
   // Convert answer to index
   const answerIndex = { 'A': 0, 'B': 1, 'C': 2, 'D': 3 }[correctAnswer];
-  if (answerIndex === undefined) return null;
+  if (answerIndex === undefined) {
+    console.log("Invalid answer:", correctAnswer);
+    return null;
+  }
   
   // Sort options by A, B, C, D order
   const sortedOptions = ['A', 'B', 'C', 'D'].map(letter => {
     const option = options.find(opt => opt.letter === letter);
     return option ? option.text : '';
   });
+  
+  // Check if all options are present
+  if (sortedOptions.some(opt => !opt)) {
+    console.log("Missing options:", sortedOptions);
+    return null;
+  }
   
   return {
     id: crypto.randomUUID(),
