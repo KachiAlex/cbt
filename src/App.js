@@ -606,9 +606,23 @@ function Section({title, children}){
 
 function UploadDocx({onFile}){
   return (
-    <div className="border-2 border-dashed rounded-2xl p-6 text-center">
-      <p className="mb-3">Upload a <b>.docx</b> file with your questions.</p>
-      <input type="file" accept=".docx" onChange={e=>{ if (e.target.files && e.target.files[0]) onFile(e.target.files[0]); }}/>
+    <div className="border-2 border-dashed border-blue-300 rounded-2xl p-6 text-center bg-blue-50">
+      <div className="mb-4">
+        <svg className="mx-auto h-12 w-12 text-blue-400" stroke="currentColor" fill="none" viewBox="0 0 48 48">
+          <path d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8m-12 4h.02" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+      </div>
+      <p className="text-lg font-semibold text-gray-700 mb-2">Upload Your Questions</p>
+      <p className="text-sm text-gray-600 mb-4">Drag and drop a .docx file here, or click to browse</p>
+      <input 
+        type="file" 
+        accept=".docx" 
+        onChange={e=>{ if (e.target.files && e.target.files[0]) onFile(e.target.files[0]); }}
+        className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+      />
+      <p className="text-xs text-gray-500 mt-3">
+        💡 The system supports multiple question formats - see format guide below
+      </p>
     </div>
   );
 }
@@ -616,27 +630,56 @@ function UploadDocx({onFile}){
 function FormatHelp(){
   return (
     <details className="mt-4 text-sm cursor-pointer">
-      <summary className="font-semibold">.docx Question Format (example)</summary>
+      <summary className="font-semibold">📄 Flexible .docx Question Formats (Multiple Options)</summary>
       <div className="mt-2 bg-gray-50 border rounded-xl p-3">
-        <pre className="whitespace-pre-wrap text-xs">{`Use the following pattern per question in your Word document (.docx):
-
-1) What is the normal adult resting heart rate?
+        <div className="space-y-4">
+          <div>
+            <h4 className="font-semibold text-green-700">✅ Format 1: Traditional</h4>
+            <pre className="whitespace-pre-wrap text-xs bg-white p-2 rounded">{`1) What is the normal adult resting heart rate?
 A) 10-20 bpm
 B) 30-40 bpm
 C) 60-100 bpm
 D) 120-160 bpm
-Answer: C
-
-2) Which vitamin is primarily synthesized by sunlight exposure?
-A) Vitamin A
-B) Vitamin C
-C) Vitamin D
-D) Vitamin K
-Answer: C
-
-- Questions must have A) .. D) options (4 options) and an Answer: letter.
-- The system will import the FIRST 12 questions.
-`}</pre>
+Answer: C`}</pre>
+          </div>
+          
+          <div>
+            <h4 className="font-semibold text-blue-700">✅ Format 2: With Periods</h4>
+            <pre className="whitespace-pre-wrap text-xs bg-white p-2 rounded">{`2. Which vitamin is synthesized by sunlight?
+A. Vitamin A
+B. Vitamin C
+C. Vitamin D
+D. Vitamin K
+Answer: C`}</pre>
+          </div>
+          
+          <div>
+            <h4 className="font-semibold text-purple-700">✅ Format 3: Numbers Instead of Letters</h4>
+            <pre className="whitespace-pre-wrap text-xs bg-white p-2 rounded">{`3) What is the capital of Nigeria?
+1) Lagos
+2) Abuja
+3) Kano
+4) Ibadan
+Answer: 2`}</pre>
+          </div>
+          
+          <div>
+            <h4 className="font-semibold text-orange-700">✅ Format 4: Q Prefix</h4>
+            <pre className="whitespace-pre-wrap text-xs bg-white p-2 rounded">{`Q4. What does CBT stand for?
+A) Computer Based Training
+B) Computer Based Testing
+C) Computer Based Technology
+D) Computer Based Teaching
+Answer: B`}</pre>
+          </div>
+          
+          <div className="mt-3 p-2 bg-yellow-50 border-l-4 border-yellow-400">
+            <p className="text-xs text-yellow-800">
+              <strong>💡 Smart Parser:</strong> The system automatically detects and handles all these formats. 
+              Just make sure each question has exactly 4 options and an answer line.
+            </p>
+          </div>
+        </div>
       </div>
     </details>
   );
@@ -872,27 +915,97 @@ function loadResults(){
   } catch { return []; }
 }
 
-// Parse .docx converted markdown with pattern:
-// n) Question text\nA) option\nB) option\nC) option\nD) option\nAnswer: X
-function parseQuestionsFromMarkdown(md){
-  const blocks = md.split(/\n\s*\n/).map(b=>b.trim()).filter(Boolean);
-  const out = [];
-
-  // Join into a single string to allow regex spanning blocks
-  const text = md.replace(/\r/g, "");
-  const qRegex = /(\d+)\)\s*([^\n]+)\nA\)\s*([^\n]+)\nB\)\s*([^\n]+)\nC\)\s*([^\n]+)\nD\)\s*([^\n]+)\nAnswer:\s*([ABCD])/g;
-  let m;
-  while ((m = qRegex.exec(text)) !== null) {
-    const [, , qText, A, B, C, D, ans] = m;
-    const idx = {A:0,B:1,C:2,D:3}[ans]; 
-    out.push({
-      id: crypto.randomUUID(),
-      text: qText.trim(),
-      options: [A,B,C,D].map(s=>s.trim()),
-      correctIndex: idx,
-    });
+// Smart and flexible document parser that handles multiple formats
+function parseQuestionsFromMarkdown(md) {
+  const text = md.replace(/\r/g, "").trim();
+  const questions = [];
+  
+  // Split into potential question blocks (separated by double newlines or question numbers)
+  const blocks = text.split(/\n\s*\n/).map(b => b.trim()).filter(Boolean);
+  
+  for (const block of blocks) {
+    try {
+      const question = parseQuestionBlock(block);
+      if (question) {
+        questions.push(question);
+      }
+    } catch (error) {
+      console.log("Skipping invalid block:", block.substring(0, 100));
+    }
   }
-  return out;
+  
+  return questions;
+}
+
+function parseQuestionBlock(block) {
+  const lines = block.split('\n').map(line => line.trim()).filter(Boolean);
+  if (lines.length < 5) return null; // Need at least question + 4 options
+  
+  let questionText = "";
+  const options = [];
+  let correctAnswer = null;
+  
+  // Find question line (starts with number or Q)
+  let questionLineIndex = -1;
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    if (/^(\d+|[Qq])\s*[\.\)]?\s*/.test(line)) {
+      questionLineIndex = i;
+      questionText = line.replace(/^(\d+|[Qq])\s*[\.\)]?\s*/, '').trim();
+      break;
+    }
+  }
+  
+  if (questionLineIndex === -1) return null;
+  
+  // Parse options (look for A-D, 1-4, or a-d patterns)
+  for (let i = questionLineIndex + 1; i < lines.length; i++) {
+    const line = lines[i];
+    
+    // Check if this is an answer line
+    if (/^[Aa]nswer\s*[:\-]?\s*([A-Da-d1-4])/i.test(line)) {
+      const match = line.match(/^[Aa]nswer\s*[:\-]?\s*([A-Da-d1-4])/i);
+      correctAnswer = match[1].toUpperCase();
+      continue;
+    }
+    
+    // Check if this is an option line
+    const optionMatch = line.match(/^([A-Da-d1-4])\s*[\.\)]?\s*(.+)$/);
+    if (optionMatch && options.length < 4) {
+      const optionLetter = optionMatch[1].toUpperCase();
+      const optionText = optionMatch[2].trim();
+      
+      // Convert 1-4 to A-D
+      const optionIndex = optionLetter === '1' ? 'A' : 
+                         optionLetter === '2' ? 'B' : 
+                         optionLetter === '3' ? 'C' : 
+                         optionLetter === '4' ? 'D' : optionLetter;
+      
+      options.push({ letter: optionIndex, text: optionText });
+    }
+  }
+  
+  // Validate we have enough data
+  if (!questionText || options.length !== 4 || !correctAnswer) {
+    return null;
+  }
+  
+  // Convert answer to index
+  const answerIndex = { 'A': 0, 'B': 1, 'C': 2, 'D': 3 }[correctAnswer];
+  if (answerIndex === undefined) return null;
+  
+  // Sort options by A, B, C, D order
+  const sortedOptions = ['A', 'B', 'C', 'D'].map(letter => {
+    const option = options.find(opt => opt.letter === letter);
+    return option ? option.text : '';
+  });
+  
+  return {
+    id: crypto.randomUUID(),
+    text: questionText,
+    options: sortedOptions,
+    correctIndex: answerIndex
+  };
 }
 
 export default App;
