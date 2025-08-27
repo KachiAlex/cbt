@@ -20,9 +20,20 @@ const LS_KEYS = {
   QUESTIONS: "cbt_questions_v1",
   RESULTS: "cbt_results_v1",
   ACTIVE_EXAM: "cbt_active_exam_v1",
+  USERS: "cbt_users_v1",
+  STUDENT_REGISTRATIONS: "cbt_student_registrations_v1"
 };
 
 const DEFAULT_EXAM_TITLE = "Health School CBT – 12 Questions";
+
+// Default admin user
+const DEFAULT_ADMIN = {
+  username: "admin",
+  password: "admin123",
+  role: "admin",
+  fullName: "System Administrator",
+  email: "admin@healthschool.com"
+};
 
 function App() {
   const [user, setUser] = useState(null);
@@ -61,6 +72,67 @@ function App() {
   );
 }
 
+// User management functions
+function loadUsers() {
+  const saved = localStorage.getItem(LS_KEYS.USERS);
+  if (!saved) {
+    // Initialize with default admin
+    const defaultUsers = [DEFAULT_ADMIN];
+    localStorage.setItem(LS_KEYS.USERS, JSON.stringify(defaultUsers));
+    return defaultUsers;
+  }
+  return JSON.parse(saved);
+}
+
+function saveUsers(users) {
+  localStorage.setItem(LS_KEYS.USERS, JSON.stringify(users));
+}
+
+function authenticateUser(username, password) {
+  const users = loadUsers();
+  const user = users.find(u => u.username === username);
+  
+  if (!user) return null;
+  if (user.password !== password) return null;
+  
+  return { username: user.username, role: user.role, fullName: user.fullName, email: user.email };
+}
+
+function registerStudent(studentData) {
+  const users = loadUsers();
+  
+  // Check if username already exists
+  if (users.find(u => u.username === studentData.username)) {
+    throw new Error("Username already exists. Please choose a different username.");
+  }
+  
+  // Check if email already exists
+  if (users.find(u => u.email === studentData.email)) {
+    throw new Error("Email already registered. Please use a different email.");
+  }
+  
+  const newStudent = {
+    ...studentData,
+    role: "student",
+    registeredAt: new Date().toISOString()
+  };
+  
+  users.push(newStudent);
+  saveUsers(users);
+  
+  // Also save to registrations for admin tracking
+  const registrations = loadStudentRegistrations();
+  registrations.push(newStudent);
+  localStorage.setItem(LS_KEYS.STUDENT_REGISTRATIONS, JSON.stringify(registrations));
+  
+  return newStudent;
+}
+
+function loadStudentRegistrations() {
+  const saved = localStorage.getItem(LS_KEYS.STUDENT_REGISTRATIONS);
+  return saved ? JSON.parse(saved) : [];
+}
+
 function Header({user, onLogout}){
   return (
     <div className="bg-white border-b">
@@ -72,7 +144,7 @@ function Header({user, onLogout}){
         <div className="flex items-center gap-3">
           {user ? (
             <>
-              <span className="text-sm">Logged in as <b>{user.username}</b> ({user.role})</span>
+              <span className="text-sm">Logged in as <b>{user.fullName || user.username}</b> ({user.role})</span>
               <button onClick={onLogout} className="px-3 py-1.5 rounded-xl bg-gray-800 text-white text-sm hover:bg-black">Logout</button>
             </>
           ) : null}
@@ -83,51 +155,199 @@ function Header({user, onLogout}){
 }
 
 function Login({onLogin}){
+  const [mode, setMode] = useState("login"); // "login" or "register"
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
+  const [fullName, setFullName] = useState("");
+  const [email, setEmail] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [role, setRole] = useState("student");
   const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
 
-  const handleSubmit = (e) => {
+  const handleLogin = (e) => {
     e.preventDefault();
-    // Simple demo auth
+    setError("");
+    
+    if (!username || !password) {
+      setError("Please enter both username and password");
+      return;
+    }
+
     if (role === "admin") {
       if (username === "admin" && password === "admin123") {
-        onLogin({username, role:"admin"});
+        onLogin({username, role:"admin", fullName: "System Administrator", email: "admin@healthschool.com"});
       } else {
         setError("Invalid admin credentials. Use admin / admin123");
       }
     } else {
-      if (!username) return setError("Please enter a username");
-      onLogin({username, role:"student"});
+      const user = authenticateUser(username, password);
+      if (user) {
+        onLogin(user);
+      } else {
+        setError("Invalid username or password. Please check your credentials or register as a new student.");
+      }
+    }
+  };
+
+  const handleRegister = (e) => {
+    e.preventDefault();
+    setError("");
+    setSuccess("");
+
+    // Validation
+    if (!username || !password || !fullName || !email) {
+      setError("Please fill in all required fields");
+      return;
+    }
+
+    if (password !== confirmPassword) {
+      setError("Passwords do not match");
+      return;
+    }
+
+    if (password.length < 6) {
+      setError("Password must be at least 6 characters long");
+      return;
+    }
+
+    if (!email.includes("@")) {
+      setError("Please enter a valid email address");
+      return;
+    }
+
+    try {
+      const studentData = {
+        username,
+        password,
+        fullName,
+        email
+      };
+      
+      registerStudent(studentData);
+      setSuccess("Registration successful! You can now login with your credentials.");
+      setMode("login");
+      setUsername("");
+      setPassword("");
+      setFullName("");
+      setEmail("");
+      setConfirmPassword("");
+    } catch (err) {
+      setError(err.message);
     }
   };
 
   return (
     <div className="max-w-md mx-auto bg-white rounded-2xl shadow p-6 mt-10">
-      <h2 className="text-xl font-bold mb-2">Login</h2>
-      <p className="text-sm text-gray-600 mb-6">Admin or Student access. Admin can upload questions from Microsoft Word (.docx) and export results to Excel/Word.</p>
-      {error && <div className="mb-3 text-red-600 text-sm">{error}</div>}
-      <form onSubmit={handleSubmit} className="space-y-4">
-        <div>
-          <label className="block text-sm mb-1">Role</label>
-          <select value={role} onChange={e=>setRole(e.target.value)} className="w-full border rounded-xl px-3 py-2">
-            <option value="student">Student</option>
-            <option value="admin">Admin</option>
-          </select>
-        </div>
-        <div>
-          <label className="block text-sm mb-1">Username</label>
-          <input value={username} onChange={e=>setUsername(e.target.value)} className="w-full border rounded-xl px-3 py-2" placeholder="e.g., jane.doe" />
-        </div>
-        <div>
-          <label className="block text-sm mb-1">Password</label>
-          <input type="password" value={password} onChange={e=>setPassword(e.target.value)} className="w-full border rounded-xl px-3 py-2" placeholder={role==="admin"?"admin123":"(optional for students)"} />
-        </div>
-        <button className="w-full bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl py-2.5 font-semibold">Enter</button>
-      </form>
-      <div className="mt-4 text-xs text-gray-500">
-        <p>Tip: Admin demo — <b>admin / admin123</b></p>
+      <div className="flex mb-6">
+        <button 
+          onClick={() => {setMode("login"); setError(""); setSuccess("");}} 
+          className={`flex-1 py-2 text-sm font-medium ${mode === "login" ? "text-emerald-600 border-b-2 border-emerald-600" : "text-gray-500"}`}
+        >
+          Login
+        </button>
+        <button 
+          onClick={() => {setMode("register"); setError(""); setSuccess("");}} 
+          className={`flex-1 py-2 text-sm font-medium ${mode === "register" ? "text-emerald-600 border-b-2 border-emerald-600" : "text-gray-500"}`}
+        >
+          Register
+        </button>
+      </div>
+
+      {error && <div className="mb-3 p-3 bg-red-50 border border-red-200 text-red-600 text-sm rounded-xl">{error}</div>}
+      {success && <div className="mb-3 p-3 bg-emerald-50 border border-emerald-200 text-emerald-600 text-sm rounded-xl">{success}</div>}
+
+      {mode === "login" ? (
+        <form onSubmit={handleLogin} className="space-y-4">
+          <div>
+            <label className="block text-sm mb-1">Role</label>
+            <select value={role} onChange={e=>setRole(e.target.value)} className="w-full border rounded-xl px-3 py-2">
+              <option value="student">Student</option>
+              <option value="admin">Admin</option>
+            </select>
+          </div>
+          <div>
+            <label className="block text-sm mb-1">Username</label>
+            <input 
+              value={username} 
+              onChange={e=>setUsername(e.target.value)} 
+              className="w-full border rounded-xl px-3 py-2" 
+              placeholder="Enter your username" 
+            />
+          </div>
+          <div>
+            <label className="block text-sm mb-1">Password</label>
+            <input 
+              type="password" 
+              value={password} 
+              onChange={e=>setPassword(e.target.value)} 
+              className="w-full border rounded-xl px-3 py-2" 
+              placeholder="Enter your password" 
+            />
+          </div>
+          <button className="w-full bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl py-2.5 font-semibold">
+            Login
+          </button>
+        </form>
+      ) : (
+        <form onSubmit={handleRegister} className="space-y-4">
+          <div>
+            <label className="block text-sm mb-1">Full Name *</label>
+            <input 
+              value={fullName} 
+              onChange={e=>setFullName(e.target.value)} 
+              className="w-full border rounded-xl px-3 py-2" 
+              placeholder="Enter your full name" 
+            />
+          </div>
+          <div>
+            <label className="block text-sm mb-1">Email *</label>
+            <input 
+              type="email" 
+              value={email} 
+              onChange={e=>setEmail(e.target.value)} 
+              className="w-full border rounded-xl px-3 py-2" 
+              placeholder="Enter your email address" 
+            />
+          </div>
+          <div>
+            <label className="block text-sm mb-1">Username *</label>
+            <input 
+              value={username} 
+              onChange={e=>setUsername(e.target.value)} 
+              className="w-full border rounded-xl px-3 py-2" 
+              placeholder="Choose a username" 
+            />
+          </div>
+          <div>
+            <label className="block text-sm mb-1">Password *</label>
+            <input 
+              type="password" 
+              value={password} 
+              onChange={e=>setPassword(e.target.value)} 
+              className="w-full border rounded-xl px-3 py-2" 
+              placeholder="Choose a password (min 6 characters)" 
+            />
+          </div>
+          <div>
+            <label className="block text-sm mb-1">Confirm Password *</label>
+            <input 
+              type="password" 
+              value={confirmPassword} 
+              onChange={e=>setConfirmPassword(e.target.value)} 
+              className="w-full border rounded-xl px-3 py-2" 
+              placeholder="Confirm your password" 
+            />
+          </div>
+          <button className="w-full bg-blue-600 hover:bg-blue-700 text-white rounded-xl py-2.5 font-semibold">
+            Register as Student
+          </button>
+        </form>
+      )}
+
+      <div className="mt-6 text-xs text-gray-500">
+        <p>Admin demo — <b>admin / admin123</b></p>
+        <p className="mt-2">Students must register first before they can login and take exams.</p>
       </div>
     </div>
   );
@@ -230,6 +450,10 @@ function AdminPanel(){
         <QuestionsEditor questions={questions} setQuestions={setQuestions} />
       </Section>
 
+      <Section title="Student Management">
+        <StudentManagement />
+      </Section>
+
       <Section title="Results">
         <ResultsTable results={results} setResults={setResults} />
         <div className="flex flex-wrap gap-3 mt-4">
@@ -237,6 +461,136 @@ function AdminPanel(){
           <button onClick={exportResultsToWord} className="px-4 py-2 rounded-xl bg-indigo-600 text-white hover:bg-indigo-700">Export to Word (.docx)</button>
         </div>
       </Section>
+    </div>
+  );
+}
+
+function StudentManagement() {
+  const [students, setStudents] = useState(loadStudentRegistrations());
+  const [users, setUsers] = useState(loadUsers());
+  const [selectedStudent, setSelectedStudent] = useState(null);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+
+  const deleteStudent = (username) => {
+    // Remove from users
+    const updatedUsers = users.filter(u => u.username !== username);
+    saveUsers(updatedUsers);
+    setUsers(updatedUsers);
+    
+    // Remove from registrations
+    const updatedStudents = students.filter(s => s.username !== username);
+    localStorage.setItem(LS_KEYS.STUDENT_REGISTRATIONS, JSON.stringify(updatedStudents));
+    setStudents(updatedStudents);
+    
+    setShowDeleteConfirm(false);
+    setSelectedStudent(null);
+  };
+
+  const exportStudentsToExcel = () => {
+    const wsData = [["Full Name", "Username", "Email", "Registration Date"]];
+    for (const student of students) {
+      wsData.push([
+        student.fullName,
+        student.username,
+        student.email,
+        new Date(student.registeredAt).toLocaleDateString()
+      ]);
+    }
+    const wb = XLSX.utils.book_new();
+    const ws = XLSX.utils.aoa_to_sheet(wsData);
+    XLSX.utils.book_append_sheet(wb, ws, "Students");
+    const wbout = XLSX.write(wb, {bookType:"xlsx", type:"array"});
+    const blob = new Blob([wbout], {type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"});
+    saveAs(blob, "CBT_Students.xlsx");
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="flex justify-between items-center">
+        <div>
+          <p className="text-sm text-gray-600">Total Registered Students: <strong>{students.length}</strong></p>
+        </div>
+        <button 
+          onClick={exportStudentsToExcel} 
+          className="px-4 py-2 rounded-xl bg-green-600 text-white hover:bg-green-700"
+        >
+          Export Students List
+        </button>
+      </div>
+
+      {students.length === 0 ? (
+        <div className="text-center py-8 text-gray-500">
+          <p>No students have registered yet.</p>
+          <p className="text-sm mt-2">Students will appear here once they register through the login page.</p>
+        </div>
+      ) : (
+        <div className="overflow-auto border rounded-xl">
+          <table className="min-w-full text-sm">
+            <thead className="bg-gray-100">
+              <tr>
+                <th className="text-left p-3">Full Name</th>
+                <th className="text-left p-3">Username</th>
+                <th className="text-left p-3">Email</th>
+                <th className="text-left p-3">Registration Date</th>
+                <th className="text-left p-3">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {students.map((student, index) => (
+                <tr key={student.username} className={index % 2 === 0 ? "bg-white" : "bg-gray-50"}>
+                  <td className="p-3">{student.fullName}</td>
+                  <td className="p-3 font-mono text-sm">{student.username}</td>
+                  <td className="p-3">{student.email}</td>
+                  <td className="p-3">{new Date(student.registeredAt).toLocaleDateString()}</td>
+                  <td className="p-3">
+                    <button 
+                      onClick={() => {
+                        setSelectedStudent(student);
+                        setShowDeleteConfirm(true);
+                      }}
+                      className="px-3 py-1 bg-red-600 text-white rounded-lg text-xs hover:bg-red-700"
+                    >
+                      Delete
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {showDeleteConfirm && selectedStudent && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-xl p-6 max-w-md mx-4">
+            <h3 className="text-lg font-bold mb-4">Confirm Deletion</h3>
+            <p className="text-gray-600 mb-4">
+              Are you sure you want to delete student <strong>{selectedStudent.fullName}</strong> ({selectedStudent.username})?
+            </p>
+            <p className="text-sm text-red-600 mb-4">
+              This action cannot be undone. The student will no longer be able to login.
+            </p>
+            <div className="flex gap-3">
+              <button 
+                onClick={() => deleteStudent(selectedStudent.username)}
+                className="px-4 py-2 bg-red-600 text-white rounded-xl hover:bg-red-700"
+              >
+                Delete Student
+              </button>
+              <button 
+                onClick={() => {
+                  setShowDeleteConfirm(false);
+                  setSelectedStudent(null);
+                }}
+                className="px-4 py-2 bg-gray-300 text-gray-700 rounded-xl hover:bg-gray-400"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
