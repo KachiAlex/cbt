@@ -42,6 +42,7 @@ const DEFAULT_ADMIN = {
 function App() {
   const [user, setUser] = useState(null);
   const [view, setView] = useState("login");
+  const [showAdminLink, setShowAdminLink] = useState(false);
 
   useEffect(() => {
     const saved = localStorage.getItem("cbt_logged_in_user");
@@ -57,9 +58,32 @@ function App() {
     setView("login");
   };
 
+  // Hidden admin access - click on the logo
+  const handleLogoClick = () => {
+    if (!user) {
+      setShowAdminLink(prev => !prev);
+      // Auto-hide after 5 seconds
+      setTimeout(() => setShowAdminLink(false), 5000);
+    }
+  };
+
+  // Keyboard shortcut for admin access (Ctrl + Alt + A)
+  useEffect(() => {
+    const handleKeyPress = (e) => {
+      if (!user && e.ctrlKey && e.altKey && e.key === 'A') {
+        e.preventDefault();
+        setShowAdminLink(true);
+        setTimeout(() => setShowAdminLink(false), 5000);
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyPress);
+    return () => document.removeEventListener('keydown', handleKeyPress);
+  }, [user]);
+
   return (
     <div className="min-h-screen bg-gray-50 text-gray-800">
-      <Header user={user} onLogout={onLogout} />
+      <Header user={user} onLogout={onLogout} onLogoClick={handleLogoClick} />
       <main className="max-w-5xl mx-auto p-4 sm:p-8">
         {user ? (
           user.role === "admin" ? (
@@ -68,10 +92,40 @@ function App() {
             <StudentPanel user={user} />
           )
         ) : (
-          <Login onLogin={(u)=>{setUser(u); localStorage.setItem("cbt_logged_in_user", JSON.stringify(u)); setView("home");}} />
+          <>
+            <Login onLogin={(u)=>{setUser(u); localStorage.setItem("cbt_logged_in_user", JSON.stringify(u)); setView("home");}} />
+            {showAdminLink && (
+              <div className="mt-8 p-4 bg-red-50 border border-red-200 rounded-lg">
+                <div className="text-center">
+                  <p className="text-red-700 font-semibold mb-2">🔐 Admin Access</p>
+                  <button 
+                    onClick={() => setView("admin-login")}
+                    className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+                  >
+                    Access Admin Panel
+                  </button>
+                </div>
+              </div>
+            )}
+            {view === "admin-login" && (
+              <AdminLogin 
+                onLogin={(u)=>{setUser(u); localStorage.setItem("cbt_logged_in_user", JSON.stringify(u)); setView("home");}}
+                onBack={() => setView("login")}
+              />
+            )}
+          </>
         )}
       </main>
-      <footer className="text-center text-xs text-gray-500 py-6">© {new Date().getFullYear()} Health School CBT</footer>
+      <footer className="text-center text-xs text-gray-500 py-6">
+        © {new Date().getFullYear()} Health School CBT
+        {!user && (
+          <div className="mt-1 text-gray-400">
+            <span className="opacity-30 hover:opacity-100 transition-opacity cursor-help" title="Admin Access: Click logo or press Ctrl+Alt+A">
+              🔐
+            </span>
+          </div>
+        )}
+      </footer>
     </div>
   );
 }
@@ -206,12 +260,18 @@ function loadStudentRegistrations() {
   return saved ? JSON.parse(saved) : [];
 }
 
-function Header({user, onLogout}){
+function Header({user, onLogout, onLogoClick}){
   return (
     <div className="bg-white border-b">
       <div className="max-w-5xl mx-auto flex items-center justify-between p-4">
         <div className="flex items-center gap-3">
-          <span className="text-xl font-bold">🏥 Health School CBT</span>
+          <button 
+            onClick={onLogoClick}
+            className="text-xl font-bold hover:text-blue-600 transition-colors cursor-pointer"
+            title={!user ? "Click to reveal admin access" : ""}
+          >
+            🏥 Health School CBT
+          </button>
           <span className="text-xs bg-emerald-100 text-emerald-700 px-2 py-1 rounded-full">Flexible Exams</span>
         </div>
         <div className="flex items-center gap-3">
@@ -419,8 +479,90 @@ function Login({onLogin}){
       )}
 
       <div className="mt-6 text-xs text-gray-500">
-        <p>Admin demo — <b>admin / admin123</b></p>
-        <p className="mt-2">Students must register first before they can login and take exams.</p>
+        <p>Students must register first before they can login and take exams.</p>
+      </div>
+    </div>
+  );
+}
+
+function AdminLogin({onLogin, onBack}){
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
+
+  const handleLogin = (e) => {
+    e.preventDefault();
+    setError("");
+    
+    if (!username || !password) {
+      setError("Please enter both username and password");
+      return;
+    }
+
+    // Admin authentication
+    if (username === "admin" && password === "admin123") {
+      onLogin({
+        username, 
+        role: "admin", 
+        fullName: "System Administrator", 
+        email: "admin@healthschool.com"
+      });
+    } else {
+      setError("Invalid admin credentials. Use admin / admin123");
+    }
+  };
+
+  return (
+    <div className="max-w-md mx-auto bg-white rounded-2xl shadow-lg p-8 border">
+      <div className="text-center mb-6">
+        <div className="text-3xl mb-2">🔐</div>
+        <h1 className="text-2xl font-bold text-gray-800">Admin Access</h1>
+        <p className="text-gray-600 mt-2">System Administrator Login</p>
+      </div>
+
+      {error && (
+        <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
+          {error}
+        </div>
+      )}
+
+      <form onSubmit={handleLogin} className="space-y-4">
+        <div>
+          <label className="block text-sm font-medium mb-1">Username</label>
+          <input 
+            value={username} 
+            onChange={e=>setUsername(e.target.value)} 
+            className="w-full border rounded-xl px-3 py-2 focus:ring-2 focus:ring-red-500 focus:border-red-500" 
+            placeholder="Enter admin username" 
+          />
+        </div>
+        <div>
+          <label className="block text-sm font-medium mb-1">Password</label>
+          <input 
+            type="password" 
+            value={password} 
+            onChange={e=>setPassword(e.target.value)} 
+            className="w-full border rounded-xl px-3 py-2 focus:ring-2 focus:ring-red-500 focus:border-red-500" 
+            placeholder="Enter admin password" 
+          />
+        </div>
+        <button className="w-full bg-red-600 hover:bg-red-700 text-white rounded-xl py-2.5 font-semibold transition-colors">
+          Access Admin Panel
+        </button>
+      </form>
+
+      <div className="mt-6 text-center">
+        <button 
+          onClick={onBack}
+          className="text-gray-500 hover:text-gray-700 text-sm underline"
+        >
+          ← Back to Student Login
+        </button>
+      </div>
+
+      <div className="mt-6 text-xs text-gray-500 text-center">
+        <p><b>Admin Credentials:</b> admin / admin123</p>
+        <p className="mt-1">This is a secure admin-only access point.</p>
       </div>
     </div>
   );
