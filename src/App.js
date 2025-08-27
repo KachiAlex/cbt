@@ -294,7 +294,6 @@ function Login({onLogin}){
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
-  const [role, setRole] = useState("student");
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
 
@@ -307,19 +306,12 @@ function Login({onLogin}){
       return;
     }
 
-    if (role === "admin") {
-      if (username === "admin" && password === "admin123") {
-        onLogin({username, role:"admin", fullName: "System Administrator", email: "admin@healthschool.com"});
-      } else {
-        setError("Invalid admin credentials. Use admin / admin123");
-      }
+    // Only student authentication - admin access is separate
+    const user = authenticateUser(username, password);
+    if (user) {
+      onLogin(user);
     } else {
-      const user = authenticateUser(username, password);
-      if (user) {
-        onLogin(user);
-      } else {
-        setError("Invalid username or password. Please check your credentials or register as a new student.");
-      }
+      setError("Invalid username or password. Please check your credentials or register as a new student.");
     }
   };
 
@@ -372,6 +364,11 @@ function Login({onLogin}){
 
   return (
     <div className="max-w-md mx-auto bg-white rounded-2xl shadow p-6 mt-10">
+      <div className="text-center mb-6">
+        <h2 className="text-xl font-bold text-gray-800">Student Portal</h2>
+        <p className="text-gray-600 text-sm">Login or register to take exams</p>
+      </div>
+      
       <div className="flex mb-6">
         <button 
           onClick={() => {setMode("login"); setError(""); setSuccess("");}} 
@@ -393,13 +390,6 @@ function Login({onLogin}){
       {mode === "login" ? (
         <form onSubmit={handleLogin} className="space-y-4">
           <div>
-            <label className="block text-sm mb-1">Role</label>
-            <select value={role} onChange={e=>setRole(e.target.value)} className="w-full border rounded-xl px-3 py-2">
-              <option value="student">Student</option>
-              <option value="admin">Admin</option>
-            </select>
-          </div>
-          <div>
             <label className="block text-sm mb-1">Username</label>
             <input 
               value={username} 
@@ -419,7 +409,7 @@ function Login({onLogin}){
             />
           </div>
           <button className="w-full bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl py-2.5 font-semibold">
-            Login
+            Login as Student
           </button>
         </form>
       ) : (
@@ -480,6 +470,7 @@ function Login({onLogin}){
 
       <div className="mt-6 text-xs text-gray-500">
         <p>Students must register first before they can login and take exams.</p>
+        <p className="mt-1">For admin access, use the hidden admin portal.</p>
       </div>
     </div>
   );
