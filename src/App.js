@@ -28,7 +28,7 @@ const LS_KEYS = {
   STUDENT_REGISTRATIONS: "cbt_student_registrations_v1"
 };
 
-const DEFAULT_EXAM_TITLE = "Health School CBT";
+const DEFAULT_EXAM_TITLE = "College of Nursing, Eku, Delta State";
 
 // Default admin user
 const DEFAULT_ADMIN = {
@@ -117,7 +117,7 @@ function App() {
         )}
       </main>
       <footer className="text-center text-xs text-gray-500 py-6">
-        © {new Date().getFullYear()} Health School CBT
+        © {new Date().getFullYear()} College of Nursing, Eku, Delta State
         {!user && (
           <div className="mt-1 text-gray-400">
             <span className="opacity-30 hover:opacity-100 transition-opacity cursor-help" title="Admin Access: Click logo or press Ctrl+Alt+A">
@@ -270,7 +270,7 @@ function Header({user, onLogout, onLogoClick}){
             className="text-xl font-bold hover:text-blue-600 transition-colors cursor-pointer"
             title={!user ? "Click to reveal admin access" : ""}
           >
-            🏥 Health School CBT
+            🏥 College of Nursing, Eku, Delta State
           </button>
           <span className="text-xs bg-emerald-100 text-emerald-700 px-2 py-1 rounded-full">Flexible Exams</span>
         </div>
@@ -1409,53 +1409,50 @@ function QuestionsEditor({questions, setQuestions}){
 
 function StudentPanel({user}){
   const [questions, setQuestions] = useState([]);
-  const [activeExam, setActiveExam] = useState(getActiveExam());
+  const [selectedExam, setSelectedExam] = useState(null);
   const [answers, setAnswers] = useState([]);
   const [submitted, setSubmitted] = useState(false);
   const [score, setScore] = useState(0);
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
+  const [activeExams, setActiveExams] = useState([]);
 
   useEffect(()=>{
-    // Load and randomize questions for this student
+    // Load list of currently active exams; student must choose one
+    const allExams = loadExams();
+    const actives = allExams.filter(e => e.isActive);
+    setActiveExams(actives);
+  }, []);
+
+  useEffect(()=>{
+    if (!selectedExam) return;
+    // Once an exam is selected, load and randomize questions scoped to that exam
     const originalQuestions = loadQuestions();
-    const currentActiveExam = getActiveExam();
-    
-    if (originalQuestions.length > 0 && currentActiveExam) {
-      // Limit questions to the exam's question count
-      const limitedQuestions = originalQuestions.slice(0, currentActiveExam.questionCount);
+    if (originalQuestions.length > 0) {
+      const limitedQuestions = originalQuestions.slice(0, selectedExam.questionCount);
       const randomizedQuestions = randomizeQuestions(limitedQuestions);
       setQuestions(randomizedQuestions);
       setAnswers(Array(randomizedQuestions.length).fill(-1));
-      setActiveExam(currentActiveExam);
     }
-  }, []);
+  }, [selectedExam]);
 
   // Function to randomize questions and answer options
   const randomizeQuestions = (originalQuestions) => {
     return originalQuestions.map(q => {
-      // Create a copy of the question
       const questionCopy = { ...q };
-      
-      // Randomize the answer options
       const options = [...q.options];
       const correctAnswer = options[q.correctIndex];
-      
-      // Shuffle options
       for (let i = options.length - 1; i > 0; i--) {
         const j = Math.floor(Math.random() * (i + 1));
         [options[i], options[j]] = [options[j], options[i]];
       }
-      
-      // Find new correct index
       const newCorrectIndex = options.indexOf(correctAnswer);
-      
       return {
         ...questionCopy,
         options: options,
         correctIndex: newCorrectIndex,
-        originalId: q.id // Keep track of original question for results
+        originalId: q.id
       };
-    }).sort(() => Math.random() - 0.5); // Shuffle question order
+    }).sort(() => Math.random() - 0.5);
   };
 
   const onSelect = (oi)=>{
@@ -1492,19 +1489,43 @@ function StudentPanel({user}){
       percent: Math.round((s/questions.length)*100),
       submittedAt: new Date().toISOString(),
       answers,
-      examTitle: activeExam ? activeExam.title : DEFAULT_EXAM_TITLE,
-      questionOrder: questions.map(q => q.originalId), // Store question order for admin review
+      examTitle: selectedExam ? selectedExam.title : DEFAULT_EXAM_TITLE,
+      questionOrder: questions.map(q => q.originalId),
     };
     const old = loadResults();
     old.push(result);
     localStorage.setItem(LS_KEYS.RESULTS, JSON.stringify(old));
   };
 
-  if (!activeExam) {
+  // If no exam selected yet, show active exams for selection
+  if (!selectedExam) {
     return (
       <div className="bg-white rounded-2xl shadow p-6">
-        <h3 className="text-lg font-bold mb-2">No Active Exam</h3>
-        <p className="text-sm text-gray-600">There is currently no active exam. Please contact your administrator.</p>
+        <h3 className="text-lg font-bold mb-2">Active Exams</h3>
+        {activeExams.length === 0 ? (
+          <p className="text-sm text-gray-600">There are currently no active exams. Please check back later or contact your administrator.</p>
+        ) : (
+          <div className="space-y-3">
+            {activeExams.map(exam => (
+              <div key={exam.id} className="border rounded-xl p-4 flex items-start justify-between">
+                <div>
+                  <h4 className="font-semibold">{exam.title}</h4>
+                  <p className="text-sm text-gray-600">{exam.description}</p>
+                  <div className="flex gap-4 mt-2 text-xs text-gray-500">
+                    <span>Questions: {exam.questionCount || 0}</span>
+                    <span>Duration: {exam.duration} minutes</span>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setSelectedExam(exam)}
+                  className="px-4 py-2 rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 text-sm h-fit"
+                >
+                  Start Exam
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     );
   }
@@ -1513,7 +1534,7 @@ function StudentPanel({user}){
     return (
       <div className="bg-white rounded-2xl shadow p-6">
         <h3 className="text-lg font-bold mb-2">No Questions Available</h3>
-        <p className="text-sm text-gray-600">The exam "{activeExam.title}" has no questions. Please contact your administrator.</p>
+        <p className="text-sm text-gray-600">The exam "{selectedExam.title}" has no questions. Please contact your administrator.</p>
       </div>
     );
   }
@@ -1522,7 +1543,7 @@ function StudentPanel({user}){
     return (
       <div className="bg-white rounded-2xl shadow p-6">
         <h3 className="text-lg font-bold mb-2">Submission Successful</h3>
-        <p className="mb-2">Exam: <b>{activeExam.title}</b></p>
+        <p className="mb-2">Exam: <b>{selectedExam.title}</b></p>
         <p className="mb-4">Score: <b>{score}</b> / {questions.length} ({Math.round((score/questions.length)*100)}%)</p>
         <p className="text-sm text-gray-600">You may close this page. Your result has been recorded.</p>
       </div>
@@ -1533,10 +1554,10 @@ function StudentPanel({user}){
     <div className="space-y-6">
       {/* Exam Header */}
       <div className="bg-white rounded-2xl shadow p-6">
-        <h3 className="text-lg font-bold mb-1">{activeExam.title}</h3>
-        <p className="text-sm text-gray-600 mb-2">{activeExam.description}</p>
+        <h3 className="text-lg font-bold mb-1">{selectedExam.title}</h3>
+        <p className="text-sm text-gray-600 mb-2">{selectedExam.description}</p>
         <div className="flex gap-4 text-xs text-gray-500 mb-2">
-          <span>Duration: {activeExam.duration} minutes</span>
+          <span>Duration: {selectedExam.duration} minutes</span>
           <span>Questions: {questions.length}</span>
           <span>Current: {currentQuestionIndex + 1} of {questions.length}</span>
         </div>
