@@ -2249,105 +2249,183 @@ function cleanMarkdownText(text) {
     .trim();
 }
 
-// Smart and flexible document parser that handles multiple formats
+// Enhanced document parser with better error handling and format detection
 // Supports question formats: 1, 1., 1), Q1, Q1., Q1), etc.
 // Supports answer formats: A, A., A), a, a., a), 1, 1., 1), etc.
 function parseQuestionsFromMarkdown(md) {
   const text = md.replace(/\r/g, "").trim();
   const questions = [];
   
-  // Split the text into lines
-  const lines = text.split('\n').map(line => line.trim());
+  // Split the text into lines and clean them
+  const lines = text.split('\n').map(line => line.trim()).filter(line => line.length > 0);
   
   let currentQuestion = null;
   let currentOptions = [];
   let currentAnswer = null;
   let questionNumber = 0;
+  let totalLinesProcessed = 0;
   
-  console.log("Starting to parse document with", lines.length, "lines");
-  console.log("First 10 lines:", lines.slice(0, 10));
+  console.log("🚀 Starting enhanced document parsing");
+  console.log(`📄 Document has ${lines.length} non-empty lines`);
+  console.log("📋 First 10 lines:", lines.slice(0, 10));
+  
+  // Helper function to save current question
+  const saveCurrentQuestion = () => {
+    if (currentQuestion && currentOptions.length === 4 && currentAnswer !== null) {
+      const question = createQuestionObject(currentQuestion, currentOptions, currentAnswer);
+      if (question) {
+        questions.push(question);
+        console.log(`✅ Successfully saved question ${questionNumber}: "${currentQuestion.substring(0, 50)}..."`);
+        return true;
+      } else {
+        console.log(`❌ Failed to create question object for question ${questionNumber}`);
+        return false;
+      }
+    } else {
+      if (currentQuestion) {
+        console.log(`⚠️ Incomplete question ${questionNumber}:`);
+        console.log(`   📝 Question: "${currentQuestion.substring(0, 50)}..."`);
+        console.log(`   📋 Options: ${currentOptions.length}/4 (${currentOptions.map(o => o.letter).join(', ')})`);
+        console.log(`   🎯 Answer: ${currentAnswer || 'missing'}`);
+      }
+      return false;
+    }
+  };
+  
+  // Helper function to reset state
+  const resetState = () => {
+    currentQuestion = null;
+    currentOptions = [];
+    currentAnswer = null;
+  };
   
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
+    totalLinesProcessed++;
     
-    // Skip empty lines
-    if (!line) continue;
+    console.log(`\n🔍 Processing line ${i + 1}/${lines.length}: "${line}"`);
     
-    // Check if this line starts a new question - supports Q1, Q1., Q1), 1, 1., 1), etc.
-    // Also supports just numbers at the start of line
-    const questionMatch = line.match(/^(\d+|[Qq]\d*)\s*[\.\)]?\s*(.+)$/) || 
-                         (line.match(/^\d+\s/) && line.length > 3 ? line.match(/^(\d+)\s*(.+)$/) : null);
+    // Enhanced question detection - more flexible patterns
+    const questionPatterns = [
+      /^(\d+)\s*[\.\)]?\s*(.+)$/,                    // 1. Question text, 1) Question text, 1 Question text
+      /^[Qq](\d*)\s*[\.\)]?\s*(.+)$/,              // Q1. Question text, Q1) Question text, Q Question text
+      /^Question\s*(\d+)\s*[\.\:\-]?\s*(.+)$/i,     // Question 1: Text, Question 1. Text
+    ];
+    
+    let questionMatch = null;
+    for (const pattern of questionPatterns) {
+      questionMatch = line.match(pattern);
+      if (questionMatch) break;
+    }
+    
     if (questionMatch) {
-      // Save previous question if it exists
-      if (currentQuestion && currentOptions.length === 4 && currentAnswer !== null) {
-        const question = createQuestionObject(currentQuestion, currentOptions, currentAnswer);
-        if (question) {
-          questions.push(question);
-          console.log(`✅ Saved question ${questionNumber}: "${currentQuestion.substring(0, 50)}..."`);
-        } else {
-          console.log(`❌ Failed to create question ${questionNumber}: "${currentQuestion.substring(0, 50)}..."`);
-        }
-      } else if (currentQuestion) {
-        console.log(`⚠️ Incomplete question ${questionNumber}: "${currentQuestion.substring(0, 50)}..." - Options: ${currentOptions.length}, Answer: ${currentAnswer}`);
+      // Save previous question before starting new one
+      if (currentQuestion) {
+        saveCurrentQuestion();
       }
       
       // Start new question
       questionNumber++;
-      currentQuestion = cleanMarkdownText(questionMatch[2].trim());
+      currentQuestion = cleanMarkdownText(questionMatch[2] || questionMatch[1]).trim();
       currentOptions = [];
       currentAnswer = null;
-      console.log(`📝 Starting question ${questionNumber}: "${currentQuestion.substring(0, 50)}..."`);
+      
+      console.log(`📝 Started new question ${questionNumber}: "${currentQuestion.substring(0, 50)}..."`);
       continue;
     }
     
-    // Check if this is an answer line
-    const answerMatch = line.match(/^[Aa]nswer\s*[:\-]?\s*([A-Da-d1-4])/i);
-    if (answerMatch) {
+    // Enhanced answer detection
+    const answerPatterns = [
+      /^[Aa]nswer\s*[:\-]?\s*([A-Da-d1-4])/i,      // Answer: A, Answer - A, answer: a
+      /^[Cc]orrect\s*[:\-]?\s*([A-Da-d1-4])/i,     // Correct: A, correct - A
+      /^[Ss]olution\s*[:\-]?\s*([A-Da-d1-4])/i,    // Solution: A
+      /^\s*([A-Da-d1-4])\s*$/,                     // Just "A" on its own line
+    ];
+    
+    let answerMatch = null;
+    for (const pattern of answerPatterns) {
+      answerMatch = line.match(pattern);
+      if (answerMatch) break;
+    }
+    
+    if (answerMatch && currentQuestion) {
       currentAnswer = answerMatch[1].toUpperCase();
       console.log(`🎯 Found answer for question ${questionNumber}: ${currentAnswer}`);
+      
+      // If we have all components, try to save the question
+      if (currentOptions.length === 4) {
+        saveCurrentQuestion();
+        resetState();
+      }
       continue;
     }
     
-    // Check if this is an option line - supports multiple formats: A, A), A., a, a), a., 1, 1), 1., etc.
-    // Also supports options with just a letter/number and space
-    const optionMatch = line.match(/^([A-Da-d1-4])\s*[\.\)]?\s*(.+)$/) || 
-                       (line.match(/^[A-Da-d1-4]\s/) && line.length > 2 ? line.match(/^([A-Da-d1-4])\s*(.+)$/) : null);
-    if (optionMatch && currentOptions.length < 4) {
-      const optionLetter = optionMatch[1].toUpperCase();
-      const optionText = cleanMarkdownText(optionMatch[2].trim());
+    // Enhanced option detection - more flexible patterns
+    const optionPatterns = [
+      /^([A-Da-d])\s*[\.\)]?\s*(.+)$/,              // A. Text, A) Text, A Text
+      /^([1-4])\s*[\.\)]?\s*(.+)$/,                 // 1. Text, 1) Text, 1 Text
+      /^Option\s*([A-Da-d1-4])\s*[:\-]?\s*(.+)$/i,  // Option A: Text
+    ];
+    
+    let optionMatch = null;
+    for (const pattern of optionPatterns) {
+      optionMatch = line.match(pattern);
+      if (optionMatch) break;
+    }
+    
+    if (optionMatch && currentQuestion && currentOptions.length < 4) {
+      let optionLetter = optionMatch[1].toUpperCase();
+      const optionText = cleanMarkdownText(optionMatch[2]).trim();
       
-      // Convert 1-4 to A-D
-      const optionIndex = optionLetter === '1' ? 'A' : 
-                         optionLetter === '2' ? 'B' : 
-                         optionLetter === '3' ? 'C' : 
-                         optionLetter === '4' ? 'D' : optionLetter;
+      // Convert numbers to letters
+      if (optionLetter === '1') optionLetter = 'A';
+      else if (optionLetter === '2') optionLetter = 'B';
+      else if (optionLetter === '3') optionLetter = 'C';
+      else if (optionLetter === '4') optionLetter = 'D';
       
-      currentOptions.push({ letter: optionIndex, text: optionText });
-      console.log(`📋 Added option ${optionIndex} for question ${questionNumber}: "${optionText.substring(0, 30)}..."`);
+      // Check for duplicate options
+      const existingOption = currentOptions.find(opt => opt.letter === optionLetter);
+      if (existingOption) {
+        console.log(`⚠️ Duplicate option ${optionLetter} found, skipping`);
+        continue;
+      }
+      
+      currentOptions.push({ letter: optionLetter, text: optionText });
+      console.log(`📋 Added option ${optionLetter} for question ${questionNumber}: "${optionText.substring(0, 30)}..."`);
+      
+      // If we have all 4 options and an answer, try to save
+      if (currentOptions.length === 4 && currentAnswer) {
+        saveCurrentQuestion();
+        resetState();
+      }
       continue;
     }
     
     // If we have a question but no options yet, this might be continuation of question text
-    if (currentQuestion && currentOptions.length === 0 && !line.match(/^[A-Da-d1-4]/)) {
+    if (currentQuestion && currentOptions.length === 0 && !line.match(/^[A-Da-d1-4]/i)) {
       currentQuestion += ' ' + cleanMarkdownText(line);
       console.log(`📝 Extended question ${questionNumber}: "${currentQuestion.substring(0, 50)}..."`);
+      continue;
     }
+    
+    // Log unrecognized lines for debugging
+    console.log(`❓ Unrecognized line format: "${line}"`);
   }
   
-  // Don't forget the last question
-  if (currentQuestion && currentOptions.length === 4 && currentAnswer !== null) {
-    const question = createQuestionObject(currentQuestion, currentOptions, currentAnswer);
-    if (question) {
-      questions.push(question);
-      console.log(`✅ Saved final question ${questionNumber}: "${currentQuestion.substring(0, 50)}..."`);
-    } else {
-      console.log(`❌ Failed to create final question ${questionNumber}: "${currentQuestion.substring(0, 50)}..."`);
-    }
-  } else if (currentQuestion) {
-    console.log(`⚠️ Incomplete final question ${questionNumber}: "${currentQuestion.substring(0, 50)}..." - Options: ${currentOptions.length}, Answer: ${currentAnswer}`);
+  // Save the final question if it exists
+  if (currentQuestion) {
+    console.log("\n🔚 Processing final question...");
+    saveCurrentQuestion();
   }
   
-  console.log(`🎉 Parsed ${questions.length} questions from document`);
+  console.log(`\n🎉 Parsing complete!`);
+  console.log(`📊 Total lines processed: ${totalLinesProcessed}`);
+  console.log(`✅ Questions successfully parsed: ${questions.length}`);
+  console.log(`📋 Question breakdown:`);
+  questions.forEach((q, index) => {
+    console.log(`   ${index + 1}. "${q.text.substring(0, 40)}..." (Answer: ${String.fromCharCode(65 + q.correctIndex)})`);
+  });
+  
   return questions;
 }
 
