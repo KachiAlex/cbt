@@ -1933,6 +1933,9 @@ function parseQuestionsFromMarkdown(md) {
   let currentAnswer = null;
   let questionNumber = 0;
   
+  console.log("Starting to parse document with", lines.length, "lines");
+  console.log("First 10 lines:", lines.slice(0, 10));
+  
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
     
@@ -1940,14 +1943,21 @@ function parseQuestionsFromMarkdown(md) {
     if (!line) continue;
     
     // Check if this line starts a new question - supports Q1, Q1., Q1), 1, 1., 1), etc.
-    const questionMatch = line.match(/^(\d+|[Qq]\d*)\s*[\.\)]?\s*(.+)$/);
+    // Also supports just numbers at the start of line
+    const questionMatch = line.match(/^(\d+|[Qq]\d*)\s*[\.\)]?\s*(.+)$/) || 
+                         (line.match(/^\d+\s/) && line.length > 3 ? line.match(/^(\d+)\s*(.+)$/) : null);
     if (questionMatch) {
       // Save previous question if it exists
       if (currentQuestion && currentOptions.length === 4 && currentAnswer !== null) {
         const question = createQuestionObject(currentQuestion, currentOptions, currentAnswer);
         if (question) {
           questions.push(question);
+          console.log(`✅ Saved question ${questionNumber}: "${currentQuestion.substring(0, 50)}..."`);
+        } else {
+          console.log(`❌ Failed to create question ${questionNumber}: "${currentQuestion.substring(0, 50)}..."`);
         }
+      } else if (currentQuestion) {
+        console.log(`⚠️ Incomplete question ${questionNumber}: "${currentQuestion.substring(0, 50)}..." - Options: ${currentOptions.length}, Answer: ${currentAnswer}`);
       }
       
       // Start new question
@@ -1955,6 +1965,7 @@ function parseQuestionsFromMarkdown(md) {
       currentQuestion = cleanMarkdownText(questionMatch[2].trim());
       currentOptions = [];
       currentAnswer = null;
+      console.log(`📝 Starting question ${questionNumber}: "${currentQuestion.substring(0, 50)}..."`);
       continue;
     }
     
@@ -1962,11 +1973,14 @@ function parseQuestionsFromMarkdown(md) {
     const answerMatch = line.match(/^[Aa]nswer\s*[:\-]?\s*([A-Da-d1-4])/i);
     if (answerMatch) {
       currentAnswer = answerMatch[1].toUpperCase();
+      console.log(`🎯 Found answer for question ${questionNumber}: ${currentAnswer}`);
       continue;
     }
     
     // Check if this is an option line - supports multiple formats: A, A), A., a, a), a., 1, 1), 1., etc.
-    const optionMatch = line.match(/^([A-Da-d1-4])\s*[\.\)]?\s*(.+)$/);
+    // Also supports options with just a letter/number and space
+    const optionMatch = line.match(/^([A-Da-d1-4])\s*[\.\)]?\s*(.+)$/) || 
+                       (line.match(/^[A-Da-d1-4]\s/) && line.length > 2 ? line.match(/^([A-Da-d1-4])\s*(.+)$/) : null);
     if (optionMatch && currentOptions.length < 4) {
       const optionLetter = optionMatch[1].toUpperCase();
       const optionText = cleanMarkdownText(optionMatch[2].trim());
@@ -1978,12 +1992,14 @@ function parseQuestionsFromMarkdown(md) {
                          optionLetter === '4' ? 'D' : optionLetter;
       
       currentOptions.push({ letter: optionIndex, text: optionText });
+      console.log(`📋 Added option ${optionIndex} for question ${questionNumber}: "${optionText.substring(0, 30)}..."`);
       continue;
     }
     
     // If we have a question but no options yet, this might be continuation of question text
     if (currentQuestion && currentOptions.length === 0 && !line.match(/^[A-Da-d1-4]/)) {
       currentQuestion += ' ' + cleanMarkdownText(line);
+      console.log(`📝 Extended question ${questionNumber}: "${currentQuestion.substring(0, 50)}..."`);
     }
   }
   
@@ -1992,24 +2008,34 @@ function parseQuestionsFromMarkdown(md) {
     const question = createQuestionObject(currentQuestion, currentOptions, currentAnswer);
     if (question) {
       questions.push(question);
+      console.log(`✅ Saved final question ${questionNumber}: "${currentQuestion.substring(0, 50)}..."`);
+    } else {
+      console.log(`❌ Failed to create final question ${questionNumber}: "${currentQuestion.substring(0, 50)}..."`);
     }
+  } else if (currentQuestion) {
+    console.log(`⚠️ Incomplete final question ${questionNumber}: "${currentQuestion.substring(0, 50)}..." - Options: ${currentOptions.length}, Answer: ${currentAnswer}`);
   }
   
-  console.log(`Parsed ${questions.length} questions from document`);
+  console.log(`🎉 Parsed ${questions.length} questions from document`);
   return questions;
 }
 
 function createQuestionObject(questionText, options, correctAnswer) {
   // Validate we have enough data
   if (!questionText || options.length !== 4 || !correctAnswer) {
-    console.log("Invalid question data:", { questionText, optionsLength: options.length, correctAnswer });
+    console.log("❌ Invalid question data:", { 
+      questionText: questionText?.substring(0, 50), 
+      optionsLength: options.length, 
+      correctAnswer,
+      options: options.map(opt => ({ letter: opt.letter, text: opt.text?.substring(0, 30) }))
+    });
     return null;
   }
   
   // Convert answer to index
   const answerIndex = { 'A': 0, 'B': 1, 'C': 2, 'D': 3 }[correctAnswer];
   if (answerIndex === undefined) {
-    console.log("Invalid answer:", correctAnswer);
+    console.log("❌ Invalid answer:", correctAnswer);
     return null;
   }
   
@@ -2021,16 +2047,25 @@ function createQuestionObject(questionText, options, correctAnswer) {
   
   // Check if all options are present
   if (sortedOptions.some(opt => !opt)) {
-    console.log("Missing options:", sortedOptions);
+    console.log("❌ Missing options:", sortedOptions);
+    console.log("❌ Available options:", options.map(opt => ({ letter: opt.letter, text: opt.text?.substring(0, 30) })));
     return null;
   }
   
-  return {
+  const question = {
     id: crypto.randomUUID(),
     text: cleanMarkdownText(questionText),
     options: sortedOptions.map(opt => cleanMarkdownText(opt)),
     correctIndex: answerIndex
   };
+  
+  console.log("✅ Created question object:", {
+    text: question.text.substring(0, 50),
+    options: question.options.map(opt => opt.substring(0, 30)),
+    correctIndex: question.correctIndex
+  });
+  
+  return question;
 }
 
 // Excel parser for .xlsx files
