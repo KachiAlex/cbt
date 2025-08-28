@@ -690,6 +690,170 @@ function AdminPanel(){
     localStorage.setItem(LS_KEYS.RESULTS, JSON.stringify(results));
   }, [results]);
 
+  const downloadSampleExcel = () => {
+    // Create sample data for Excel template
+    const sampleData = [
+      ["Question", "Option A", "Option B", "Option C", "Option D", "Correct Answer"],
+      [
+        "What is the normal adult resting heart rate?",
+        "10-20 bpm",
+        "30-40 bpm", 
+        "60-100 bpm",
+        "120-160 bpm",
+        "C"
+      ],
+      [
+        "Which vitamin is primarily synthesized by sunlight exposure?",
+        "Vitamin A",
+        "Vitamin C",
+        "Vitamin D", 
+        "Vitamin K",
+        "C"
+      ],
+      [
+        "What is the primary function of red blood cells?",
+        "Fight infection",
+        "Carry oxygen",
+        "Form blood clots",
+        "Produce antibodies",
+        "B"
+      ],
+      [
+        "What does CBT stand for?",
+        "Computer Based Training",
+        "Computer Based Testing",
+        "Computer Based Technology",
+        "Computer Based Teaching",
+        "B"
+      ],
+      [
+        "Which of the following is a function of the liver?",
+        "Pumping blood",
+        "Filtering toxins",
+        "Producing insulin",
+        "Absorbing nutrients",
+        "B"
+      ],
+      [
+        "What is the largest organ in the human body?",
+        "Heart",
+        "Brain",
+        "Liver",
+        "Skin",
+        "D"
+      ]
+    ];
+
+    // Create workbook and worksheet
+    const wb = XLSX.utils.book_new();
+    const ws = XLSX.utils.aoa_to_sheet(sampleData);
+
+    // Set column widths for better readability
+    ws['!cols'] = [
+      { width: 40 }, // Question
+      { width: 25 }, // Option A
+      { width: 25 }, // Option B
+      { width: 25 }, // Option C
+      { width: 25 }, // Option D
+      { width: 15 }  // Correct Answer
+    ];
+
+    // Add the worksheet to the workbook
+    XLSX.utils.book_append_sheet(wb, ws, "Questions Template");
+
+    // Generate and download the file
+    const wbout = XLSX.write(wb, { bookType: "xlsx", type: "array" });
+    const blob = new Blob([wbout], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+    saveAs(blob, "CBT_Questions_Template.xlsx");
+  };
+
+  const downloadSampleWord = async () => {
+    // Create sample questions for Word document
+    const sampleQuestions = [
+      {
+        question: "1. What is the normal adult resting heart rate?",
+        options: [
+          "A) 10-20 bpm",
+          "B) 30-40 bpm", 
+          "C) 60-100 bpm",
+          "D) 120-160 bpm"
+        ],
+        answer: "Answer: C"
+      },
+      {
+        question: "2. Which vitamin is primarily synthesized by sunlight exposure?",
+        options: [
+          "A) Vitamin A",
+          "B) Vitamin C",
+          "C) Vitamin D",
+          "D) Vitamin K"
+        ],
+        answer: "Answer: C"
+      },
+      {
+        question: "3. What is the primary function of red blood cells?",
+        options: [
+          "A) Fight infection",
+          "B) Carry oxygen",
+          "C) Form blood clots",
+          "D) Produce antibodies"
+        ],
+        answer: "Answer: B"
+      },
+      {
+        question: "4. What does CBT stand for?",
+        options: [
+          "A) Computer Based Training",
+          "B) Computer Based Testing",
+          "C) Computer Based Technology",
+          "D) Computer Based Teaching"
+        ],
+        answer: "Answer: B"
+      },
+      {
+        question: "5. Which of the following is a function of the liver?",
+        options: [
+          "A) Pumping blood",
+          "B) Filtering toxins",
+          "C) Producing insulin",
+          "D) Absorbing nutrients"
+        ],
+        answer: "Answer: B"
+      }
+    ];
+
+    // Create Word document
+    const doc = new Document({
+      sections: [{
+        properties: {},
+        children: [
+          new Paragraph({
+            children: [new TextRun({ text: "CBT Questions Template", bold: true, size: 28 })]
+          }),
+          new Paragraph({ children: [new TextRun({ text: "Instructions:", bold: true, size: 20 })] }),
+          new Paragraph({ children: [new TextRun({ text: "1. Each question should start with a number (1, 2, 3...) or Q prefix", size: 14 })] }),
+          new Paragraph({ children: [new TextRun({ text: "2. Each question must have exactly 4 options (A, B, C, D)", size: 14 })] }),
+          new Paragraph({ children: [new TextRun({ text: "3. Each question must end with 'Answer: X' (where X is A, B, C, or D)", size: 14 })] }),
+          new Paragraph({ children: [new TextRun({ text: "4. You can use formats like A), A., A, 1), 1., 1, etc.", size: 14 })] }),
+          new Paragraph({ children: [new TextRun({ text: "5. Questions can be separated by blank lines", size: 14 })] }),
+          new Paragraph({ children: [new TextRun({ text: "", size: 14 })] }),
+          new Paragraph({ children: [new TextRun({ text: "Sample Questions:", bold: true, size: 20 })] }),
+          new Paragraph({ children: [new TextRun({ text: "", size: 14 })] }),
+          ...sampleQuestions.flatMap(q => [
+            new Paragraph({ children: [new TextRun({ text: q.question, bold: true, size: 16 })] }),
+            ...q.options.map(opt => new Paragraph({ children: [new TextRun({ text: opt, size: 14 })] })),
+            new Paragraph({ children: [new TextRun({ text: q.answer, bold: true, size: 14 })] }),
+            new Paragraph({ children: [new TextRun({ text: "", size: 14 })] })
+          ])
+        ]
+      }]
+    });
+
+    // Generate and download the file
+    const blob = await Packer.toBlob(doc);
+    saveAs(blob, "CBT_Questions_Template.docx");
+  };
+
   const handleFileUpload = async (file) => {
     setImportError("");
     try {
@@ -982,11 +1146,25 @@ function AdminPanel(){
 
           {selectedExam && (
             <>
-              <Section title="Upload Questions from Word (.docx) or Excel (.xlsx)">
-                <UploadQuestions onFile={handleFileUpload} />
-                {importError && <div className="text-red-600 text-sm mt-2">{importError}</div>}
-                <FormatHelp />
-              </Section>
+                        <Section title="Upload Questions from Word (.docx) or Excel (.xlsx)">
+            <div className="mb-4 flex gap-2">
+              <button 
+                onClick={downloadSampleExcel}
+                className="px-4 py-2 bg-green-600 text-white rounded-xl hover:bg-green-700 text-sm"
+              >
+                📥 Download Sample Excel Template
+              </button>
+              <button 
+                onClick={downloadSampleWord}
+                className="px-4 py-2 bg-blue-600 text-white rounded-xl hover:bg-blue-700 text-sm"
+              >
+                📥 Download Sample Word Template
+              </button>
+            </div>
+            <UploadQuestions onFile={handleFileUpload} />
+            {importError && <div className="text-red-600 text-sm mt-2">{importError}</div>}
+            <FormatHelp />
+          </Section>
 
               <Section title={`Questions for ${selectedExam.title} (${questions.length})`}>
                 <div className="mb-4 p-3 bg-emerald-50 border border-emerald-200 rounded-xl">
@@ -1676,7 +1854,7 @@ function UploadQuestions({onFile}){
 function FormatHelp(){
   return (
     <details className="mt-4 text-sm cursor-pointer">
-      <summary className="font-semibold">📄 Flexible Question Upload Formats (Word & Excel)</summary>
+      <summary className="font-semibold">📄 Flexible Question Upload Formats (Word & Excel) - Download Templates Above</summary>
       <div className="mt-2 bg-gray-50 border rounded-xl p-3">
         <div className="space-y-4">
           <div>
@@ -1775,6 +1953,13 @@ What does CBT stand for? | Computer Based Training | Computer Based Testing | Co
             <p className="text-xs text-blue-800">
               <strong>🔍 Debugging:</strong> Check the browser console (F12) to see detailed parsing information 
               when you upload a document.
+            </p>
+          </div>
+          
+          <div className="mt-3 p-2 bg-green-50 border-l-4 border-green-400">
+            <p className="text-xs text-green-800">
+              <strong>💡 Pro Tip:</strong> Use the "Download Sample Excel Template" or "Download Sample Word Template" 
+              buttons above to get properly formatted templates that you can fill with your own questions!
             </p>
           </div>
         </div>
