@@ -398,8 +398,11 @@ function Login({onLogin}){
       {mode === "login" ? (
         <form onSubmit={handleLogin} className="space-y-4">
           <div>
-            <label className="block text-sm mb-1">Username</label>
+            <label htmlFor="student-username" className="block text-sm mb-1">Username</label>
             <input 
+              id="student-username"
+              name="username"
+              type="text"
               value={username} 
               onChange={e=>setUsername(e.target.value)} 
               className="w-full border rounded-xl px-3 py-2" 
@@ -407,9 +410,11 @@ function Login({onLogin}){
             />
           </div>
           <div>
-            <label className="block text-sm mb-1">Password</label>
+            <label htmlFor="student-password" className="block text-sm mb-1">Password</label>
             <div className="relative">
               <input 
+                id="student-password"
+                name="password"
                 type={showLoginPassword ? "text" : "password"} 
                 value={password} 
                 onChange={e=>setPassword(e.target.value)} 
@@ -442,8 +447,11 @@ function Login({onLogin}){
       ) : (
         <form onSubmit={handleRegister} className="space-y-4">
           <div>
-            <label className="block text-sm mb-1">Full Name *</label>
+            <label htmlFor="student-fullname" className="block text-sm mb-1">Full Name *</label>
             <input 
+              id="student-fullname"
+              name="fullName"
+              type="text"
               value={fullName} 
               onChange={e=>setFullName(e.target.value)} 
               className="w-full border rounded-xl px-3 py-2" 
@@ -451,8 +459,10 @@ function Login({onLogin}){
             />
           </div>
           <div>
-            <label className="block text-sm mb-1">Email *</label>
+            <label htmlFor="student-email" className="block text-sm mb-1">Email *</label>
             <input 
+              id="student-email"
+              name="email"
               type="email" 
               value={email} 
               onChange={e=>setEmail(e.target.value)} 
@@ -461,8 +471,11 @@ function Login({onLogin}){
             />
           </div>
           <div>
-            <label className="block text-sm mb-1">Username *</label>
+            <label htmlFor="student-register-username" className="block text-sm mb-1">Username *</label>
             <input 
+              id="student-register-username"
+              name="username"
+              type="text"
               value={username} 
               onChange={e=>setUsername(e.target.value)} 
               className="w-full border rounded-xl px-3 py-2" 
@@ -470,9 +483,11 @@ function Login({onLogin}){
             />
           </div>
           <div>
-            <label className="block text-sm mb-1">Password *</label>
+            <label htmlFor="student-register-password" className="block text-sm mb-1">Password *</label>
             <div className="relative">
               <input 
+                id="student-register-password"
+                name="password"
                 type={showRegisterPassword ? "text" : "password"} 
                 value={password} 
                 onChange={e=>setPassword(e.target.value)} 
@@ -499,9 +514,11 @@ function Login({onLogin}){
             </div>
           </div>
           <div>
-            <label className="block text-sm mb-1">Confirm Password *</label>
+            <label htmlFor="student-confirm-password" className="block text-sm mb-1">Confirm Password *</label>
             <div className="relative">
               <input 
+                id="student-confirm-password"
+                name="confirmPassword"
                 type={showRegisterConfirm ? "text" : "password"} 
                 value={confirmPassword} 
                 onChange={e=>setConfirmPassword(e.target.value)} 
@@ -587,8 +604,11 @@ function AdminLogin({onLogin, onBack}){
 
       <form onSubmit={handleLogin} className="space-y-4">
         <div>
-          <label className="block text-sm font-medium mb-1">Username</label>
+          <label htmlFor="admin-username" className="block text-sm font-medium mb-1">Username</label>
           <input 
+            id="admin-username"
+            name="username"
+            type="text"
             value={username} 
             onChange={e=>setUsername(e.target.value)} 
             className="w-full border rounded-xl px-3 py-2 focus:ring-2 focus:ring-red-500 focus:border-red-500" 
@@ -596,9 +616,11 @@ function AdminLogin({onLogin, onBack}){
           />
         </div>
         <div>
-          <label className="block text-sm font-medium mb-1">Password</label>
+          <label htmlFor="admin-password" className="block text-sm font-medium mb-1">Password</label>
           <div className="relative">
             <input 
+              id="admin-password"
+              name="password"
               type={showAdminPassword ? "text" : "password"} 
               value={password} 
               onChange={e=>setPassword(e.target.value)} 
@@ -1067,8 +1089,10 @@ function CreateExamModal({ onClose, onCreate }) {
         <h3 className="text-lg font-bold mb-4">Create New Exam</h3>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="block text-sm mb-1">Exam Title *</label>
+            <label htmlFor="create-exam-title" className="block text-sm mb-1">Exam Title *</label>
             <input
+              id="create-exam-title"
+              name="title"
               type="text"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
@@ -1079,8 +1103,10 @@ function CreateExamModal({ onClose, onCreate }) {
           </div>
           
           <div>
-            <label className="block text-sm mb-1">Description</label>
+            <label htmlFor="create-exam-description" className="block text-sm mb-1">Description</label>
             <textarea
+              id="create-exam-description"
+              name="description"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               className="w-full border rounded-xl px-3 py-2"
@@ -1091,8 +1117,10 @@ function CreateExamModal({ onClose, onCreate }) {
           
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm mb-1">Duration (minutes)</label>
+              <label htmlFor="create-exam-duration" className="block text-sm mb-1">Duration (minutes)</label>
               <input
+                id="create-exam-duration"
+                name="duration"
                 type="number"
                 value={duration}
                 onChange={(e) => setDuration(e.target.value)}
@@ -1104,8 +1132,10 @@ function CreateExamModal({ onClose, onCreate }) {
             </div>
             
             <div>
-              <label className="block text-sm mb-1">Question Count</label>
+              <label htmlFor="create-exam-question-count" className="block text-sm mb-1">Question Count</label>
               <input
+                id="create-exam-question-count"
+                name="questionCount"
                 type="number"
                 value={questionCount}
                 onChange={(e) => setQuestionCount(e.target.value)}
@@ -1166,8 +1196,10 @@ function EditExamModal({ exam, onClose, onUpdate }) {
         <h3 className="text-lg font-bold mb-4">Edit Exam</h3>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="block text-sm mb-1">Exam Title *</label>
+            <label htmlFor="edit-exam-title" className="block text-sm mb-1">Exam Title *</label>
             <input
+              id="edit-exam-title"
+              name="title"
               type="text"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
@@ -1178,8 +1210,10 @@ function EditExamModal({ exam, onClose, onUpdate }) {
           </div>
           
           <div>
-            <label className="block text-sm mb-1">Description</label>
+            <label htmlFor="edit-exam-description" className="block text-sm mb-1">Description</label>
             <textarea
+              id="edit-exam-description"
+              name="description"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               className="w-full border rounded-xl px-3 py-2"
@@ -1190,8 +1224,10 @@ function EditExamModal({ exam, onClose, onUpdate }) {
           
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm mb-1">Duration (minutes)</label>
+              <label htmlFor="edit-exam-duration" className="block text-sm mb-1">Duration (minutes)</label>
               <input
+                id="edit-exam-duration"
+                name="duration"
                 type="number"
                 value={duration}
                 onChange={(e) => setDuration(e.target.value)}
@@ -1203,8 +1239,10 @@ function EditExamModal({ exam, onClose, onUpdate }) {
             </div>
             
             <div>
-              <label className="block text-sm mb-1">Question Count</label>
+              <label htmlFor="edit-exam-question-count" className="block text-sm mb-1">Question Count</label>
               <input
+                id="edit-exam-question-count"
+                name="questionCount"
                 type="number"
                 value={questionCount}
                 onChange={(e) => setQuestionCount(e.target.value)}
@@ -1458,9 +1496,11 @@ function AdminSettings() {
 
         <form onSubmit={handlePasswordChange} className="space-y-4">
           <div>
-            <label className="block text-sm font-medium mb-1">Current Password</label>
+            <label htmlFor="current-password" className="block text-sm font-medium mb-1">Current Password</label>
             <div className="relative">
               <input
+                id="current-password"
+                name="currentPassword"
                 type={showCurr ? "text" : "password"}
                 value={currentPassword}
                 onChange={(e) => setCurrentPassword(e.target.value)}
@@ -1475,9 +1515,11 @@ function AdminSettings() {
           </div>
 
           <div>
-            <label className="block text-sm font-medium mb-1">New Password</label>
+            <label htmlFor="new-password" className="block text-sm font-medium mb-1">New Password</label>
             <div className="relative">
               <input
+                id="new-password"
+                name="newPassword"
                 type={showNew ? "text" : "password"}
                 value={newPassword}
                 onChange={(e) => setNewPassword(e.target.value)}
@@ -1539,9 +1581,11 @@ function AdminSettings() {
           </div>
 
           <div>
-            <label className="block text-sm font-medium mb-1">Confirm New Password</label>
+            <label htmlFor="confirm-password" className="block text-sm font-medium mb-1">Confirm New Password</label>
             <div className="relative">
               <input
+                id="confirm-password"
+                name="confirmPassword"
                 type={showConf ? "text" : "password"}
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
@@ -1785,16 +1829,37 @@ function QuestionsEditor({questions, setQuestions, selectedExam}){
         <div key={q.id} className="border rounded-xl p-4">
           <div className="flex items-start gap-2">
             <span className="text-sm font-bold bg-gray-100 px-2 py-1 rounded">{i+1}</span>
-            <textarea className="w-full border rounded-xl p-2" value={q.text} onChange={e=>updateQ(i,{text:e.target.value})} />
+            <textarea 
+              id={`question-${q.id}`}
+              name={`question-${i}`}
+              className="w-full border rounded-xl p-2" 
+              value={q.text} 
+              onChange={e=>updateQ(i,{text:e.target.value})} 
+              placeholder="Enter question text"
+            />
           </div>
           <div className="grid sm:grid-cols-2 gap-3 mt-3">
             {q.options.map((opt, oi)=> (
               <div key={oi} className="flex gap-2 items-center">
-                <input className="w-full border rounded-xl p-2" value={opt} onChange={e=>{
-                  const newOpts = [...q.options]; newOpts[oi] = e.target.value; updateQ(i,{options:newOpts});
-                }} />
+                <input 
+                  id={`option-${q.id}-${oi}`}
+                  name={`option-${q.id}-${oi}`}
+                  type="text"
+                  className="w-full border rounded-xl p-2" 
+                  value={opt} 
+                  onChange={e=>{
+                    const newOpts = [...q.options]; newOpts[oi] = e.target.value; updateQ(i,{options:newOpts});
+                  }} 
+                  placeholder={`Option ${String.fromCharCode(65 + oi)}`}
+                />
                 <label className="text-xs flex items-center gap-1">
-                  <input type="radio" name={`c-${q.id}`} checked={q.correctIndex===oi} onChange={()=>updateQ(i,{correctIndex:oi})}/>
+                  <input 
+                    id={`correct-${q.id}-${oi}`}
+                    name={`correct-${q.id}`}
+                    type="radio" 
+                    checked={q.correctIndex===oi} 
+                    onChange={()=>updateQ(i,{correctIndex:oi})}
+                  />
                   Correct
                 </label>
               </div>
