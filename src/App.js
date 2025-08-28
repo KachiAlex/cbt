@@ -1435,7 +1435,7 @@ Answer: B`}</pre>
           </div>
           
           <div>
-            <h4 className="font-semibold text-blue-700">✅ Alternative Formats Supported</h4>
+            <h4 className="font-semibold text-blue-700">✅ Multiple Answer Formats Supported</h4>
             <pre className="whitespace-pre-wrap text-xs bg-white p-2 rounded">{`Q1. Question with Q prefix?
 A. Option A
 B. Option B
@@ -1443,18 +1443,42 @@ C. Option C
 D. Option D
 Answer: C
 
-2. Question with periods?
+2. Question with parentheses?
+A) Option A
+B) Option B
+C) Option C
+D) Option D
+Answer: C
+
+3. Question with numbers?
+1. Option 1
+2. Option 2
+3. Option 3
+4. Option 4
+Answer: 3
+
+4. Question with number parentheses?
 1) Option 1
 2) Option 2
 3) Option 3
 4) Option 4
-Answer: 2`}</pre>
+Answer: 3
+
+5. Mixed formats work too:
+a. Option a
+b) Option b
+C. Option C
+D) Option D
+Answer: C`}</pre>
           </div>
           
           <div className="mt-3 p-2 bg-yellow-50 border-l-4 border-yellow-400">
             <p className="text-xs text-yellow-800">
               <strong>💡 Smart Parser:</strong> The system automatically detects multiple questions in your document. 
               Each question must have exactly 4 options and an answer line. Questions can be separated by blank lines.
+            </p>
+            <p className="text-xs text-yellow-800 mt-1">
+              <strong>✅ Supported Formats:</strong> A, A., A), a, a., a), 1, 1., 1), 2, 2., 2), etc.
             </p>
           </div>
           
@@ -1864,6 +1888,8 @@ function cleanMarkdownText(text) {
 }
 
 // Smart and flexible document parser that handles multiple formats
+// Supports question formats: 1, 1., 1), Q1, Q1., Q1), etc.
+// Supports answer formats: A, A., A), a, a., a), 1, 1., 1), etc.
 function parseQuestionsFromMarkdown(md) {
   const text = md.replace(/\r/g, "").trim();
   const questions = [];
@@ -1882,8 +1908,8 @@ function parseQuestionsFromMarkdown(md) {
     // Skip empty lines
     if (!line) continue;
     
-    // Check if this line starts a new question
-    const questionMatch = line.match(/^(\d+|[Qq])\s*[\.\)]?\s*(.+)$/);
+    // Check if this line starts a new question - supports Q1, Q1., Q1), 1, 1., 1), etc.
+    const questionMatch = line.match(/^(\d+|[Qq]\d*)\s*[\.\)]?\s*(.+)$/);
     if (questionMatch) {
       // Save previous question if it exists
       if (currentQuestion && currentOptions.length === 4 && currentAnswer !== null) {
@@ -1908,7 +1934,7 @@ function parseQuestionsFromMarkdown(md) {
       continue;
     }
     
-    // Check if this is an option line
+    // Check if this is an option line - supports multiple formats: A, A), A., a, a), a., 1, 1), 1., etc.
     const optionMatch = line.match(/^([A-Da-d1-4])\s*[\.\)]?\s*(.+)$/);
     if (optionMatch && currentOptions.length < 4) {
       const optionLetter = optionMatch[1].toUpperCase();
