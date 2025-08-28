@@ -787,29 +787,67 @@ function AdminPanel(){
 
   const importAllData = (event) => {
     const file = event.target.files[0];
-    if (!file) return;
+    if (!file) {
+      console.log("No file selected");
+      return;
+    }
+
+    console.log("Importing file:", file.name, "Size:", file.size);
+
+    // Check file type
+    if (!file.name.toLowerCase().endsWith('.json')) {
+      alert("Please select a valid JSON file (.json extension)");
+      event.target.value = '';
+      return;
+    }
 
     const reader = new FileReader();
+    
     reader.onload = (e) => {
       try {
+        console.log("File read successfully, parsing JSON...");
         const data = JSON.parse(e.target.result);
+        
+        console.log("Parsed data structure:", Object.keys(data));
         
         // Validate the data structure
         if (!data.exams || !data.results || !data.users) {
-          alert("Invalid backup file format. Please use a valid CBT backup file.");
+          alert("Invalid backup file format. Please use a valid CBT backup file.\n\nExpected fields: exams, results, users");
+          console.error("Missing required fields:", { 
+            hasExams: !!data.exams, 
+            hasResults: !!data.results, 
+            hasUsers: !!data.users 
+          });
+          event.target.value = '';
           return;
         }
 
+        console.log("Data validation passed, importing...");
+
         // Import all data
-        if (data.exams) saveExams(data.exams);
-        if (data.results) saveResults(data.results);
-        if (data.users) saveUsers(data.users);
+        if (data.exams) {
+          saveExams(data.exams);
+          console.log("Imported exams:", data.exams.length);
+        }
+        if (data.results) {
+          saveResults(data.results);
+          console.log("Imported results:", data.results.length);
+        }
+        if (data.users) {
+          saveUsers(data.users);
+          console.log("Imported users:", data.users.length);
+        }
         if (data.studentRegistrations) {
           localStorage.setItem(LS_KEYS.STUDENT_REGISTRATIONS, JSON.stringify(data.studentRegistrations));
+          console.log("Imported student registrations:", data.studentRegistrations.length);
         }
-        if (data.questions) saveQuestions(data.questions);
+        if (data.questions) {
+          saveQuestions(data.questions);
+          console.log("Imported questions:", data.questions.length);
+        }
         if (data.activeExam) {
           localStorage.setItem(LS_KEYS.ACTIVE_EXAM, JSON.stringify(data.activeExam));
+          console.log("Imported active exam");
         }
 
         // Reload state
@@ -817,15 +855,27 @@ function AdminPanel(){
         setResults(loadResults());
         setQuestions(loadQuestions());
 
-        alert(`Data imported successfully! Imported ${data.exams?.length || 0} exams, ${data.results?.length || 0} results, and ${data.users?.length || 0} users.`);
+        const message = `✅ Data imported successfully!\n\n📊 Imported:\n• ${data.exams?.length || 0} exams\n• ${data.results?.length || 0} results\n• ${data.users?.length || 0} users\n• ${data.studentRegistrations?.length || 0} student registrations\n• ${data.questions?.length || 0} questions`;
+        
+        alert(message);
+        console.log("Import completed successfully");
         
         // Clear the file input
         event.target.value = '';
       } catch (error) {
         console.error('Import error:', error);
-        alert("Failed to import data. Please check the file format.");
+        alert(`Failed to import data: ${error.message}\n\nPlease check that the file is a valid CBT backup file.`);
+        event.target.value = '';
       }
     };
+
+    reader.onerror = (error) => {
+      console.error('File read error:', error);
+      alert("Failed to read the file. Please try again.");
+      event.target.value = '';
+    };
+
+    console.log("Starting file read...");
     reader.readAsText(file);
   };
 
@@ -1911,21 +1961,19 @@ function AdminSettings() {
           >
             📤 Export All Data (Backup)
           </button>
-          <div className="relative">
-            <input
-              type="file"
-              id="import-data"
-              accept=".json"
-              onChange={importAllData}
-              className="hidden"
-            />
-            <label
-              htmlFor="import-data"
-              className="w-full px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 font-medium text-center cursor-pointer block"
-            >
-              📥 Import Data (Restore)
-            </label>
-          </div>
+          <button
+            onClick={() => document.getElementById('import-data').click()}
+            className="w-full px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 font-medium"
+          >
+            📥 Import Data (Restore)
+          </button>
+          <input
+            type="file"
+            id="import-data"
+            accept=".json"
+            onChange={importAllData}
+            className="hidden"
+          />
           <button
             onClick={syncSharedData}
             className="w-full px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 font-medium"
