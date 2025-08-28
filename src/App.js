@@ -919,8 +919,10 @@ function AdminPanel(){
           {/* Exam Selection */}
           <Section title="Select Exam for Question Management">
             <div className="mb-4">
-              <label className="block text-sm font-medium mb-2">Choose Exam:</label>
+              <label htmlFor="exam-selection" className="block text-sm font-medium mb-2">Choose Exam:</label>
               <select 
+                id="exam-selection"
+                name="selectedExam"
                 value={selectedExam?.id || ""} 
                 onChange={(e) => {
                   const examId = e.target.value;
@@ -1657,6 +1659,8 @@ function UploadQuestions({onFile}){
       <p className="text-lg font-semibold text-gray-700 mb-2">Upload Your Questions</p>
       <p className="text-sm text-gray-600 mb-4">Drag and drop a .docx or .xlsx file here, or click to browse</p>
       <input 
+        id="question-file-upload"
+        name="questionFile"
         type="file" 
         accept=".docx,.xlsx" 
         onChange={e=>{ if (e.target.files && e.target.files[0]) onFile(e.target.files[0]); }}
