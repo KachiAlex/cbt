@@ -822,6 +822,21 @@ function AdminPanel(){
 
   return (
     <div className="space-y-8">
+      {/* Admin Panel Header */}
+      <div className="bg-white rounded-xl border p-4">
+        <div className="flex justify-between items-center">
+          <div>
+            <h2 className="text-xl font-bold text-gray-800">Admin Panel</h2>
+            <p className="text-sm text-gray-600">Manage exams, questions, and student results</p>
+          </div>
+          <button
+            onClick={() => window.location.reload()}
+            className="px-4 py-2 bg-red-600 text-white rounded-xl hover:bg-red-700 text-sm"
+          >
+            🚪 Logout
+          </button>
+        </div>
+      </div>
 
       {/* Tab Navigation */}
       <div className="flex space-x-1 bg-gray-100 p-1 rounded-xl">
@@ -932,6 +947,24 @@ function AdminPanel(){
       {/* Questions Tab */}
       {activeTab === "questions" && (
         <div className="space-y-6">
+          {/* Breadcrumb Navigation */}
+          <div className="flex items-center gap-2 text-sm text-gray-600">
+            <button 
+              onClick={() => setActiveTab("exams")}
+              className="hover:text-blue-600 underline"
+            >
+              Exam Management
+            </button>
+            <span>›</span>
+            <span className="text-gray-900 font-medium">Question Management</span>
+            {selectedExam && (
+              <>
+                <span>›</span>
+                <span className="text-blue-600 font-medium">{selectedExam.title}</span>
+              </>
+            )}
+          </div>
+
           {/* Exam Selection */}
           <Section title="Select Exam for Question Management">
             <div className="mb-4">
@@ -966,14 +999,24 @@ function AdminPanel(){
             
             {selectedExam && (
               <div className="p-4 bg-blue-50 border border-blue-200 rounded-xl">
-                <h4 className="font-semibold text-blue-800">{selectedExam.title}</h4>
-                <p className="text-sm text-blue-700">{selectedExam.description}</p>
-                <div className="flex gap-4 mt-2 text-sm text-blue-600">
-                  <span>Questions: {questions.length}</span>
-                  <span>Duration: {selectedExam.duration} minutes</span>
-                  <span>Status: {selectedExam.isActive ? "Active" : "Inactive"}</span>
+                <div className="flex justify-between items-start mb-3">
+                  <div>
+                    <h4 className="font-semibold text-blue-800">{selectedExam.title}</h4>
+                    <p className="text-sm text-blue-700">{selectedExam.description}</p>
+                    <div className="flex gap-4 mt-2 text-sm text-blue-600">
+                      <span>Questions: {questions.length}</span>
+                      <span>Duration: {selectedExam.duration} minutes</span>
+                      <span>Status: {selectedExam.isActive ? "Active" : "Inactive"}</span>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => setActiveTab("exams")}
+                    className="px-3 py-1 bg-gray-600 text-white rounded-lg text-sm hover:bg-gray-700"
+                  >
+                    ← Back to Exams
+                  </button>
                 </div>
-                <div className="mt-3 flex gap-2">
+                <div className="flex gap-2">
                   <button 
                     onClick={() => setShowEditExam(true)}
                     className="px-3 py-1 bg-blue-600 text-white rounded-lg text-sm hover:bg-blue-700"
@@ -1028,6 +1071,14 @@ function AdminPanel(){
               <div className="text-center py-8 text-gray-500">
                 <p>Please select an exam from the dropdown above to manage its questions.</p>
                 <p className="text-sm mt-2">You can upload questions, edit existing ones, or clear all questions for the selected exam.</p>
+                <div className="mt-4">
+                  <button
+                    onClick={() => setActiveTab("exams")}
+                    className="px-4 py-2 bg-gray-600 text-white rounded-xl hover:bg-gray-700 text-sm"
+                  >
+                    ← Back to Exams
+                  </button>
+                </div>
               </div>
             </Section>
           )}
@@ -1036,31 +1087,99 @@ function AdminPanel(){
 
       {/* Results Tab */}
       {activeTab === "results" && (
-        <Section title="Exam Results">
-          <div className="mb-4 flex gap-2">
-            <button onClick={exportResultsToExcel} className="px-4 py-2 bg-green-600 text-white rounded-xl hover:bg-green-700">
-              Export to Excel
+        <div className="space-y-6">
+          {/* Breadcrumb Navigation */}
+          <div className="flex items-center gap-2 text-sm text-gray-600">
+            <button 
+              onClick={() => setActiveTab("exams")}
+              className="hover:text-blue-600 underline"
+            >
+              Exam Management
             </button>
-            <button onClick={exportResultsToWord} className="px-4 py-2 bg-blue-600 text-white rounded-xl hover:bg-blue-700">
-              Export to Word
-            </button>
+            <span>›</span>
+            <span className="text-gray-900 font-medium">Results & Reports</span>
           </div>
-          <ResultsTable results={results} setResults={setResults} />
-        </Section>
+          
+          <Section title="Exam Results">
+            <div className="mb-4 flex justify-between items-center">
+              <div className="flex gap-2">
+                <button onClick={exportResultsToExcel} className="px-4 py-2 bg-green-600 text-white rounded-xl hover:bg-green-700">
+                  Export to Excel
+                </button>
+                <button onClick={exportResultsToWord} className="px-4 py-2 bg-blue-600 text-white rounded-xl hover:bg-blue-700">
+                  Export to Word
+                </button>
+              </div>
+              <button
+                onClick={() => setActiveTab("exams")}
+                className="px-4 py-2 bg-gray-600 text-white rounded-xl hover:bg-gray-700 text-sm"
+              >
+                ← Back to Exams
+              </button>
+            </div>
+            <ResultsTable results={results} setResults={setResults} />
+          </Section>
+        </div>
       )}
 
       {/* Students Tab */}
       {activeTab === "students" && (
-        <Section title="Student Management">
-          <StudentManagement />
-        </Section>
+        <div className="space-y-6">
+          {/* Breadcrumb Navigation */}
+          <div className="flex items-center gap-2 text-sm text-gray-600">
+            <button 
+              onClick={() => setActiveTab("exams")}
+              className="hover:text-blue-600 underline"
+            >
+              Exam Management
+            </button>
+            <span>›</span>
+            <span className="text-gray-900 font-medium">Student Management</span>
+          </div>
+          
+          <Section title="Student Management">
+            <div className="mb-4 flex justify-between items-center">
+              <h3 className="text-lg font-semibold">Registered Students</h3>
+              <button
+                onClick={() => setActiveTab("exams")}
+                className="px-4 py-2 bg-gray-600 text-white rounded-xl hover:bg-gray-700 text-sm"
+              >
+                ← Back to Exams
+              </button>
+            </div>
+            <StudentManagement />
+          </Section>
+        </div>
       )}
 
       {/* Settings Tab */}
       {activeTab === "settings" && (
-        <Section title="System Settings">
-          <AdminSettings />
-        </Section>
+        <div className="space-y-6">
+          {/* Breadcrumb Navigation */}
+          <div className="flex items-center gap-2 text-sm text-gray-600">
+            <button 
+              onClick={() => setActiveTab("exams")}
+              className="hover:text-blue-600 underline"
+            >
+              Exam Management
+            </button>
+            <span>›</span>
+            <span className="text-gray-900 font-medium">System Settings</span>
+          </div>
+          
+          <Section title="System Settings">
+            <div className="mb-4 flex justify-between items-center">
+              <h3 className="text-lg font-semibold">Admin Configuration</h3>
+              <button
+                onClick={() => setActiveTab("exams")}
+                className="px-4 py-2 bg-gray-600 text-white rounded-xl hover:bg-gray-700 text-sm"
+              >
+                ← Back to Exams
+              </button>
+            </div>
+            <AdminSettings />
+          </Section>
+        </div>
       )}
 
       {/* Create Exam Modal */}
@@ -2308,8 +2427,18 @@ function StudentPanel({user}){
   if (questions.length === 0) {
     return (
       <div className="bg-white rounded-2xl shadow p-6">
-        <h3 className="text-lg font-bold mb-2">No Questions Available</h3>
-        <p className="text-sm text-gray-600">The exam "{selectedExam.title}" has no questions. Please contact your administrator.</p>
+        <div className="flex justify-between items-start mb-4">
+          <div>
+            <h3 className="text-lg font-bold mb-2">No Questions Available</h3>
+            <p className="text-sm text-gray-600">The exam "{selectedExam.title}" has no questions. Please contact your administrator.</p>
+          </div>
+          <button
+            onClick={() => setSelectedExam(null)}
+            className="px-4 py-2 bg-gray-600 text-white rounded-xl hover:bg-gray-700 text-sm"
+          >
+            ← Back to Exams
+          </button>
+        </div>
       </div>
     );
   }
@@ -2317,10 +2446,20 @@ function StudentPanel({user}){
   if (submitted) {
     return (
       <div className="bg-white rounded-2xl shadow p-6">
-        <h3 className="text-lg font-bold mb-2">Submission Successful</h3>
-        <p className="mb-2">Exam: <b>{selectedExam.title}</b></p>
-        <p className="mb-4">Score: <b>{score}</b> / {questions.length} ({Math.round((score/questions.length)*100)}%)</p>
-        <p className="text-sm text-gray-600">You may close this page. Your result has been recorded.</p>
+        <div className="flex justify-between items-start mb-4">
+          <div>
+            <h3 className="text-lg font-bold mb-2">Submission Successful</h3>
+            <p className="mb-2">Exam: <b>{selectedExam.title}</b></p>
+            <p className="mb-4">Score: <b>{score}</b> / {questions.length} ({Math.round((score/questions.length)*100)}%)</p>
+            <p className="text-sm text-gray-600">You may close this page. Your result has been recorded.</p>
+          </div>
+          <button
+            onClick={() => setSelectedExam(null)}
+            className="px-4 py-2 bg-gray-600 text-white rounded-xl hover:bg-gray-700 text-sm"
+          >
+            ← Back to Exams
+          </button>
+        </div>
       </div>
     );
   }
