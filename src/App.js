@@ -25,7 +25,8 @@ const LS_KEYS = {
   RESULTS: "cbt_results_v1",
   ACTIVE_EXAM: "cbt_active_exam_v1",
   USERS: "cbt_users_v1",
-  STUDENT_REGISTRATIONS: "cbt_student_registrations_v1"
+  STUDENT_REGISTRATIONS: "cbt_student_registrations_v1",
+  SHARED_DATA: "cbt_shared_data_v1"
 };
 
 const DEFAULT_EXAM_TITLE = "College of Nursing, Eku, Delta State";
@@ -767,6 +768,73 @@ function AdminPanel(){
     saveAs(blob, "CBT_Questions_Template.xlsx");
   };
 
+  const exportAllData = () => {
+    const allData = {
+      exams: loadExams(),
+      results: loadResults(),
+      users: loadUsers(),
+      studentRegistrations: loadStudentRegistrations(),
+      questions: loadQuestions(),
+      activeExam: getActiveExam(),
+      exportDate: new Date().toISOString(),
+      version: "1.0.0"
+    };
+
+    const dataStr = JSON.stringify(allData, null, 2);
+    const dataBlob = new Blob([dataStr], { type: 'application/json' });
+    saveAs(dataBlob, `CBT_Data_Backup_${new Date().toISOString().split('T')[0]}.json`);
+  };
+
+  const importAllData = (event) => {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const data = JSON.parse(e.target.result);
+        
+        // Validate the data structure
+        if (!data.exams || !data.results || !data.users) {
+          alert("Invalid backup file format. Please use a valid CBT backup file.");
+          return;
+        }
+
+        // Import all data
+        if (data.exams) saveExams(data.exams);
+        if (data.results) saveResults(data.results);
+        if (data.users) saveUsers(data.users);
+        if (data.studentRegistrations) {
+          localStorage.setItem(LS_KEYS.STUDENT_REGISTRATIONS, JSON.stringify(data.studentRegistrations));
+        }
+        if (data.questions) saveQuestions(data.questions);
+        if (data.activeExam) {
+          localStorage.setItem(LS_KEYS.ACTIVE_EXAM, JSON.stringify(data.activeExam));
+        }
+
+        // Reload state
+        setExams(loadExams());
+        setResults(loadResults());
+        setQuestions(loadQuestions());
+
+        alert(`Data imported successfully! Imported ${data.exams?.length || 0} exams, ${data.results?.length || 0} results, and ${data.users?.length || 0} users.`);
+        
+        // Clear the file input
+        event.target.value = '';
+      } catch (error) {
+        console.error('Import error:', error);
+        alert("Failed to import data. Please check the file format.");
+      }
+    };
+    reader.readAsText(file);
+  };
+
+  const syncSharedData = () => {
+    // This function can be extended to sync with a cloud service
+    // For now, it will show a message about the current limitation
+    alert("Shared data sync feature is coming soon! For now, use the export/import feature to share data between admin users.");
+  };
+
   const downloadSampleWord = async () => {
     // Create sample questions for Word document
     const sampleQuestions = [
@@ -976,6 +1044,33 @@ function AdminPanel(){
 
   return (
     <div className="space-y-8">
+      {/* Data Sharing Notice */}
+      <div className="mb-6 p-4 bg-yellow-50 border border-yellow-200 rounded-xl">
+        <div className="flex items-start gap-3">
+          <div className="text-yellow-600 text-lg">⚠️</div>
+          <div>
+            <h4 className="font-semibold text-yellow-800 mb-1">Data Sharing Notice</h4>
+            <p className="text-sm text-yellow-700 mb-2">
+              Data is stored locally in your browser. Different admin users on different devices/browsers will see different data.
+            </p>
+            <div className="flex gap-2">
+              <button
+                onClick={exportAllData}
+                className="px-3 py-1 bg-yellow-600 text-white rounded-lg text-xs hover:bg-yellow-700"
+              >
+                📤 Export Data
+              </button>
+              <button
+                onClick={() => document.getElementById('import-data').click()}
+                className="px-3 py-1 bg-yellow-600 text-white rounded-lg text-xs hover:bg-yellow-700"
+              >
+                📥 Import Data
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
       {/* Tab Navigation */}
       <div className="flex space-x-1 bg-gray-100 p-1 rounded-xl">
         {[
@@ -1803,6 +1898,49 @@ function AdminSettings() {
         </ul>
       </div>
 
+      {/* Data Management */}
+      <div className="bg-blue-50 rounded-xl border border-blue-200 p-6">
+        <h4 className="text-lg font-semibold mb-3 text-blue-800">🔄 Data Management</h4>
+        <p className="text-sm text-blue-700 mb-4">
+          Export and import data to share between different admin users or backup your data.
+        </p>
+        <div className="space-y-3">
+          <button
+            onClick={exportAllData}
+            className="w-full px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium"
+          >
+            📤 Export All Data (Backup)
+          </button>
+          <div className="relative">
+            <input
+              type="file"
+              id="import-data"
+              accept=".json"
+              onChange={importAllData}
+              className="hidden"
+            />
+            <label
+              htmlFor="import-data"
+              className="w-full px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 font-medium text-center cursor-pointer block"
+            >
+              📥 Import Data (Restore)
+            </label>
+          </div>
+          <button
+            onClick={syncSharedData}
+            className="w-full px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 font-medium"
+          >
+            🔄 Sync Shared Data
+          </button>
+        </div>
+        <div className="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+          <p className="text-xs text-yellow-800">
+            <strong>💡 Note:</strong> Data is stored locally in your browser. To share data between different admin users, 
+            use the export/import feature or sync with shared storage.
+          </p>
+        </div>
+      </div>
+
       {/* System Information */}
       <div className="bg-gray-50 rounded-xl border p-6">
         <h4 className="text-lg font-semibold mb-3">ℹ️ System Information</h4>
@@ -1811,6 +1949,7 @@ function AdminSettings() {
           <p><strong>Default Password:</strong> admin123 (change this immediately)</p>
           <p><strong>System Version:</strong> CBT v1.0.0</p>
           <p><strong>Last Updated:</strong> {new Date().toLocaleDateString()}</p>
+          <p><strong>Data Location:</strong> Browser Local Storage</p>
         </div>
       </div>
     </div>
