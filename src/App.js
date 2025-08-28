@@ -420,7 +420,8 @@ function Login({onLogin}){
                 value={password} 
                 onChange={e=>setPassword(e.target.value)} 
                 className="w-full border rounded-xl px-3 py-2 pr-10" 
-                placeholder="Enter your password" 
+                placeholder="Enter your password"
+                autoComplete="current-password"
               />
               <button
                 type="button"
@@ -493,7 +494,8 @@ function Login({onLogin}){
                 value={password} 
                 onChange={e=>setPassword(e.target.value)} 
                 className="w-full border rounded-xl px-3 py-2 pr-10" 
-                placeholder="Choose a password (min 6 characters)" 
+                placeholder="Choose a password (min 6 characters)"
+                autoComplete="new-password"
               />
               <button
                 type="button"
@@ -524,7 +526,8 @@ function Login({onLogin}){
                 value={confirmPassword} 
                 onChange={e=>setConfirmPassword(e.target.value)} 
                 className="w-full border rounded-xl px-3 py-2 pr-10" 
-                placeholder="Confirm your password" 
+                placeholder="Confirm your password"
+                autoComplete="new-password"
               />
               <button
                 type="button"
@@ -626,7 +629,8 @@ function AdminLogin({onLogin, onBack}){
               value={password} 
               onChange={e=>setPassword(e.target.value)} 
               className="w-full border rounded-xl px-3 py-2 pr-10 focus:ring-2 focus:ring-red-500 focus:border-red-500" 
-              placeholder="Enter admin password" 
+              placeholder="Enter admin password"
+              autoComplete="current-password"
             />
             <button
               type="button"
@@ -1836,6 +1840,7 @@ function AdminSettings() {
                 onChange={(e) => setCurrentPassword(e.target.value)}
                 className="w-full border rounded-lg px-3 py-2 pr-10 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 placeholder="Enter current password"
+                autoComplete="current-password"
                 required
               />
               <button type="button" onClick={()=>setShowCurr(s=>!s)} className="absolute inset-y-0 right-2 text-xs text-gray-500">
@@ -1855,6 +1860,7 @@ function AdminSettings() {
                 onChange={(e) => setNewPassword(e.target.value)}
                 className="w-full border rounded-lg px-3 py-2 pr-10 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 placeholder="Enter new password"
+                autoComplete="new-password"
                 required
               />
               <button type="button" onClick={()=>setShowNew(s=>!s)} className="absolute inset-y-0 right-2 text-xs text-gray-500">
@@ -1921,6 +1927,7 @@ function AdminSettings() {
                 onChange={(e) => setConfirmPassword(e.target.value)}
                 className="w-full border rounded-lg px-3 py-2 pr-10 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 placeholder="Confirm new password"
+                autoComplete="new-password"
                 required
               />
               <button type="button" onClick={()=>setShowConf(s=>!s)} className="absolute inset-y-0 right-2 text-xs text-gray-500">
