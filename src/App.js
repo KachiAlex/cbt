@@ -270,7 +270,12 @@ function Header({user, onLogout, onLogoClick}){
             className="flex items-center gap-2 text-left hover:text-blue-600 transition-colors cursor-pointer"
             title={!user ? "Click to reveal admin access" : ""}
           >
-            <img src="/logo-eku.png" alt="College of Nursing Science, Eku" className="h-8 w-auto" />
+            <img 
+              src="/logo-eku.png"
+              alt="College of Nursing Science, Eku"
+              className="h-10 md:h-12 w-auto object-contain"
+              onError={(e)=>{ e.currentTarget.onerror=null; e.currentTarget.src='/logo-eku.jpg'; }}
+            />
             <span className="text-base sm:text-lg font-bold whitespace-nowrap">College of Nursing, Eku, Delta State</span>
           </button>
           <span className="text-xs bg-emerald-100 text-emerald-700 px-2 py-1 rounded-full">Flexible Exams</span>
@@ -471,7 +476,6 @@ function Login({onLogin}){
 
       <div className="mt-6 text-xs text-gray-500">
         <p>Students must register first before they can login and take exams.</p>
-        <p className="mt-1">For admin access, use the hidden admin portal.</p>
       </div>
     </div>
   );
