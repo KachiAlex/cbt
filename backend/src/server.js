@@ -3,10 +3,14 @@ const cors = require('cors');
 const helmet = require('helmet');
 const morgan = require('morgan');
 const rateLimit = require('express-rate-limit');
+const connectDB = require('./config/database');
 require('dotenv').config();
 
 const app = express();
 const PORT = process.env.PORT || 5000;
+
+// Connect to database
+connectDB();
 
 // Middleware
 app.use(helmet());
@@ -27,7 +31,8 @@ app.get('/health', (req, res) => {
   res.status(200).json({ 
     status: 'healthy', 
     timestamp: new Date().toISOString(),
-    environment: process.env.NODE_ENV || 'development'
+    environment: process.env.NODE_ENV || 'development',
+    database: process.env.DB_TYPE || 'mongodb'
   });
 });
 
@@ -36,6 +41,7 @@ app.get('/api', (req, res) => {
   res.json({ 
     message: 'CBT Backend API is running',
     version: '1.0.0',
+    database: process.env.DB_TYPE || 'mongodb',
     endpoints: {
       health: '/health',
       exams: '/api/exams',
@@ -81,6 +87,7 @@ app.listen(PORT, () => {
   console.log(`🚀 CBT Backend server running on port ${PORT}`);
   console.log(`📊 Health check: http://localhost:${PORT}/health`);
   console.log(`🔗 API base: http://localhost:${PORT}/api`);
+  console.log(`🗄️ Database: ${process.env.DB_TYPE || 'mongodb'}`);
 });
 
 module.exports = app; 

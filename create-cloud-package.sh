@@ -39,9 +39,20 @@ EOF
 # Backend environment variables
 cat > ${PACKAGE_NAME}/backend/.env.example << EOF
 # Backend Environment Variables for ${CLIENT_NAME}
+
+# Database Configuration
+DB_TYPE=mongodb
+MONGODB_URI=mongodb+srv://username:password@cluster.mongodb.net/cbt?retryWrites=true&w=majority
+
+# Alternative: Supabase Configuration
+# DB_TYPE=supabase
+# SUPABASE_URL=https://your-project.supabase.co
+# SUPABASE_ANON_KEY=your-anon-key
+# SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
+
+# Server Configuration
 NODE_ENV=production
 PORT=5000
-MONGODB_URI=mongodb+srv://username:password@cluster.mongodb.net/cbt
 JWT_SECRET=your-secret-key-here
 CORS_ORIGIN=https://your-frontend-url.com
 EOF
