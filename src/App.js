@@ -678,6 +678,7 @@ function AdminPanel(){
   const [showCreateExam, setShowCreateExam] = useState(false);
   const [showEditExam, setShowEditExam] = useState(false);
   const [selectedExam, setSelectedExam] = useState(null);
+  const fileInputRef = useRef(null);
 
   useEffect(()=>{
     setExams(loadExams());
@@ -1111,7 +1112,11 @@ function AdminPanel(){
                 📤 Export Data
               </button>
               <button
-                onClick={() => document.getElementById('import-data').click()}
+                onClick={() => {
+                  if (fileInputRef.current) {
+                    fileInputRef.current.click();
+                  }
+                }}
                 className="px-3 py-1 bg-yellow-600 text-white rounded-lg text-xs hover:bg-yellow-700"
               >
                 📥 Import Data
@@ -1961,19 +1966,30 @@ function AdminSettings() {
           >
             📤 Export All Data (Backup)
           </button>
-          <button
-            onClick={() => document.getElementById('import-data').click()}
-            className="w-full px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 font-medium"
-          >
-            📥 Import Data (Restore)
-          </button>
-          <input
-            type="file"
-            id="import-data"
-            accept=".json"
-            onChange={importAllData}
-            className="hidden"
-          />
+          <div className="relative">
+            <input
+              ref={fileInputRef}
+              type="file"
+              id="import-data"
+              accept=".json"
+              onChange={importAllData}
+              className="hidden"
+            />
+            <button
+              onClick={() => {
+                console.log("Import button clicked");
+                if (fileInputRef.current) {
+                  console.log("File input ref found, triggering click");
+                  fileInputRef.current.click();
+                } else {
+                  console.error("File input ref not found");
+                }
+              }}
+              className="w-full px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 font-medium"
+            >
+              📥 Import Data (Restore)
+            </button>
+          </div>
           <button
             onClick={syncSharedData}
             className="w-full px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 font-medium"
