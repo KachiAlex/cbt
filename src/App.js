@@ -818,7 +818,7 @@ function AdminPanel(){
     }
   };
 
-  const activeExam = getActiveExam();
+
 
   return (
     <div className="space-y-8">
