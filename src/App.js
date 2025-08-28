@@ -278,7 +278,6 @@ function Header({user, onLogout, onLogoClick}){
             />
             <span className="text-base sm:text-lg font-bold whitespace-nowrap">College of Nursing, Eku, Delta State</span>
           </button>
-          <span className="text-xs bg-emerald-100 text-emerald-700 px-2 py-1 rounded-full">Flexible Exams</span>
         </div>
         <div className="flex items-center gap-3">
           {user ? (
