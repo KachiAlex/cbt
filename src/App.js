@@ -667,27 +667,45 @@ function AdminPanel(){
     localStorage.setItem(LS_KEYS.RESULTS, JSON.stringify(results));
   }, [results]);
 
-  const handleDocxUpload = async (file) => {
+  const handleFileUpload = async (file) => {
     setImportError("");
     try {
-      const arrayBuffer = await file.arrayBuffer();
-      const { value: markdown } = await mammoth.convertToMarkdown({ arrayBuffer });
+      const fileExtension = file.name.toLowerCase().split('.').pop();
       
-      console.log("Raw markdown from document:", markdown.substring(0, 500) + "...");
-      
-      const parsed = parseQuestionsFromMarkdown(markdown);
-      console.log("Parsed questions:", parsed.length, parsed);
-      
-      if (parsed.length === 0) {
-        throw new Error("No questions found. Please check the document format. Make sure each question starts with a number (1, 2, 3...) or Q, has 4 options (A, B, C, D), and ends with 'Answer: X'.");
+      if (fileExtension === 'docx') {
+        // Handle Word document
+        const arrayBuffer = await file.arrayBuffer();
+        const { value: markdown } = await mammoth.convertToMarkdown({ arrayBuffer });
+        
+        console.log("Raw markdown from document:", markdown.substring(0, 500) + "...");
+        
+        const parsed = parseQuestionsFromMarkdown(markdown);
+        console.log("Parsed questions:", parsed.length, parsed);
+        
+        if (parsed.length === 0) {
+          throw new Error("No questions found. Please check the document format. Make sure each question starts with a number (1, 2, 3...) or Q, has 4 options (A, B, C, D), and ends with 'Answer: X'.");
+        }
+        
+        setQuestions(parsed);
+        setImportError(`Successfully imported ${parsed.length} questions from Word document!`);
+        setTimeout(() => setImportError(""), 3000);
+      } else if (fileExtension === 'xlsx') {
+        // Handle Excel file
+        const parsed = await parseQuestionsFromExcel(file);
+        
+        if (parsed.length === 0) {
+          throw new Error("No questions found. Please check the Excel format. Expected columns: Question | Option A | Option B | Option C | Option D | Correct Answer");
+        }
+        
+        setQuestions(parsed);
+        setImportError(`Successfully imported ${parsed.length} questions from Excel file!`);
+        setTimeout(() => setImportError(""), 3000);
+      } else {
+        throw new Error("Unsupported file format. Please upload a .docx or .xlsx file.");
       }
-      
-      setQuestions(parsed);
-      setImportError(`Successfully imported ${parsed.length} questions!`);
-      setTimeout(() => setImportError(""), 3000); // Clear success message after 3 seconds
     } catch (e) {
       console.error("Upload error:", e);
-      setImportError(e.message || "Failed to import .docx");
+      setImportError(e.message || "Failed to import file");
     }
   };
 
@@ -857,8 +875,8 @@ function AdminPanel(){
       {/* Questions Tab */}
       {activeTab === "questions" && (
         <div className="space-y-6">
-          <Section title="Upload Questions from Microsoft Word (.docx)">
-            <UploadDocx onFile={handleDocxUpload} />
+          <Section title="Upload Questions from Word (.docx) or Excel (.xlsx)">
+            <UploadQuestions onFile={handleFileUpload} />
             {importError && <div className="text-red-600 text-sm mt-2">{importError}</div>}
             <FormatHelp />
           </Section>
@@ -1374,7 +1392,7 @@ function Section({title, children}){
   );
 }
 
-function UploadDocx({onFile}){
+function UploadQuestions({onFile}){
   return (
     <div className="border-2 border-dashed border-blue-300 rounded-2xl p-6 text-center bg-blue-50">
       <div className="mb-4">
@@ -1383,15 +1401,15 @@ function UploadDocx({onFile}){
         </svg>
       </div>
       <p className="text-lg font-semibold text-gray-700 mb-2">Upload Your Questions</p>
-      <p className="text-sm text-gray-600 mb-4">Drag and drop a .docx file here, or click to browse</p>
+      <p className="text-sm text-gray-600 mb-4">Drag and drop a .docx or .xlsx file here, or click to browse</p>
       <input 
         type="file" 
-        accept=".docx" 
+        accept=".docx,.xlsx" 
         onChange={e=>{ if (e.target.files && e.target.files[0]) onFile(e.target.files[0]); }}
         className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
       />
       <p className="text-xs text-gray-500 mt-3">
-        💡 The system supports multiple question formats - see format guide below
+        💡 Supports Word (.docx) and Excel (.xlsx) formats - see format guide below
       </p>
     </div>
   );
@@ -1400,7 +1418,7 @@ function UploadDocx({onFile}){
 function FormatHelp(){
   return (
     <details className="mt-4 text-sm cursor-pointer">
-      <summary className="font-semibold">📄 Flexible .docx Question Formats (Multiple Questions)</summary>
+      <summary className="font-semibold">📄 Flexible Question Upload Formats (Word & Excel)</summary>
       <div className="mt-2 bg-gray-50 border rounded-xl p-3">
         <div className="space-y-4">
           <div>
@@ -1435,7 +1453,7 @@ Answer: B`}</pre>
           </div>
           
           <div>
-            <h4 className="font-semibold text-blue-700">✅ Multiple Answer Formats Supported</h4>
+            <h4 className="font-semibold text-blue-700">✅ Word Document (.docx) Formats</h4>
             <pre className="whitespace-pre-wrap text-xs bg-white p-2 rounded">{`Q1. Question with Q prefix?
 A. Option A
 B. Option B
@@ -1470,6 +1488,19 @@ b) Option b
 C. Option C
 D) Option D
 Answer: C`}</pre>
+          </div>
+
+          <div>
+            <h4 className="font-semibold text-green-700">✅ Excel (.xlsx) Format</h4>
+            <p className="text-xs text-gray-600 mb-2">Create an Excel file with these columns:</p>
+            <pre className="whitespace-pre-wrap text-xs bg-white p-2 rounded">{`Question | Option A | Option B | Option C | Option D | Correct Answer
+What is the normal heart rate? | 60-100 bpm | 120-160 bpm | 40-60 bpm | 80-120 bpm | A
+Which vitamin is from sunlight? | Vitamin A | Vitamin C | Vitamin D | Vitamin K | C
+What does CBT stand for? | Computer Based Training | Computer Based Testing | Computer Based Technology | Computer Based Teaching | B`}</pre>
+            <p className="text-xs text-gray-600 mt-2">
+              <strong>Note:</strong> First row can be headers (Question, Option A, etc.) or data. 
+              Correct Answer should be A, B, C, or D (case insensitive).
+            </p>
           </div>
           
           <div className="mt-3 p-2 bg-yellow-50 border-l-4 border-yellow-400">
@@ -2000,6 +2031,74 @@ function createQuestionObject(questionText, options, correctAnswer) {
     options: sortedOptions.map(opt => cleanMarkdownText(opt)),
     correctIndex: answerIndex
   };
+}
+
+// Excel parser for .xlsx files
+// Expected format: Question | Option A | Option B | Option C | Option D | Correct Answer
+function parseQuestionsFromExcel(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const data = new Uint8Array(e.target.result);
+        const workbook = XLSX.read(data, { type: 'array' });
+        const sheetName = workbook.SheetNames[0];
+        const worksheet = workbook.Sheets[sheetName];
+        const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+        
+        const questions = [];
+        
+        // Skip header row if it exists
+        const startRow = jsonData[0] && jsonData[0][0] && 
+                        (jsonData[0][0].toString().toLowerCase().includes('question') || 
+                         jsonData[0][0].toString().toLowerCase().includes('q')) ? 1 : 0;
+        
+        for (let i = startRow; i < jsonData.length; i++) {
+          const row = jsonData[i];
+          if (!row || row.length < 6) continue; // Need at least 6 columns
+          
+          const questionText = row[0]?.toString().trim();
+          const optionA = row[1]?.toString().trim();
+          const optionB = row[2]?.toString().trim();
+          const optionC = row[3]?.toString().trim();
+          const optionD = row[4]?.toString().trim();
+          const correctAnswer = row[5]?.toString().trim().toUpperCase();
+          
+          if (!questionText || !optionA || !optionB || !optionC || !optionD || !correctAnswer) {
+            console.log(`Skipping invalid row ${i + 1}:`, row);
+            continue;
+          }
+          
+          // Convert answer to index (A=0, B=1, C=2, D=3)
+          const answerIndex = { 'A': 0, 'B': 1, 'C': 2, 'D': 3 }[correctAnswer];
+          if (answerIndex === undefined) {
+            console.log(`Invalid answer in row ${i + 1}:`, correctAnswer);
+            continue;
+          }
+          
+          questions.push({
+            id: crypto.randomUUID(),
+            text: cleanMarkdownText(questionText),
+            options: [
+              cleanMarkdownText(optionA),
+              cleanMarkdownText(optionB),
+              cleanMarkdownText(optionC),
+              cleanMarkdownText(optionD)
+            ],
+            correctIndex: answerIndex
+          });
+        }
+        
+        console.log(`Parsed ${questions.length} questions from Excel file`);
+        resolve(questions);
+      } catch (error) {
+        console.error('Error parsing Excel file:', error);
+        reject(new Error('Failed to parse Excel file. Please check the format.'));
+      }
+    };
+    reader.onerror = () => reject(new Error('Failed to read file'));
+    reader.readAsArrayBuffer(file);
+  });
 }
 
 export default App;
