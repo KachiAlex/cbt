@@ -829,12 +829,6 @@ function AdminPanel(){
             <h2 className="text-xl font-bold text-gray-800">Admin Panel</h2>
             <p className="text-sm text-gray-600">Manage exams, questions, and student results</p>
           </div>
-          <button
-            onClick={() => window.location.reload()}
-            className="px-4 py-2 bg-red-600 text-white rounded-xl hover:bg-red-700 text-sm"
-          >
-            🚪 Logout
-          </button>
         </div>
       </div>
 
