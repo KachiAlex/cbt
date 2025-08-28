@@ -815,13 +815,25 @@ function AdminPanel(){
         
         console.log("Parsed data structure:", Object.keys(data));
         
-        // Validate the data structure
-        if (!data.exams || !data.results || !data.users) {
+        // Validate the data structure - check if required fields exist (can be empty arrays)
+        if (data.exams === undefined || data.results === undefined || data.users === undefined) {
           alert("Invalid backup file format. Please use a valid CBT backup file.\n\nExpected fields: exams, results, users");
           console.error("Missing required fields:", { 
-            hasExams: !!data.exams, 
-            hasResults: !!data.results, 
-            hasUsers: !!data.users 
+            hasExams: data.exams !== undefined, 
+            hasResults: data.results !== undefined, 
+            hasUsers: data.users !== undefined 
+          });
+          event.target.value = '';
+          return;
+        }
+
+        // Additional validation - ensure arrays exist (can be empty)
+        if (!Array.isArray(data.exams) || !Array.isArray(data.results) || !Array.isArray(data.users)) {
+          alert("Invalid backup file format. The exams, results, and users fields must be arrays.");
+          console.error("Invalid field types:", { 
+            examsType: typeof data.exams, 
+            resultsType: typeof data.results, 
+            usersType: typeof data.users
           });
           event.target.value = '';
           return;
@@ -1859,13 +1871,25 @@ function AdminSettings() {
         
         console.log("Parsed data structure:", Object.keys(data));
         
-        // Validate the data structure
-        if (!data.exams || !data.results || !data.users) {
+        // Validate the data structure - check if required fields exist (can be empty arrays)
+        if (data.exams === undefined || data.results === undefined || data.users === undefined) {
           alert("Invalid backup file format. Please use a valid CBT backup file.\n\nExpected fields: exams, results, users");
           console.error("Missing required fields:", { 
-            hasExams: !!data.exams, 
-            hasResults: !!data.results, 
-            hasUsers: !!data.users 
+            hasExams: data.exams !== undefined, 
+            hasResults: data.results !== undefined, 
+            hasUsers: data.users !== undefined 
+          });
+          event.target.value = '';
+          return;
+        }
+
+        // Additional validation - ensure arrays exist (can be empty)
+        if (!Array.isArray(data.exams) || !Array.isArray(data.results) || !Array.isArray(data.users)) {
+          alert("Invalid backup file format. The exams, results, and users fields must be arrays.");
+          console.error("Invalid field types:", { 
+            examsType: typeof data.exams, 
+            resultsType: typeof data.results, 
+            usersType: typeof data.users
           });
           event.target.value = '';
           return;
