@@ -267,10 +267,11 @@ function Header({user, onLogout, onLogoClick}){
         <div className="flex items-center gap-3">
           <button 
             onClick={onLogoClick}
-            className="text-xl font-bold hover:text-blue-600 transition-colors cursor-pointer"
+            className="flex items-center gap-2 text-left hover:text-blue-600 transition-colors cursor-pointer"
             title={!user ? "Click to reveal admin access" : ""}
           >
-            🏥 College of Nursing, Eku, Delta State
+            <img src="/logo-eku.png" alt="College of Nursing Science, Eku" className="h-8 w-auto" />
+            <span className="text-base sm:text-lg font-bold whitespace-nowrap">College of Nursing, Eku, Delta State</span>
           </button>
           <span className="text-xs bg-emerald-100 text-emerald-700 px-2 py-1 rounded-full">Flexible Exams</span>
         </div>
@@ -1414,13 +1415,13 @@ function StudentPanel({user}){
   const [submitted, setSubmitted] = useState(false);
   const [score, setScore] = useState(0);
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
-  const [activeExams, setActiveExams] = useState([]);
+  const [allExams, setAllExams] = useState([]);
 
   useEffect(()=>{
-    // Load list of currently active exams; student must choose one
-    const allExams = loadExams();
-    const actives = allExams.filter(e => e.isActive);
-    setActiveExams(actives);
+    // Load all exams (active and past), newest first; student must choose one
+    const exams = loadExams();
+    const sorted = [...exams].sort((a,b)=> new Date(b.createdAt) - new Date(a.createdAt));
+    setAllExams(sorted);
   }, []);
 
   useEffect(()=>{
@@ -1497,16 +1498,16 @@ function StudentPanel({user}){
     localStorage.setItem(LS_KEYS.RESULTS, JSON.stringify(old));
   };
 
-  // If no exam selected yet, show active exams for selection
+  // If no exam selected yet, show exams for selection
   if (!selectedExam) {
     return (
       <div className="bg-white rounded-2xl shadow p-6">
-        <h3 className="text-lg font-bold mb-2">Active Exams</h3>
-        {activeExams.length === 0 ? (
-          <p className="text-sm text-gray-600">There are currently no active exams. Please check back later or contact your administrator.</p>
+        <h3 className="text-lg font-bold mb-2">Available Exams</h3>
+        {allExams.length === 0 ? (
+          <p className="text-sm text-gray-600">No exams found. Please contact your administrator.</p>
         ) : (
           <div className="space-y-3">
-            {activeExams.map(exam => (
+            {allExams.map(exam => (
               <div key={exam.id} className="border rounded-xl p-4 flex items-start justify-between">
                 <div>
                   <h4 className="font-semibold">{exam.title}</h4>
@@ -1514,6 +1515,12 @@ function StudentPanel({user}){
                   <div className="flex gap-4 mt-2 text-xs text-gray-500">
                     <span>Questions: {exam.questionCount || 0}</span>
                     <span>Duration: {exam.duration} minutes</span>
+                    {exam.isActive ? (
+                      <span className="px-2 py-0.5 bg-green-100 text-green-700 rounded-full">Active</span>
+                    ) : (
+                      <span className="px-2 py-0.5 bg-gray-100 text-gray-600 rounded-full">Past</span>
+                    )}
+                    <span>Created: {new Date(exam.createdAt).toLocaleDateString()}</span>
                   </div>
                 </div>
                 <button
