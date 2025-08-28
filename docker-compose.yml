@@ -1,0 +1,18 @@
+version: '3.8'
+
+services:
+  cbt-app:
+    build: .
+    ports:
+      - "80:80"
+    restart: unless-stopped
+    environment:
+      - NODE_ENV=production
+    volumes:
+      - ./logs:/var/log/nginx
+    networks:
+      - cbt-network
+
+networks:
+  cbt-network:
+    driver: bridge 
