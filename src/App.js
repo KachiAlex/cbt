@@ -653,6 +653,7 @@ function AdminPanel(){
   const [results, setResults] = useState(loadResults());
   const [importError, setImportError] = useState("");
   const [showCreateExam, setShowCreateExam] = useState(false);
+  const [showEditExam, setShowEditExam] = useState(false);
   const [selectedExam, setSelectedExam] = useState(null);
 
   useEffect(()=>{
@@ -687,6 +688,15 @@ function AdminPanel(){
         }
         
         setQuestions(parsed);
+        if (selectedExam) {
+          saveQuestionsForExam(selectedExam.id, parsed);
+          // Update exam question count
+          const updatedExams = exams.map(ex => 
+            ex.id === selectedExam.id ? { ...ex, questionCount: parsed.length } : ex
+          );
+          setExams(updatedExams);
+          saveExams(updatedExams);
+        }
         setImportError(`Successfully imported ${parsed.length} questions from Word document!`);
         setTimeout(() => setImportError(""), 3000);
       } else if (fileExtension === 'xlsx') {
@@ -698,6 +708,15 @@ function AdminPanel(){
         }
         
         setQuestions(parsed);
+        if (selectedExam) {
+          saveQuestionsForExam(selectedExam.id, parsed);
+          // Update exam question count
+          const updatedExams = exams.map(ex => 
+            ex.id === selectedExam.id ? { ...ex, questionCount: parsed.length } : ex
+          );
+          setExams(updatedExams);
+          saveExams(updatedExams);
+        }
         setImportError(`Successfully imported ${parsed.length} questions from Excel file!`);
         setTimeout(() => setImportError(""), 3000);
       } else {
@@ -875,20 +894,95 @@ function AdminPanel(){
       {/* Questions Tab */}
       {activeTab === "questions" && (
         <div className="space-y-6">
-          <Section title="Upload Questions from Word (.docx) or Excel (.xlsx)">
-            <UploadQuestions onFile={handleFileUpload} />
-            {importError && <div className="text-red-600 text-sm mt-2">{importError}</div>}
-            <FormatHelp />
+          {/* Exam Selection */}
+          <Section title="Select Exam for Question Management">
+            <div className="mb-4">
+              <label className="block text-sm font-medium mb-2">Choose Exam:</label>
+              <select 
+                value={selectedExam?.id || ""} 
+                onChange={(e) => {
+                  const examId = e.target.value;
+                  if (examId) {
+                    const exam = exams.find(ex => ex.id === examId);
+                    setSelectedExam(exam);
+                    // Load questions for this specific exam
+                    const examQuestions = loadQuestionsForExam(examId);
+                    setQuestions(examQuestions);
+                  } else {
+                    setSelectedExam(null);
+                    setQuestions([]);
+                  }
+                }}
+                className="w-full border rounded-xl px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              >
+                <option value="">-- Select an exam --</option>
+                {exams.map(exam => (
+                  <option key={exam.id} value={exam.id}>
+                    {exam.title} ({exam.questionCount || 0} questions)
+                  </option>
+                ))}
+              </select>
+            </div>
+            
+            {selectedExam && (
+              <div className="p-4 bg-blue-50 border border-blue-200 rounded-xl">
+                <h4 className="font-semibold text-blue-800">{selectedExam.title}</h4>
+                <p className="text-sm text-blue-700">{selectedExam.description}</p>
+                <div className="flex gap-4 mt-2 text-sm text-blue-600">
+                  <span>Questions: {questions.length}</span>
+                  <span>Duration: {selectedExam.duration} minutes</span>
+                  <span>Status: {selectedExam.isActive ? "Active" : "Inactive"}</span>
+                </div>
+                <div className="mt-3 flex gap-2">
+                  <button 
+                    onClick={() => setShowEditExam(true)}
+                    className="px-3 py-1 bg-blue-600 text-white rounded-lg text-sm hover:bg-blue-700"
+                  >
+                    Edit Exam Details
+                  </button>
+                  <button 
+                    onClick={() => {
+                      if (confirm("Are you sure you want to delete all questions for this exam?")) {
+                        setQuestions([]);
+                        saveQuestionsForExam(selectedExam.id, []);
+                      }
+                    }}
+                    className="px-3 py-1 bg-red-600 text-white rounded-lg text-sm hover:bg-red-700"
+                  >
+                    Clear All Questions
+                  </button>
+                </div>
+              </div>
+            )}
           </Section>
 
-          <Section title={`Questions (${questions.length})`}>
-            <div className="mb-4 p-3 bg-emerald-50 border border-emerald-200 rounded-xl">
-              <p className="text-sm text-emerald-800">
-                <strong>🔄 Randomization Active:</strong> Questions and answer options are automatically randomized for each student to prevent cheating.
-              </p>
-            </div>
-            <QuestionsEditor questions={questions} setQuestions={setQuestions} />
-          </Section>
+          {selectedExam && (
+            <>
+              <Section title="Upload Questions from Word (.docx) or Excel (.xlsx)">
+                <UploadQuestions onFile={handleFileUpload} />
+                {importError && <div className="text-red-600 text-sm mt-2">{importError}</div>}
+                <FormatHelp />
+              </Section>
+
+              <Section title={`Questions for ${selectedExam.title} (${questions.length})`}>
+                <div className="mb-4 p-3 bg-emerald-50 border border-emerald-200 rounded-xl">
+                  <p className="text-sm text-emerald-800">
+                    <strong>🔄 Randomization Active:</strong> Questions and answer options are automatically randomized for each student to prevent cheating.
+                  </p>
+                </div>
+                <QuestionsEditor questions={questions} setQuestions={setQuestions} selectedExam={selectedExam} />
+              </Section>
+            </>
+          )}
+
+          {!selectedExam && (
+            <Section title="No Exam Selected">
+              <div className="text-center py-8 text-gray-500">
+                <p>Please select an exam from the dropdown above to manage its questions.</p>
+                <p className="text-sm mt-2">You can upload questions, edit existing ones, or clear all questions for the selected exam.</p>
+              </div>
+            </Section>
+          )}
         </div>
       )}
 
@@ -924,6 +1018,23 @@ function AdminPanel(){
       {/* Create Exam Modal */}
       {showCreateExam && (
         <CreateExamModal onClose={() => setShowCreateExam(false)} onCreate={handleCreateExam} />
+      )}
+
+      {/* Edit Exam Modal */}
+      {showEditExam && selectedExam && (
+        <EditExamModal 
+          exam={selectedExam} 
+          onClose={() => setShowEditExam(false)} 
+          onUpdate={(updatedExam) => {
+            const updatedExams = exams.map(ex => 
+              ex.id === selectedExam.id ? updatedExam : ex
+            );
+            setExams(updatedExams);
+            saveExams(updatedExams);
+            setSelectedExam(updatedExam);
+            setShowEditExam(false);
+          }} 
+        />
       )}
     </div>
   );
@@ -1019,6 +1130,105 @@ function CreateExamModal({ onClose, onCreate }) {
               className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-xl hover:bg-blue-700"
             >
               Create Exam
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+function EditExamModal({ exam, onClose, onUpdate }) {
+  const [title, setTitle] = useState(exam.title);
+  const [description, setDescription] = useState(exam.description);
+  const [duration, setDuration] = useState(exam.duration);
+  const [questionCount, setQuestionCount] = useState(exam.questionCount);
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    if (!title.trim()) {
+      alert("Please enter an exam title");
+      return;
+    }
+    
+    onUpdate({
+      ...exam,
+      title: title.trim(),
+      description: description.trim(),
+      duration: parseInt(duration),
+      questionCount: parseInt(questionCount)
+    });
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+      <div className="bg-white rounded-xl p-6 max-w-md mx-4 w-full">
+        <h3 className="text-lg font-bold mb-4">Edit Exam</h3>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <label className="block text-sm mb-1">Exam Title *</label>
+            <input
+              type="text"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              className="w-full border rounded-xl px-3 py-2"
+              placeholder="e.g., Midterm Exam - Biology 101"
+              required
+            />
+          </div>
+          
+          <div>
+            <label className="block text-sm mb-1">Description</label>
+            <textarea
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              className="w-full border rounded-xl px-3 py-2"
+              placeholder="Brief description of the exam"
+              rows="3"
+            />
+          </div>
+          
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm mb-1">Duration (minutes)</label>
+              <input
+                type="number"
+                value={duration}
+                onChange={(e) => setDuration(e.target.value)}
+                className="w-full border rounded-xl px-3 py-2"
+                min="15"
+                max="300"
+                required
+              />
+            </div>
+            
+            <div>
+              <label className="block text-sm mb-1">Question Count</label>
+              <input
+                type="number"
+                value={questionCount}
+                onChange={(e) => setQuestionCount(e.target.value)}
+                className="w-full border rounded-xl px-3 py-2"
+                min="1"
+                max="100"
+                required
+              />
+            </div>
+          </div>
+          
+          <div className="flex gap-2 pt-4">
+            <button
+              type="button"
+              onClick={onClose}
+              className="flex-1 px-4 py-2 border border-gray-300 rounded-xl hover:bg-gray-50"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-xl hover:bg-blue-700"
+            >
+              Update Exam
             </button>
           </div>
         </form>
@@ -1525,12 +1735,49 @@ What does CBT stand for? | Computer Based Training | Computer Based Testing | Co
   );
 }
 
-function QuestionsEditor({questions, setQuestions}){
+function QuestionsEditor({questions, setQuestions, selectedExam}){
   const updateQ = (i, patch) => {
-    setQuestions(questions.map((q,idx)=> idx===i ? {...q, ...patch} : q));
+    const updatedQuestions = questions.map((q,idx)=> idx===i ? {...q, ...patch} : q);
+    setQuestions(updatedQuestions);
+    // Save changes to the specific exam
+    if (selectedExam) {
+      saveQuestionsForExam(selectedExam.id, updatedQuestions);
+      // Update exam question count
+      const updatedExams = loadExams().map(ex => 
+        ex.id === selectedExam.id ? { ...ex, questionCount: updatedQuestions.length } : ex
+      );
+      saveExams(updatedExams);
+    }
   };
-  const removeQ = (i) => setQuestions(questions.filter((_,idx)=>idx!==i));
-  const add = () => setQuestions((qs)=>[...qs, {id:crypto.randomUUID(), text:"New question text", options:["Option A","Option B","Option C","Option D"], correctIndex:0}]);
+  
+  const removeQ = (i) => {
+    const updatedQuestions = questions.filter((_,idx)=>idx!==i);
+    setQuestions(updatedQuestions);
+    // Save changes to the specific exam
+    if (selectedExam) {
+      saveQuestionsForExam(selectedExam.id, updatedQuestions);
+      // Update exam question count
+      const updatedExams = loadExams().map(ex => 
+        ex.id === selectedExam.id ? { ...ex, questionCount: updatedQuestions.length } : ex
+      );
+      saveExams(updatedExams);
+    }
+  };
+  
+  const add = () => {
+    const newQuestion = {id:crypto.randomUUID(), text:"New question text", options:["Option A","Option B","Option C","Option D"], correctIndex:0};
+    const updatedQuestions = [...questions, newQuestion];
+    setQuestions(updatedQuestions);
+    // Save changes to the specific exam
+    if (selectedExam) {
+      saveQuestionsForExam(selectedExam.id, updatedQuestions);
+      // Update exam question count
+      const updatedExams = loadExams().map(ex => 
+        ex.id === selectedExam.id ? { ...ex, questionCount: updatedQuestions.length } : ex
+      );
+      saveExams(updatedExams);
+    }
+  };
 
   return (
     <div className="space-y-4">
@@ -1887,6 +2134,21 @@ function loadQuestions(){
     const q = JSON.parse(raw);
     return Array.isArray(q) ? q : [];
   } catch { return []; }
+}
+
+// Load questions for a specific exam
+function loadQuestionsForExam(examId) {
+  const raw = localStorage.getItem(`cbt_questions_${examId}`);
+  if (!raw) return [];
+  try {
+    const q = JSON.parse(raw);
+    return Array.isArray(q) ? q : [];
+  } catch { return []; }
+}
+
+// Save questions for a specific exam
+function saveQuestionsForExam(examId, questions) {
+  localStorage.setItem(`cbt_questions_${examId}`, JSON.stringify(questions));
 }
 
 function loadResults(){
