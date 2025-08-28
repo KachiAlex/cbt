@@ -301,6 +301,9 @@ function Login({onLogin}){
   const [confirmPassword, setConfirmPassword] = useState("");
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
+  const [showLoginPassword, setShowLoginPassword] = useState(false);
+  const [showRegisterPassword, setShowRegisterPassword] = useState(false);
+  const [showRegisterConfirm, setShowRegisterConfirm] = useState(false);
 
   const handleLogin = (e) => {
     e.preventDefault();
@@ -405,13 +408,23 @@ function Login({onLogin}){
           </div>
           <div>
             <label className="block text-sm mb-1">Password</label>
-            <input 
-              type="password" 
-              value={password} 
-              onChange={e=>setPassword(e.target.value)} 
-              className="w-full border rounded-xl px-3 py-2" 
-              placeholder="Enter your password" 
-            />
+            <div className="relative">
+              <input 
+                type={showLoginPassword ? "text" : "password"} 
+                value={password} 
+                onChange={e=>setPassword(e.target.value)} 
+                className="w-full border rounded-xl px-3 py-2 pr-10" 
+                placeholder="Enter your password" 
+              />
+              <button
+                type="button"
+                onClick={()=>setShowLoginPassword(s=>!s)}
+                className="absolute inset-y-0 right-2 text-xs text-gray-500"
+                aria-label={showLoginPassword ? "Hide password" : "Show password"}
+              >
+                {showLoginPassword ? "Hide" : "Show"}
+              </button>
+            </div>
           </div>
           <button className="w-full bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl py-2.5 font-semibold">
             Login as Student
@@ -449,23 +462,43 @@ function Login({onLogin}){
           </div>
           <div>
             <label className="block text-sm mb-1">Password *</label>
-            <input 
-              type="password" 
-              value={password} 
-              onChange={e=>setPassword(e.target.value)} 
-              className="w-full border rounded-xl px-3 py-2" 
-              placeholder="Choose a password (min 6 characters)" 
-            />
+            <div className="relative">
+              <input 
+                type={showRegisterPassword ? "text" : "password"} 
+                value={password} 
+                onChange={e=>setPassword(e.target.value)} 
+                className="w-full border rounded-xl px-3 py-2 pr-10" 
+                placeholder="Choose a password (min 6 characters)" 
+              />
+              <button
+                type="button"
+                onClick={()=>setShowRegisterPassword(s=>!s)}
+                className="absolute inset-y-0 right-2 text-xs text-gray-500"
+                aria-label={showRegisterPassword ? "Hide password" : "Show password"}
+              >
+                {showRegisterPassword ? "Hide" : "Show"}
+              </button>
+            </div>
           </div>
           <div>
             <label className="block text-sm mb-1">Confirm Password *</label>
-            <input 
-              type="password" 
-              value={confirmPassword} 
-              onChange={e=>setConfirmPassword(e.target.value)} 
-              className="w-full border rounded-xl px-3 py-2" 
-              placeholder="Confirm your password" 
-            />
+            <div className="relative">
+              <input 
+                type={showRegisterConfirm ? "text" : "password"} 
+                value={confirmPassword} 
+                onChange={e=>setConfirmPassword(e.target.value)} 
+                className="w-full border rounded-xl px-3 py-2 pr-10" 
+                placeholder="Confirm your password" 
+              />
+              <button
+                type="button"
+                onClick={()=>setShowRegisterConfirm(s=>!s)}
+                className="absolute inset-y-0 right-2 text-xs text-gray-500"
+                aria-label={showRegisterConfirm ? "Hide password" : "Show password"}
+              >
+                {showRegisterConfirm ? "Hide" : "Show"}
+              </button>
+            </div>
           </div>
           <button className="w-full bg-blue-600 hover:bg-blue-700 text-white rounded-xl py-2.5 font-semibold">
             Register as Student
@@ -484,6 +517,7 @@ function AdminLogin({onLogin, onBack}){
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
+  const [showAdminPassword, setShowAdminPassword] = useState(false);
 
   const handleLogin = (e) => {
     e.preventDefault();
@@ -536,13 +570,23 @@ function AdminLogin({onLogin, onBack}){
         </div>
         <div>
           <label className="block text-sm font-medium mb-1">Password</label>
-          <input 
-            type="password" 
-            value={password} 
-            onChange={e=>setPassword(e.target.value)} 
-            className="w-full border rounded-xl px-3 py-2 focus:ring-2 focus:ring-red-500 focus:border-red-500" 
-            placeholder="Enter admin password" 
-          />
+          <div className="relative">
+            <input 
+              type={showAdminPassword ? "text" : "password"} 
+              value={password} 
+              onChange={e=>setPassword(e.target.value)} 
+              className="w-full border rounded-xl px-3 py-2 pr-10 focus:ring-2 focus:ring-red-500 focus:border-red-500" 
+              placeholder="Enter admin password" 
+            />
+            <button
+              type="button"
+              onClick={()=>setShowAdminPassword(s=>!s)}
+              className="absolute inset-y-0 right-2 text-xs text-gray-500"
+              aria-label={showAdminPassword ? "Hide password" : "Show password"}
+            >
+              {showAdminPassword ? "Hide" : "Show"}
+            </button>
+          </div>
         </div>
         <button className="w-full bg-red-600 hover:bg-red-700 text-white rounded-xl py-2.5 font-semibold transition-colors">
           Access Admin Panel
@@ -1065,6 +1109,9 @@ function AdminSettings() {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [message, setMessage] = useState("");
   const [messageType, setMessageType] = useState(""); // "success" or "error"
+  const [showCurr, setShowCurr] = useState(false);
+  const [showNew, setShowNew] = useState(false);
+  const [showConf, setShowConf] = useState(false);
 
   const handlePasswordChange = (e) => {
     e.preventDefault();
@@ -1148,27 +1195,36 @@ function AdminSettings() {
         <form onSubmit={handlePasswordChange} className="space-y-4">
           <div>
             <label className="block text-sm font-medium mb-1">Current Password</label>
-            <input
-              type="password"
-              value={currentPassword}
-              onChange={(e) => setCurrentPassword(e.target.value)}
-              className="w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              placeholder="Enter current password"
-              required
-            />
+            <div className="relative">
+              <input
+                type={showCurr ? "text" : "password"}
+                value={currentPassword}
+                onChange={(e) => setCurrentPassword(e.target.value)}
+                className="w-full border rounded-lg px-3 py-2 pr-10 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                placeholder="Enter current password"
+                required
+              />
+              <button type="button" onClick={()=>setShowCurr(s=>!s)} className="absolute inset-y-0 right-2 text-xs text-gray-500">
+                {showCurr ? "Hide" : "Show"}
+              </button>
+            </div>
           </div>
 
           <div>
             <label className="block text-sm font-medium mb-1">New Password</label>
-            <input
-              type="password"
-              value={newPassword}
-              onChange={(e) => setNewPassword(e.target.value)}
-              className="w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              placeholder="Enter new password"
-              required
-            />
-            
+            <div className="relative">
+              <input
+                type={showNew ? "text" : "password"}
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+                className="w-full border rounded-lg px-3 py-2 pr-10 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                placeholder="Enter new password"
+                required
+              />
+              <button type="button" onClick={()=>setShowNew(s=>!s)} className="absolute inset-y-0 right-2 text-xs text-gray-500">
+                {showNew ? "Hide" : "Show"}
+              </button>
+            </div>
             {/* Password Strength Indicator */}
             {newPassword && (
               <div className="mt-2">
@@ -1220,14 +1276,19 @@ function AdminSettings() {
 
           <div>
             <label className="block text-sm font-medium mb-1">Confirm New Password</label>
-            <input
-              type="password"
-              value={confirmPassword}
-              onChange={(e) => setConfirmPassword(e.target.value)}
-              className="w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              placeholder="Confirm new password"
-              required
-            />
+            <div className="relative">
+              <input
+                type={showConf ? "text" : "password"}
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                className="w-full border rounded-lg px-3 py-2 pr-10 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                placeholder="Confirm new password"
+                required
+              />
+              <button type="button" onClick={()=>setShowConf(s=>!s)} className="absolute inset-y-0 right-2 text-xs text-gray-500">
+                {showConf ? "Hide" : "Show"}
+              </button>
+            </div>
             {confirmPassword && newPassword !== confirmPassword && (
               <p className="text-red-600 text-xs mt-1">Passwords do not match</p>
             )}
