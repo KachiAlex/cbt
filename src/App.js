@@ -201,28 +201,25 @@ function deleteExam(examId) {
 
 function setActiveExam(examId) {
   const exams = loadExams();
-  // Deactivate all exams first
-  const updatedExams = exams.map(exam => ({ ...exam, isActive: false }));
-  // Activate the selected exam
-  const finalExams = updatedExams.map(exam => 
-    exam.id === examId ? { ...exam, isActive: true } : exam
+  // Toggle the active state of the selected exam (allow multiple active exams)
+  const updatedExams = exams.map(exam => 
+    exam.id === examId ? { ...exam, isActive: !exam.isActive } : exam
   );
-  saveExams(finalExams);
+  saveExams(updatedExams);
   
-  // Update active exam in localStorage
-  const activeExam = finalExams.find(exam => exam.id === examId);
-  if (activeExam) {
-    localStorage.setItem(LS_KEYS.ACTIVE_EXAM, JSON.stringify(activeExam));
-  }
+  // Update active exams in localStorage (store array of active exam IDs)
+  const activeExams = updatedExams.filter(exam => exam.isActive);
+  localStorage.setItem(LS_KEYS.ACTIVE_EXAM, JSON.stringify(activeExams));
 }
 
-function getActiveExam() {
+function getActiveExams() {
   const saved = localStorage.getItem(LS_KEYS.ACTIVE_EXAM);
-  if (!saved) return null;
+  if (!saved) return [];
   try {
-    return JSON.parse(saved);
+    const parsed = JSON.parse(saved);
+    return Array.isArray(parsed) ? parsed : [];
   } catch {
-    return null;
+    return [];
   }
 }
 
@@ -682,7 +679,6 @@ function AdminPanel(){
   const [showCreateExam, setShowCreateExam] = useState(false);
   const [showEditExam, setShowEditExam] = useState(false);
   const [selectedExam, setSelectedExam] = useState(null);
-  const fileInputRef = useRef(null);
 
   useEffect(()=>{
     setExams(loadExams());
@@ -696,355 +692,13 @@ function AdminPanel(){
     localStorage.setItem(LS_KEYS.RESULTS, JSON.stringify(results));
   }, [results]);
 
-  const downloadSampleExcel = () => {
-    // Create sample data for Excel template
-    const sampleData = [
-      ["Question", "Option A", "Option B", "Option C", "Option D", "Correct Answer"],
-      [
-        "What is the normal adult resting heart rate?",
-        "10-20 bpm",
-        "30-40 bpm", 
-        "60-100 bpm",
-        "120-160 bpm",
-        "C"
-      ],
-      [
-        "Which vitamin is primarily synthesized by sunlight exposure?",
-        "Vitamin A",
-        "Vitamin C",
-        "Vitamin D", 
-        "Vitamin K",
-        "C"
-      ],
-      [
-        "What is the primary function of red blood cells?",
-        "Fight infection",
-        "Carry oxygen",
-        "Form blood clots",
-        "Produce antibodies",
-        "B"
-      ],
-      [
-        "What does CBT stand for?",
-        "Computer Based Training",
-        "Computer Based Testing",
-        "Computer Based Technology",
-        "Computer Based Teaching",
-        "B"
-      ],
-      [
-        "Which of the following is a function of the liver?",
-        "Pumping blood",
-        "Filtering toxins",
-        "Producing insulin",
-        "Absorbing nutrients",
-        "B"
-      ],
-      [
-        "What is the largest organ in the human body?",
-        "Heart",
-        "Brain",
-        "Liver",
-        "Skin",
-        "D"
-      ]
-    ];
 
-    // Create workbook and worksheet
-    const wb = XLSX.utils.book_new();
-    const ws = XLSX.utils.aoa_to_sheet(sampleData);
 
-    // Set column widths for better readability
-    ws['!cols'] = [
-      { width: 40 }, // Question
-      { width: 25 }, // Option A
-      { width: 25 }, // Option B
-      { width: 25 }, // Option C
-      { width: 25 }, // Option D
-      { width: 15 }  // Correct Answer
-    ];
 
-    // Add the worksheet to the workbook
-    XLSX.utils.book_append_sheet(wb, ws, "Questions Template");
 
-    // Generate and download the file
-    const wbout = XLSX.write(wb, { bookType: "xlsx", type: "array" });
-    const blob = new Blob([wbout], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
-    saveAs(blob, "CBT_Questions_Template.xlsx");
-  };
 
-  const exportAllData = () => {
-    const allData = {
-      exams: loadExams(),
-      results: loadResults(),
-      users: loadUsers(),
-      studentRegistrations: loadStudentRegistrations(),
-      questions: loadQuestions(),
-      activeExam: getActiveExam(),
-      exportDate: new Date().toISOString(),
-      version: "1.0.0"
-    };
 
-    const dataStr = JSON.stringify(allData, null, 2);
-    const dataBlob = new Blob([dataStr], { type: 'application/json' });
-    saveAs(dataBlob, `CBT_Data_Backup_${new Date().toISOString().split('T')[0]}.json`);
-  };
 
-  const importAllData = (event) => {
-    const file = event.target.files[0];
-    if (!file) {
-      console.log("No file selected");
-      return;
-    }
-
-    console.log("Importing file:", file.name, "Size:", file.size);
-
-    // Check file type
-    if (!file.name.toLowerCase().endsWith('.json')) {
-      alert("Please select a valid JSON file (.json extension)");
-      event.target.value = '';
-      return;
-    }
-
-    const reader = new FileReader();
-    
-    reader.onload = (e) => {
-      try {
-        console.log("File read successfully, parsing JSON...");
-        const data = JSON.parse(e.target.result);
-        
-        console.log("Parsed data structure:", Object.keys(data));
-        
-        // Validate the data structure - check if required fields exist (can be empty arrays)
-        if (data.exams === undefined || data.results === undefined || data.users === undefined) {
-          alert("Invalid backup file format. Please use a valid CBT backup file.\n\nExpected fields: exams, results, users");
-          console.error("Missing required fields:", { 
-            hasExams: data.exams !== undefined, 
-            hasResults: data.results !== undefined, 
-            hasUsers: data.users !== undefined 
-          });
-          event.target.value = '';
-          return;
-        }
-
-        // Additional validation - ensure arrays exist (can be empty)
-        if (!Array.isArray(data.exams) || !Array.isArray(data.results) || !Array.isArray(data.users)) {
-          alert("Invalid backup file format. The exams, results, and users fields must be arrays.");
-          console.error("Invalid field types:", { 
-            examsType: typeof data.exams, 
-            resultsType: typeof data.results, 
-            usersType: typeof data.users
-          });
-          event.target.value = '';
-          return;
-        }
-
-        console.log("Data validation passed, merging data...");
-
-        // Merge imported data with existing data instead of replacing
-        let mergedCount = { exams: 0, results: 0, users: 0, studentRegistrations: 0, questions: 0 };
-        
-        if (data.exams && data.exams.length > 0) {
-          const existingExams = loadExams();
-          const existingIds = new Set(existingExams.map(e => e.id));
-          const newExams = data.exams.filter(exam => !existingIds.has(exam.id));
-          if (newExams.length > 0) {
-            const mergedExams = [...existingExams, ...newExams];
-            saveExams(mergedExams);
-            mergedCount.exams = newExams.length;
-            console.log("Merged exams:", newExams.length, "new exams added");
-          } else {
-            console.log("No new exams to merge (all already exist)");
-          }
-        }
-        
-        if (data.results && data.results.length > 0) {
-          const existingResults = loadResults();
-          // For results, we'll merge based on unique combination of username, examTitle, and submittedAt
-          const existingKeys = new Set(existingResults.map(r => `${r.username}_${r.examTitle}_${r.submittedAt}`));
-          const newResults = data.results.filter(result => {
-            const key = `${result.username}_${result.examTitle}_${result.submittedAt}`;
-            return !existingKeys.has(key);
-          });
-          if (newResults.length > 0) {
-            const mergedResults = [...existingResults, ...newResults];
-            localStorage.setItem(LS_KEYS.RESULTS, JSON.stringify(mergedResults));
-            mergedCount.results = newResults.length;
-            console.log("Merged results:", newResults.length, "new results added");
-          } else {
-            console.log("No new results to merge (all already exist)");
-          }
-        }
-        
-        if (data.users && data.users.length > 0) {
-          const existingUsers = loadUsers();
-          const existingUsernames = new Set(existingUsers.map(u => u.username));
-          const newUsers = data.users.filter(user => !existingUsernames.has(user.username));
-          if (newUsers.length > 0) {
-            const mergedUsers = [...existingUsers, ...newUsers];
-            saveUsers(mergedUsers);
-            mergedCount.users = newUsers.length;
-            console.log("Merged users:", newUsers.length, "new users added");
-          } else {
-            console.log("No new users to merge (all usernames already exist)");
-          }
-        }
-        
-        if (data.studentRegistrations && data.studentRegistrations.length > 0) {
-          const existingRegistrations = loadStudentRegistrations();
-          const existingUsernames = new Set(existingRegistrations.map(s => s.username));
-          const newRegistrations = data.studentRegistrations.filter(reg => !existingUsernames.has(reg.username));
-          if (newRegistrations.length > 0) {
-            const mergedRegistrations = [...existingRegistrations, ...newRegistrations];
-            localStorage.setItem(LS_KEYS.STUDENT_REGISTRATIONS, JSON.stringify(mergedRegistrations));
-            mergedCount.studentRegistrations = newRegistrations.length;
-            console.log("Merged student registrations:", newRegistrations.length, "new registrations added");
-          } else {
-            console.log("No new student registrations to merge (all already exist)");
-          }
-        }
-        
-        if (data.questions && data.questions.length > 0) {
-          const existingQuestions = loadQuestions();
-          const existingIds = new Set(existingQuestions.map(q => q.id));
-          const newQuestions = data.questions.filter(question => !existingIds.has(question.id));
-          if (newQuestions.length > 0) {
-            const mergedQuestions = [...existingQuestions, ...newQuestions];
-            localStorage.setItem(LS_KEYS.QUESTIONS, JSON.stringify(mergedQuestions));
-            mergedCount.questions = newQuestions.length;
-            console.log("Merged questions:", newQuestions.length, "new questions added");
-          } else {
-            console.log("No new questions to merge (all already exist)");
-          }
-        }
-        
-        // Only update active exam if there isn't one already set
-        if (data.activeExam && !getActiveExam()) {
-          localStorage.setItem(LS_KEYS.ACTIVE_EXAM, JSON.stringify(data.activeExam));
-          console.log("Set active exam (no existing active exam)");
-        }
-
-        // Reload state
-        setExams(loadExams());
-        setResults(loadResults());
-        setQuestions(loadQuestions());
-
-        const message = `✅ Data merged successfully!\n\n📊 Added (new items only):\n• ${mergedCount.exams} new exams\n• ${mergedCount.results} new results\n• ${mergedCount.users} new users\n• ${mergedCount.studentRegistrations} new student registrations\n• ${mergedCount.questions} new questions\n\n💡 Existing data was preserved and not overwritten.`;
-        
-        alert(message);
-        console.log("Import completed successfully");
-        
-        // Clear the file input
-        event.target.value = '';
-      } catch (error) {
-        console.error('Import error:', error);
-        alert(`Failed to import data: ${error.message}\n\nPlease check that the file is a valid CBT backup file.`);
-        event.target.value = '';
-      }
-    };
-
-    reader.onerror = (error) => {
-      console.error('File read error:', error);
-      alert("Failed to read the file. Please try again.");
-      event.target.value = '';
-    };
-
-    console.log("Starting file read...");
-    reader.readAsText(file);
-  };
-
-  const syncSharedData = () => {
-    // This function can be extended to sync with a cloud service
-    // For now, it will show a message about the current limitation
-    alert("Shared data sync feature is coming soon! For now, use the export/import feature to share data between admin users.");
-  };
-
-  const downloadSampleWord = async () => {
-    // Create sample questions for Word document
-    const sampleQuestions = [
-      {
-        question: "1. What is the normal adult resting heart rate?",
-        options: [
-          "A) 10-20 bpm",
-          "B) 30-40 bpm", 
-          "C) 60-100 bpm",
-          "D) 120-160 bpm"
-        ],
-        answer: "Answer: C"
-      },
-      {
-        question: "2. Which vitamin is primarily synthesized by sunlight exposure?",
-        options: [
-          "A) Vitamin A",
-          "B) Vitamin C",
-          "C) Vitamin D",
-          "D) Vitamin K"
-        ],
-        answer: "Answer: C"
-      },
-      {
-        question: "3. What is the primary function of red blood cells?",
-        options: [
-          "A) Fight infection",
-          "B) Carry oxygen",
-          "C) Form blood clots",
-          "D) Produce antibodies"
-        ],
-        answer: "Answer: B"
-      },
-      {
-        question: "4. What does CBT stand for?",
-        options: [
-          "A) Computer Based Training",
-          "B) Computer Based Testing",
-          "C) Computer Based Technology",
-          "D) Computer Based Teaching"
-        ],
-        answer: "Answer: B"
-      },
-      {
-        question: "5. Which of the following is a function of the liver?",
-        options: [
-          "A) Pumping blood",
-          "B) Filtering toxins",
-          "C) Producing insulin",
-          "D) Absorbing nutrients"
-        ],
-        answer: "Answer: B"
-      }
-    ];
-
-    // Create Word document
-    const doc = new Document({
-      sections: [{
-        properties: {},
-        children: [
-          new Paragraph({
-            children: [new TextRun({ text: "CBT Questions Template", bold: true, size: 28 })]
-          }),
-          new Paragraph({ children: [new TextRun({ text: "Instructions:", bold: true, size: 20 })] }),
-          new Paragraph({ children: [new TextRun({ text: "1. Each question should start with a number (1, 2, 3...) or Q prefix", size: 14 })] }),
-          new Paragraph({ children: [new TextRun({ text: "2. Each question must have exactly 4 options (A, B, C, D)", size: 14 })] }),
-          new Paragraph({ children: [new TextRun({ text: "3. Each question must end with 'Answer: X' (where X is A, B, C, or D)", size: 14 })] }),
-          new Paragraph({ children: [new TextRun({ text: "4. You can use formats like A), A., A, 1), 1., 1, etc.", size: 14 })] }),
-          new Paragraph({ children: [new TextRun({ text: "5. Questions can be separated by blank lines", size: 14 })] }),
-          new Paragraph({ children: [new TextRun({ text: "", size: 14 })] }),
-          new Paragraph({ children: [new TextRun({ text: "Sample Questions:", bold: true, size: 20 })] }),
-          new Paragraph({ children: [new TextRun({ text: "", size: 14 })] }),
-          ...sampleQuestions.flatMap(q => [
-            new Paragraph({ children: [new TextRun({ text: q.question, bold: true, size: 16 })] }),
-            ...q.options.map(opt => new Paragraph({ children: [new TextRun({ text: opt, size: 14 })] })),
-            new Paragraph({ children: [new TextRun({ text: q.answer, bold: true, size: 14 })] }),
-            new Paragraph({ children: [new TextRun({ text: "", size: 14 })] })
-          ])
-        ]
-      }]
-    });
-
-    // Generate and download the file
-    const blob = await Packer.toBlob(doc);
-    saveAs(blob, "CBT_Questions_Template.docx");
-  };
 
   const handleFileUpload = async (file) => {
     setImportError("");
@@ -1168,43 +822,6 @@ function AdminPanel(){
 
   return (
     <div className="space-y-8">
-      {/* Data Sharing Notice */}
-      <div className="mb-6 p-4 bg-yellow-50 border border-yellow-200 rounded-xl">
-        <div className="flex items-start gap-3">
-          <div className="text-yellow-600 text-lg">⚠️</div>
-          <div>
-            <h4 className="font-semibold text-yellow-800 mb-1">Data Sharing Notice</h4>
-            <p className="text-sm text-yellow-700 mb-2">
-              Data is stored locally in your browser. Different admin users on different devices/browsers will see different data.
-            </p>
-            <div className="flex gap-2">
-              <button
-                onClick={exportAllData}
-                className="px-3 py-1 bg-yellow-600 text-white rounded-lg text-xs hover:bg-yellow-700"
-              >
-                📤 Export Data
-              </button>
-              <button
-                onClick={() => {
-                  if (fileInputRef.current) {
-                    fileInputRef.current.click();
-                  }
-                }}
-                className="px-3 py-1 bg-yellow-600 text-white rounded-lg text-xs hover:bg-yellow-700"
-              >
-                📥 Import Data
-              </button>
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept=".json"
-                onChange={importAllData}
-                className="hidden"
-              />
-            </div>
-          </div>
-        </div>
-      </div>
 
       {/* Tab Navigation */}
       <div className="flex space-x-1 bg-gray-100 p-1 rounded-xl">
@@ -1266,18 +883,16 @@ function AdminPanel(){
                         </div>
                       </div>
                       <div className="flex gap-2">
-                        {exam.isActive ? (
-                          <span className="px-2 py-1 bg-green-100 text-green-700 rounded-full text-xs">
-                            Active
-                          </span>
-                        ) : (
-                          <button
-                            onClick={() => handleActivateExam(exam.id)}
-                            className="px-3 py-1 bg-blue-600 text-white rounded-lg text-xs hover:bg-blue-700"
-                          >
-                            Activate
-                          </button>
-                        )}
+                        <button
+                          onClick={() => handleActivateExam(exam.id)}
+                          className={`px-3 py-1 rounded-lg text-xs ${
+                            exam.isActive 
+                              ? "bg-orange-600 text-white hover:bg-orange-700" 
+                              : "bg-blue-600 text-white hover:bg-blue-700"
+                          }`}
+                        >
+                          {exam.isActive ? "Deactivate" : "Activate"}
+                        </button>
                         <button
                           onClick={() => handleDeleteExam(exam.id)}
                           className="px-3 py-1 bg-red-600 text-white rounded-lg text-xs hover:bg-red-700"
@@ -1292,18 +907,25 @@ function AdminPanel(){
             )}
           </Section>
 
-          {activeExam && (
-            <Section title="Active Exam">
-              <div className="p-4 bg-green-50 border border-green-200 rounded-xl">
-                <h4 className="font-semibold text-green-800">{activeExam.title}</h4>
-                <p className="text-sm text-green-700">{activeExam.description}</p>
-                <div className="flex gap-4 mt-2 text-sm text-green-600">
-                  <span>Questions: {activeExam.questionCount || 0}</span>
-                  <span>Duration: {activeExam.duration} minutes</span>
+          {(() => {
+            const activeExams = exams.filter(exam => exam.isActive);
+            return activeExams.length > 0 && (
+              <Section title={`Active Exams (${activeExams.length})`}>
+                <div className="space-y-3">
+                  {activeExams.map(exam => (
+                    <div key={exam.id} className="p-4 bg-green-50 border border-green-200 rounded-xl">
+                      <h4 className="font-semibold text-green-800">{exam.title}</h4>
+                      <p className="text-sm text-green-700">{exam.description}</p>
+                      <div className="flex gap-4 mt-2 text-sm text-green-600">
+                        <span>Questions: {exam.questionCount || 0}</span>
+                        <span>Duration: {exam.duration} minutes</span>
+                      </div>
+                    </div>
+                  ))}
                 </div>
-              </div>
-            </Section>
-          )}
+              </Section>
+            );
+          })()}
         </div>
       )}
 
@@ -1376,31 +998,25 @@ function AdminPanel(){
 
           {selectedExam && (
             <>
-                        <Section title="Upload Questions from Word (.docx) or Excel (.xlsx)">
-            <div className="mb-4 flex gap-2">
-              <button 
-                onClick={downloadSampleExcel}
-                className="px-4 py-2 bg-green-600 text-white rounded-xl hover:bg-green-700 text-sm"
-              >
-                📥 Download Sample Excel Template
-              </button>
-              <button 
-                onClick={downloadSampleWord}
-                className="px-4 py-2 bg-blue-600 text-white rounded-xl hover:bg-blue-700 text-sm"
-              >
-                📥 Download Sample Word Template
-              </button>
-            </div>
-            <UploadQuestions onFile={handleFileUpload} />
-            {importError && <div className="text-red-600 text-sm mt-2">{importError}</div>}
-            <FormatHelp />
-          </Section>
+              <Section title="Upload Questions from Word (.docx) or Excel (.xlsx)">
+                <UploadQuestions onFile={handleFileUpload} />
+                {importError && <div className="text-red-600 text-sm mt-2">{importError}</div>}
+                <FormatHelp />
+              </Section>
 
               <Section title={`Questions for ${selectedExam.title} (${questions.length})`}>
-                <div className="mb-4 p-3 bg-emerald-50 border border-emerald-200 rounded-xl">
-                  <p className="text-sm text-emerald-800">
-                    <strong>🔄 Randomization Active:</strong> Questions and answer options are automatically randomized for each student to prevent cheating.
-                  </p>
+                <div className="mb-4 flex justify-between items-center">
+                  <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl">
+                    <p className="text-sm text-emerald-800">
+                      <strong>🔄 Randomization Active:</strong> Questions and answer options are automatically randomized for each student to prevent cheating.
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => setSelectedExam(null)}
+                    className="px-4 py-2 bg-gray-600 text-white rounded-xl hover:bg-gray-700 text-sm"
+                  >
+                    ← Back to Exam Selection
+                  </button>
                 </div>
                 <QuestionsEditor questions={questions} setQuestions={setQuestions} selectedExam={selectedExam} />
               </Section>
@@ -1496,7 +1112,16 @@ function CreateExamModal({ onClose, onCreate }) {
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
       <div className="bg-white rounded-xl p-6 max-w-md mx-4 w-full">
-        <h3 className="text-lg font-bold mb-4">Create New Exam</h3>
+        <div className="flex justify-between items-center mb-4">
+          <h3 className="text-lg font-bold">Create New Exam</h3>
+          <button
+            type="button"
+            onClick={onClose}
+            className="text-gray-500 hover:text-gray-700 text-xl"
+          >
+            ×
+          </button>
+        </div>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <label htmlFor="create-exam-title" className="block text-sm mb-1">Exam Title *</label>
@@ -1603,7 +1228,16 @@ function EditExamModal({ exam, onClose, onUpdate }) {
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
       <div className="bg-white rounded-xl p-6 max-w-md mx-4 w-full">
-        <h3 className="text-lg font-bold mb-4">Edit Exam</h3>
+        <div className="flex justify-between items-center mb-4">
+          <h3 className="text-lg font-bold">Edit Exam</h3>
+          <button
+            type="button"
+            onClick={onClose}
+            className="text-gray-500 hover:text-gray-700 text-xl"
+          >
+            ×
+          </button>
+        </div>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <label htmlFor="edit-exam-title" className="block text-sm mb-1">Exam Title *</label>
@@ -2557,13 +2191,16 @@ function StudentPanel({user}){
 
   useEffect(()=>{
     if (!selectedExam) return;
-    // Once an exam is selected, load and randomize questions scoped to that exam
-    const originalQuestions = loadQuestions();
+    // Once an exam is selected, load and randomize questions for that specific exam
+    const originalQuestions = loadQuestionsForExam(selectedExam.id);
     if (originalQuestions.length > 0) {
       const limitedQuestions = originalQuestions.slice(0, selectedExam.questionCount);
       const randomizedQuestions = randomizeQuestions(limitedQuestions);
       setQuestions(randomizedQuestions);
       setAnswers(Array(randomizedQuestions.length).fill(-1));
+    } else {
+      setQuestions([]);
+      setAnswers([]);
     }
   }, [selectedExam]);
 
@@ -2692,14 +2329,24 @@ function StudentPanel({user}){
     <div className="space-y-6">
       {/* Exam Header */}
       <div className="bg-white rounded-2xl shadow p-6">
-        <h3 className="text-lg font-bold mb-1">{selectedExam.title}</h3>
-        <p className="text-sm text-gray-600 mb-2">{selectedExam.description}</p>
-        <div className="flex gap-4 text-xs text-gray-500 mb-2">
-          <span>Duration: {selectedExam.duration} minutes</span>
-          <span>Questions: {questions.length}</span>
-          <span>Current: {currentQuestionIndex + 1} of {questions.length}</span>
+        <div className="flex justify-between items-start mb-4">
+          <div>
+            <h3 className="text-lg font-bold mb-1">{selectedExam.title}</h3>
+            <p className="text-sm text-gray-600 mb-2">{selectedExam.description}</p>
+            <div className="flex gap-4 text-xs text-gray-500 mb-2">
+              <span>Duration: {selectedExam.duration} minutes</span>
+              <span>Questions: {questions.length}</span>
+              <span>Current: {currentQuestionIndex + 1} of {questions.length}</span>
+            </div>
+            <p className="text-xs text-emerald-600">⚠️ Questions are randomized for each student</p>
+          </div>
+          <button
+            onClick={() => setSelectedExam(null)}
+            className="px-4 py-2 bg-gray-600 text-white rounded-xl hover:bg-gray-700 text-sm"
+          >
+            ← Back to Exams
+          </button>
         </div>
-        <p className="text-xs text-emerald-600">⚠️ Questions are randomized for each student</p>
       </div>
 
       {/* Question Navigation */}
