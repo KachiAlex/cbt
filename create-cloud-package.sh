@@ -71,6 +71,24 @@ This guide shows how to deploy the CBT app to cloud hosting with backend support
 - **Database:** MongoDB Atlas
 - **Data Storage:** Centralized database
 
+## 🚀 Backend Hosting Options
+
+### Option 1: Render (Recommended)
+- ✅ Free tier available (750 hours/month)
+- ✅ Easy deployment from Git
+- ✅ Traditional server hosting
+- ✅ Automatic HTTPS
+
+### Option 2: Vercel
+- ✅ Free tier available
+- ✅ Serverless functions
+- ✅ Automatic scaling
+
+### Option 3: Railway
+- ✅ Free tier available
+- ✅ Simple deployment
+- ✅ Good for full-stack apps
+
 ## 🚀 Quick Deployment
 
 ### Step 1: Deploy Frontend (Netlify)
