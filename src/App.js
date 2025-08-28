@@ -839,32 +839,89 @@ function AdminPanel(){
           return;
         }
 
-        console.log("Data validation passed, importing...");
+        console.log("Data validation passed, merging data...");
 
-        // Import all data
-        if (data.exams) {
-          saveExams(data.exams);
-          console.log("Imported exams:", data.exams.length);
+        // Merge imported data with existing data instead of replacing
+        let mergedCount = { exams: 0, results: 0, users: 0, studentRegistrations: 0, questions: 0 };
+        
+        if (data.exams && data.exams.length > 0) {
+          const existingExams = loadExams();
+          const existingIds = new Set(existingExams.map(e => e.id));
+          const newExams = data.exams.filter(exam => !existingIds.has(exam.id));
+          if (newExams.length > 0) {
+            const mergedExams = [...existingExams, ...newExams];
+            saveExams(mergedExams);
+            mergedCount.exams = newExams.length;
+            console.log("Merged exams:", newExams.length, "new exams added");
+          } else {
+            console.log("No new exams to merge (all already exist)");
+          }
         }
-        if (data.results) {
-          saveResults(data.results);
-          console.log("Imported results:", data.results.length);
+        
+        if (data.results && data.results.length > 0) {
+          const existingResults = loadResults();
+          // For results, we'll merge based on unique combination of username, examTitle, and submittedAt
+          const existingKeys = new Set(existingResults.map(r => `${r.username}_${r.examTitle}_${r.submittedAt}`));
+          const newResults = data.results.filter(result => {
+            const key = `${result.username}_${result.examTitle}_${result.submittedAt}`;
+            return !existingKeys.has(key);
+          });
+          if (newResults.length > 0) {
+            const mergedResults = [...existingResults, ...newResults];
+            localStorage.setItem(LS_KEYS.RESULTS, JSON.stringify(mergedResults));
+            mergedCount.results = newResults.length;
+            console.log("Merged results:", newResults.length, "new results added");
+          } else {
+            console.log("No new results to merge (all already exist)");
+          }
         }
-        if (data.users) {
-          saveUsers(data.users);
-          console.log("Imported users:", data.users.length);
+        
+        if (data.users && data.users.length > 0) {
+          const existingUsers = loadUsers();
+          const existingUsernames = new Set(existingUsers.map(u => u.username));
+          const newUsers = data.users.filter(user => !existingUsernames.has(user.username));
+          if (newUsers.length > 0) {
+            const mergedUsers = [...existingUsers, ...newUsers];
+            saveUsers(mergedUsers);
+            mergedCount.users = newUsers.length;
+            console.log("Merged users:", newUsers.length, "new users added");
+          } else {
+            console.log("No new users to merge (all usernames already exist)");
+          }
         }
-        if (data.studentRegistrations) {
-          localStorage.setItem(LS_KEYS.STUDENT_REGISTRATIONS, JSON.stringify(data.studentRegistrations));
-          console.log("Imported student registrations:", data.studentRegistrations.length);
+        
+        if (data.studentRegistrations && data.studentRegistrations.length > 0) {
+          const existingRegistrations = loadStudentRegistrations();
+          const existingUsernames = new Set(existingRegistrations.map(s => s.username));
+          const newRegistrations = data.studentRegistrations.filter(reg => !existingUsernames.has(reg.username));
+          if (newRegistrations.length > 0) {
+            const mergedRegistrations = [...existingRegistrations, ...newRegistrations];
+            localStorage.setItem(LS_KEYS.STUDENT_REGISTRATIONS, JSON.stringify(mergedRegistrations));
+            mergedCount.studentRegistrations = newRegistrations.length;
+            console.log("Merged student registrations:", newRegistrations.length, "new registrations added");
+          } else {
+            console.log("No new student registrations to merge (all already exist)");
+          }
         }
-        if (data.questions) {
-          saveQuestions(data.questions);
-          console.log("Imported questions:", data.questions.length);
+        
+        if (data.questions && data.questions.length > 0) {
+          const existingQuestions = loadQuestions();
+          const existingIds = new Set(existingQuestions.map(q => q.id));
+          const newQuestions = data.questions.filter(question => !existingIds.has(question.id));
+          if (newQuestions.length > 0) {
+            const mergedQuestions = [...existingQuestions, ...newQuestions];
+            localStorage.setItem(LS_KEYS.QUESTIONS, JSON.stringify(mergedQuestions));
+            mergedCount.questions = newQuestions.length;
+            console.log("Merged questions:", newQuestions.length, "new questions added");
+          } else {
+            console.log("No new questions to merge (all already exist)");
+          }
         }
-        if (data.activeExam) {
+        
+        // Only update active exam if there isn't one already set
+        if (data.activeExam && !getActiveExam()) {
           localStorage.setItem(LS_KEYS.ACTIVE_EXAM, JSON.stringify(data.activeExam));
-          console.log("Imported active exam");
+          console.log("Set active exam (no existing active exam)");
         }
 
         // Reload state
@@ -872,7 +929,7 @@ function AdminPanel(){
         setResults(loadResults());
         setQuestions(loadQuestions());
 
-        const message = `✅ Data imported successfully!\n\n📊 Imported:\n• ${data.exams?.length || 0} exams\n• ${data.results?.length || 0} results\n• ${data.users?.length || 0} users\n• ${data.studentRegistrations?.length || 0} student registrations\n• ${data.questions?.length || 0} questions`;
+        const message = `✅ Data merged successfully!\n\n📊 Added (new items only):\n• ${mergedCount.exams} new exams\n• ${mergedCount.results} new results\n• ${mergedCount.users} new users\n• ${mergedCount.studentRegistrations} new student registrations\n• ${mergedCount.questions} new questions\n\n💡 Existing data was preserved and not overwritten.`;
         
         alert(message);
         console.log("Import completed successfully");
@@ -1895,35 +1952,92 @@ function AdminSettings() {
           return;
         }
 
-        console.log("Data validation passed, importing...");
+        console.log("Data validation passed, merging data...");
 
-        // Import all data
-        if (data.exams) {
-          saveExams(data.exams);
-          console.log("Imported exams:", data.exams.length);
+        // Merge imported data with existing data instead of replacing
+        let mergedCount = { exams: 0, results: 0, users: 0, studentRegistrations: 0, questions: 0 };
+        
+        if (data.exams && data.exams.length > 0) {
+          const existingExams = loadExams();
+          const existingIds = new Set(existingExams.map(e => e.id));
+          const newExams = data.exams.filter(exam => !existingIds.has(exam.id));
+          if (newExams.length > 0) {
+            const mergedExams = [...existingExams, ...newExams];
+            saveExams(mergedExams);
+            mergedCount.exams = newExams.length;
+            console.log("Merged exams:", newExams.length, "new exams added");
+          } else {
+            console.log("No new exams to merge (all already exist)");
+          }
         }
-        if (data.results) {
-          saveResults(data.results);
-          console.log("Imported results:", data.results.length);
+        
+        if (data.results && data.results.length > 0) {
+          const existingResults = loadResults();
+          // For results, we'll merge based on unique combination of username, examTitle, and submittedAt
+          const existingKeys = new Set(existingResults.map(r => `${r.username}_${r.examTitle}_${r.submittedAt}`));
+          const newResults = data.results.filter(result => {
+            const key = `${result.username}_${result.examTitle}_${result.submittedAt}`;
+            return !existingKeys.has(key);
+          });
+          if (newResults.length > 0) {
+            const mergedResults = [...existingResults, ...newResults];
+            localStorage.setItem(LS_KEYS.RESULTS, JSON.stringify(mergedResults));
+            mergedCount.results = newResults.length;
+            console.log("Merged results:", newResults.length, "new results added");
+          } else {
+            console.log("No new results to merge (all already exist)");
+          }
         }
-        if (data.users) {
-          saveUsers(data.users);
-          console.log("Imported users:", data.users.length);
+        
+        if (data.users && data.users.length > 0) {
+          const existingUsers = loadUsers();
+          const existingUsernames = new Set(existingUsers.map(u => u.username));
+          const newUsers = data.users.filter(user => !existingUsernames.has(user.username));
+          if (newUsers.length > 0) {
+            const mergedUsers = [...existingUsers, ...newUsers];
+            saveUsers(mergedUsers);
+            mergedCount.users = newUsers.length;
+            console.log("Merged users:", newUsers.length, "new users added");
+          } else {
+            console.log("No new users to merge (all usernames already exist)");
+          }
         }
-        if (data.studentRegistrations) {
-          localStorage.setItem(LS_KEYS.STUDENT_REGISTRATIONS, JSON.stringify(data.studentRegistrations));
-          console.log("Imported student registrations:", data.studentRegistrations.length);
+        
+        if (data.studentRegistrations && data.studentRegistrations.length > 0) {
+          const existingRegistrations = loadStudentRegistrations();
+          const existingUsernames = new Set(existingRegistrations.map(s => s.username));
+          const newRegistrations = data.studentRegistrations.filter(reg => !existingUsernames.has(reg.username));
+          if (newRegistrations.length > 0) {
+            const mergedRegistrations = [...existingRegistrations, ...newRegistrations];
+            localStorage.setItem(LS_KEYS.STUDENT_REGISTRATIONS, JSON.stringify(mergedRegistrations));
+            mergedCount.studentRegistrations = newRegistrations.length;
+            console.log("Merged student registrations:", newRegistrations.length, "new registrations added");
+          } else {
+            console.log("No new student registrations to merge (all already exist)");
+          }
         }
-        if (data.questions) {
-          saveQuestions(data.questions);
-          console.log("Imported questions:", data.questions.length);
+        
+        if (data.questions && data.questions.length > 0) {
+          const existingQuestions = loadQuestions();
+          const existingIds = new Set(existingQuestions.map(q => q.id));
+          const newQuestions = data.questions.filter(question => !existingIds.has(question.id));
+          if (newQuestions.length > 0) {
+            const mergedQuestions = [...existingQuestions, ...newQuestions];
+            localStorage.setItem(LS_KEYS.QUESTIONS, JSON.stringify(mergedQuestions));
+            mergedCount.questions = newQuestions.length;
+            console.log("Merged questions:", newQuestions.length, "new questions added");
+          } else {
+            console.log("No new questions to merge (all already exist)");
+          }
         }
-        if (data.activeExam) {
+        
+        // Only update active exam if there isn't one already set
+        if (data.activeExam && !getActiveExam()) {
           localStorage.setItem(LS_KEYS.ACTIVE_EXAM, JSON.stringify(data.activeExam));
-          console.log("Imported active exam");
+          console.log("Set active exam (no existing active exam)");
         }
 
-        const message = `✅ Data imported successfully!\n\n📊 Imported:\n• ${data.exams?.length || 0} exams\n• ${data.results?.length || 0} results\n• ${data.users?.length || 0} users\n• ${data.studentRegistrations?.length || 0} student registrations\n• ${data.questions?.length || 0} questions`;
+        const message = `✅ Data merged successfully!\n\n📊 Added (new items only):\n• ${mergedCount.exams} new exams\n• ${mergedCount.results} new results\n• ${mergedCount.users} new users\n• ${mergedCount.studentRegistrations} new student registrations\n• ${mergedCount.questions} new questions\n\n💡 Existing data was preserved and not overwritten.`;
         
         alert(message);
         console.log("Import completed successfully");
