@@ -1,7 +1,7 @@
 
 
-// Configuration - TEMPORARILY DISABLED FOR LOADING FIX
-const USE_API = false; // process.env.REACT_APP_USE_API === 'true' || process.env.NODE_ENV === 'production';
+// Configuration - Cloud Database Enabled
+const USE_API = process.env.REACT_APP_USE_API === 'true' || process.env.NODE_ENV === 'production';
 const API_BASE = process.env.REACT_APP_API_URL || 'https://cbt-rew7.onrender.com';
 
 // LocalStorage keys
@@ -81,13 +81,42 @@ export const dataService = {
   loadUsers: async () => {
     initializeLocalStorage(); // Ensure data exists
     const apiData = await apiCall('/api/users');
-    if (apiData) return apiData;
+    
+    if (apiData) {
+      // Check if admin exists in cloud data
+      const adminExists = apiData.some(user => user.username === 'admin');
+      if (!adminExists && USE_API) {
+        // Create default admin in cloud database
+        const defaultAdmin = {
+          username: "admin",
+          password: "admin123",
+          role: "admin",
+          fullName: "System Administrator",
+          email: "admin@healthschool.com",
+          createdAt: new Date().toISOString()
+        };
+        try {
+          const response = await fetch(`${API_BASE}/api/users`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify([...apiData, defaultAdmin])
+          });
+          if (response.ok) {
+            console.log('👤 Default admin user created in cloud database');
+            return [...apiData, defaultAdmin];
+          }
+        } catch (error) {
+          console.warn('Failed to create admin in cloud database:', error.message);
+        }
+      }
+      return apiData;
+    }
 
     // Fallback to localStorage
     const saved = getFromLS(LS_KEYS.USERS);
     let users = saved || [];
     
-    // Ensure default admin user exists
+    // Ensure default admin user exists in localStorage
     const adminExists = users.some(user => user.username === 'admin');
     if (!adminExists) {
       const defaultAdmin = {
@@ -100,15 +129,29 @@ export const dataService = {
       };
       users.push(defaultAdmin);
       setToLS(LS_KEYS.USERS, users);
-      console.log('👤 Default admin user created');
+      console.log('👤 Default admin user created in localStorage');
     }
     
     return users;
   },
 
   saveUsers: async (users) => {
-    // For now, only save to localStorage
-    // TODO: Implement API POST/PUT for users
+    // Try API first, fallback to localStorage
+    if (USE_API) {
+      try {
+        const response = await fetch(`${API_BASE}/api/users`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(users)
+        });
+        if (response.ok) {
+          console.log('✅ Users saved to cloud database');
+          return true;
+        }
+      } catch (error) {
+        console.warn('Failed to save users to API, using localStorage:', error.message);
+      }
+    }
     return setToLS(LS_KEYS.USERS, users);
   },
 
@@ -124,8 +167,22 @@ export const dataService = {
   },
 
   saveExams: async (exams) => {
-    // For now, only save to localStorage
-    // TODO: Implement API POST/PUT for exams
+    // Try API first, fallback to localStorage
+    if (USE_API) {
+      try {
+        const response = await fetch(`${API_BASE}/api/exams`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(exams)
+        });
+        if (response.ok) {
+          console.log('✅ Exams saved to cloud database');
+          return true;
+        }
+      } catch (error) {
+        console.warn('Failed to save exams to API, using localStorage:', error.message);
+      }
+    }
     return setToLS(LS_KEYS.EXAMS, exams);
   },
 
@@ -141,8 +198,22 @@ export const dataService = {
   },
 
   saveQuestions: async (questions) => {
-    // For now, only save to localStorage
-    // TODO: Implement API POST/PUT for questions
+    // Try API first, fallback to localStorage
+    if (USE_API) {
+      try {
+        const response = await fetch(`${API_BASE}/api/questions`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(questions)
+        });
+        if (response.ok) {
+          console.log('✅ Questions saved to cloud database');
+          return true;
+        }
+      } catch (error) {
+        console.warn('Failed to save questions to API, using localStorage:', error.message);
+      }
+    }
     return setToLS(LS_KEYS.QUESTIONS, questions);
   },
 
@@ -158,8 +229,22 @@ export const dataService = {
   },
 
   saveResults: async (results) => {
-    // For now, only save to localStorage
-    // TODO: Implement API POST/PUT for results
+    // Try API first, fallback to localStorage
+    if (USE_API) {
+      try {
+        const response = await fetch(`${API_BASE}/api/results`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(results)
+        });
+        if (response.ok) {
+          console.log('✅ Results saved to cloud database');
+          return true;
+        }
+      } catch (error) {
+        console.warn('Failed to save results to API, using localStorage:', error.message);
+      }
+    }
     return setToLS(LS_KEYS.RESULTS, results);
   },
 
