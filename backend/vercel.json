@@ -16,11 +16,5 @@
   "env": {
     "NODE_ENV": "production",
     "JWT_SECRET": "@jwt_secret"
-  },
-  "functions": {
-    "src/server.js": {
-      "maxDuration": 30
-    }
-  },
-  "type": "nodejs"
+  }
 } 
