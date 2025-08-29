@@ -409,7 +409,8 @@ function Login({onLogin}){
       return;
     }
 
-    if (!email.includes("@")) {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
       setError("Please enter a valid email address");
       return;
     }
@@ -751,9 +752,11 @@ function AdminPanel(){
   const [showCreateExam, setShowCreateExam] = useState(false);
   const [showEditExam, setShowEditExam] = useState(false);
   const [selectedExam, setSelectedExam] = useState(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(()=>{
     const loadData = async () => {
+      setLoading(true);
       try {
         const [examsData, questionsData, resultsData] = await Promise.all([
           loadExams(),
@@ -768,6 +771,8 @@ function AdminPanel(){
         setExams([]);
         setQuestions([]);
         setResults([]);
+      } finally {
+        setLoading(false);
       }
     };
     loadData();
@@ -812,11 +817,15 @@ function AdminPanel(){
         if (selectedExam) {
           saveQuestionsForExam(selectedExam.id, parsed);
           // Update exam question count
-          const updatedExams = exams.map(ex => 
-            ex.id === selectedExam.id ? { ...ex, questionCount: parsed.length } : ex
-          );
-          setExams(updatedExams);
-          saveExams(updatedExams);
+          try {
+            const updatedExams = exams.map(ex => 
+              ex.id === selectedExam.id ? { ...ex, questionCount: parsed.length } : ex
+            );
+            setExams(updatedExams);
+            await saveExams(updatedExams);
+          } catch (error) {
+            console.error('Error updating exam question count:', error);
+          }
         }
         setImportError(`Successfully imported ${parsed.length} questions from Word document!`);
         setTimeout(() => setImportError(""), 3000);
@@ -832,11 +841,15 @@ function AdminPanel(){
         if (selectedExam) {
           saveQuestionsForExam(selectedExam.id, parsed);
           // Update exam question count
-          const updatedExams = exams.map(ex => 
-            ex.id === selectedExam.id ? { ...ex, questionCount: parsed.length } : ex
-          );
-          setExams(updatedExams);
-          saveExams(updatedExams);
+          try {
+            const updatedExams = exams.map(ex => 
+              ex.id === selectedExam.id ? { ...ex, questionCount: parsed.length } : ex
+            );
+            setExams(updatedExams);
+            await saveExams(updatedExams);
+          } catch (error) {
+            console.error('Error updating exam question count:', error);
+          }
         }
         setImportError(`Successfully imported ${parsed.length} questions from Excel file!`);
         setTimeout(() => setImportError(""), 3000);
@@ -2453,7 +2466,11 @@ function StudentPanel({user}){
   };
 
   const onSelect = (oi)=>{
-    const a = [...answers]; a[currentQuestionIndex] = oi; setAnswers(a);
+    setAnswers(prev => {
+      const newAnswers = [...prev];
+      newAnswers[currentQuestionIndex] = oi;
+      return newAnswers;
+    });
   };
 
   const goToNextQuestion = () => {
