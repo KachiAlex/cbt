@@ -4,6 +4,8 @@
 
 ### ✅ **1. Frontend Configuration**
 - `netlify.toml` updated with correct backend URL: `https://cbt-rew7.onrender.com`
+- Fixed build configuration with proper base directory and publish path
+- Created build script for reliable deployment
 - Frontend will now connect to your deployed backend
 
 ### ✅ **2. Backend Optimization**
