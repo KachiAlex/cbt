@@ -1631,21 +1631,26 @@ function StudentManagement() {
     }
   };
 
-  const exportStudentsToExcel = () => {
-    const wsData = [["Full Name", "Username", "Email", "Registration Date"]];
+  const exportStudentsToExcel = async () => {
+    const workbook = new ExcelJS.Workbook();
+    const worksheet = workbook.addWorksheet('Students');
+    
+    // Add headers
+    worksheet.addRow(['Full Name', 'Username', 'Email', 'Registration Date']);
+    
+    // Add data rows
     for (const student of students) {
-      wsData.push([
+      worksheet.addRow([
         student.fullName,
         student.username,
         student.email,
         new Date(student.registeredAt).toLocaleDateString()
       ]);
     }
-    const wb = XLSX.utils.book_new();
-    const ws = XLSX.utils.aoa_to_sheet(wsData);
-    XLSX.utils.book_append_sheet(wb, ws, "Students");
-    const wbout = XLSX.write(wb, {bookType:"xlsx", type:"array"});
-    const blob = new Blob([wbout], {type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"});
+    
+    // Generate and download file
+    const buffer = await workbook.xlsx.writeBuffer();
+    const blob = new Blob([buffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
     saveAs(blob, "CBT_Students.xlsx");
   };
 
@@ -1656,7 +1661,7 @@ function StudentManagement() {
           <p className="text-sm text-gray-600">Total Registered Students: <strong>{students.length}</strong></p>
         </div>
         <button 
-          onClick={exportStudentsToExcel} 
+          onClick={() => exportStudentsToExcel()} 
           className="px-4 py-2 rounded-xl bg-green-600 text-white hover:bg-green-700"
         >
           Export Students List
