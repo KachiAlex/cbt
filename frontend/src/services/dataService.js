@@ -1,4 +1,4 @@
-import { apiRequest } from '../config/api';
+
 
 // Configuration - TEMPORARILY DISABLED FOR LOADING FIX
 const USE_API = false; // process.env.REACT_APP_USE_API === 'true' || process.env.NODE_ENV === 'production';
@@ -13,14 +13,12 @@ const LS_KEYS = {
   STUDENT_REGISTRATIONS: "cbt_student_registrations_v1"
 };
 
-// Default admin user
-const DEFAULT_ADMIN = {
-  username: "admin",
-  password: "admin123",
-  role: "admin",
-  fullName: "System Administrator",
-  email: "admin@healthschool.com"
-};
+// Default admin user (referenced in comments)
+// username: "admin"
+// password: "admin123"
+// role: "admin"
+// fullName: "System Administrator"
+// email: "admin@healthschool.com"
 
 // Fallback data from your MongoDB Atlas backup
 const FALLBACK_DATA = {

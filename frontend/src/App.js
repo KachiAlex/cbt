@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState, useRef } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import * as XLSX from "xlsx";
 import { saveAs } from "file-saver";
 import { Document, Packer, Paragraph, TextRun, Table, TableRow, TableCell } from "docx";
@@ -33,14 +33,12 @@ const LS_KEYS = {
 
 const DEFAULT_EXAM_TITLE = "College of Nursing, Eku, Delta State";
 
-// Default admin user
-const DEFAULT_ADMIN = {
-  username: "admin",
-  password: "admin123",
-  role: "admin",
-  fullName: "System Administrator",
-  email: "admin@healthschool.com"
-};
+// Default admin user (referenced in comments)
+// username: "admin"
+// password: "admin123"
+// role: "admin"
+// fullName: "System Administrator"
+// email: "admin@healthschool.com"
 
 function App() {
   const [user, setUser] = useState(null);
@@ -193,14 +191,7 @@ async function createExam(examData) {
   }
 }
 
-async function updateExam(examId, updates) {
-  try {
-    return await dataService.updateExam(examId, updates);
-  } catch (error) {
-    console.error('Error updating exam:', error);
-    return false;
-  }
-}
+
 
 async function deleteExam(examId) {
   try {
@@ -222,14 +213,7 @@ async function loadQuestions() {
   }
 }
 
-async function saveQuestions(questions) {
-  try {
-    return await dataService.saveQuestions(questions);
-  } catch (error) {
-    console.error('Error saving questions:', error);
-    return false;
-  }
-}
+
 
 // Results management functions
 async function loadResults() {
@@ -268,16 +252,7 @@ async function setActiveExam(examId) {
   }
 }
 
-function getActiveExams() {
-  const saved = localStorage.getItem(LS_KEYS.ACTIVE_EXAM);
-  if (!saved) return [];
-  try {
-    const parsed = JSON.parse(saved);
-    return Array.isArray(parsed) ? parsed : [];
-  } catch {
-    return [];
-  }
-}
+
 
 async function registerStudent(studentData) {
   try {
@@ -752,11 +727,10 @@ function AdminPanel(){
   const [showCreateExam, setShowCreateExam] = useState(false);
   const [showEditExam, setShowEditExam] = useState(false);
   const [selectedExam, setSelectedExam] = useState(null);
-  const [loading, setLoading] = useState(true);
+
 
   useEffect(()=>{
     const loadData = async () => {
-      setLoading(true);
       try {
         const [examsData, questionsData, resultsData] = await Promise.all([
           loadExams(),
@@ -771,8 +745,6 @@ function AdminPanel(){
         setExams([]);
         setQuestions([]);
         setResults([]);
-      } finally {
-        setLoading(false);
       }
     };
     loadData();
@@ -862,9 +834,7 @@ function AdminPanel(){
     }
   };
 
-  const addBlankQuestion = () => {
-    setQuestions(q => [...q, {id:crypto.randomUUID(), text:"New question text", options:["Option A","Option B","Option C","Option D"], correctIndex:0}]);
-  };
+
 
   const exportResultsToExcel = () => {
     const wsData = [["Username","Exam Title","Score","Total","Percent","Submitted At","Answers"]];
@@ -2915,7 +2885,7 @@ function parseQuestionsFromMarkdown(md) {
     const questionPatterns = [
       /^(\d+)\s*[\.\)]?\s*(.+)$/,                    // 1. Question text, 1) Question text, 1 Question text
       /^[Qq](\d*)\s*[\.\)]?\s*(.+)$/,              // Q1. Question text, Q1) Question text, Q Question text
-      /^Question\s*(\d+)\s*[\.\:\-]?\s*(.+)$/i,     // Question 1: Text, Question 1. Text
+      /^Question\s*(\d+)\s*[.:-]?\s*(.+)$/i,     // Question 1: Text, Question 1. Text
     ];
     
     let questionMatch = null;
@@ -2942,9 +2912,9 @@ function parseQuestionsFromMarkdown(md) {
     
     // Enhanced answer detection
     const answerPatterns = [
-      /^[Aa]nswer\s*[:\-]?\s*([A-Da-d1-4])/i,      // Answer: A, Answer - A, answer: a
-      /^[Cc]orrect\s*[:\-]?\s*([A-Da-d1-4])/i,     // Correct: A, correct - A
-      /^[Ss]olution\s*[:\-]?\s*([A-Da-d1-4])/i,    // Solution: A
+      /^[Aa]nswer\s*[:-]?\s*([A-Da-d1-4])/i,      // Answer: A, Answer - A, answer: a
+      /^[Cc]orrect\s*[:-]?\s*([A-Da-d1-4])/i,     // Correct: A, correct - A
+      /^[Ss]olution\s*[:-]?\s*([A-Da-d1-4])/i,    // Solution: A
       /^\s*([A-Da-d1-4])\s*$/,                     // Just "A" on its own line
     ];
     
@@ -2970,7 +2940,7 @@ function parseQuestionsFromMarkdown(md) {
     const optionPatterns = [
       /^([A-Da-d])\s*[\.\)]?\s*(.+)$/,              // A. Text, A) Text, A Text
       /^([1-4])\s*[\.\)]?\s*(.+)$/,                 // 1. Text, 1) Text, 1 Text
-      /^Option\s*([A-Da-d1-4])\s*[:\-]?\s*(.+)$/i,  // Option A: Text
+      /^Option\s*([A-Da-d1-4])\s*[:-]?\s*(.+)$/i,  // Option A: Text
     ];
     
     let optionMatch = null;
