@@ -48,6 +48,13 @@ const resultSchema = new mongoose.Schema({
   questionOrder: Array,
 }, { strict: false });
 
+const questionSchema = new mongoose.Schema({
+  id: String,
+  text: String,
+  options: Array,
+  correctIndex: Number,
+}, { strict: false });
+
 async function restoreFromBackup() {
   console.log('🚀 Restoring from CBT_Data_Backup JSON...\n');
 
@@ -68,8 +75,9 @@ async function restoreFromBackup() {
   const users = Array.isArray(data.users) ? data.users : [];
   const exams = Array.isArray(data.exams) ? data.exams : [];
   const results = Array.isArray(data.results) ? data.results : [];
+  const questions = Array.isArray(data.questions) ? data.questions : [];
 
-  console.log(`📦 Found in backup -> users: ${users.length}, exams: ${exams.length}, results: ${results.length}`);
+  console.log(`📦 Found in backup -> users: ${users.length}, exams: ${exams.length}, results: ${results.length}, questions: ${questions.length}`);
 
   let connection;
   try {
@@ -83,14 +91,15 @@ async function restoreFromBackup() {
     const User = mongoose.model('User', userSchema);
     const Exam = mongoose.model('Exam', examSchema);
     const Result = mongoose.model('Result', resultSchema);
+    const Question = mongoose.model('Question', questionSchema);
 
     // Optional: clear existing documents before inserting to avoid duplicates
-    // Comment these out if you want merge-only behavior
-    console.log('\n🧹 Clearing existing collections (users, exams, results)...');
+    console.log('\n🧹 Clearing existing collections (users, exams, results, questions)...');
     await Promise.all([
       User.deleteMany({}),
       Exam.deleteMany({}),
       Result.deleteMany({}),
+      Question.deleteMany({}),
     ]);
     console.log('✅ Cleared existing documents');
 
@@ -110,6 +119,12 @@ async function restoreFromBackup() {
       console.log(`\n📊 Inserting ${results.length} results...`);
       await Result.insertMany(results);
       console.log('✅ Results inserted');
+    }
+
+    if (questions.length) {
+      console.log(`\n❓ Inserting ${questions.length} questions...`);
+      await Question.insertMany(questions);
+      console.log('✅ Questions inserted');
     }
 
     console.log('\n🎉 Restore completed successfully!');
