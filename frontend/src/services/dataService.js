@@ -298,6 +298,20 @@ export const dataService = {
     return newExam;
   },
 
+  // Active exam management
+  getActiveExam: () => {
+    const saved = getFromLS(LS_KEYS.ACTIVE_EXAM);
+    return saved || null;
+  },
+
+  setActiveExam: (examId) => {
+    return setToLS(LS_KEYS.ACTIVE_EXAM, examId);
+  },
+
+  clearActiveExam: () => {
+    localStorage.removeItem(LS_KEYS.ACTIVE_EXAM);
+  },
+
   updateExam: async (examId, updates) => {
     const exams = await dataService.loadExams();
     const updatedExams = exams.map(exam => 

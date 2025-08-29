@@ -914,7 +914,7 @@ function AdminPanel(){
   };
 
   const handleDeleteExam = (examId) => {
-    if (confirm("Are you sure you want to delete this exam? This action cannot be undone.")) {
+    if (window.confirm("Are you sure you want to delete this exam? This action cannot be undone.")) {
       deleteExam(examId);
       setExams(loadExams());
     }
@@ -1122,7 +1122,7 @@ function AdminPanel(){
                   </button>
                   <button 
                     onClick={() => {
-                      if (confirm("Are you sure you want to delete all questions for this exam?")) {
+                      if (window.confirm("Are you sure you want to delete all questions for this exam?")) {
                         setQuestions([]);
                         saveQuestionsForExam(selectedExam.id, []);
                       }
@@ -1795,7 +1795,7 @@ function AdminSettings({ onClearData }) {
       users: loadUsers(),
       studentRegistrations: loadStudentRegistrations(),
       questions: loadQuestions(),
-      activeExam: getActiveExam(),
+      activeExam: dataService.getActiveExam(),
       exportDate: new Date().toISOString(),
       version: "1.0.0"
     };
@@ -1934,7 +1934,7 @@ function AdminSettings({ onClearData }) {
         }
         
         // Only update active exam if there isn't one already set
-        if (data.activeExam && !getActiveExam()) {
+        if (data.activeExam && !dataService.getActiveExam()) {
           localStorage.setItem(LS_KEYS.ACTIVE_EXAM, JSON.stringify(data.activeExam));
           console.log("Set active exam (no existing active exam)");
         }
@@ -2766,7 +2766,7 @@ function StudentPanel({user}){
 
 function ResultsTable({results, setResults}){
   const clear = () => {
-    if (confirm("Clear all results?")) {
+    if (window.confirm("Clear all results?")) {
       setResults([]);
     }
   };
