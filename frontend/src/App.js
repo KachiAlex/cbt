@@ -906,6 +906,49 @@ function AdminPanel(){
             <h2 className="text-xl font-bold text-gray-800">Admin Panel</h2>
             <p className="text-sm text-gray-600">Manage exams, questions, and student results</p>
           </div>
+          <button
+            onClick={() => {
+              if (window.confirm('Are you sure you want to clear ALL data? This will remove all exams, questions, results, and user data. This action cannot be undone.')) {
+                // Clear all localStorage data
+                const LS_KEYS = {
+                  EXAMS: "cbt_exams_v1",
+                  QUESTIONS: "cbt_questions_v1", 
+                  RESULTS: "cbt_results_v1",
+                  USERS: "cbt_users_v1",
+                  STUDENT_REGISTRATIONS: "cbt_student_registrations_v1",
+                  SHARED_DATA: "cbt_shared_data_v1",
+                  ACTIVE_EXAM: "cbt_active_exam_v1"
+                };
+
+                // Clear all CBT-related localStorage items
+                Object.values(LS_KEYS).forEach(key => {
+                  localStorage.removeItem(key);
+                });
+
+                // Clear any exam-specific question storage
+                for (let i = 0; i < localStorage.length; i++) {
+                  const key = localStorage.key(i);
+                  if (key && key.startsWith('cbt_questions_')) {
+                    localStorage.removeItem(key);
+                  }
+                }
+
+                // Clear logged in user
+                localStorage.removeItem('cbt_logged_in_user');
+
+                // Reset state
+                setExams([]);
+                setQuestions([]);
+                setResults([]);
+
+                alert('All data cleared successfully! The page will refresh.');
+                window.location.reload();
+              }
+            }}
+            className="px-4 py-2 bg-red-600 text-white rounded-xl hover:bg-red-700 text-sm"
+          >
+            🗑️ Clear All Data
+          </button>
         </div>
       </div>
 

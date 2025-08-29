@@ -132,29 +132,9 @@ const setToLS = (key, data) => {
 
 // Initialize localStorage with fallback data if empty
 const initializeLocalStorage = () => {
-  const users = getFromLS(LS_KEYS.USERS);
-  const exams = getFromLS(LS_KEYS.EXAMS);
-  const questions = getFromLS(LS_KEYS.QUESTIONS);
-  const results = getFromLS(LS_KEYS.RESULTS);
-
-  // Only initialize if explicitly requested (not automatically)
-  // This allows for a truly clean start when database is cleared
-  if (!users && process.env.REACT_APP_INITIALIZE_DATA === 'true') {
-    setToLS(LS_KEYS.USERS, FALLBACK_DATA.users);
-    console.log('📦 Initialized users in localStorage');
-  }
-  if (!exams && process.env.REACT_APP_INITIALIZE_DATA === 'true') {
-    setToLS(LS_KEYS.EXAMS, FALLBACK_DATA.exams);
-    console.log('📦 Initialized exams in localStorage');
-  }
-  if (!questions && process.env.REACT_APP_INITIALIZE_DATA === 'true') {
-    setToLS(LS_KEYS.QUESTIONS, FALLBACK_DATA.questions);
-    console.log('📦 Initialized questions in localStorage');
-  }
-  if (!results && process.env.REACT_APP_INITIALIZE_DATA === 'true') {
-    setToLS(LS_KEYS.RESULTS, FALLBACK_DATA.results);
-    console.log('📦 Initialized results in localStorage');
-  }
+  // Completely disabled fallback data initialization
+  // This ensures a truly clean start when database is cleared
+  console.log('🚫 Fallback data initialization disabled - keeping localStorage clean');
 };
 
 // API wrapper with fallback to localStorage
