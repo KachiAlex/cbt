@@ -62,9 +62,8 @@ function App() {
   // Hidden admin access - click on the logo
   const handleLogoClick = () => {
     if (!user) {
-      setShowAdminLink(prev => !prev);
-      // Auto-hide after 5 seconds
-      setTimeout(() => setShowAdminLink(false), 5000);
+      setShowAdminLink(false);
+      setView("admin-login");
     }
   };
 
@@ -94,7 +93,9 @@ function App() {
           )
         ) : (
           <>
-            <Login onLogin={(u)=>{setUser(u); localStorage.setItem("cbt_logged_in_user", JSON.stringify(u)); setView("home");}} />
+            {view !== "admin-login" && (
+              <Login onLogin={(u)=>{setUser(u); localStorage.setItem("cbt_logged_in_user", JSON.stringify(u)); setView("home");}} />
+            )}
             {showAdminLink && (
               <div className="mt-8 p-4 bg-red-50 border border-red-200 rounded-lg">
                 <div className="text-center">
