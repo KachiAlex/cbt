@@ -150,7 +150,8 @@ function saveUsers(users) {
 
 function authenticateUser(username, password) {
   const users = loadUsers();
-  const user = users.find(u => u.username === username);
+  const normalized = (username || "").trim().toLowerCase();
+  const user = users.find(u => (u.username || "").toLowerCase() === normalized);
   
   if (!user) return null;
   if (user.password !== password) return null;
@@ -227,8 +228,9 @@ function getActiveExams() {
 function registerStudent(studentData) {
   const users = loadUsers();
   
-  // Check if username already exists
-  if (users.find(u => u.username === studentData.username)) {
+  // Check if username already exists (case-insensitive)
+  const newName = (studentData.username || "").trim().toLowerCase();
+  if (users.find(u => (u.username || "").toLowerCase() === newName)) {
     throw new Error("Username already exists. Please choose a different username.");
   }
   
