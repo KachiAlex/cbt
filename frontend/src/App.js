@@ -3015,44 +3015,4 @@ function parseQuestionsFromExcel(file) {
   });
 }
 
-// Questions management functions
-async function loadQuestions() {
-  try {
-    const data = await dataService.loadQuestions();
-    return Array.isArray(data) ? data : [];
-  } catch (error) {
-    console.error('Error loading questions:', error);
-    return [];
-  }
-}
-
-async function saveQuestions(questions) {
-  try {
-    return await dataService.saveQuestions(questions);
-  } catch (error) {
-    console.error('Error saving questions:', error);
-    return false;
-  }
-}
-
-// Results management functions
-async function loadResults() {
-  try {
-    const data = await dataService.loadResults();
-    return Array.isArray(data) ? data : [];
-  } catch (error) {
-    console.error('Error loading results:', error);
-    return [];
-  }
-}
-
-async function saveResults(results) {
-  try {
-    return await dataService.saveResults(results);
-  } catch (error) {
-    console.error('Error saving results:', error);
-    return false;
-  }
-}
-
 export default App;
