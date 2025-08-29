@@ -9,6 +9,8 @@
 ### ✅ **2. Backend Optimization**
 - `render.yaml` created with optimized build settings
 - `.npmrc` created to suppress npm warnings
+- `Dockerfile` created for proper deployment
+- `.dockerignore` created to optimize build
 - Build command updated to use `--omit=dev`
 
 ## 🚨 **Still Need to Fix:**
