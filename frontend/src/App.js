@@ -210,6 +210,46 @@ async function deleteExam(examId) {
   }
 }
 
+// Questions management functions
+async function loadQuestions() {
+  try {
+    const data = await dataService.loadQuestions();
+    return Array.isArray(data) ? data : [];
+  } catch (error) {
+    console.error('Error loading questions:', error);
+    return [];
+  }
+}
+
+async function saveQuestions(questions) {
+  try {
+    return await dataService.saveQuestions(questions);
+  } catch (error) {
+    console.error('Error saving questions:', error);
+    return false;
+  }
+}
+
+// Results management functions
+async function loadResults() {
+  try {
+    const data = await dataService.loadResults();
+    return Array.isArray(data) ? data : [];
+  } catch (error) {
+    console.error('Error loading results:', error);
+    return [];
+  }
+}
+
+async function saveResults(results) {
+  try {
+    return await dataService.saveResults(results);
+  } catch (error) {
+    console.error('Error saving results:', error);
+    return false;
+  }
+}
+
 async function setActiveExam(examId) {
   try {
     const exams = await loadExams();
@@ -1483,23 +1523,40 @@ function EditExamModal({ exam, onClose, onUpdate }) {
 
 function StudentManagement() {
   const [students, setStudents] = useState(loadStudentRegistrations());
-  const [users, setUsers] = useState(loadUsers());
+  const [users, setUsers] = useState([]);
   const [selectedStudent, setSelectedStudent] = useState(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
-  const deleteStudent = (username) => {
-    // Remove from users
-    const updatedUsers = users.filter(u => u.username !== username);
-    saveUsers(updatedUsers);
-    setUsers(updatedUsers);
-    
-    // Remove from registrations
-    const updatedStudents = students.filter(s => s.username !== username);
-    localStorage.setItem(LS_KEYS.STUDENT_REGISTRATIONS, JSON.stringify(updatedStudents));
-    setStudents(updatedStudents);
-    
-    setShowDeleteConfirm(false);
-    setSelectedStudent(null);
+  useEffect(() => {
+    const loadUsersData = async () => {
+      try {
+        const usersData = await loadUsers();
+        setUsers(usersData);
+      } catch (error) {
+        console.error('Error loading users:', error);
+        setUsers([]);
+      }
+    };
+    loadUsersData();
+  }, []);
+
+  const deleteStudent = async (username) => {
+    try {
+      // Remove from users
+      const updatedUsers = users.filter(u => u.username !== username);
+      await saveUsers(updatedUsers);
+      setUsers(updatedUsers);
+      
+      // Remove from registrations
+      const updatedStudents = students.filter(s => s.username !== username);
+      localStorage.setItem(LS_KEYS.STUDENT_REGISTRATIONS, JSON.stringify(updatedStudents));
+      setStudents(updatedStudents);
+      
+      setShowDeleteConfirm(false);
+      setSelectedStudent(null);
+    } catch (error) {
+      console.error('Error deleting student:', error);
+    }
   };
 
   const exportStudentsToExcel = () => {
