@@ -3,6 +3,7 @@ import * as XLSX from "xlsx";
 import { saveAs } from "file-saver";
 import { Document, Packer, Paragraph, TextRun, Table, TableRow, TableCell } from "docx";
 import mammoth from "mammoth";
+import dataService from "./services/dataService";
 
 // -------------------------
 // Advanced In-Browser CBT System
@@ -132,73 +133,38 @@ function App() {
   );
 }
 
-// User management functions
-function loadUsers() {
-  const saved = localStorage.getItem(LS_KEYS.USERS);
-  if (!saved) {
-    // Initialize with default admin
-    const defaultUsers = [DEFAULT_ADMIN];
-    localStorage.setItem(LS_KEYS.USERS, JSON.stringify(defaultUsers));
-    return defaultUsers;
-  }
-  return JSON.parse(saved);
+// User management functions - now using dataService
+async function loadUsers() {
+  return await dataService.loadUsers();
 }
 
-function saveUsers(users) {
-  localStorage.setItem(LS_KEYS.USERS, JSON.stringify(users));
+async function saveUsers(users) {
+  return await dataService.saveUsers(users);
 }
 
-function authenticateUser(username, password) {
-  const users = loadUsers();
-  const normalized = (username || "").trim().toLowerCase();
-  const user = users.find(u => (u.username || "").toLowerCase() === normalized);
-  
-  if (!user) return null;
-  if (user.password !== password) return null;
-  
-  return { username: user.username, role: user.role, fullName: user.fullName, email: user.email };
+async function authenticateUser(username, password) {
+  return await dataService.authenticateUser(username, password);
 }
 
-// Exam management functions
-function loadExams() {
-  const saved = localStorage.getItem(LS_KEYS.EXAMS);
-  if (!saved) return [];
-  try {
-    return JSON.parse(saved);
-  } catch {
-    return [];
-  }
+// Exam management functions - now using dataService
+async function loadExams() {
+  return await dataService.loadExams();
 }
 
-function saveExams(exams) {
-  localStorage.setItem(LS_KEYS.EXAMS, JSON.stringify(exams));
+async function saveExams(exams) {
+  return await dataService.saveExams(exams);
 }
 
-function createExam(examData) {
-  const exams = loadExams();
-  const newExam = {
-    id: crypto.randomUUID(),
-    ...examData,
-    createdAt: new Date().toISOString(),
-    isActive: false
-  };
-  exams.push(newExam);
-  saveExams(exams);
-  return newExam;
+async function createExam(examData) {
+  return await dataService.createExam(examData);
 }
 
-function updateExam(examId, updates) {
-  const exams = loadExams();
-  const updatedExams = exams.map(exam => 
-    exam.id === examId ? { ...exam, ...updates } : exam
-  );
-  saveExams(updatedExams);
+async function updateExam(examId, updates) {
+  return await dataService.updateExam(examId, updates);
 }
 
-function deleteExam(examId) {
-  const exams = loadExams();
-  const filteredExams = exams.filter(exam => exam.id !== examId);
-  saveExams(filteredExams);
+async function deleteExam(examId) {
+  return await dataService.deleteExam(examId);
 }
 
 function setActiveExam(examId) {
