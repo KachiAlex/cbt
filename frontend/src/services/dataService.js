@@ -1,7 +1,7 @@
 import { apiRequest } from '../config/api';
 
-// Configuration
-const USE_API = process.env.REACT_APP_USE_API === 'true' || process.env.NODE_ENV === 'production';
+// Configuration - TEMPORARILY DISABLED FOR LOADING FIX
+const USE_API = false; // process.env.REACT_APP_USE_API === 'true' || process.env.NODE_ENV === 'production';
 const API_BASE = process.env.REACT_APP_API_URL || 'https://cbt-rew7.onrender.com';
 
 // LocalStorage keys
