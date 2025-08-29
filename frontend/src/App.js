@@ -210,17 +210,21 @@ async function deleteExam(examId) {
   }
 }
 
-function setActiveExam(examId) {
-  const exams = loadExams();
-  // Toggle the active state of the selected exam (allow multiple active exams)
-  const updatedExams = exams.map(exam => 
-    exam.id === examId ? { ...exam, isActive: !exam.isActive } : exam
-  );
-  saveExams(updatedExams);
-  
-  // Update active exams in localStorage (store array of active exam IDs)
-  const activeExams = updatedExams.filter(exam => exam.isActive);
-  localStorage.setItem(LS_KEYS.ACTIVE_EXAM, JSON.stringify(activeExams));
+async function setActiveExam(examId) {
+  try {
+    const exams = await loadExams();
+    // Toggle the active state of the selected exam (allow multiple active exams)
+    const updatedExams = exams.map(exam => 
+      exam.id === examId ? { ...exam, isActive: !exam.isActive } : exam
+    );
+    await saveExams(updatedExams);
+    
+    // Update active exams in localStorage (store array of active exam IDs)
+    const activeExams = updatedExams.filter(exam => exam.isActive);
+    localStorage.setItem(LS_KEYS.ACTIVE_EXAM, JSON.stringify(activeExams));
+  } catch (error) {
+    console.error('Error setting active exam:', error);
+  }
 }
 
 function getActiveExams() {
@@ -234,35 +238,40 @@ function getActiveExams() {
   }
 }
 
-function registerStudent(studentData) {
-  const users = loadUsers();
-  
-  // Check if username already exists (case-insensitive)
-  const newName = (studentData.username || "").trim().toLowerCase();
-  if (users.find(u => (u.username || "").toLowerCase() === newName)) {
-    throw new Error("Username already exists. Please choose a different username.");
+async function registerStudent(studentData) {
+  try {
+    const users = await loadUsers();
+    
+    // Check if username already exists (case-insensitive)
+    const newName = (studentData.username || "").trim().toLowerCase();
+    if (users.find(u => (u.username || "").toLowerCase() === newName)) {
+      throw new Error("Username already exists. Please choose a different username.");
+    }
+    
+    // Check if email already exists
+    if (users.find(u => u.email === studentData.email)) {
+      throw new Error("Email already registered. Please use a different email.");
+    }
+    
+    const newStudent = {
+      ...studentData,
+      role: "student",
+      registeredAt: new Date().toISOString()
+    };
+    
+    users.push(newStudent);
+    await saveUsers(users);
+    
+    // Also save to registrations for admin tracking
+    const registrations = loadStudentRegistrations();
+    registrations.push(newStudent);
+    localStorage.setItem(LS_KEYS.STUDENT_REGISTRATIONS, JSON.stringify(registrations));
+    
+    return newStudent;
+  } catch (error) {
+    console.error('Error registering student:', error);
+    throw error;
   }
-  
-  // Check if email already exists
-  if (users.find(u => u.email === studentData.email)) {
-    throw new Error("Email already registered. Please use a different email.");
-  }
-  
-  const newStudent = {
-    ...studentData,
-    role: "student",
-    registeredAt: new Date().toISOString()
-  };
-  
-  users.push(newStudent);
-  saveUsers(users);
-  
-  // Also save to registrations for admin tracking
-  const registrations = loadStudentRegistrations();
-  registrations.push(newStudent);
-  localStorage.setItem(LS_KEYS.STUDENT_REGISTRATIONS, JSON.stringify(registrations));
-  
-  return newStudent;
 }
 
 function loadStudentRegistrations() {
@@ -2327,9 +2336,17 @@ function StudentPanel({user}){
 
   useEffect(()=>{
     // Load all exams (active and past), newest first; student must choose one
-    const exams = loadExams();
-    const sorted = [...exams].sort((a,b)=> new Date(b.createdAt) - new Date(a.createdAt));
-    setAllExams(sorted);
+    const loadExamsData = async () => {
+      try {
+        const exams = await loadExams();
+        const sorted = [...exams].sort((a,b)=> new Date(b.createdAt) - new Date(a.createdAt));
+        setAllExams(sorted);
+      } catch (error) {
+        console.error('Error loading exams:', error);
+        setAllExams([]);
+      }
+    };
+    loadExamsData();
   }, []);
 
   useEffect(()=>{
@@ -2389,7 +2406,7 @@ function StudentPanel({user}){
     }
   };
 
-  const onSubmit = () => {
+  const onSubmit = async () => {
     let s=0; questions.forEach((q, i)=>{ if (answers[i] === q.correctIndex) s++; });
     setScore(s);
     setSubmitted(true);
@@ -2404,9 +2421,17 @@ function StudentPanel({user}){
       examTitle: selectedExam ? selectedExam.title : DEFAULT_EXAM_TITLE,
       questionOrder: questions.map(q => q.originalId),
     };
-    const old = loadResults();
-    old.push(result);
-    localStorage.setItem(LS_KEYS.RESULTS, JSON.stringify(old));
+    try {
+      const old = await loadResults();
+      old.push(result);
+      await saveResults(old);
+    } catch (error) {
+      console.error('Error saving result:', error);
+      // Fallback to localStorage
+      const old = JSON.parse(localStorage.getItem(LS_KEYS.RESULTS) || '[]');
+      old.push(result);
+      localStorage.setItem(LS_KEYS.RESULTS, JSON.stringify(old));
+    }
   };
 
   // If no exam selected yet, show exams for selection
@@ -2690,14 +2715,7 @@ function saveQuestionsForExam(examId, questions) {
   localStorage.setItem(`cbt_questions_${examId}`, JSON.stringify(questions));
 }
 
-function loadResults(){
-  const raw = localStorage.getItem(LS_KEYS.RESULTS);
-  if (!raw) return [];
-  try {
-    const r = JSON.parse(raw);
-    return Array.isArray(r) ? r : [];
-  } catch { return []; }
-}
+
 
 // Clean up markdown artifacts from text
 function cleanMarkdownText(text) {
