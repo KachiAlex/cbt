@@ -22,6 +22,97 @@ const DEFAULT_ADMIN = {
   email: "admin@healthschool.com"
 };
 
+// Fallback data from your MongoDB Atlas backup
+const FALLBACK_DATA = {
+  users: [
+    {
+      username: "admin",
+      password: "admin123",
+      role: "admin",
+      fullName: "System Administrator",
+      email: "admin@healthschool.com"
+    },
+    {
+      username: "Kachianietie",
+      password: "dikaoliver2660",
+      fullName: "Onyedikachi Akoma",
+      email: "onyedika.akoma@gmail.com",
+      role: "student",
+      registeredAt: "2025-08-27T10:33:14.936Z"
+    },
+    {
+      username: "Xsta",
+      password: "dikaoliver2660",
+      fullName: "Esther Isioma Akoma",
+      email: "isither22@gmail.com",
+      role: "student",
+      registeredAt: "2025-08-28T07:51:49.650Z"
+    }
+  ],
+  exams: [
+    {
+      id: "5140c4a5-9fa9-4d45-b6c9-6da3623140a0",
+      title: "Physics Midterm Exam",
+      description: "",
+      duration: 60,
+      questionCount: 50,
+      createdAt: "2025-08-27T12:25:51.679Z",
+      isActive: true
+    },
+    {
+      id: "345b1112-5512-41c8-a502-3ee544e37e0c",
+      title: "English Exam 2nd Semester",
+      description: "",
+      duration: 60,
+      questionCount: 30,
+      createdAt: "2025-08-27T13:59:14.202Z",
+      isActive: false
+    },
+    {
+      id: "db2a5a11-2976-4783-a7a8-12bf931899f4",
+      title: "Nigeria Water Corporation CBT Exam",
+      description: "This exam is to test your proficiency in Current Affairs, General Knowledge, and general IQ",
+      duration: 60,
+      questionCount: 20,
+      createdAt: "2025-08-28T08:00:12.373Z",
+      isActive: false
+    },
+    {
+      id: "0f72b06b-3c6f-4ab7-ac07-990a5e5deea3",
+      title: "CON Exam",
+      description: "Upgrade Exam",
+      duration: 60,
+      questionCount: 43,
+      createdAt: "2025-08-28T14:40:16.949Z",
+      isActive: false
+    }
+  ],
+  questions: [
+    {
+      id: "d8e37b4c-3ba5-4800-a4c0-1ec6226d470d",
+      text: "If a tank is filled by a pipe in 6 hours and emptied by another pipe in 9 hours, how long will it take to fill the tank if both pipes are opened together?",
+      options: ["18 hours", "12 hours", "9 hours", "18/5 hours"],
+      correctIndex: 1
+    },
+    {
+      id: "485a58d0-a7e2-489b-bfc5-d9c55625a089",
+      text: "What is 25% of 240?",
+      options: ["60", "80", "100", "120"],
+      correctIndex: 0
+    }
+  ],
+  results: [
+    {
+      username: "Kachianietie",
+      score: 38,
+      total: 43,
+      percent: 88,
+      submittedAt: "2025-08-27T12:31:43.504Z",
+      examTitle: "Physics Midterm Exam"
+    }
+  ]
+};
+
 // Helper functions for localStorage
 const getFromLS = (key) => {
   try {
@@ -38,6 +129,31 @@ const setToLS = (key, data) => {
     return true;
   } catch {
     return false;
+  }
+};
+
+// Initialize localStorage with fallback data if empty
+const initializeLocalStorage = () => {
+  const users = getFromLS(LS_KEYS.USERS);
+  const exams = getFromLS(LS_KEYS.EXAMS);
+  const questions = getFromLS(LS_KEYS.QUESTIONS);
+  const results = getFromLS(LS_KEYS.RESULTS);
+
+  if (!users) {
+    setToLS(LS_KEYS.USERS, FALLBACK_DATA.users);
+    console.log('📦 Initialized users in localStorage');
+  }
+  if (!exams) {
+    setToLS(LS_KEYS.EXAMS, FALLBACK_DATA.exams);
+    console.log('📦 Initialized exams in localStorage');
+  }
+  if (!questions) {
+    setToLS(LS_KEYS.QUESTIONS, FALLBACK_DATA.questions);
+    console.log('📦 Initialized questions in localStorage');
+  }
+  if (!results) {
+    setToLS(LS_KEYS.RESULTS, FALLBACK_DATA.results);
+    console.log('📦 Initialized results in localStorage');
   }
 };
 
@@ -72,17 +188,13 @@ const apiCall = async (endpoint, options = {}) => {
 export const dataService = {
   // User management
   loadUsers: async () => {
+    initializeLocalStorage(); // Ensure data exists
     const apiData = await apiCall('/api/users');
     if (apiData) return apiData;
 
     // Fallback to localStorage
     const saved = getFromLS(LS_KEYS.USERS);
-    if (!saved) {
-      const defaultUsers = [DEFAULT_ADMIN];
-      setToLS(LS_KEYS.USERS, defaultUsers);
-      return defaultUsers;
-    }
-    return saved;
+    return saved || FALLBACK_DATA.users;
   },
 
   saveUsers: async (users) => {
@@ -93,12 +205,13 @@ export const dataService = {
 
   // Exam management
   loadExams: async () => {
+    initializeLocalStorage(); // Ensure data exists
     const apiData = await apiCall('/api/exams');
     if (apiData) return apiData;
 
     // Fallback to localStorage
     const saved = getFromLS(LS_KEYS.EXAMS);
-    return saved || [];
+    return saved || FALLBACK_DATA.exams;
   },
 
   saveExams: async (exams) => {
@@ -109,12 +222,13 @@ export const dataService = {
 
   // Questions management
   loadQuestions: async () => {
+    initializeLocalStorage(); // Ensure data exists
     const apiData = await apiCall('/api/questions');
     if (apiData) return apiData;
 
     // Fallback to localStorage
     const saved = getFromLS(LS_KEYS.QUESTIONS);
-    return saved || [];
+    return saved || FALLBACK_DATA.questions;
   },
 
   saveQuestions: async (questions) => {
@@ -125,12 +239,13 @@ export const dataService = {
 
   // Results management
   loadResults: async () => {
+    initializeLocalStorage(); // Ensure data exists
     const apiData = await apiCall('/api/results');
     if (apiData) return apiData;
 
     // Fallback to localStorage
     const saved = getFromLS(LS_KEYS.RESULTS);
-    return saved || [];
+    return saved || FALLBACK_DATA.results;
   },
 
   saveResults: async (results) => {
