@@ -18,6 +18,7 @@ import dataService from "./services/dataService";
 // - Question and answer randomization
 // - Tailwind styles
 // Default Admin: username: admin  | password: admin123
+// Build timestamp: 2025-01-01
 // -------------------------
 
 const LS_KEYS = {
