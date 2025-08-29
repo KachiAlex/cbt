@@ -324,7 +324,7 @@ function Login({onLogin}){
   const [showRegisterPassword, setShowRegisterPassword] = useState(false);
   const [showRegisterConfirm, setShowRegisterConfirm] = useState(false);
 
-  const handleLogin = (e) => {
+  const handleLogin = async (e) => {
     e.preventDefault();
     setError("");
     
@@ -333,16 +333,21 @@ function Login({onLogin}){
       return;
     }
 
-    // Only student authentication - admin access is separate
-    const user = authenticateUser(username, password);
-    if (user) {
-      onLogin(user);
-    } else {
-      setError("Invalid username or password. Please check your credentials or register as a new student.");
+    try {
+      // Only student authentication - admin access is separate
+      const user = await authenticateUser(username, password);
+      if (user) {
+        onLogin(user);
+      } else {
+        setError("Invalid username or password. Please check your credentials or register as a new student.");
+      }
+    } catch (error) {
+      console.error('Error during student login:', error);
+      setError("Login failed. Please try again.");
     }
   };
 
-  const handleRegister = (e) => {
+  const handleRegister = async (e) => {
     e.preventDefault();
     setError("");
     setSuccess("");
@@ -376,7 +381,7 @@ function Login({onLogin}){
         email
       };
       
-      registerStudent(studentData);
+      await registerStudent(studentData);
       setSuccess("Registration successful! You can now login with your credentials.");
       setMode("login");
       setUsername("");
@@ -585,7 +590,7 @@ function AdminLogin({onLogin, onBack}){
   const [error, setError] = useState("");
   const [showAdminPassword, setShowAdminPassword] = useState(false);
 
-  const handleLogin = (e) => {
+  const handleLogin = async (e) => {
     e.preventDefault();
     setError("");
     
@@ -594,19 +599,24 @@ function AdminLogin({onLogin, onBack}){
       return;
     }
 
-    // Admin authentication using stored password
-    const users = loadUsers();
-    const adminUser = users.find(u => u.username === "admin");
-    
-    if (adminUser && adminUser.password === password) {
-      onLogin({
-        username, 
-        role: "admin", 
-        fullName: "System Administrator", 
-        email: "admin@healthschool.com"
-      });
-    } else {
-      setError("Invalid admin credentials. Please check your username and password.");
+    try {
+      // Admin authentication using stored password
+      const users = await loadUsers();
+      const adminUser = users.find(u => u.username === "admin");
+      
+      if (adminUser && adminUser.password === password) {
+        onLogin({
+          username, 
+          role: "admin", 
+          fullName: "System Administrator", 
+          email: "admin@healthschool.com"
+        });
+      } else {
+        setError("Invalid admin credentials. Please check your username and password.");
+      }
+    } catch (error) {
+      console.error('Error during admin login:', error);
+      setError("Login failed. Please try again.");
     }
   };
 
