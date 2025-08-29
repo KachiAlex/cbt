@@ -84,7 +84,7 @@ function App() {
   return (
     <div className="min-h-screen bg-gray-50 text-gray-800">
       <Header user={user} onLogout={onLogout} onLogoClick={handleLogoClick} />
-      <main className="max-w-5xl mx-auto p-4 sm:p-8">
+      <main className="max-w-5xl mx-auto w-full px-3 sm:px-8 py-4 sm:py-8">
         {user ? (
           user.role === "admin" ? (
             <AdminPanel />
