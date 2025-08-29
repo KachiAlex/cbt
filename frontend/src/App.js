@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef } from "react";
-import * as XLSX from "xlsx";
+import ExcelJS from "exceljs";
 import { saveAs } from "file-saver";
 import { Document, Packer, Paragraph, TextRun, Table, TableRow, TableCell } from "docx";
 import mammoth from "mammoth";
@@ -841,16 +841,21 @@ function AdminPanel(){
 
 
 
-  const exportResultsToExcel = () => {
-    const wsData = [["Username","Exam Title","Score","Total","Percent","Submitted At","Answers"]];
+  const exportResultsToExcel = async () => {
+    const workbook = new ExcelJS.Workbook();
+    const worksheet = workbook.addWorksheet('Results');
+    
+    // Add headers
+    worksheet.addRow(['Username', 'Exam Title', 'Score', 'Total', 'Percent', 'Submitted At', 'Answers']);
+    
+    // Add data rows
     for (const r of results) {
-      wsData.push([r.username, r.examTitle, r.score, r.total, r.percent, r.submittedAt, r.answers.join(", ")]);
+      worksheet.addRow([r.username, r.examTitle, r.score, r.total, r.percent, r.submittedAt, r.answers.join(", ")]);
     }
-    const wb = XLSX.utils.book_new();
-    const ws = XLSX.utils.aoa_to_sheet(wsData);
-    XLSX.utils.book_append_sheet(wb, ws, "Results");
-    const wbout = XLSX.write(wb, {bookType:"xlsx", type:"array"});
-    const blob = new Blob([wbout], {type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"});
+    
+    // Generate and download file
+    const buffer = await workbook.xlsx.writeBuffer();
+    const blob = new Blob([buffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
     saveAs(blob, "CBT_Results.xlsx");
   };
 
@@ -1218,7 +1223,7 @@ function AdminPanel(){
           <Section title="Exam Results">
             <div className="mb-4 flex justify-between items-center">
               <div className="flex gap-2">
-                <button onClick={exportResultsToExcel} className="px-4 py-2 bg-green-600 text-white rounded-xl hover:bg-green-700">
+                <button onClick={() => exportResultsToExcel()} className="px-4 py-2 bg-green-600 text-white rounded-xl hover:bg-green-700">
                   Export to Excel
                 </button>
                 <button onClick={exportResultsToWord} className="px-4 py-2 bg-blue-600 text-white rounded-xl hover:bg-blue-700">
@@ -3101,72 +3106,69 @@ function createQuestionObject(questionText, options, correctAnswer) {
   return question;
 }
 
-// Excel parser for .xlsx files
+// Excel parser for .xlsx files using ExcelJS
 // Expected format: Question | Option A | Option B | Option C | Option D | Correct Answer
-function parseQuestionsFromExcel(file) {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      try {
-        const data = new Uint8Array(e.target.result);
-        const workbook = XLSX.read(data, { type: 'array' });
-        const sheetName = workbook.SheetNames[0];
-        const worksheet = workbook.Sheets[sheetName];
-        const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
-        
-        const questions = [];
-        
-        // Skip header row if it exists
-        const startRow = jsonData[0] && jsonData[0][0] && 
-                        (jsonData[0][0].toString().toLowerCase().includes('question') || 
-                         jsonData[0][0].toString().toLowerCase().includes('q')) ? 1 : 0;
-        
-        for (let i = startRow; i < jsonData.length; i++) {
-          const row = jsonData[i];
-          if (!row || row.length < 6) continue; // Need at least 6 columns
-          
-          const questionText = row[0]?.toString().trim();
-          const optionA = row[1]?.toString().trim();
-          const optionB = row[2]?.toString().trim();
-          const optionC = row[3]?.toString().trim();
-          const optionD = row[4]?.toString().trim();
-          const correctAnswer = row[5]?.toString().trim().toUpperCase();
-          
-          if (!questionText || !optionA || !optionB || !optionC || !optionD || !correctAnswer) {
-            console.log(`Skipping invalid row ${i + 1}:`, row);
-            continue;
-          }
-          
-          // Convert answer to index (A=0, B=1, C=2, D=3)
-          const answerIndex = { 'A': 0, 'B': 1, 'C': 2, 'D': 3 }[correctAnswer];
-          if (answerIndex === undefined) {
-            console.log(`Invalid answer in row ${i + 1}:`, correctAnswer);
-            continue;
-          }
-          
-          questions.push({
-            id: crypto.randomUUID(),
-            text: cleanMarkdownText(questionText),
-            options: [
-              cleanMarkdownText(optionA),
-              cleanMarkdownText(optionB),
-              cleanMarkdownText(optionC),
-              cleanMarkdownText(optionD)
-            ],
-            correctIndex: answerIndex
-          });
-        }
-        
-        console.log(`Parsed ${questions.length} questions from Excel file`);
-        resolve(questions);
-      } catch (error) {
-        console.error('Error parsing Excel file:', error);
-        reject(new Error('Failed to parse Excel file. Please check the format.'));
+async function parseQuestionsFromExcel(file) {
+  try {
+    const workbook = new ExcelJS.Workbook();
+    await workbook.xlsx.load(await file.arrayBuffer());
+    
+    const worksheet = workbook.getWorksheet(1); // Get first worksheet
+    if (!worksheet) {
+      throw new Error('No worksheet found in Excel file');
+    }
+    
+    const questions = [];
+    let startRow = 1; // Default start row
+    
+    // Check if first row is header
+    const firstRow = worksheet.getRow(1);
+    const firstCell = firstRow.getCell(1).value;
+    if (firstCell && firstCell.toString().toLowerCase().includes('question')) {
+      startRow = 2; // Skip header row
+    }
+    
+    worksheet.eachRow((row, rowNumber) => {
+      if (rowNumber < startRow) return; // Skip header rows
+      
+      const questionText = row.getCell(1).value?.toString().trim();
+      const optionA = row.getCell(2).value?.toString().trim();
+      const optionB = row.getCell(3).value?.toString().trim();
+      const optionC = row.getCell(4).value?.toString().trim();
+      const optionD = row.getCell(5).value?.toString().trim();
+      const correctAnswer = row.getCell(6).value?.toString().trim().toUpperCase();
+      
+      if (!questionText || !optionA || !optionB || !optionC || !optionD || !correctAnswer) {
+        console.log(`Skipping invalid row ${rowNumber}:`, { questionText, optionA, optionB, optionC, optionD, correctAnswer });
+        return;
       }
-    };
-    reader.onerror = () => reject(new Error('Failed to read file'));
-    reader.readAsArrayBuffer(file);
-  });
+      
+      // Convert answer to index (A=0, B=1, C=2, D=3)
+      const answerIndex = { 'A': 0, 'B': 1, 'C': 2, 'D': 3 }[correctAnswer];
+      if (answerIndex === undefined) {
+        console.log(`Invalid answer in row ${rowNumber}:`, correctAnswer);
+        return;
+      }
+      
+      questions.push({
+        id: crypto.randomUUID(),
+        text: cleanMarkdownText(questionText),
+        options: [
+          cleanMarkdownText(optionA),
+          cleanMarkdownText(optionB),
+          cleanMarkdownText(optionC),
+          cleanMarkdownText(optionD)
+        ],
+        correctIndex: answerIndex
+      });
+    });
+    
+    console.log(`Parsed ${questions.length} questions from Excel file`);
+    return questions;
+  } catch (error) {
+    console.error('Error parsing Excel file:', error);
+    throw new Error('Failed to parse Excel file. Please check the format.');
+  }
 }
 
 export default App;
