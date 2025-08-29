@@ -2883,8 +2883,8 @@ function parseQuestionsFromMarkdown(md) {
     
     // Enhanced question detection - more flexible patterns
     const questionPatterns = [
-      /^(\d+)\s*[\.\)]?\s*(.+)$/,                    // 1. Question text, 1) Question text, 1 Question text
-      /^[Qq](\d*)\s*[\.\)]?\s*(.+)$/,              // Q1. Question text, Q1) Question text, Q Question text
+      /^(\d+)\s*[.)]?\s*(.+)$/,                    // 1. Question text, 1) Question text, 1 Question text
+      /^[Qq](\d*)\s*[.)]?\s*(.+)$/,              // Q1. Question text, Q1) Question text, Q Question text
       /^Question\s*(\d+)\s*[.:-]?\s*(.+)$/i,     // Question 1: Text, Question 1. Text
     ];
     
@@ -2938,8 +2938,8 @@ function parseQuestionsFromMarkdown(md) {
     
     // Enhanced option detection - more flexible patterns
     const optionPatterns = [
-      /^([A-Da-d])\s*[\.\)]?\s*(.+)$/,              // A. Text, A) Text, A Text
-      /^([1-4])\s*[\.\)]?\s*(.+)$/,                 // 1. Text, 1) Text, 1 Text
+      /^([A-Da-d])\s*[.)]?\s*(.+)$/,              // A. Text, A) Text, A Text
+      /^([1-4])\s*[.)]?\s*(.+)$/,                 // 1. Text, 1) Text, 1 Text
       /^Option\s*([A-Da-d1-4])\s*[:-]?\s*(.+)$/i,  // Option A: Text
     ];
     
