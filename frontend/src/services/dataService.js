@@ -139,19 +139,21 @@ const initializeLocalStorage = () => {
   const questions = getFromLS(LS_KEYS.QUESTIONS);
   const results = getFromLS(LS_KEYS.RESULTS);
 
-  if (!users) {
+  // Only initialize if explicitly requested (not automatically)
+  // This allows for a truly clean start when database is cleared
+  if (!users && process.env.REACT_APP_INITIALIZE_DATA === 'true') {
     setToLS(LS_KEYS.USERS, FALLBACK_DATA.users);
     console.log('📦 Initialized users in localStorage');
   }
-  if (!exams) {
+  if (!exams && process.env.REACT_APP_INITIALIZE_DATA === 'true') {
     setToLS(LS_KEYS.EXAMS, FALLBACK_DATA.exams);
     console.log('📦 Initialized exams in localStorage');
   }
-  if (!questions) {
+  if (!questions && process.env.REACT_APP_INITIALIZE_DATA === 'true') {
     setToLS(LS_KEYS.QUESTIONS, FALLBACK_DATA.questions);
     console.log('📦 Initialized questions in localStorage');
   }
-  if (!results) {
+  if (!results && process.env.REACT_APP_INITIALIZE_DATA === 'true') {
     setToLS(LS_KEYS.RESULTS, FALLBACK_DATA.results);
     console.log('📦 Initialized results in localStorage');
   }
@@ -194,7 +196,7 @@ export const dataService = {
 
     // Fallback to localStorage
     const saved = getFromLS(LS_KEYS.USERS);
-    return saved || FALLBACK_DATA.users;
+    return saved || [];
   },
 
   saveUsers: async (users) => {
@@ -211,7 +213,7 @@ export const dataService = {
 
     // Fallback to localStorage
     const saved = getFromLS(LS_KEYS.EXAMS);
-    return saved || FALLBACK_DATA.exams;
+    return saved || [];
   },
 
   saveExams: async (exams) => {
@@ -228,7 +230,7 @@ export const dataService = {
 
     // Fallback to localStorage
     const saved = getFromLS(LS_KEYS.QUESTIONS);
-    return saved || FALLBACK_DATA.questions;
+    return saved || [];
   },
 
   saveQuestions: async (questions) => {
@@ -245,7 +247,7 @@ export const dataService = {
 
     // Fallback to localStorage
     const saved = getFromLS(LS_KEYS.RESULTS);
-    return saved || FALLBACK_DATA.results;
+    return saved || [];
   },
 
   saveResults: async (results) => {

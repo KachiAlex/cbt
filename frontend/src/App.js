@@ -1274,7 +1274,42 @@ function AdminPanel(){
                 ← Back to Exams
               </button>
             </div>
-            <AdminSettings />
+            <AdminSettings onClearData={() => {
+              // Clear all localStorage data
+              const LS_KEYS = {
+                EXAMS: "cbt_exams_v1",
+                QUESTIONS: "cbt_questions_v1", 
+                RESULTS: "cbt_results_v1",
+                USERS: "cbt_users_v1",
+                STUDENT_REGISTRATIONS: "cbt_student_registrations_v1",
+                SHARED_DATA: "cbt_shared_data_v1",
+                ACTIVE_EXAM: "cbt_active_exam_v1"
+              };
+
+              // Clear all CBT-related localStorage items
+              Object.values(LS_KEYS).forEach(key => {
+                localStorage.removeItem(key);
+              });
+
+              // Clear any exam-specific question storage
+              for (let i = 0; i < localStorage.length; i++) {
+                const key = localStorage.key(i);
+                if (key && key.startsWith('cbt_questions_')) {
+                  localStorage.removeItem(key);
+                }
+              }
+
+              // Clear logged in user
+              localStorage.removeItem('cbt_logged_in_user');
+
+              // Reset state
+              setExams([]);
+              setQuestions([]);
+              setResults([]);
+
+              alert('All data cleared successfully! The page will refresh.');
+              window.location.reload();
+            }} />
           </Section>
         </div>
       )}
@@ -1682,7 +1717,7 @@ function StudentManagement() {
   );
 }
 
-function AdminSettings() {
+function AdminSettings({ onClearData }) {
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -2127,6 +2162,12 @@ function AdminSettings() {
             className="w-full px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 font-medium"
           >
             🔄 Sync Shared Data
+          </button>
+          <button
+            onClick={onClearData}
+            className="w-full px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 font-medium"
+          >
+            🗑️ Clear All Data (Reset)
           </button>
           <input
             ref={fileInputRef}
