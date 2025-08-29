@@ -684,16 +684,33 @@ function AdminLogin({onLogin, onBack}){
 
 function AdminPanel(){
   const [activeTab, setActiveTab] = useState("exams"); // "exams", "questions", "results", "students"
-  const [exams, setExams] = useState(loadExams());
-  const [questions, setQuestions] = useState(loadQuestions());
-  const [results, setResults] = useState(loadResults());
+  const [exams, setExams] = useState([]);
+  const [questions, setQuestions] = useState([]);
+  const [results, setResults] = useState([]);
   const [importError, setImportError] = useState("");
   const [showCreateExam, setShowCreateExam] = useState(false);
   const [showEditExam, setShowEditExam] = useState(false);
   const [selectedExam, setSelectedExam] = useState(null);
 
   useEffect(()=>{
-    setExams(loadExams());
+    const loadData = async () => {
+      try {
+        const [examsData, questionsData, resultsData] = await Promise.all([
+          loadExams(),
+          loadQuestions(),
+          loadResults()
+        ]);
+        setExams(examsData || []);
+        setQuestions(questionsData || []);
+        setResults(resultsData || []);
+      } catch (error) {
+        console.error('Error loading data:', error);
+        setExams([]);
+        setQuestions([]);
+        setResults([]);
+      }
+    };
+    loadData();
   }, []);
 
   useEffect(()=>{
@@ -2996,6 +3013,46 @@ function parseQuestionsFromExcel(file) {
     reader.onerror = () => reject(new Error('Failed to read file'));
     reader.readAsArrayBuffer(file);
   });
+}
+
+// Questions management functions
+async function loadQuestions() {
+  try {
+    const data = await dataService.loadQuestions();
+    return Array.isArray(data) ? data : [];
+  } catch (error) {
+    console.error('Error loading questions:', error);
+    return [];
+  }
+}
+
+async function saveQuestions(questions) {
+  try {
+    return await dataService.saveQuestions(questions);
+  } catch (error) {
+    console.error('Error saving questions:', error);
+    return false;
+  }
+}
+
+// Results management functions
+async function loadResults() {
+  try {
+    const data = await dataService.loadResults();
+    return Array.isArray(data) ? data : [];
+  } catch (error) {
+    console.error('Error loading results:', error);
+    return [];
+  }
+}
+
+async function saveResults(results) {
+  try {
+    return await dataService.saveResults(results);
+  } catch (error) {
+    console.error('Error saving results:', error);
+    return false;
+  }
 }
 
 export default App;
