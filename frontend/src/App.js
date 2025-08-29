@@ -135,36 +135,79 @@ function App() {
 
 // User management functions - now using dataService
 async function loadUsers() {
-  return await dataService.loadUsers();
+  try {
+    const data = await dataService.loadUsers();
+    return Array.isArray(data) ? data : [];
+  } catch (error) {
+    console.error('Error loading users:', error);
+    return [];
+  }
 }
 
 async function saveUsers(users) {
-  return await dataService.saveUsers(users);
+  try {
+    return await dataService.saveUsers(users);
+  } catch (error) {
+    console.error('Error saving users:', error);
+    return false;
+  }
 }
 
 async function authenticateUser(username, password) {
-  return await dataService.authenticateUser(username, password);
+  try {
+    return await dataService.authenticateUser(username, password);
+  } catch (error) {
+    console.error('Error authenticating user:', error);
+    return null;
+  }
 }
 
 // Exam management functions - now using dataService
 async function loadExams() {
-  return await dataService.loadExams();
+  try {
+    const data = await dataService.loadExams();
+    // Ensure we always return an array
+    return Array.isArray(data) ? data : [];
+  } catch (error) {
+    console.error('Error loading exams:', error);
+    return [];
+  }
 }
 
 async function saveExams(exams) {
-  return await dataService.saveExams(exams);
+  try {
+    return await dataService.saveExams(exams);
+  } catch (error) {
+    console.error('Error saving exams:', error);
+    return false;
+  }
 }
 
 async function createExam(examData) {
-  return await dataService.createExam(examData);
+  try {
+    return await dataService.createExam(examData);
+  } catch (error) {
+    console.error('Error creating exam:', error);
+    return null;
+  }
 }
 
 async function updateExam(examId, updates) {
-  return await dataService.updateExam(examId, updates);
+  try {
+    return await dataService.updateExam(examId, updates);
+  } catch (error) {
+    console.error('Error updating exam:', error);
+    return false;
+  }
 }
 
 async function deleteExam(examId) {
-  return await dataService.deleteExam(examId);
+  try {
+    return await dataService.deleteExam(examId);
+  } catch (error) {
+    console.error('Error deleting exam:', error);
+    return false;
+  }
 }
 
 function setActiveExam(examId) {
@@ -841,7 +884,7 @@ function AdminPanel(){
               </button>
             </div>
 
-            {exams.length === 0 ? (
+            {(!exams || !Array.isArray(exams) || exams.length === 0) ? (
               <div className="text-center py-8 text-gray-500">
                 <p>No exams created yet.</p>
                 <p className="text-sm mt-2">Create your first exam to get started.</p>
@@ -886,7 +929,8 @@ function AdminPanel(){
           </Section>
 
           {(() => {
-            const activeExams = exams.filter(exam => exam.isActive);
+            const safeExams = Array.isArray(exams) ? exams : [];
+            const activeExams = safeExams.filter(exam => exam.isActive);
             return activeExams.length > 0 && (
               <Section title={`Active Exams (${activeExams.length})`}>
                 <div className="space-y-3">
