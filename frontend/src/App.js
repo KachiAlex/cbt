@@ -447,7 +447,8 @@ function Login({onLogin}){
               value={username} 
               onChange={e=>setUsername(e.target.value)} 
               className="w-full border rounded-xl px-3 py-2" 
-              placeholder="Enter your username" 
+              placeholder="Enter your username"
+              autoComplete="username"
             />
           </div>
           <div>
@@ -497,7 +498,8 @@ function Login({onLogin}){
               value={fullName} 
               onChange={e=>setFullName(e.target.value)} 
               className="w-full border rounded-xl px-3 py-2" 
-              placeholder="Enter your full name" 
+              placeholder="Enter your full name"
+              autoComplete="name"
             />
           </div>
           <div>
@@ -509,7 +511,8 @@ function Login({onLogin}){
               value={email} 
               onChange={e=>setEmail(e.target.value)} 
               className="w-full border rounded-xl px-3 py-2" 
-              placeholder="Enter your email address" 
+              placeholder="Enter your email address"
+              autoComplete="email"
             />
           </div>
           <div>
@@ -521,7 +524,8 @@ function Login({onLogin}){
               value={username} 
               onChange={e=>setUsername(e.target.value)} 
               className="w-full border rounded-xl px-3 py-2" 
-              placeholder="Choose a username" 
+              placeholder="Choose a username"
+              autoComplete="username"
             />
           </div>
           <div>
@@ -661,7 +665,8 @@ function AdminLogin({onLogin, onBack}){
             value={username} 
             onChange={e=>setUsername(e.target.value)} 
             className="w-full border rounded-xl px-3 py-2 focus:ring-2 focus:ring-red-500 focus:border-red-500" 
-            placeholder="Enter admin username" 
+            placeholder="Enter admin username"
+            autoComplete="username"
           />
         </div>
         <div>
@@ -1056,7 +1061,7 @@ function AdminPanel(){
                 className="w-full border rounded-xl px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               >
                 <option value="">-- Select an exam --</option>
-                {exams.map(exam => (
+                {Array.isArray(exams) && exams.map(exam => (
                   <option key={exam.id} value={exam.id}>
                     {exam.title} ({exam.questionCount || 0} questions)
                   </option>
