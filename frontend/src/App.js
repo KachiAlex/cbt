@@ -2758,15 +2758,7 @@ function ResultsTable({results, setResults}){
   );
 }
 
-// Utils
-function loadQuestions(){
-  const raw = localStorage.getItem(LS_KEYS.QUESTIONS);
-  if (!raw) return [];
-  try {
-    const q = JSON.parse(raw);
-    return Array.isArray(q) ? q : [];
-  } catch { return []; }
-}
+
 
 // Load questions for a specific exam
 function loadQuestionsForExam(examId) {
