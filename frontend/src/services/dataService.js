@@ -85,7 +85,25 @@ export const dataService = {
 
     // Fallback to localStorage
     const saved = getFromLS(LS_KEYS.USERS);
-    return saved || [];
+    let users = saved || [];
+    
+    // Ensure default admin user exists
+    const adminExists = users.some(user => user.username === 'admin');
+    if (!adminExists) {
+      const defaultAdmin = {
+        username: "admin",
+        password: "admin123",
+        role: "admin",
+        fullName: "System Administrator",
+        email: "admin@healthschool.com",
+        createdAt: new Date().toISOString()
+      };
+      users.push(defaultAdmin);
+      setToLS(LS_KEYS.USERS, users);
+      console.log('👤 Default admin user created');
+    }
+    
+    return users;
   },
 
   saveUsers: async (users) => {
