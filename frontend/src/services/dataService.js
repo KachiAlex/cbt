@@ -1,7 +1,7 @@
 
 
 // Configuration - Cloud Database Enabled (but with localStorage fallback for admin)
-const USE_API = process.env.REACT_APP_USE_API === 'true' || process.env.NODE_ENV === 'production';
+const USE_API = process.env.REACT_APP_USE_API !== 'false'; // Default to true unless explicitly set to false
 const API_BASE = process.env.REACT_APP_API_URL || 'https://cbt-rew7.onrender.com';
 
 // LocalStorage keys
@@ -72,6 +72,8 @@ const initializeLocalStorage = () => {
 
 // API wrapper with fallback to localStorage
 const apiCall = async (endpoint, options = {}) => {
+  console.log('🔧 API Configuration:', { USE_API, API_BASE });
+  
   if (!USE_API) {
     console.log('Using localStorage fallback for:', endpoint);
     return null; // Will trigger localStorage fallback
@@ -88,11 +90,12 @@ const apiCall = async (endpoint, options = {}) => {
     });
 
     if (!response.ok) {
+      console.warn(`❌ API call failed with status: ${response.status} ${response.statusText}`);
       throw new Error(`HTTP ${response.status}: ${response.statusText}`);
     }
 
     const data = await response.json();
-    console.log(`✅ API call successful: ${endpoint}`);
+    console.log(`✅ API call successful: ${endpoint}`, data);
     return data;
   } catch (error) {
     console.warn(`❌ API call failed for ${endpoint}, falling back to localStorage:`, error.message);
