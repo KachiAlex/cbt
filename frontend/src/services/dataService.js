@@ -43,9 +43,31 @@ const setToLS = (key, data) => {
 
 // Initialize localStorage with fallback data if empty
 const initializeLocalStorage = () => {
-  // Completely disabled fallback data initialization
-  // This ensures a truly clean start when database is cleared
-  console.log('🚫 Fallback data initialization disabled - keeping localStorage clean');
+  console.log('🔧 Initializing localStorage...');
+  
+  // Check if admin user exists, create if not
+  const users = getFromLS(LS_KEYS.USERS) || [];
+  const adminExists = users.some(user => user.username === 'admin' && user.role === 'admin');
+  
+  if (!adminExists) {
+    console.log('👤 Creating default admin user in localStorage...');
+    const defaultAdmin = {
+      username: "admin",
+      password: "admin123",
+      role: "admin",
+      fullName: "System Administrator",
+      email: "admin@healthschool.com",
+      createdAt: new Date().toISOString(),
+      isDefaultAdmin: true,
+      canDeleteDefaultAdmin: true
+    };
+    
+    users.push(defaultAdmin);
+    setToLS(LS_KEYS.USERS, users);
+    console.log('✅ Default admin user created in localStorage');
+  } else {
+    console.log('👤 Admin user already exists in localStorage');
+  }
 };
 
 // API wrapper with fallback to localStorage
@@ -82,10 +104,12 @@ const apiCall = async (endpoint, options = {}) => {
 export const dataService = {
   // User management
   loadUsers: async () => {
+    console.log('📋 Loading users...');
     initializeLocalStorage(); // Ensure data exists
     const apiData = await apiCall('/api/users');
     
     if (apiData) {
+      console.log('🌐 Loaded users from API:', apiData.length);
       // Check if any admin exists in cloud data
       const adminExists = apiData.some(user => user.role === 'admin');
       if (!adminExists && USE_API) {
@@ -112,11 +136,15 @@ export const dataService = {
     }
 
     // Fallback to localStorage
+    console.log('💾 Loading users from localStorage...');
     const saved = getFromLS(LS_KEYS.USERS);
     let users = saved || [];
+    console.log('💾 Users from localStorage:', users.length);
     
     // Check if any admin exists in localStorage
     const adminExists = users.some(user => user.role === 'admin');
+    console.log('👤 Admin exists in localStorage:', adminExists);
+    
     if (!adminExists) {
       const defaultAdmin = {
         username: "admin",
@@ -133,6 +161,7 @@ export const dataService = {
       console.log('👤 Default admin user created in localStorage (fallback)');
     }
     
+    console.log('📋 Final users array:', users.map(u => ({ username: u.username, role: u.role })));
     return users;
   },
 
@@ -548,6 +577,8 @@ export const dataService = {
   // Authentication
   authenticateUser: async (username, password) => {
     console.log('🔐 Authenticating user:', username);
+    console.log('🔧 USE_API setting:', USE_API);
+    console.log('🌐 API_BASE:', API_BASE);
     
     if (USE_API) {
       try {
@@ -576,16 +607,23 @@ export const dataService = {
     // Fallback to localStorage authentication
     console.log('💾 Using localStorage authentication...');
     const users = await dataService.loadUsers();
-    const user = users.find(u => 
-      u.username.toLowerCase() === username.toLowerCase() && 
-      u.password === password
-    );
+    console.log('👥 Total users loaded:', users.length);
+    console.log('👥 Users in localStorage:', users.map(u => ({ username: u.username, role: u.role })));
+    
+    const user = users.find(u => {
+      const usernameMatch = u.username.toLowerCase() === username.toLowerCase();
+      const passwordMatch = u.password === password;
+      console.log(`🔍 Checking user ${u.username}: usernameMatch=${usernameMatch}, passwordMatch=${passwordMatch}`);
+      return usernameMatch && passwordMatch;
+    });
 
     if (user) {
       console.log('✅ localStorage authentication successful:', user);
       return user;
     } else {
       console.log('❌ localStorage authentication failed - user not found');
+      console.log('🔍 Searched for username:', username.toLowerCase());
+      console.log('🔍 Available users:', users.map(u => u.username.toLowerCase()));
       throw new Error('Invalid credentials');
     }
   },
