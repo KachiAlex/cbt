@@ -915,79 +915,6 @@ function AdminPanel(){
             <h2 className="text-xl font-bold text-gray-800">Admin Panel</h2>
             <p className="text-sm text-gray-600">Manage exams, questions, and student results</p>
           </div>
-          <button
-            onClick={() => {
-              if (window.confirm('Are you sure you want to clear ALL data? This will remove all exams, questions, results, and student data. The admin user will be preserved. This action cannot be undone.')) {
-                // Clear all localStorage data
-                const LS_KEYS = {
-                  EXAMS: "cbt_exams_v1",
-                  QUESTIONS: "cbt_questions_v1", 
-                  RESULTS: "cbt_results_v1",
-                  STUDENT_REGISTRATIONS: "cbt_student_registrations_v1",
-                  SHARED_DATA: "cbt_shared_data_v1",
-                  ACTIVE_EXAM: "cbt_active_exam_v1"
-                };
-
-                // Clear all CBT-related localStorage items (except USERS)
-                Object.values(LS_KEYS).forEach(key => {
-                  localStorage.removeItem(key);
-                });
-
-                // Clear any exam-specific question storage
-                for (let i = 0; i < localStorage.length; i++) {
-                  const key = localStorage.key(i);
-                  if (key && key.startsWith('cbt_questions_')) {
-                    localStorage.removeItem(key);
-                  }
-                }
-
-                // Clear logged in user
-                localStorage.removeItem('cbt_logged_in_user');
-
-                // Preserve admin user in localStorage
-                const adminUser = {
-                  username: "admin",
-                  password: "admin123",
-                  role: "admin",
-                  fullName: "System Administrator",
-                  email: "admin@healthschool.com",
-                  createdAt: new Date().toISOString()
-                };
-                localStorage.setItem("cbt_users_v1", JSON.stringify([adminUser]));
-
-                // Clear cloud database data (but preserve admin user)
-                const clearCloudData = async () => {
-                  try {
-                    // Clear exams, questions, and results from cloud database
-                    const clearPromises = [
-                      fetch('https://cbt-rew7.onrender.com/api/exams', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify([]) }),
-                      fetch('https://cbt-rew7.onrender.com/api/questions', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify([]) }),
-                      fetch('https://cbt-rew7.onrender.com/api/results', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify([]) })
-                    ];
-                    
-                    await Promise.all(clearPromises);
-                    console.log('✅ Cloud database cleared successfully');
-                  } catch (error) {
-                    console.warn('⚠️ Failed to clear cloud database:', error.message);
-                  }
-                };
-
-                // Clear cloud data
-                clearCloudData();
-
-                // Reset state
-                setExams([]);
-                setQuestions([]);
-                setResults([]);
-
-                alert('All data cleared successfully! The page will refresh.');
-                window.location.reload();
-              }
-            }}
-            className="px-4 py-2 bg-red-600 text-white rounded-xl hover:bg-red-700 text-sm"
-          >
-            🗑️ Clear All Data
-          </button>
         </div>
       </div>
 
@@ -1331,19 +1258,34 @@ function AdminPanel(){
                 ← Back to Exams
               </button>
             </div>
-            <AdminSettings onClearData={() => {
+            <AdminSettings 
+              exams={exams}
+              questions={questions}
+              results={results}
+              exportResultsToExcel={exportResultsToExcel}
+              exportResultsToWord={exportResultsToWord}
+              onClearData={() => {
+              // First confirmation
+              if (!window.confirm('⚠️ WARNING: This will permanently delete ALL data!\n\nThis action will:\n• Remove all exams, questions, and results\n• Delete all student registrations\n• Clear both local and cloud databases\n• The admin user will be preserved\n\nAre you absolutely sure you want to proceed?')) {
+                return;
+              }
+
+              // Second confirmation for extra safety
+              if (!window.confirm('🚨 FINAL CONFIRMATION:\n\nYou are about to permanently delete ALL data from the CBT system.\n\nThis action CANNOT be undone.\n\nType "DELETE" to confirm:')) {
+                return;
+              }
+
               // Clear all localStorage data
               const LS_KEYS = {
                 EXAMS: "cbt_exams_v1",
                 QUESTIONS: "cbt_questions_v1", 
                 RESULTS: "cbt_results_v1",
-                USERS: "cbt_users_v1",
                 STUDENT_REGISTRATIONS: "cbt_student_registrations_v1",
                 SHARED_DATA: "cbt_shared_data_v1",
                 ACTIVE_EXAM: "cbt_active_exam_v1"
               };
 
-              // Clear all CBT-related localStorage items
+              // Clear all CBT-related localStorage items (except USERS)
               Object.values(LS_KEYS).forEach(key => {
                 localStorage.removeItem(key);
               });
@@ -1359,12 +1301,43 @@ function AdminPanel(){
               // Clear logged in user
               localStorage.removeItem('cbt_logged_in_user');
 
+              // Preserve admin user in localStorage
+              const adminUser = {
+                username: "admin",
+                password: "admin123",
+                role: "admin",
+                fullName: "System Administrator",
+                email: "admin@healthschool.com",
+                createdAt: new Date().toISOString()
+              };
+              localStorage.setItem("cbt_users_v1", JSON.stringify([adminUser]));
+
+              // Clear cloud database data (but preserve admin user)
+              const clearCloudData = async () => {
+                try {
+                  // Clear exams, questions, and results from cloud database
+                  const clearPromises = [
+                    fetch('https://cbt-rew7.onrender.com/api/exams', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify([]) }),
+                    fetch('https://cbt-rew7.onrender.com/api/questions', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify([]) }),
+                    fetch('https://cbt-rew7.onrender.com/api/results', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify([]) })
+                  ];
+                  
+                  await Promise.all(clearPromises);
+                  console.log('✅ Cloud database cleared successfully');
+                } catch (error) {
+                  console.warn('⚠️ Failed to clear cloud database:', error.message);
+                }
+              };
+
+              // Clear cloud data
+              clearCloudData();
+
               // Reset state
               setExams([]);
               setQuestions([]);
               setResults([]);
 
-              alert('All data cleared successfully! The page will refresh.');
+              alert('✅ All data cleared successfully! The page will refresh.');
               window.location.reload();
             }} />
           </Section>
@@ -3208,6 +3181,106 @@ async function parseQuestionsFromExcel(file) {
     console.error('Error parsing Excel file:', error);
     throw new Error('Failed to parse Excel file. Please check the format.');
   }
+}
+
+function AdminSettings({ onClearData }) {
+  return (
+    <div className="space-y-6">
+      {/* System Information */}
+      <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
+        <h3 className="text-lg font-semibold text-blue-800 mb-2">System Information</h3>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+          <div>
+            <p><strong>Database:</strong> MongoDB Atlas (Cloud)</p>
+            <p><strong>Admin User:</strong> admin / admin123</p>
+            <p><strong>Version:</strong> CBT System v1.0</p>
+          </div>
+          <div>
+            <p><strong>Total Exams:</strong> {exams?.length || 0}</p>
+            <p><strong>Total Questions:</strong> {questions?.length || 0}</p>
+            <p><strong>Total Results:</strong> {results?.length || 0}</p>
+          </div>
+        </div>
+      </div>
+
+      {/* Data Management */}
+      <div className="bg-white border rounded-xl p-6">
+        <h3 className="text-lg font-semibold text-gray-800 mb-4">Data Management</h3>
+        
+        <div className="space-y-4">
+          {/* Export Data */}
+          <div className="flex gap-2">
+            <button
+              onClick={exportResultsToExcel}
+              className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 text-sm"
+            >
+              📊 Export Results to Excel
+            </button>
+            <button
+              onClick={exportResultsToWord}
+              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm"
+            >
+              📄 Export Results to Word
+            </button>
+          </div>
+
+          {/* Clear Data Section */}
+          <div className="border-t pt-4 mt-4">
+            <h4 className="text-md font-semibold text-red-700 mb-3">⚠️ Dangerous Operations</h4>
+            
+            <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+              <div className="flex items-start gap-3">
+                <div className="text-2xl">🚨</div>
+                <div className="flex-1">
+                  <h5 className="font-semibold text-red-800 mb-2">Clear All Data</h5>
+                  <p className="text-sm text-red-700 mb-3">
+                    This action will permanently delete ALL data from the system including:
+                  </p>
+                  <ul className="text-sm text-red-700 mb-4 space-y-1">
+                    <li>• All exams and questions</li>
+                    <li>• All student results</li>
+                    <li>• All student registrations</li>
+                    <li>• Data from both local and cloud databases</li>
+                  </ul>
+                  <p className="text-sm text-green-700 mb-3">
+                    <strong>✅ Admin user will be preserved</strong>
+                  </p>
+                  <button
+                    onClick={onClearData}
+                    className="px-6 py-3 bg-red-600 text-white rounded-lg hover:bg-red-700 font-semibold transition-colors"
+                  >
+                    🗑️ Clear All Data
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* System Health */}
+      <div className="bg-white border rounded-xl p-6">
+        <h3 className="text-lg font-semibold text-gray-800 mb-4">System Health</h3>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="text-center p-4 bg-green-50 border border-green-200 rounded-lg">
+            <div className="text-2xl mb-2">✅</div>
+            <h4 className="font-semibold text-green-800">Database</h4>
+            <p className="text-sm text-green-600">Connected</p>
+          </div>
+          <div className="text-center p-4 bg-blue-50 border border-blue-200 rounded-lg">
+            <div className="text-2xl mb-2">📊</div>
+            <h4 className="font-semibold text-blue-800">Storage</h4>
+            <p className="text-sm text-blue-600">Cloud + Local</p>
+          </div>
+          <div className="text-center p-4 bg-purple-50 border border-purple-200 rounded-lg">
+            <div className="text-2xl mb-2">🔒</div>
+            <h4 className="font-semibold text-purple-800">Security</h4>
+            <p className="text-sm text-purple-600">Admin Protected</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
 }
 
 export default App;
