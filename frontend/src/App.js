@@ -2789,18 +2789,8 @@ function ResultsTable({results, setResults}){
 
 
 
-// Load questions for a specific exam
-function loadQuestionsForExam(examId) {
-  const raw = localStorage.getItem(`cbt_questions_${examId}`);
-  if (!raw) return [];
-  try {
-    const q = JSON.parse(raw);
-    return Array.isArray(q) ? q : [];
-  } catch { return []; }
-}
-
-// Save questions for a specific exam
-function saveQuestionsForExam(examId, questions) {
+// Save questions for a specific exam (localStorage fallback)
+function saveQuestionsForExamLocal(examId, questions) {
   localStorage.setItem(`cbt_questions_${examId}`, JSON.stringify(questions));
 }
 
