@@ -232,6 +232,48 @@ export const dataService = {
     return setToLS(LS_KEYS.QUESTIONS, questions);
   },
 
+  // Per-exam questions management
+  loadQuestionsForExam: async (examId) => {
+    console.log('📋 Loading questions for exam:', examId);
+    try {
+      const allQuestions = await dataService.loadQuestions();
+      const examQuestions = allQuestions.filter(q => q.examId === examId);
+      console.log(`📋 Found ${examQuestions.length} questions for exam ${examId}`);
+      return examQuestions;
+    } catch (error) {
+      console.error('❌ Error loading questions for exam:', error);
+      return [];
+    }
+  },
+
+  saveQuestionsForExam: async (examId, questions) => {
+    console.log('💾 Saving questions for exam:', examId, 'Count:', questions.length);
+    try {
+      // Load all questions first
+      const allQuestions = await dataService.loadQuestions();
+      
+      // Remove existing questions for this exam
+      const otherQuestions = allQuestions.filter(q => q.examId !== examId);
+      
+      // Add examId to each question
+      const examQuestionsWithId = questions.map(q => ({
+        ...q,
+        examId: examId,
+        id: q.id || crypto.randomUUID?.() || Date.now().toString()
+      }));
+      
+      // Combine and save
+      const updatedQuestions = [...otherQuestions, ...examQuestionsWithId];
+      const result = await dataService.saveQuestions(updatedQuestions);
+      
+      console.log('💾 Questions saved for exam:', examId, 'Result:', result);
+      return result;
+    } catch (error) {
+      console.error('❌ Error saving questions for exam:', error);
+      return false;
+    }
+  },
+
   // Results management
   loadResults: async () => {
     initializeLocalStorage(); // Ensure data exists

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import ExcelJS from "exceljs";
 import { saveAs } from "file-saver";
 import { Document, Packer, Paragraph, TextRun, Table, TableRow, TableCell } from "docx";
@@ -225,7 +225,33 @@ async function loadQuestions() {
   }
 }
 
+async function saveQuestions(questions) {
+  try {
+    return await dataService.saveQuestions(questions);
+  } catch (error) {
+    console.error('Error saving questions:', error);
+    return false;
+  }
+}
 
+async function loadQuestionsForExam(examId) {
+  try {
+    const data = await dataService.loadQuestionsForExam(examId);
+    return Array.isArray(data) ? data : [];
+  } catch (error) {
+    console.error('Error loading questions for exam:', error);
+    return [];
+  }
+}
+
+async function saveQuestionsForExam(examId, questions) {
+  try {
+    return await dataService.saveQuestionsForExam(examId, questions);
+  } catch (error) {
+    console.error('Error saving questions for exam:', error);
+    return false;
+  }
+}
 
 // Results management functions
 async function loadResults() {
@@ -842,7 +868,7 @@ function AdminPanel({ user }){
         
         setQuestions(parsed);
         if (selectedExam) {
-          saveQuestionsForExam(selectedExam.id, parsed);
+          await saveQuestionsForExam(selectedExam.id, parsed);
           // Update exam question count
           try {
             const updatedExams = exams.map(ex => 
@@ -866,7 +892,7 @@ function AdminPanel({ user }){
         
         setQuestions(parsed);
         if (selectedExam) {
-          saveQuestionsForExam(selectedExam.id, parsed);
+          await saveQuestionsForExam(selectedExam.id, parsed);
           // Update exam question count
           try {
             const updatedExams = exams.map(ex => 
@@ -943,6 +969,11 @@ function AdminPanel({ user }){
       setShowCreateExam(false);
       setSelectedExam(newExam);
       setActiveTab("questions");
+      
+      // Show success message
+      setTimeout(() => {
+        alert(`✅ Exam "${newExam.title}" created successfully!\n\nNext steps:\n1. Go to the Questions tab\n2. Upload questions from Word/Excel files\n3. Or add questions manually\n4. Activate the exam when ready`);
+      }, 100);
     } catch (error) {
       console.error('❌ Error creating exam:', error);
       alert('Failed to create exam. Please try again.');
@@ -1118,18 +1149,24 @@ function AdminPanel({ user }){
           {/* Exam Selection */}
           <Section title="Select Exam for Question Management">
             <div className="mb-4">
+              <div className="p-3 bg-blue-50 border border-blue-200 rounded-xl mb-4">
+                <p className="text-sm text-blue-800">
+                  <strong>📋 Exam-Specific Questions:</strong> Each exam has its own set of questions. 
+                  Select an exam below to manage its questions, upload new ones, or edit existing ones.
+                </p>
+              </div>
               <label htmlFor="exam-selection" className="block text-sm font-medium mb-2">Choose Exam:</label>
               <select 
                 id="exam-selection"
                 name="selectedExam"
                 value={selectedExam?.id || ""} 
-                onChange={(e) => {
+                onChange={async (e) => {
                   const examId = e.target.value;
                   if (examId) {
                     const exam = exams.find(ex => ex.id === examId);
                     setSelectedExam(exam);
                     // Load questions for this specific exam
-                    const examQuestions = loadQuestionsForExam(examId);
+                    const examQuestions = await loadQuestionsForExam(examId);
                     setQuestions(examQuestions);
                   } else {
                     setSelectedExam(null);
@@ -1138,7 +1175,7 @@ function AdminPanel({ user }){
                 }}
                 className="w-full border rounded-xl px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               >
-                <option value="">-- Select an exam --</option>
+                <option value="">-- Select an exam to manage its questions --</option>
                 {Array.isArray(exams) && exams.map(exam => (
                   <option key={exam.id} value={exam.id}>
                     {exam.title} ({exam.questionCount || 0} questions)
@@ -1174,10 +1211,10 @@ function AdminPanel({ user }){
                     Edit Exam Details
                   </button>
                   <button 
-                    onClick={() => {
+                    onClick={async () => {
                       if (window.confirm("Are you sure you want to delete all questions for this exam?")) {
                         setQuestions([]);
-                        saveQuestionsForExam(selectedExam.id, []);
+                        await saveQuestionsForExam(selectedExam.id, []);
                       }
                     }}
                     className="px-3 py-1 bg-red-600 text-white rounded-lg text-sm hover:bg-red-700"
@@ -1199,10 +1236,17 @@ function AdminPanel({ user }){
 
               <Section title={`Questions for ${selectedExam.title} (${questions.length})`}>
                 <div className="mb-4 flex justify-between items-center">
-                  <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl">
-                    <p className="text-sm text-emerald-800">
-                      <strong>🔄 Randomization Active:</strong> Questions and answer options are automatically randomized for each student to prevent cheating.
-                    </p>
+                  <div className="flex gap-3">
+                    <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl">
+                      <p className="text-sm text-emerald-800">
+                        <strong>🔄 Randomization Active:</strong> Questions and answer options are automatically randomized for each student to prevent cheating.
+                      </p>
+                    </div>
+                    <div className="p-3 bg-blue-50 border border-blue-200 rounded-xl">
+                      <p className="text-sm text-blue-800">
+                        <strong>📋 Exam-Linked:</strong> Questions are specifically linked to this exam and will only appear for students taking this exam.
+                      </p>
+                    </div>
                   </div>
                   <button
                     onClick={() => setSelectedExam(null)}
@@ -1219,14 +1263,29 @@ function AdminPanel({ user }){
           {!selectedExam && (
             <Section title="No Exam Selected">
               <div className="text-center py-8 text-gray-500">
-                <p>Please select an exam from the dropdown above to manage its questions.</p>
-                <p className="text-sm mt-2">You can upload questions, edit existing ones, or clear all questions for the selected exam.</p>
-                <div className="mt-4">
+                <div className="text-6xl mb-4">📋</div>
+                <h3 className="text-lg font-semibold text-gray-700 mb-2">Select an Exam to Manage Questions</h3>
+                <p className="text-sm mb-4">
+                  Each exam has its own dedicated question bank. Select an exam from the dropdown above to:
+                </p>
+                <ul className="text-sm text-gray-600 mb-6 space-y-1">
+                  <li>• Upload questions from Word (.docx) or Excel (.xlsx) files</li>
+                  <li>• Edit existing questions manually</li>
+                  <li>• Clear all questions for that exam</li>
+                  <li>• View and manage question randomization settings</li>
+                </ul>
+                <div className="flex gap-3 justify-center">
                   <button
                     onClick={() => setActiveTab("exams")}
                     className="px-4 py-2 bg-gray-600 text-white rounded-xl hover:bg-gray-700 text-sm"
                   >
                     ← Back to Exams
+                  </button>
+                  <button
+                    onClick={() => setShowCreateExam(true)}
+                    className="px-4 py-2 bg-blue-600 text-white rounded-xl hover:bg-blue-700 text-sm"
+                  >
+                    + Create New Exam
                   </button>
                 </div>
               </div>
@@ -2004,189 +2063,297 @@ function Section({title, children}){
   );
 }
 
-function UploadQuestions({onFile}){
+function UploadQuestions({ onFile }) {
+  const fileInputRef = useRef(null);
+
+  const handleFileChange = (event) => {
+    const file = event.target.files[0];
+    if (file) {
+      onFile(file);
+    }
+    // Reset the input
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+
+  const downloadWordTemplate = () => {
+    const template = `CBT Question Template (Word Document)
+
+Instructions:
+1. Each question should start with a number (1, 2, 3...) or Q1, Q1., Q1), etc.
+2. Each question should have exactly 4 options labeled A, B, C, D
+3. End each question with "Answer: X" where X is the correct option (A, B, C, or D)
+4. Use clear, concise language
+
+Example Format:
+
+1. What is the capital of France?
+A. London
+B. Berlin
+C. Paris
+D. Madrid
+Answer: C
+
+2. Which planet is closest to the Sun?
+A. Venus
+B. Mars
+C. Mercury
+D. Earth
+Answer: C
+
+3. What is 2 + 2?
+A. 3
+B. 4
+C. 5
+D. 6
+Answer: B
+
+Notes:
+- Questions and answer options will be automatically randomized for each student
+- You can include up to 100 questions per exam
+- Make sure each question has exactly 4 options
+- The answer must be one of the options (A, B, C, or D)`;
+
+    const blob = new Blob([template], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'CBT_Question_Template_Word.txt';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
+  const downloadExcelTemplate = () => {
+    const workbook = new ExcelJS.Workbook();
+    const worksheet = workbook.addWorksheet('Questions');
+    
+    // Add headers
+    worksheet.addRow(['Question', 'Option A', 'Option B', 'Option C', 'Option D', 'Correct Answer']);
+    
+    // Add example questions
+    worksheet.addRow([
+      'What is the capital of France?',
+      'London',
+      'Berlin', 
+      'Paris',
+      'Madrid',
+      'C'
+    ]);
+    
+    worksheet.addRow([
+      'Which planet is closest to the Sun?',
+      'Venus',
+      'Mars',
+      'Mercury', 
+      'Earth',
+      'C'
+    ]);
+    
+    worksheet.addRow([
+      'What is 2 + 2?',
+      '3',
+      '4',
+      '5',
+      '6', 
+      'B'
+    ]);
+    
+    // Style the header row
+    worksheet.getRow(1).font = { bold: true };
+    worksheet.getRow(1).fill = {
+      type: 'pattern',
+      pattern: 'solid',
+      fgColor: { argb: 'FFE0E0E0' }
+    };
+    
+    // Auto-fit columns
+    worksheet.columns.forEach(column => {
+      column.width = 20;
+    });
+    
+    // Generate and download file
+    workbook.xlsx.writeBuffer().then(buffer => {
+      const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'CBT_Question_Template_Excel.xlsx';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    });
+  };
+
   return (
-    <div className="border-2 border-dashed border-blue-300 rounded-2xl p-6 text-center bg-blue-50">
-      <div className="mb-4">
-        <svg className="mx-auto h-12 w-12 text-blue-400" stroke="currentColor" fill="none" viewBox="0 0 48 48">
-          <path d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8m-12 4h.02" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-        </svg>
+    <div className="space-y-4">
+      {/* Template Downloads */}
+      <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
+        <h4 className="font-semibold text-blue-800 mb-3">📋 Download Question Templates</h4>
+        <div className="flex gap-3">
+          <button
+            onClick={downloadWordTemplate}
+            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm flex items-center gap-2"
+          >
+            📄 Word Template
+          </button>
+          <button
+            onClick={downloadExcelTemplate}
+            className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 text-sm flex items-center gap-2"
+          >
+            📊 Excel Template
+          </button>
+        </div>
+        <p className="text-sm text-blue-700 mt-2">
+          Download templates to see the correct format for uploading questions.
+        </p>
       </div>
-      <p className="text-lg font-semibold text-gray-700 mb-2">Upload Your Questions</p>
-      <p className="text-sm text-gray-600 mb-4">Drag and drop a .docx or .xlsx file here, or click to browse</p>
-      <input 
-        id="question-file-upload"
-        name="questionFile"
-        type="file" 
-        accept=".docx,.xlsx" 
-        onChange={e=>{ if (e.target.files && e.target.files[0]) onFile(e.target.files[0]); }}
-        className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
-      />
-      <p className="text-xs text-gray-500 mt-3">
-        💡 Supports Word (.docx) and Excel (.xlsx) formats - see format guide below
-      </p>
+
+      {/* File Upload */}
+      <div className="border-2 border-dashed border-gray-300 rounded-xl p-6 text-center">
+        <div className="text-4xl mb-4">📁</div>
+        <h4 className="font-semibold text-gray-800 mb-2">Upload Questions File</h4>
+        <p className="text-sm text-gray-600 mb-4">
+          Supported formats: .docx (Word) or .xlsx (Excel)
+        </p>
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept=".docx,.xlsx"
+          onChange={handleFileChange}
+          className="hidden"
+        />
+        <button
+          onClick={() => fileInputRef.current?.click()}
+          className="px-6 py-3 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 font-semibold transition-colors"
+        >
+          Choose File
+        </button>
+      </div>
     </div>
   );
 }
 
-function FormatHelp(){
+function FormatHelp() {
   return (
-    <details className="mt-4 text-sm cursor-pointer">
-      <summary className="font-semibold">📄 Flexible Question Upload Formats (Word & Excel) - Download Templates Above</summary>
-      <div className="mt-2 bg-gray-50 border rounded-xl p-3">
-        <div className="space-y-4">
-          <div>
-            <h4 className="font-semibold text-green-700">✅ Complete Example with Multiple Questions</h4>
-            <pre className="whitespace-pre-wrap text-xs bg-white p-2 rounded">{`1) What is the normal adult resting heart rate?
-A) 10-20 bpm
-B) 30-40 bpm
-C) 60-100 bpm
-D) 120-160 bpm
+    <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-4">
+      <h4 className="font-semibold text-yellow-800 mb-3">📝 Question Format Guide</h4>
+      
+      <div className="space-y-4">
+        <div>
+          <h5 className="font-medium text-yellow-800 mb-2">Word Document Format (.docx):</h5>
+          <div className="bg-white rounded-lg p-3 text-sm">
+            <p className="mb-2"><strong>Question Format:</strong></p>
+            <pre className="text-xs bg-gray-100 p-2 rounded overflow-x-auto">
+{`1. What is the capital of France?
+A. London
+B. Berlin
+C. Paris
+D. Madrid
 Answer: C
 
-2) Which vitamin is primarily synthesized by sunlight exposure?
-A) Vitamin A
-B) Vitamin C
-C) Vitamin D
-D) Vitamin K
-Answer: C
-
-3) What is the primary function of red blood cells?
-A) Fight infection
-B) Carry oxygen
-C) Form blood clots
-D) Produce antibodies
-Answer: B
-
-4) What does CBT stand for?
-A) Computer Based Training
-B) Computer Based Testing
-C) Computer Based Technology
-D) Computer Based Teaching
-Answer: B`}</pre>
-          </div>
-          
-          <div>
-            <h4 className="font-semibold text-blue-700">✅ Word Document (.docx) Formats</h4>
-            <pre className="whitespace-pre-wrap text-xs bg-white p-2 rounded">{`Q1. Question with Q prefix?
-A. Option A
-B. Option B
-C. Option C
-D. Option D
-Answer: C
-
-2. Question with parentheses?
-A) Option A
-B) Option B
-C) Option C
-D) Option D
-Answer: C
-
-3. Question with numbers?
-1. Option 1
-2. Option 2
-3. Option 3
-4. Option 4
-Answer: 3
-
-4. Question with number parentheses?
-1) Option 1
-2) Option 2
-3) Option 3
-4) Option 4
-Answer: 3
-
-5. Mixed formats work too:
-a. Option a
-b) Option b
-C. Option C
-D) Option D
-Answer: C`}</pre>
-          </div>
-
-          <div>
-            <h4 className="font-semibold text-green-700">✅ Excel (.xlsx) Format</h4>
-            <p className="text-xs text-gray-600 mb-2">Create an Excel file with these columns:</p>
-            <pre className="whitespace-pre-wrap text-xs bg-white p-2 rounded">{`Question | Option A | Option B | Option C | Option D | Correct Answer
-What is the normal heart rate? | 60-100 bpm | 120-160 bpm | 40-60 bpm | 80-120 bpm | A
-Which vitamin is from sunlight? | Vitamin A | Vitamin C | Vitamin D | Vitamin K | C
-What does CBT stand for? | Computer Based Training | Computer Based Testing | Computer Based Technology | Computer Based Teaching | B`}</pre>
-            <p className="text-xs text-gray-600 mt-2">
-              <strong>Note:</strong> First row can be headers (Question, Option A, etc.) or data. 
-              Correct Answer should be A, B, C, or D (case insensitive).
-            </p>
-          </div>
-          
-          <div className="mt-3 p-2 bg-yellow-50 border-l-4 border-yellow-400">
-            <p className="text-xs text-yellow-800">
-              <strong>💡 Smart Parser:</strong> The system automatically detects multiple questions in your document. 
-              Each question must have exactly 4 options and an answer line. Questions can be separated by blank lines.
-            </p>
-            <p className="text-xs text-yellow-800 mt-1">
-              <strong>✅ Supported Formats:</strong> A, A., A), a, a., a), 1, 1., 1), 2, 2., 2), etc.
-            </p>
-          </div>
-          
-          <div className="mt-3 p-2 bg-blue-50 border-l-4 border-blue-400">
-            <p className="text-xs text-blue-800">
-              <strong>🔍 Debugging:</strong> Check the browser console (F12) to see detailed parsing information 
-              when you upload a document.
-            </p>
-          </div>
-          
-          <div className="mt-3 p-2 bg-green-50 border-l-4 border-green-400">
-            <p className="text-xs text-green-800">
-              <strong>💡 Pro Tip:</strong> Use the "Download Sample Excel Template" or "Download Sample Word Template" 
-              buttons above to get properly formatted templates that you can fill with your own questions!
-            </p>
+2. Which planet is closest to the Sun?
+A. Venus
+B. Mars
+C. Mercury
+D. Earth
+Answer: C`}
+            </pre>
           </div>
         </div>
+
+        <div>
+          <h5 className="font-medium text-yellow-800 mb-2">Excel Format (.xlsx):</h5>
+          <div className="bg-white rounded-lg p-3 text-sm">
+            <p className="mb-2"><strong>Columns:</strong> Question | Option A | Option B | Option C | Option D | Correct Answer</p>
+            <div className="overflow-x-auto">
+              <table className="text-xs border-collapse border border-gray-300">
+                <thead>
+                  <tr className="bg-gray-100">
+                    <th className="border border-gray-300 p-1">Question</th>
+                    <th className="border border-gray-300 p-1">Option A</th>
+                    <th className="border border-gray-300 p-1">Option B</th>
+                    <th className="border border-gray-300 p-1">Option C</th>
+                    <th className="border border-gray-300 p-1">Option D</th>
+                    <th className="border border-gray-300 p-1">Correct Answer</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td className="border border-gray-300 p-1">What is 2 + 2?</td>
+                    <td className="border border-gray-300 p-1">3</td>
+                    <td className="border border-gray-300 p-1">4</td>
+                    <td className="border border-gray-300 p-1">5</td>
+                    <td className="border border-gray-300 p-1">6</td>
+                    <td className="border border-gray-300 p-1">B</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-green-50 border border-green-200 rounded-lg p-3">
+          <h5 className="font-medium text-green-800 mb-2">🔄 Randomization Features:</h5>
+          <ul className="text-sm text-green-700 space-y-1">
+            <li>• Questions are automatically shuffled for each student</li>
+            <li>• Answer options are randomized to prevent cheating</li>
+            <li>• Each student gets a unique question order</li>
+            <li>• Results track the original question order for analysis</li>
+          </ul>
+        </div>
       </div>
-    </details>
+    </div>
   );
 }
 
 function QuestionsEditor({questions, setQuestions, selectedExam}){
-  const updateQ = (i, patch) => {
+  const updateQ = async (i, patch) => {
     const updatedQuestions = questions.map((q,idx)=> idx===i ? {...q, ...patch} : q);
     setQuestions(updatedQuestions);
     // Save changes to the specific exam
     if (selectedExam) {
-      saveQuestionsForExam(selectedExam.id, updatedQuestions);
+      await saveQuestionsForExam(selectedExam.id, updatedQuestions);
       // Update exam question count
-      const updatedExams = loadExams().map(ex => 
+      const updatedExams = await loadExams();
+      const finalExams = updatedExams.map(ex => 
         ex.id === selectedExam.id ? { ...ex, questionCount: updatedQuestions.length } : ex
       );
-      saveExams(updatedExams);
+      await saveExams(finalExams);
     }
   };
   
-  const removeQ = (i) => {
+  const removeQ = async (i) => {
     const updatedQuestions = questions.filter((_,idx)=>idx!==i);
     setQuestions(updatedQuestions);
     // Save changes to the specific exam
     if (selectedExam) {
-      saveQuestionsForExam(selectedExam.id, updatedQuestions);
+      await saveQuestionsForExam(selectedExam.id, updatedQuestions);
       // Update exam question count
-      const updatedExams = loadExams().map(ex => 
+      const updatedExams = await loadExams();
+      const finalExams = updatedExams.map(ex => 
         ex.id === selectedExam.id ? { ...ex, questionCount: updatedQuestions.length } : ex
       );
-      saveExams(updatedExams);
+      await saveExams(finalExams);
     }
   };
   
-  const add = () => {
+  const add = async () => {
     const newQuestion = {id:crypto.randomUUID(), text:"New question text", options:["Option A","Option B","Option C","Option D"], correctIndex:0};
     const updatedQuestions = [...questions, newQuestion];
     setQuestions(updatedQuestions);
     // Save changes to the specific exam
     if (selectedExam) {
-      saveQuestionsForExam(selectedExam.id, updatedQuestions);
+      await saveQuestionsForExam(selectedExam.id, updatedQuestions);
       // Update exam question count
-      const updatedExams = loadExams().map(ex => 
+      const updatedExams = await loadExams();
+      const finalExams = updatedExams.map(ex => 
         ex.id === selectedExam.id ? { ...ex, questionCount: updatedQuestions.length } : ex
       );
-      saveExams(updatedExams);
+      await saveExams(finalExams);
     }
   };
 
@@ -2269,16 +2436,25 @@ function StudentPanel({user}){
   useEffect(()=>{
     if (!selectedExam) return;
     // Once an exam is selected, load and randomize questions for that specific exam
-    const originalQuestions = loadQuestionsForExam(selectedExam.id);
-    if (originalQuestions.length > 0) {
-      const limitedQuestions = originalQuestions.slice(0, selectedExam.questionCount);
-      const randomizedQuestions = randomizeQuestions(limitedQuestions);
-      setQuestions(randomizedQuestions);
-      setAnswers(Array(randomizedQuestions.length).fill(-1));
-    } else {
-      setQuestions([]);
-      setAnswers([]);
-    }
+    const loadExamQuestions = async () => {
+      try {
+        const originalQuestions = await loadQuestionsForExam(selectedExam.id);
+        if (originalQuestions.length > 0) {
+          const limitedQuestions = originalQuestions.slice(0, selectedExam.questionCount);
+          const randomizedQuestions = randomizeQuestions(limitedQuestions);
+          setQuestions(randomizedQuestions);
+          setAnswers(Array(randomizedQuestions.length).fill(-1));
+        } else {
+          setQuestions([]);
+          setAnswers([]);
+        }
+      } catch (error) {
+        console.error('Error loading questions for exam:', error);
+        setQuestions([]);
+        setAnswers([]);
+      }
+    };
+    loadExamQuestions();
   }, [selectedExam]);
 
   // Function to randomize questions and answer options
