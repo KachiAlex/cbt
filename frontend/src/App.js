@@ -430,6 +430,16 @@ function AdminLogin({onLogin, onBack}){
             Username: <code>admin</code><br/>
             Password: <code>admin123</code>
           </p>
+          <button
+            type="button"
+            onClick={() => {
+              dataService.createAdminUser();
+              alert('Admin user created! You can now login with admin/admin123');
+            }}
+            className="mt-2 w-full bg-green-600 text-white py-1 px-3 rounded text-xs hover:bg-green-700"
+          >
+            Create Admin User (if needed)
+          </button>
         </div>
       </div>
     </div>

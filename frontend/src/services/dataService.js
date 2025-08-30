@@ -1,6 +1,6 @@
 
 
-// Configuration - Cloud Database Enabled
+// Configuration - Cloud Database Enabled (but with localStorage fallback for admin)
 const USE_API = process.env.REACT_APP_USE_API === 'true' || process.env.NODE_ENV === 'production';
 const API_BASE = process.env.REACT_APP_API_URL || 'https://cbt-rew7.onrender.com';
 
@@ -116,7 +116,7 @@ export const dataService = {
     const saved = getFromLS(LS_KEYS.USERS);
     let users = saved || [];
     
-    // Ensure default admin user exists in localStorage
+    // ALWAYS ensure default admin user exists in localStorage as fallback
     const adminExists = users.some(user => user.username === 'admin');
     if (!adminExists) {
       const defaultAdmin = {
@@ -129,7 +129,7 @@ export const dataService = {
       };
       users.push(defaultAdmin);
       setToLS(LS_KEYS.USERS, users);
-      console.log('👤 Default admin user created in localStorage');
+      console.log('👤 Default admin user created in localStorage (fallback)');
     }
     
     return users;
@@ -324,6 +324,33 @@ export const dataService = {
       const response = await fetch(`${API_BASE}/health`);
       return response.ok;
     } catch {
+      return false;
+    }
+  },
+
+  // Manual admin user creation for testing
+  createAdminUser: () => {
+    const defaultAdmin = {
+      username: "admin",
+      password: "admin123",
+      role: "admin",
+      fullName: "System Administrator",
+      email: "admin@healthschool.com",
+      createdAt: new Date().toISOString()
+    };
+    
+    const saved = getFromLS(LS_KEYS.USERS);
+    let users = saved || [];
+    
+    // Check if admin already exists
+    const adminExists = users.some(user => user.username === 'admin');
+    if (!adminExists) {
+      users.push(defaultAdmin);
+      setToLS(LS_KEYS.USERS, users);
+      console.log('👤 Admin user manually created in localStorage');
+      return true;
+    } else {
+      console.log('👤 Admin user already exists');
       return false;
     }
   }
