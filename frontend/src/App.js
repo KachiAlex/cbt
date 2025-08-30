@@ -45,6 +45,8 @@ function App() {
   const [view, setView] = useState("login");
   const [showAdminLink, setShowAdminLink] = useState(false);
 
+
+
   useEffect(() => {
     const saved = localStorage.getItem("cbt_logged_in_user");
     if (saved) {
@@ -71,10 +73,15 @@ function App() {
   // Function to ensure admin user exists in localStorage
   const ensureAdminUserExists = () => {
     try {
+      console.log('🔧 Ensuring admin user exists...');
       const users = JSON.parse(localStorage.getItem("cbt_users_v1") || "[]");
+      console.log('📋 Current users:', users.length);
+      
       const adminExists = users.some(user => user.username === "admin" && user.role === "admin");
+      console.log('👤 Admin exists:', adminExists);
       
       if (!adminExists) {
+        console.log('👤 Creating default admin user...');
         const defaultAdmin = {
           username: "admin",
           password: "admin123",
@@ -88,12 +95,13 @@ function App() {
         
         users.push(defaultAdmin);
         localStorage.setItem("cbt_users_v1", JSON.stringify(users));
-        console.log('👤 Default admin user created in localStorage');
+        console.log('✅ Default admin user created successfully');
+        console.log('🔐 Login credentials: admin / admin123');
       } else {
-        console.log('👤 Admin user already exists in localStorage');
+        console.log('✅ Admin user already exists');
       }
     } catch (error) {
-      console.error('Error ensuring admin user exists:', error);
+      console.error('❌ Error ensuring admin user exists:', error);
     }
   };
 
@@ -197,13 +205,53 @@ async function saveUsers(users) {
 }
 
 async function authenticateUser(username, password) {
+  console.log('🔐 Authenticating user:', username);
+  
+  // Simple direct authentication - no complex fallbacks
   try {
-    console.log('🔐 Authenticating user:', username);
-    const result = await dataService.authenticateUser(username, password);
-    console.log('🔐 Authentication result:', result);
-    return result;
+    // First, ensure admin user exists
+    const users = JSON.parse(localStorage.getItem("cbt_users_v1") || "[]");
+    const adminExists = users.some(user => user.username === "admin" && user.role === "admin");
+    
+    if (!adminExists) {
+      console.log('👤 Creating default admin user...');
+      const defaultAdmin = {
+        username: "admin",
+        password: "admin123",
+        role: "admin",
+        fullName: "System Administrator",
+        email: "admin@healthschool.com",
+        createdAt: new Date().toISOString(),
+        isDefaultAdmin: true,
+        canDeleteDefaultAdmin: true
+      };
+      
+      users.push(defaultAdmin);
+      localStorage.setItem("cbt_users_v1", JSON.stringify(users));
+      console.log('✅ Default admin user created successfully');
+    }
+    
+    // Get updated users list
+    const updatedUsers = JSON.parse(localStorage.getItem("cbt_users_v1") || "[]");
+    console.log('👥 Users in localStorage:', updatedUsers.length);
+    
+    // Find the user
+    const user = updatedUsers.find(u => 
+      u.username.toLowerCase() === username.toLowerCase() && 
+      u.password === password
+    );
+    
+    if (user) {
+      console.log('✅ Authentication successful:', user.username, user.role);
+      return user;
+    } else {
+      console.log('❌ Authentication failed - user not found or wrong password');
+      console.log('🔍 Searched for:', username.toLowerCase());
+      console.log('🔍 Available users:', updatedUsers.map(u => u.username.toLowerCase()));
+      return null;
+    }
   } catch (error) {
-    console.error('❌ Error authenticating user:', error);
+    console.error('❌ Authentication error:', error);
     return null;
   }
 }
