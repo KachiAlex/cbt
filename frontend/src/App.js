@@ -55,23 +55,6 @@ function App() {
     }
     
     // Ensure admin user exists in localStorage
-    ensureAdminUserExists();
-    
-    // Check API connection on app load
-    const checkConnection = async () => {
-      try {
-        const connectionStatus = await dataService.checkApiConnection();
-        console.log('🔍 App startup - API connection status:', connectionStatus);
-      } catch (error) {
-        console.error('Error checking API connection:', error);
-      }
-    };
-    
-    checkConnection();
-  }, []);
-
-  // Function to ensure admin user exists in localStorage
-  const ensureAdminUserExists = () => {
     try {
       console.log('🔧 Ensuring admin user exists...');
       const users = JSON.parse(localStorage.getItem("cbt_users_v1") || "[]");
@@ -103,7 +86,21 @@ function App() {
     } catch (error) {
       console.error('❌ Error ensuring admin user exists:', error);
     }
-  };
+    
+    // Check API connection on app load
+    const checkConnection = async () => {
+      try {
+        const connectionStatus = await dataService.checkApiConnection();
+        console.log('🔍 App startup - API connection status:', connectionStatus);
+      } catch (error) {
+        console.error('Error checking API connection:', error);
+      }
+    };
+    
+    checkConnection();
+  }, []);
+
+
 
   const onLogout = () => {
     setUser(null);
