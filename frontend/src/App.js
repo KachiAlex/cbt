@@ -425,24 +425,6 @@ function AdminLogin({onLogin, onBack}){
             ← Back to Student Login
           </button>
         </div>
-        
-        <div className="mt-6 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-          <p className="text-sm text-blue-800">
-            <strong>Default Admin:</strong><br/>
-            Username: <code>admin</code><br/>
-            Password: <code>admin123</code>
-          </p>
-          <button
-            type="button"
-            onClick={() => {
-              dataService.createAdminUser();
-              alert('Admin user created! You can now login with admin/admin123');
-            }}
-            className="mt-2 w-full bg-green-600 text-white py-1 px-3 rounded text-xs hover:bg-green-700"
-          >
-            Create Admin User (if needed)
-          </button>
-        </div>
       </div>
     </div>
   );
@@ -1265,6 +1247,7 @@ function AdminPanel(){
               results={results}
               exportResultsToExcel={exportResultsToExcel}
               exportResultsToWord={exportResultsToWord}
+              dataService={dataService}
               onClearData={() => {
               // First confirmation
               if (!window.confirm('⚠️ WARNING: This will permanently delete ALL data!\n\nThis action will:\n• Remove all exams, questions, and results\n• Delete all student registrations\n• Clear both local and cloud databases\n• The admin user will be preserved\n\nAre you absolutely sure you want to proceed?')) {
@@ -2703,7 +2686,7 @@ async function parseQuestionsFromExcel(file) {
   }
 }
 
-function AdminSettings({ exams, questions, results, exportResultsToExcel, exportResultsToWord, onClearData }) {
+function AdminSettings({ exams, questions, results, exportResultsToExcel, exportResultsToWord, dataService, onClearData }) {
   return (
     <div className="space-y-6">
       {/* System Information */}
@@ -2712,13 +2695,45 @@ function AdminSettings({ exams, questions, results, exportResultsToExcel, export
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
           <div>
             <p><strong>Database:</strong> MongoDB Atlas (Cloud)</p>
-            <p><strong>Admin User:</strong> admin / admin123</p>
             <p><strong>Version:</strong> CBT System v1.0</p>
+            <p><strong>Status:</strong> Operational</p>
           </div>
           <div>
             <p><strong>Total Exams:</strong> {exams?.length || 0}</p>
             <p><strong>Total Questions:</strong> {questions?.length || 0}</p>
             <p><strong>Total Results:</strong> {results?.length || 0}</p>
+          </div>
+        </div>
+      </div>
+
+      {/* Admin User Management */}
+      <div className="bg-white border rounded-xl p-6">
+        <h3 className="text-lg font-semibold text-gray-800 mb-4">Admin User Management</h3>
+        
+        <div className="space-y-4">
+          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+            <div className="flex items-start gap-3">
+              <div className="text-2xl">👤</div>
+              <div className="flex-1">
+                <h5 className="font-semibold text-yellow-800 mb-2">Create Admin User</h5>
+                <p className="text-sm text-yellow-700 mb-3">
+                  If you cannot login to the admin panel, you can create a default admin user here.
+                </p>
+                <button
+                  onClick={() => {
+                    const created = dataService.createAdminUser();
+                    if (created) {
+                      alert('✅ Admin user created successfully!\n\nYou can now login with:\nUsername: admin\nPassword: admin123');
+                    } else {
+                      alert('ℹ️ Admin user already exists in the system.');
+                    }
+                  }}
+                  className="px-4 py-2 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 font-medium text-sm"
+                >
+                  🔧 Create Default Admin User
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       </div>
