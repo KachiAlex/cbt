@@ -87,6 +87,75 @@ app.get('/api/users', async (req, res, next) => {
 	} catch (err) { next(err); }
 });
 
+// POST endpoints for creating/updating data
+app.post('/api/users', async (req, res, next) => {
+	try {
+		const users = req.body;
+		
+		// Clear existing users and insert new ones
+		await User.deleteMany({});
+		
+		// Insert all users (including admin)
+		const createdUsers = await User.insertMany(users);
+		
+		res.status(201).json({
+			message: 'Users updated successfully',
+			count: createdUsers.length
+		});
+	} catch (err) { next(err); }
+});
+
+app.post('/api/exams', async (req, res, next) => {
+	try {
+		const exams = req.body;
+		
+		// Clear existing exams and insert new ones
+		await Exam.deleteMany({});
+		
+		// Insert all exams
+		const createdExams = await Exam.insertMany(exams);
+		
+		res.status(201).json({
+			message: 'Exams updated successfully',
+			count: createdExams.length
+		});
+	} catch (err) { next(err); }
+});
+
+app.post('/api/questions', async (req, res, next) => {
+	try {
+		const questions = req.body;
+		
+		// Clear existing questions and insert new ones
+		await Question.deleteMany({});
+		
+		// Insert all questions
+		const createdQuestions = await Question.insertMany(questions);
+		
+		res.status(201).json({
+			message: 'Questions updated successfully',
+			count: createdQuestions.length
+		});
+	} catch (err) { next(err); }
+});
+
+app.post('/api/results', async (req, res, next) => {
+	try {
+		const results = req.body;
+		
+		// Clear existing results and insert new ones
+		await Result.deleteMany({});
+		
+		// Insert all results
+		const createdResults = await Result.insertMany(results);
+		
+		res.status(201).json({
+			message: 'Results updated successfully',
+			count: createdResults.length
+		});
+	} catch (err) { next(err); }
+});
+
 // Error handling middleware
 app.use((err, req, res, next) => {
 	console.error(err.stack);
