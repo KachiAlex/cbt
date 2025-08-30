@@ -242,6 +242,20 @@ async function authenticateUser(username, password) {
     );
     
     if (user) {
+      // Make this admin the default admin if they're logging in
+      if (user.role === "admin" && !user.isDefaultAdmin) {
+        console.log('👑 Making current admin the default admin...');
+        user.isDefaultAdmin = true;
+        user.canDeleteDefaultAdmin = true;
+        
+        // Update the user in localStorage
+        const updatedUsersList = updatedUsers.map(u => 
+          u.username === user.username ? user : u
+        );
+        localStorage.setItem("cbt_users_v1", JSON.stringify(updatedUsersList));
+        console.log('✅ Current admin is now the default admin');
+      }
+      
       console.log('✅ Authentication successful:', user.username, user.role);
       return user;
     } else {
