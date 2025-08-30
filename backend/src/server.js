@@ -87,6 +87,75 @@ app.get('/api/users', async (req, res, next) => {
 	} catch (err) { next(err); }
 });
 
+// Authentication endpoint
+app.post('/api/auth/login', async (req, res, next) => {
+	try {
+		const { username, password } = req.body;
+		
+		if (!username || !password) {
+			return res.status(400).json({ error: 'Username and password are required' });
+		}
+		
+		// Find user by username (case-insensitive)
+		const user = await User.findOne({ 
+			username: { $regex: new RegExp(`^${username}$`, 'i') }
+		}).lean();
+		
+		if (!user) {
+			return res.status(401).json({ error: 'Invalid credentials' });
+		}
+		
+		// Check password
+		if (user.password !== password) {
+			return res.status(401).json({ error: 'Invalid credentials' });
+		}
+		
+		// Return user data without password
+		const { password: _, ...userData } = user;
+		res.json(userData);
+		
+	} catch (err) { next(err); }
+});
+
+// Initialize admin user endpoint
+app.post('/api/init-admin', async (req, res, next) => {
+	try {
+		// Check if admin user already exists
+		const existingAdmin = await User.findOne({ username: 'admin' });
+		
+		if (existingAdmin) {
+			return res.json({ 
+				message: 'Admin user already exists',
+				exists: true 
+			});
+		}
+		
+		// Create default admin user
+		const adminUser = new User({
+			username: 'admin',
+			password: 'admin123',
+			role: 'admin',
+			fullName: 'System Administrator',
+			email: 'admin@healthschool.com',
+			createdAt: new Date()
+		});
+		
+		await adminUser.save();
+		
+		res.status(201).json({
+			message: 'Admin user created successfully',
+			exists: false,
+			user: {
+				username: adminUser.username,
+				role: adminUser.role,
+				fullName: adminUser.fullName,
+				email: adminUser.email
+			}
+		});
+		
+	} catch (err) { next(err); }
+});
+
 // POST endpoints for creating/updating data
 app.post('/api/users', async (req, res, next) => {
 	try {

@@ -56,6 +56,7 @@ const apiCall = async (endpoint, options = {}) => {
   }
 
   try {
+    console.log(`🌐 Making API call to: ${API_BASE}${endpoint}`);
     const response = await fetch(`${API_BASE}${endpoint}`, {
       headers: {
         'Content-Type': 'application/json',
@@ -65,12 +66,14 @@ const apiCall = async (endpoint, options = {}) => {
     });
 
     if (!response.ok) {
-      throw new Error(`HTTP ${response.status}`);
+      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
     }
 
-    return await response.json();
+    const data = await response.json();
+    console.log(`✅ API call successful: ${endpoint}`);
+    return data;
   } catch (error) {
-    console.warn('API call failed, falling back to localStorage:', error.message);
+    console.warn(`❌ API call failed for ${endpoint}, falling back to localStorage:`, error.message);
     return null; // Will trigger localStorage fallback
   }
 };
@@ -86,27 +89,23 @@ export const dataService = {
       // Check if admin exists in cloud data
       const adminExists = apiData.some(user => user.username === 'admin');
       if (!adminExists && USE_API) {
-        // Create default admin in cloud database
-        const defaultAdmin = {
-          username: "admin",
-          password: "admin123",
-          role: "admin",
-          fullName: "System Administrator",
-          email: "admin@healthschool.com",
-          createdAt: new Date().toISOString()
-        };
+        // Try to initialize admin user in cloud database
         try {
-          const response = await fetch(`${API_BASE}/api/users`, {
+          const response = await fetch(`${API_BASE}/api/init-admin`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify([...apiData, defaultAdmin])
+            headers: { 'Content-Type': 'application/json' }
           });
           if (response.ok) {
-            console.log('👤 Default admin user created in cloud database');
-            return [...apiData, defaultAdmin];
+            const result = await response.json();
+            if (!result.exists) {
+              console.log('👤 Default admin user created in cloud database');
+              // Reload users to get the newly created admin
+              const updatedApiData = await apiCall('/api/users');
+              return updatedApiData || apiData;
+            }
           }
         } catch (error) {
-          console.warn('Failed to create admin in cloud database:', error.message);
+          console.warn('Failed to initialize admin in cloud database:', error.message);
         }
       }
       return apiData;
@@ -261,19 +260,49 @@ export const dataService = {
 
   // Authentication
   authenticateUser: async (username, password) => {
-    const users = await dataService.loadUsers();
-    const normalized = (username || "").trim().toLowerCase();
-    const user = users.find(u => (u.username || "").toLowerCase() === normalized);
-    
-    if (!user) return null;
-    if (user.password !== password) return null;
-    
-    return { 
-      username: user.username, 
-      role: user.role, 
-      fullName: user.fullName, 
-      email: user.email 
-    };
+    // Try API authentication first
+    if (USE_API) {
+      try {
+        const response = await fetch(`${API_BASE}/api/auth/login`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ username, password })
+        });
+
+        if (response.ok) {
+          const userData = await response.json();
+          console.log('✅ User authenticated via API');
+          return userData;
+        } else {
+          console.warn('API authentication failed, falling back to localStorage');
+        }
+      } catch (error) {
+        console.warn('API authentication error, falling back to localStorage:', error.message);
+      }
+    }
+
+    // Fallback to localStorage authentication
+    try {
+      const users = await dataService.loadUsers();
+      const normalized = (username || "").trim().toLowerCase();
+      const user = users.find(u => (u.username || "").toLowerCase() === normalized);
+      
+      if (!user) return null;
+      if (user.password !== password) return null;
+      
+      console.log('✅ User authenticated via localStorage');
+      return { 
+        username: user.username, 
+        role: user.role, 
+        fullName: user.fullName, 
+        email: user.email 
+      };
+    } catch (error) {
+      console.error('LocalStorage authentication error:', error);
+      return null;
+    }
   },
 
   // Utility functions
@@ -321,10 +350,45 @@ export const dataService = {
   // Health check
   healthCheck: async () => {
     try {
+      console.log('🔍 Checking API health...');
       const response = await fetch(`${API_BASE}/health`);
-      return response.ok;
-    } catch {
+      const isHealthy = response.ok;
+      console.log(`API health check: ${isHealthy ? '✅ Healthy' : '❌ Unhealthy'}`);
+      return isHealthy;
+    } catch (error) {
+      console.log('❌ API health check failed:', error.message);
       return false;
+    }
+  },
+
+  // Check API connection and configuration
+  checkApiConnection: async () => {
+    try {
+      console.log('🔍 Checking API connection...');
+      console.log('API Base URL:', API_BASE);
+      console.log('USE_API setting:', USE_API);
+      
+      if (!USE_API) {
+        console.log('ℹ️ API is disabled, using localStorage only');
+        return { connected: false, reason: 'API disabled' };
+      }
+      
+      const response = await fetch(`${API_BASE}/health`, {
+        method: 'GET',
+        headers: { 'Content-Type': 'application/json' }
+      });
+      
+      if (response.ok) {
+        const healthData = await response.json();
+        console.log('✅ API connection successful:', healthData);
+        return { connected: true, data: healthData };
+      } else {
+        console.log('❌ API health check failed:', response.status, response.statusText);
+        return { connected: false, reason: `HTTP ${response.status}` };
+      }
+    } catch (error) {
+      console.log('❌ API connection error:', error.message);
+      return { connected: false, reason: error.message };
     }
   },
 
