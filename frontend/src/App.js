@@ -917,19 +917,18 @@ function AdminPanel(){
           </div>
           <button
             onClick={() => {
-              if (window.confirm('Are you sure you want to clear ALL data? This will remove all exams, questions, results, and user data. This action cannot be undone.')) {
+              if (window.confirm('Are you sure you want to clear ALL data? This will remove all exams, questions, results, and student data. The admin user will be preserved. This action cannot be undone.')) {
                 // Clear all localStorage data
                 const LS_KEYS = {
                   EXAMS: "cbt_exams_v1",
                   QUESTIONS: "cbt_questions_v1", 
                   RESULTS: "cbt_results_v1",
-                  USERS: "cbt_users_v1",
                   STUDENT_REGISTRATIONS: "cbt_student_registrations_v1",
                   SHARED_DATA: "cbt_shared_data_v1",
                   ACTIVE_EXAM: "cbt_active_exam_v1"
                 };
 
-                // Clear all CBT-related localStorage items
+                // Clear all CBT-related localStorage items (except USERS)
                 Object.values(LS_KEYS).forEach(key => {
                   localStorage.removeItem(key);
                 });
@@ -944,6 +943,37 @@ function AdminPanel(){
 
                 // Clear logged in user
                 localStorage.removeItem('cbt_logged_in_user');
+
+                // Preserve admin user in localStorage
+                const adminUser = {
+                  username: "admin",
+                  password: "admin123",
+                  role: "admin",
+                  fullName: "System Administrator",
+                  email: "admin@healthschool.com",
+                  createdAt: new Date().toISOString()
+                };
+                localStorage.setItem("cbt_users_v1", JSON.stringify([adminUser]));
+
+                // Clear cloud database data (but preserve admin user)
+                const clearCloudData = async () => {
+                  try {
+                    // Clear exams, questions, and results from cloud database
+                    const clearPromises = [
+                      fetch('https://cbt-rew7.onrender.com/api/exams', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify([]) }),
+                      fetch('https://cbt-rew7.onrender.com/api/questions', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify([]) }),
+                      fetch('https://cbt-rew7.onrender.com/api/results', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify([]) })
+                    ];
+                    
+                    await Promise.all(clearPromises);
+                    console.log('✅ Cloud database cleared successfully');
+                  } catch (error) {
+                    console.warn('⚠️ Failed to clear cloud database:', error.message);
+                  }
+                };
+
+                // Clear cloud data
+                clearCloudData();
 
                 // Reset state
                 setExams([]);
