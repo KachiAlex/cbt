@@ -1,31 +1,35 @@
 {
-  "name": "cbt-app",
+  "name": "cbt-system",
   "version": "1.0.0",
-  "description": "Computer Based Testing Application with frontend and backend support",
-  "scripts": {
-    "dev": "concurrently \"npm run dev:frontend\" \"npm run dev:backend\"",
-    "dev:frontend": "cd frontend && npm start",
-    "dev:backend": "cd backend && npm run dev",
-    "build": "npm run build:frontend && npm run build:backend",
-    "build:frontend": "cd frontend && npm run build",
-    "build:backend": "cd backend && npm run build",
-    "install:all": "npm install && cd frontend && npm install && cd ../backend && npm install",
-    "start:frontend": "cd frontend && npm start",
-    "start:backend": "cd backend && npm start",
-    "docker:build": "docker-compose build",
-    "docker:up": "docker-compose up -d",
-    "docker:down": "docker-compose down",
-    "docker:logs": "docker-compose logs -f"
-  },
-  "devDependencies": {
-    "concurrently": "^8.2.2"
-  },
+  "description": "CBT System with Hierarchical Admin Management",
+  "private": true,
   "workspaces": [
     "frontend",
     "backend"
   ],
+  "scripts": {
+    "build:frontend": "cd frontend && npm ci --audit-level=moderate && npm run build",
+    "build:backend": "cd backend && npm install --omit=dev",
+    "start:frontend": "cd frontend && npm start",
+    "start:backend": "cd backend && npm start",
+    "install:frontend": "cd frontend && npm install",
+    "install:backend": "cd backend && npm install"
+  },
   "engines": {
     "node": ">=18.0.0",
     "npm": ">=8.0.0"
-  }
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/your-username/cbt-system.git"
+  },
+  "keywords": [
+    "cbt",
+    "exam",
+    "education",
+    "react",
+    "nodejs"
+  ],
+  "author": "CBT System Team",
+  "license": "MIT"
 } 

@@ -1,11 +1,17 @@
 [build]
   base = "frontend"
   publish = "build"
-  command = "npm ci --audit-level=moderate && npm run build"
+  command = "npm install && npm run build"
 
 [build.environment]
   NODE_VERSION = "18"
   NPM_CONFIG_AUDIT_LEVEL = "moderate"
+  NPM_CONFIG_PRODUCTION = "false"
+  CI = "false"
+
+# Ensure we're in the right directory
+[build.processing]
+  skip_processing = false
 
 [[redirects]]
   from = "/*"
@@ -20,5 +26,10 @@
 
 [context.deploy-preview.environment]
   REACT_APP_ENVIRONMENT = "preview"
+  REACT_APP_API_URL = "https://cbt-rew7.onrender.com"
+  REACT_APP_USE_API = "true"
+
+[context.branch-deploy.environment]
+  REACT_APP_ENVIRONMENT = "branch"
   REACT_APP_API_URL = "https://cbt-rew7.onrender.com"
   REACT_APP_USE_API = "true" 
