@@ -207,36 +207,13 @@ async function saveUsers(users) {
 async function authenticateUser(username, password) {
   console.log('🔐 Authenticating user:', username);
   
-  // Simple direct authentication - no complex fallbacks
   try {
-    // First, ensure admin user exists
-    const users = JSON.parse(localStorage.getItem("cbt_users_v1") || "[]");
-    const adminExists = users.some(user => user.username === "admin" && user.role === "admin");
-    
-    if (!adminExists) {
-      console.log('👤 Creating default admin user...');
-      const defaultAdmin = {
-        username: "admin",
-        password: "admin123",
-        role: "admin",
-        fullName: "System Administrator",
-        email: "admin@healthschool.com",
-        createdAt: new Date().toISOString(),
-        isDefaultAdmin: true,
-        canDeleteDefaultAdmin: true
-      };
-      
-      users.push(defaultAdmin);
-      localStorage.setItem("cbt_users_v1", JSON.stringify(users));
-      console.log('✅ Default admin user created successfully');
-    }
-    
-    // Get updated users list
-    const updatedUsers = JSON.parse(localStorage.getItem("cbt_users_v1") || "[]");
-    console.log('👥 Users in localStorage:', updatedUsers.length);
+    // Use dataService to load users (handles both cloud and localStorage)
+    const users = await dataService.loadUsers();
+    console.log('👥 Total users loaded:', users.length);
     
     // Find the user
-    const user = updatedUsers.find(u => 
+    const user = users.find(u => 
       u.username.toLowerCase() === username.toLowerCase() && 
       u.password === password
     );
@@ -248,11 +225,11 @@ async function authenticateUser(username, password) {
         user.isDefaultAdmin = true;
         user.canDeleteDefaultAdmin = true;
         
-        // Update the user in localStorage
-        const updatedUsersList = updatedUsers.map(u => 
+        // Update the user in the database
+        const updatedUsers = users.map(u => 
           u.username === user.username ? user : u
         );
-        localStorage.setItem("cbt_users_v1", JSON.stringify(updatedUsersList));
+        await dataService.saveUsers(updatedUsers);
         console.log('✅ Current admin is now the default admin');
       }
       
@@ -261,7 +238,7 @@ async function authenticateUser(username, password) {
     } else {
       console.log('❌ Authentication failed - user not found or wrong password');
       console.log('🔍 Searched for:', username.toLowerCase());
-      console.log('🔍 Available users:', updatedUsers.map(u => u.username.toLowerCase()));
+      console.log('🔍 Available users:', users.map(u => u.username.toLowerCase()));
       return null;
     }
   } catch (error) {

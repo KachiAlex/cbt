@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Remove Student</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; max-width: 800px; margin: 0 auto; }
+        .result { margin: 10px 0; padding: 10px; border-radius: 5px; }
+        .success { background: #d4edda; color: #155724; }
+        .error { background: #f8d7da; color: #721c24; }
+        .info { background: #d1ecf1; color: #0c5460; }
+        .warning { background: #fff3cd; color: #856404; }
+        button { padding: 10px 20px; margin: 5px; cursor: pointer; background: #007bff; color: white; border: none; border-radius: 5px; }
+        button:hover { background: #0056b3; }
+        button.danger { background: #dc3545; }
+        button.danger:hover { background: #c82333; }
+        .data-display { background: #f8f9fa; border: 1px solid #dee2e6; padding: 15px; border-radius: 5px; margin: 10px 0; }
+        pre { white-space: pre-wrap; word-wrap: break-word; }
+        .student-card { border: 1px solid #ddd; padding: 15px; margin: 10px 0; border-radius: 5px; background: #fff; }
+    </style>
+</head>
+<body>
+    <h1>🗑️ Remove Student Data</h1>
+    <p>This tool will remove the student with username <strong>onyedika.akoma@gmail.com</strong> from the cloud database.</p>
+    
+    <div>
+        <button onclick="findStudent()">Find Student</button>
+        <button onclick="removeStudent()" class="danger">Remove Student</button>
+        <button onclick="getAllUsers()">Get All Users</button>
+        <button onclick="clearLocalData()">Clear Local Data</button>
+    </div>
+    
+    <div id="results"></div>
+    <div id="dataDisplay"></div>
+
+    <script>
+        const API_BASE = 'https://cbt-rew7.onrender.com';
+        const TARGET_USERNAME = 'onyedika.akoma@gmail.com';
+        const LS_KEYS = {
+            USERS: "cbt_users_v1",
+            STUDENT_REGISTRATIONS: "cbt_student_registrations_v1"
+        };
+
+        function log(message, type = 'info') {
+            const results = document.getElementById('results');
+            const div = document.createElement('div');
+            div.className = `result ${type}`;
+            div.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+            results.appendChild(div);
+            console.log(message);
+        }
+
+        function displayData(title, data) {
+            const display = document.getElementById('dataDisplay');
+            const div = document.createElement('div');
+            div.className = 'data-display';
+            div.innerHTML = `<h3>${title}</h3><pre>${JSON.stringify(data, null, 2)}</pre>`;
+            display.appendChild(div);
+        }
+
+        function displayStudent(student) {
+            const display = document.getElementById('dataDisplay');
+            const div = document.createElement('div');
+            div.className = 'student-card';
+            div.innerHTML = `
+                <h3>👤 Found Student</h3>
+                <p><strong>Username:</strong> ${student.username}</p>
+                <p><strong>Email:</strong> ${student.email}</p>
+                <p><strong>Full Name:</strong> ${student.fullName || 'N/A'}</p>
+                <p><strong>Role:</strong> ${student.role}</p>
+                <p><strong>Registered:</strong> ${student.registeredAt ? new Date(student.registeredAt).toLocaleString() : 'N/A'}</p>
+            `;
+            display.appendChild(div);
+        }
+
+        async function findStudent() {
+            log(`🔍 Looking for student with username: ${TARGET_USERNAME}`, 'info');
+            
+            try {
+                const response = await fetch(`${API_BASE}/api/users`);
+                if (response.ok) {
+                    const users = await response.json();
+                    const student = users.find(u => 
+                        u.username === TARGET_USERNAME || 
+                        u.email === TARGET_USERNAME
+                    );
+                    
+                    if (student) {
+                        log(`✅ Found student: ${student.username}`, 'success');
+                        displayStudent(student);
+                        displayData('All Users (Cloud)', users);
+                    } else {
+                        log(`❌ Student with username ${TARGET_USERNAME} not found in cloud database`, 'error');
+                        displayData('All Users (Cloud)', users);
+                    }
+                } else {
+                    log(`❌ Failed to get users: ${response.status} ${response.statusText}`, 'error');
+                }
+            } catch (error) {
+                log(`❌ Error finding student: ${error.message}`, 'error');
+            }
+        }
+
+        async function removeStudent() {
+            log(`🗑️ Removing student with username: ${TARGET_USERNAME}`, 'warning');
+            
+            if (!confirm(`Are you sure you want to remove the student with username "${TARGET_USERNAME}"? This action cannot be undone.`)) {
+                log('❌ Removal cancelled by user', 'info');
+                return;
+            }
+            
+            try {
+                // First, get all users to find the student
+                const response = await fetch(`${API_BASE}/api/users`);
+                if (!response.ok) {
+                    throw new Error(`Failed to get users: ${response.status}`);
+                }
+                
+                const users = await response.json();
+                const studentIndex = users.findIndex(u => 
+                    u.username === TARGET_USERNAME || 
+                    u.email === TARGET_USERNAME
+                );
+                
+                if (studentIndex === -1) {
+                    log(`❌ Student with username ${TARGET_USERNAME} not found`, 'error');
+                    return;
+                }
+                
+                const student = users[studentIndex];
+                log(`🗑️ Removing student: ${student.username}`, 'warning');
+                
+                // Remove the student from the array
+                users.splice(studentIndex, 1);
+                
+                // Update the users in the cloud database
+                const updateResponse = await fetch(`${API_BASE}/api/users`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(users)
+                });
+                
+                if (updateResponse.ok) {
+                    log(`✅ Successfully removed student: ${student.username}`, 'success');
+                    log(`📊 Remaining users: ${users.length}`, 'success');
+                    displayData('Updated Users List', users);
+                } else {
+                    const error = await updateResponse.json();
+                    log(`❌ Failed to remove student: ${JSON.stringify(error)}`, 'error');
+                }
+                
+            } catch (error) {
+                log(`❌ Error removing student: ${error.message}`, 'error');
+            }
+        }
+
+        async function getAllUsers() {
+            log('👥 Getting all users from cloud database...', 'info');
+            
+            try {
+                const response = await fetch(`${API_BASE}/api/users`);
+                if (response.ok) {
+                    const users = await response.json();
+                    log(`✅ Retrieved ${users.length} users from cloud`, 'success');
+                    displayData('All Users (Cloud Database)', users);
+                } else {
+                    log(`❌ Failed to get users: ${response.status} ${response.statusText}`, 'error');
+                }
+            } catch (error) {
+                log(`❌ Error getting users: ${error.message}`, 'error');
+            }
+        }
+
+        function clearLocalData() {
+            log('🗑️ Clearing local data for the specific student...', 'warning');
+            
+            try {
+                // Clear from localStorage users
+                const users = JSON.parse(localStorage.getItem(LS_KEYS.USERS) || '[]');
+                const filteredUsers = users.filter(u => 
+                    u.username !== TARGET_USERNAME && 
+                    u.email !== TARGET_USERNAME
+                );
+                localStorage.setItem(LS_KEYS.USERS, JSON.stringify(filteredUsers));
+                
+                // Clear from localStorage registrations
+                const registrations = JSON.parse(localStorage.getItem(LS_KEYS.STUDENT_REGISTRATIONS) || '[]');
+                const filteredRegistrations = registrations.filter(u => 
+                    u.username !== TARGET_USERNAME && 
+                    u.email !== TARGET_USERNAME
+                );
+                localStorage.setItem(LS_KEYS.STUDENT_REGISTRATIONS, JSON.stringify(filteredRegistrations));
+                
+                log('✅ Cleared local data for the student', 'success');
+                log(`📊 Remaining local users: ${filteredUsers.length}`, 'success');
+                log(`📊 Remaining local registrations: ${filteredRegistrations.length}`, 'success');
+                
+                displayData('Updated Local Users', filteredUsers);
+                displayData('Updated Local Registrations', filteredRegistrations);
+            } catch (error) {
+                log(`❌ Error clearing local data: ${error.message}`, 'error');
+            }
+        }
+
+        // Auto-run on load
+        window.onload = function() {
+            log('🚀 Student Removal Tool loaded', 'info');
+            log(`🎯 Target student: ${TARGET_USERNAME}`, 'info');
+            findStudent();
+        };
+    </script>
+</body>
+</html> 
