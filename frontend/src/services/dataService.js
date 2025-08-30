@@ -345,72 +345,7 @@ export const dataService = {
     return setToLS(LS_KEYS.STUDENT_REGISTRATIONS, registrations);
   },
 
-  // Authentication
-  authenticateUser: async (username, password) => {
-    // Try API authentication first with timeout
-    if (USE_API) {
-      try {
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 5000); // 5 second timeout
-        
-        const response = await fetch(`${API_BASE}/api/auth/login`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ username, password }),
-          signal: controller.signal
-        });
 
-        clearTimeout(timeoutId);
-
-        if (response.ok) {
-          const userData = await response.json();
-          console.log('✅ User authenticated via API');
-          return userData;
-        } else if (response.status === 401) {
-          console.log('❌ Invalid credentials via API');
-          return null; // Return null for invalid credentials
-        } else {
-          console.warn('API authentication failed, falling back to localStorage');
-        }
-      } catch (error) {
-        if (error.name === 'AbortError') {
-          console.warn('API authentication timed out, falling back to localStorage');
-        } else {
-          console.warn('API authentication error, falling back to localStorage:', error.message);
-        }
-      }
-    }
-
-    // Fallback to localStorage authentication
-    try {
-      const users = await dataService.loadUsers();
-      const normalized = (username || "").trim().toLowerCase();
-      const user = users.find(u => (u.username || "").toLowerCase() === normalized);
-      
-      if (!user) {
-        console.log('❌ User not found in localStorage');
-        return null;
-      }
-      if (user.password !== password) {
-        console.log('❌ Invalid password in localStorage');
-        return null;
-      }
-      
-      console.log('✅ User authenticated via localStorage');
-      return { 
-        username: user.username, 
-        role: user.role, 
-        fullName: user.fullName, 
-        email: user.email,
-        isDefaultAdmin: user.isDefaultAdmin || false
-      };
-    } catch (error) {
-      console.error('LocalStorage authentication error:', error);
-      return null;
-    }
-  },
 
   // Utility functions
   createExam: async (examData) => {
@@ -428,7 +363,7 @@ export const dataService = {
         // Fallback for older browsers
         return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
           const r = Math.random() * 16 | 0;
-          const v = c === 'x' ? r : (r & 0x3 | 0x8);
+          const v = c === 'x' ? r : ((r & 0x3) | 0x8);
           return v.toString(16);
         });
       };

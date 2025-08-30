@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CBT Auth Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; }
+        .result { margin: 10px 0; padding: 10px; border-radius: 5px; }
+        .success { background: #d4edda; color: #155724; }
+        .error { background: #f8d7da; color: #721c24; }
+        .info { background: #d1ecf1; color: #0c5460; }
+        button { padding: 10px 20px; margin: 5px; cursor: pointer; }
+    </style>
+</head>
+<body>
+    <h1>🔐 CBT Authentication Test</h1>
+    
+    <div>
+        <button onclick="testAuth()">Test Authentication</button>
+        <button onclick="createAdmin()">Create Admin User</button>
+        <button onclick="clearData()">Clear All Data</button>
+    </div>
+    
+    <div id="results"></div>
+
+    <script>
+        const LS_KEYS = {
+            USERS: "cbt_users_v1"
+        };
+
+        function log(message, type = 'info') {
+            const results = document.getElementById('results');
+            const div = document.createElement('div');
+            div.className = `result ${type}`;
+            div.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+            results.appendChild(div);
+            console.log(message);
+        }
+
+        function getFromLS(key) {
+            try {
+                const saved = localStorage.getItem(key);
+                return saved ? JSON.parse(saved) : null;
+            } catch {
+                return null;
+            }
+        }
+
+        function setToLS(key, data) {
+            try {
+                localStorage.setItem(key, JSON.stringify(data));
+                return true;
+            } catch {
+                return false;
+            }
+        }
+
+        function createAdmin() {
+            log('👤 Creating admin user...', 'info');
+            
+            const users = getFromLS(LS_KEYS.USERS) || [];
+            const adminExists = users.some(user => user.username === 'admin');
+            
+            if (adminExists) {
+                log('⚠️ Admin user already exists', 'info');
+                return;
+            }
+            
+            const defaultAdmin = {
+                username: "admin",
+                password: "admin123",
+                role: "admin",
+                fullName: "System Administrator",
+                email: "admin@healthschool.com",
+                createdAt: new Date().toISOString(),
+                isDefaultAdmin: true,
+                canDeleteDefaultAdmin: true
+            };
+            
+            users.push(defaultAdmin);
+            const success = setToLS(LS_KEYS.USERS, users);
+            
+            if (success) {
+                log('✅ Admin user created successfully', 'success');
+            } else {
+                log('❌ Failed to create admin user', 'error');
+            }
+        }
+
+        function testAuth() {
+            log('🔐 Testing authentication...', 'info');
+            
+            const users = getFromLS(LS_KEYS.USERS) || [];
+            log(`📋 Found ${users.length} users in localStorage`, 'info');
+            
+            if (users.length > 0) {
+                users.forEach(user => {
+                    log(`👤 User: ${user.username} (${user.role})`, 'info');
+                });
+            }
+            
+            const admin = users.find(u => 
+                u.username.toLowerCase() === 'admin' && 
+                u.password === 'admin123'
+            );
+            
+            if (admin) {
+                log('✅ Authentication test passed!', 'success');
+                log(`👤 Authenticated user: ${admin.username} (${admin.role})`, 'success');
+            } else {
+                log('❌ Authentication test failed - admin not found', 'error');
+                log('🔍 Make sure to create the admin user first', 'error');
+            }
+        }
+
+        function clearData() {
+            log('🗑️ Clearing all localStorage data...', 'info');
+            localStorage.clear();
+            log('✅ All data cleared', 'success');
+        }
+
+        // Auto-test on load
+        window.onload = function() {
+            log('🚀 CBT Auth Test loaded', 'info');
+            testAuth();
+        };
+    </script>
+</body>
+</html> 
