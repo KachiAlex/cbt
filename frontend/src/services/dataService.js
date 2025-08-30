@@ -158,19 +158,27 @@ export const dataService = {
 
   // Exam management
   loadExams: async () => {
+    console.log('📋 Loading exams...');
     initializeLocalStorage(); // Ensure data exists
     const apiData = await apiCall('/api/exams');
-    if (apiData) return apiData;
+    if (apiData) {
+      console.log('📋 Loaded exams from API:', apiData);
+      return apiData;
+    }
 
     // Fallback to localStorage
     const saved = getFromLS(LS_KEYS.EXAMS);
+    console.log('📋 Loaded exams from localStorage:', saved);
     return saved || [];
   },
 
   saveExams: async (exams) => {
+    console.log('💾 Saving exams:', exams);
+    
     // Try API first, fallback to localStorage
     if (USE_API) {
       try {
+        console.log('🌐 Attempting to save exams to API...');
         const response = await fetch(`${API_BASE}/api/exams`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -179,12 +187,18 @@ export const dataService = {
         if (response.ok) {
           console.log('✅ Exams saved to cloud database');
           return true;
+        } else {
+          console.warn('❌ API save failed with status:', response.status);
         }
       } catch (error) {
         console.warn('Failed to save exams to API, using localStorage:', error.message);
       }
     }
-    return setToLS(LS_KEYS.EXAMS, exams);
+    
+    console.log('💾 Falling back to localStorage save...');
+    const result = setToLS(LS_KEYS.EXAMS, exams);
+    console.log('💾 localStorage save result:', result);
+    return result;
   },
 
   // Questions management
@@ -329,16 +343,51 @@ export const dataService = {
 
   // Utility functions
   createExam: async (examData) => {
-    const exams = await dataService.loadExams();
-    const newExam = {
-      id: crypto.randomUUID(),
-      ...examData,
-      createdAt: new Date().toISOString(),
-      isActive: false
-    };
-    exams.push(newExam);
-    await dataService.saveExams(exams);
-    return newExam;
+    try {
+      console.log('📝 Creating exam with data:', examData);
+      
+      const exams = await dataService.loadExams();
+      console.log('📋 Current exams:', exams);
+      
+      // Generate a unique ID (fallback for crypto.randomUUID)
+      const generateId = () => {
+        if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+          return crypto.randomUUID();
+        }
+        // Fallback for older browsers
+        return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+          const r = Math.random() * 16 | 0;
+          const v = c === 'x' ? r : (r & 0x3 | 0x8);
+          return v.toString(16);
+        });
+      };
+      
+      const newExam = {
+        id: generateId(),
+        ...examData,
+        createdAt: new Date().toISOString(),
+        isActive: false
+      };
+      
+      console.log('🆔 Generated exam ID:', newExam.id);
+      console.log('📝 New exam object:', newExam);
+      
+      exams.push(newExam);
+      console.log('📋 Updated exams array:', exams);
+      
+      const saveResult = await dataService.saveExams(exams);
+      console.log('💾 Save result:', saveResult);
+      
+      if (saveResult) {
+        console.log('✅ Exam created and saved successfully');
+        return newExam;
+      } else {
+        throw new Error('Failed to save exam');
+      }
+    } catch (error) {
+      console.error('❌ Error in createExam:', error);
+      throw error;
+    }
   },
 
   // Active exam management

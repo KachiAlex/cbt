@@ -930,23 +930,46 @@ function AdminPanel({ user }){
     saveAs(blob, "CBT_Results.docx");
   };
 
-  const handleCreateExam = (examData) => {
-    const newExam = createExam(examData);
-    setExams(loadExams());
-    setShowCreateExam(false);
-    setSelectedExam(newExam);
-    setActiveTab("questions");
+  const handleCreateExam = async (examData) => {
+    try {
+      console.log('📝 Creating new exam:', examData);
+      const newExam = await dataService.createExam(examData);
+      console.log('✅ Exam created successfully:', newExam);
+      
+      // Reload exams to get the updated list
+      const updatedExams = await loadExams();
+      setExams(updatedExams);
+      
+      setShowCreateExam(false);
+      setSelectedExam(newExam);
+      setActiveTab("questions");
+    } catch (error) {
+      console.error('❌ Error creating exam:', error);
+      alert('Failed to create exam. Please try again.');
+    }
   };
 
-  const handleActivateExam = (examId) => {
-    setActiveExam(examId);
-    setExams(loadExams());
+  const handleActivateExam = async (examId) => {
+    try {
+      await setActiveExam(examId);
+      const updatedExams = await loadExams();
+      setExams(updatedExams);
+    } catch (error) {
+      console.error('❌ Error activating exam:', error);
+      alert('Failed to activate exam. Please try again.');
+    }
   };
 
-  const handleDeleteExam = (examId) => {
+  const handleDeleteExam = async (examId) => {
     if (window.confirm("Are you sure you want to delete this exam? This action cannot be undone.")) {
-      deleteExam(examId);
-      setExams(loadExams());
+      try {
+        await deleteExam(examId);
+        const updatedExams = await loadExams();
+        setExams(updatedExams);
+      } catch (error) {
+        console.error('❌ Error deleting exam:', error);
+        alert('Failed to delete exam. Please try again.');
+      }
     }
   };
 
