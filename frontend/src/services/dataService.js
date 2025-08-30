@@ -545,6 +545,51 @@ export const dataService = {
     }
   },
 
+  // Authentication
+  authenticateUser: async (username, password) => {
+    console.log('🔐 Authenticating user:', username);
+    
+    if (USE_API) {
+      try {
+        console.log('🌐 Attempting API authentication...');
+        const response = await fetch(`${API_BASE}/api/auth/login`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ username, password })
+        });
+
+        if (response.ok) {
+          const user = await response.json();
+          console.log('✅ API authentication successful:', user);
+          return user;
+        } else {
+          const error = await response.json();
+          console.log('❌ API authentication failed:', error);
+          throw new Error(error.error || 'Invalid credentials');
+        }
+      } catch (error) {
+        console.warn('API authentication failed, falling back to localStorage:', error.message);
+        // Fall through to localStorage authentication
+      }
+    }
+
+    // Fallback to localStorage authentication
+    console.log('💾 Using localStorage authentication...');
+    const users = await dataService.loadUsers();
+    const user = users.find(u => 
+      u.username.toLowerCase() === username.toLowerCase() && 
+      u.password === password
+    );
+
+    if (user) {
+      console.log('✅ localStorage authentication successful:', user);
+      return user;
+    } else {
+      console.log('❌ localStorage authentication failed - user not found');
+      throw new Error('Invalid credentials');
+    }
+  },
+
   // Admin management functions
   createNewAdmin: async (adminData, requestingAdmin) => {
     if (USE_API) {

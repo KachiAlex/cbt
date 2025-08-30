@@ -1,0 +1,3 @@
+{
+  "cbt_users_v1": "[{\"username\":\"admin\",\"password\":\"admin123\",\"role\":\"admin\",\"fullName\":\"System Administrator\",\"email\":\"admin@healthschool.com\",\"createdAt\":\"2025-08-30T16:29:06.659Z\",\"isDefaultAdmin\":true,\"canDeleteDefaultAdmin\":true}]"
+}

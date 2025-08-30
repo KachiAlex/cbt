@@ -52,6 +52,9 @@ function App() {
       setView("home");
     }
     
+    // Ensure admin user exists in localStorage
+    ensureAdminUserExists();
+    
     // Check API connection on app load
     const checkConnection = async () => {
       try {
@@ -64,6 +67,35 @@ function App() {
     
     checkConnection();
   }, []);
+
+  // Function to ensure admin user exists in localStorage
+  const ensureAdminUserExists = () => {
+    try {
+      const users = JSON.parse(localStorage.getItem("cbt_users_v1") || "[]");
+      const adminExists = users.some(user => user.username === "admin" && user.role === "admin");
+      
+      if (!adminExists) {
+        const defaultAdmin = {
+          username: "admin",
+          password: "admin123",
+          role: "admin",
+          fullName: "System Administrator",
+          email: "admin@healthschool.com",
+          createdAt: new Date().toISOString(),
+          isDefaultAdmin: true,
+          canDeleteDefaultAdmin: true
+        };
+        
+        users.push(defaultAdmin);
+        localStorage.setItem("cbt_users_v1", JSON.stringify(users));
+        console.log('👤 Default admin user created in localStorage');
+      } else {
+        console.log('👤 Admin user already exists in localStorage');
+      }
+    } catch (error) {
+      console.error('Error ensuring admin user exists:', error);
+    }
+  };
 
   const onLogout = () => {
     setUser(null);
@@ -166,9 +198,12 @@ async function saveUsers(users) {
 
 async function authenticateUser(username, password) {
   try {
-    return await dataService.authenticateUser(username, password);
+    console.log('🔐 Authenticating user:', username);
+    const result = await dataService.authenticateUser(username, password);
+    console.log('🔐 Authentication result:', result);
+    return result;
   } catch (error) {
-    console.error('Error authenticating user:', error);
+    console.error('❌ Error authenticating user:', error);
     return null;
   }
 }
