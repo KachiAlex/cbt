@@ -99,7 +99,7 @@ function App() {
       <main className="max-w-5xl mx-auto w-full px-3 sm:px-8 py-4 sm:py-8">
         {user ? (
           user.role === "admin" ? (
-            <AdminPanel />
+            <AdminPanel user={user} />
           ) : (
             <StudentPanel user={user} />
           )
@@ -752,7 +752,7 @@ function Login({onLogin}){
 
 
 
-function AdminPanel(){
+function AdminPanel({ user }){
   const [activeTab, setActiveTab] = useState("exams"); // "exams", "questions", "results", "students"
   const [exams, setExams] = useState([]);
   const [questions, setQuestions] = useState([]);
