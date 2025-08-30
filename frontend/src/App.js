@@ -360,10 +360,6 @@ function AdminLogin({onLogin, onBack}){
     try {
       console.log('🔐 Attempting admin login for username:', username);
       
-      // Check API connection first
-      const connectionStatus = await dataService.checkApiConnection();
-      console.log('🔍 Connection status before login:', connectionStatus);
-      
       const user = await authenticateUser(username, password);
       console.log('🔐 Authentication result:', user);
       
@@ -481,6 +477,7 @@ function Login({onLogin}){
   const [confirmPassword, setConfirmPassword] = useState("");
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
   const [showLoginPassword, setShowLoginPassword] = useState(false);
   const [showRegisterPassword, setShowRegisterPassword] = useState(false);
   const [showRegisterConfirm, setShowRegisterConfirm] = useState(false);
@@ -488,23 +485,29 @@ function Login({onLogin}){
   const handleLogin = async (e) => {
     e.preventDefault();
     setError("");
+    setIsLoading(true);
     
     if (!username || !password) {
       setError("Please enter both username and password");
+      setIsLoading(false);
       return;
     }
 
     try {
       // Only student authentication - admin access is separate
       const user = await authenticateUser(username, password);
-      if (user) {
+      if (user && user.role === "student") {
         onLogin(user);
+      } else if (user && user.role === "admin") {
+        setError("This is an admin account. Please use the admin login instead.");
       } else {
         setError("Invalid username or password. Please check your credentials or register as a new student.");
       }
     } catch (error) {
       console.error('Error during student login:', error);
       setError("Login failed. Please try again.");
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -628,8 +631,26 @@ function Login({onLogin}){
               </button>
             </div>
           </div>
-          <button className="w-full bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl py-2.5 font-semibold">
-            Login as Student
+          <button 
+            type="submit"
+            disabled={isLoading}
+            className={`w-full rounded-xl py-2.5 font-semibold ${
+              isLoading 
+                ? 'bg-gray-400 cursor-not-allowed text-white' 
+                : 'bg-emerald-600 hover:bg-emerald-700 text-white'
+            }`}
+          >
+            {isLoading ? (
+              <span className="flex items-center justify-center">
+                <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                Authenticating...
+              </span>
+            ) : (
+              'Login as Student'
+            )}
           </button>
         </form>
       ) : (

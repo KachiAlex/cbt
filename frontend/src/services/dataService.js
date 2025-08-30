@@ -262,26 +262,39 @@ export const dataService = {
 
   // Authentication
   authenticateUser: async (username, password) => {
-    // Try API authentication first
+    // Try API authentication first with timeout
     if (USE_API) {
       try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 5000); // 5 second timeout
+        
         const response = await fetch(`${API_BASE}/api/auth/login`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify({ username, password })
+          body: JSON.stringify({ username, password }),
+          signal: controller.signal
         });
+
+        clearTimeout(timeoutId);
 
         if (response.ok) {
           const userData = await response.json();
           console.log('✅ User authenticated via API');
           return userData;
+        } else if (response.status === 401) {
+          console.log('❌ Invalid credentials via API');
+          return null; // Return null for invalid credentials
         } else {
           console.warn('API authentication failed, falling back to localStorage');
         }
       } catch (error) {
-        console.warn('API authentication error, falling back to localStorage:', error.message);
+        if (error.name === 'AbortError') {
+          console.warn('API authentication timed out, falling back to localStorage');
+        } else {
+          console.warn('API authentication error, falling back to localStorage:', error.message);
+        }
       }
     }
 
@@ -291,15 +304,22 @@ export const dataService = {
       const normalized = (username || "").trim().toLowerCase();
       const user = users.find(u => (u.username || "").toLowerCase() === normalized);
       
-      if (!user) return null;
-      if (user.password !== password) return null;
+      if (!user) {
+        console.log('❌ User not found in localStorage');
+        return null;
+      }
+      if (user.password !== password) {
+        console.log('❌ Invalid password in localStorage');
+        return null;
+      }
       
       console.log('✅ User authenticated via localStorage');
       return { 
         username: user.username, 
         role: user.role, 
         fullName: user.fullName, 
-        email: user.email 
+        email: user.email,
+        isDefaultAdmin: user.isDefaultAdmin || false
       };
     } catch (error) {
       console.error('LocalStorage authentication error:', error);
@@ -375,10 +395,16 @@ export const dataService = {
         return { connected: false, reason: 'API disabled' };
       }
       
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 3000); // 3 second timeout
+      
       const response = await fetch(`${API_BASE}/health`, {
         method: 'GET',
-        headers: { 'Content-Type': 'application/json' }
+        headers: { 'Content-Type': 'application/json' },
+        signal: controller.signal
       });
+      
+      clearTimeout(timeoutId);
       
       if (response.ok) {
         const healthData = await response.json();
@@ -389,8 +415,13 @@ export const dataService = {
         return { connected: false, reason: `HTTP ${response.status}` };
       }
     } catch (error) {
-      console.log('❌ API connection error:', error.message);
-      return { connected: false, reason: error.message };
+      if (error.name === 'AbortError') {
+        console.log('❌ API connection timed out');
+        return { connected: false, reason: 'Connection timeout' };
+      } else {
+        console.log('❌ API connection error:', error.message);
+        return { connected: false, reason: error.message };
+      }
     }
   },
 
