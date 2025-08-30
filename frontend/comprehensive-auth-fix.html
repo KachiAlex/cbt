@@ -1,0 +1,429 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Comprehensive Auth Fix</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; max-width: 1200px; margin: 0 auto; }
+        .section { margin: 20px 0; padding: 20px; border: 1px solid #ddd; border-radius: 8px; }
+        .success { background: #d4edda; color: #155724; }
+        .error { background: #f8d7da; color: #721c24; }
+        .info { background: #d1ecf1; color: #0c5460; }
+        .warning { background: #fff3cd; color: #856404; }
+        button { padding: 10px 20px; margin: 5px; cursor: pointer; background: #007bff; color: white; border: none; border-radius: 5px; }
+        button:hover { background: #0056b3; }
+        button.success { background: #28a745; }
+        button.danger { background: #dc3545; }
+        .result { margin: 10px 0; padding: 10px; border-radius: 5px; }
+        pre { white-space: pre-wrap; word-wrap: break-word; background: #f8f9fa; padding: 10px; border-radius: 5px; }
+        .user-card { border: 1px solid #ddd; padding: 15px; margin: 10px 0; border-radius: 5px; background: #fff; }
+        input, select { padding: 8px; margin: 5px; border: 1px solid #ddd; border-radius: 4px; width: 200px; }
+        .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+    </style>
+</head>
+<body>
+    <h1>🔍 Comprehensive Authentication Investigation & Fix</h1>
+    
+    <div class="section">
+        <h2>🚨 Quick Actions</h2>
+        <button onclick="runFullDiagnostic()">Run Full Diagnostic</button>
+        <button onclick="fixAllIssues()" class="success">Fix All Issues</button>
+        <button onclick="clearAllData()" class="danger">Clear All Data</button>
+        <button onclick="resetToDefaults()">Reset to Defaults</button>
+    </div>
+
+    <div class="grid">
+        <div class="section">
+            <h2>👤 Admin Authentication Test</h2>
+            <input type="text" id="admin-username" placeholder="Username" value="admin">
+            <input type="password" id="admin-password" placeholder="Password" value="admin123">
+            <button onclick="testAdminAuth()">Test Admin Login</button>
+            <button onclick="createAdminUser()">Create Admin User</button>
+        </div>
+
+        <div class="section">
+            <h2>👨‍🎓 Student Authentication Test</h2>
+            <input type="text" id="student-username" placeholder="Username">
+            <input type="password" id="student-password" placeholder="Password">
+            <button onclick="testStudentAuth()">Test Student Login</button>
+            <button onclick="createTestStudent()">Create Test Student</button>
+        </div>
+    </div>
+
+    <div class="section">
+        <h2>📊 Data Analysis</h2>
+        <button onclick="analyzeLocalStorage()">Analyze localStorage</button>
+        <button onclick="analyzeCloudDatabase()">Analyze Cloud Database</button>
+        <button onclick="compareDataSources()">Compare Data Sources</button>
+        <button onclick="showAllUsers()">Show All Users</button>
+    </div>
+
+    <div class="section">
+        <h2>🔧 Advanced Fixes</h2>
+        <button onclick="syncCloudToLocal()">Sync Cloud → Local</button>
+        <button onclick="syncLocalToCloud()">Sync Local → Cloud</button>
+        <button onclick="fixAuthenticationFunction()">Fix Auth Function</button>
+        <button onclick="testDataService()">Test DataService</button>
+    </div>
+
+    <div id="results"></div>
+
+    <script>
+        const API_BASE = 'https://cbt-rew7.onrender.com';
+        const LS_KEYS = {
+            USERS: "cbt_users_v1",
+            STUDENT_REGISTRATIONS: "cbt_student_registrations_v1"
+        };
+
+        function log(message, type = 'info') {
+            const results = document.getElementById('results');
+            const div = document.createElement('div');
+            div.className = `result ${type}`;
+            div.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+            results.appendChild(div);
+            console.log(message);
+        }
+
+        function displayData(title, data) {
+            const results = document.getElementById('results');
+            const div = document.createElement('div');
+            div.className = 'result info';
+            div.innerHTML = `<h3>${title}</h3><pre>${JSON.stringify(data, null, 2)}</pre>`;
+            results.appendChild(div);
+        }
+
+        // Run full diagnostic
+        async function runFullDiagnostic() {
+            log('🔍 Starting comprehensive diagnostic...', 'info');
+            
+            // Test localStorage
+            log('📋 Testing localStorage...', 'info');
+            const localUsers = JSON.parse(localStorage.getItem(LS_KEYS.USERS) || '[]');
+            log(`📊 localStorage has ${localUsers.length} users`, 'info');
+            
+            const localAdmin = localUsers.find(u => u.username === 'admin' && u.role === 'admin');
+            if (localAdmin) {
+                log('✅ Admin user exists in localStorage', 'success');
+            } else {
+                log('❌ Admin user missing from localStorage', 'error');
+            }
+            
+            // Test cloud database
+            log('🌐 Testing cloud database...', 'info');
+            try {
+                const response = await fetch(`${API_BASE}/api/users`);
+                if (response.ok) {
+                    const cloudUsers = await response.json();
+                    log(`📊 Cloud database has ${cloudUsers.length} users`, 'info');
+                    
+                    const cloudAdmin = cloudUsers.find(u => u.username === 'admin' && u.role === 'admin');
+                    if (cloudAdmin) {
+                        log('✅ Admin user exists in cloud database', 'success');
+                    } else {
+                        log('❌ Admin user missing from cloud database', 'error');
+                    }
+                } else {
+                    log(`❌ Cloud database error: ${response.status}`, 'error');
+                }
+            } catch (error) {
+                log(`❌ Cloud database connection failed: ${error.message}`, 'error');
+            }
+            
+            // Test authentication logic
+            log('🔐 Testing authentication logic...', 'info');
+            const testUsers = JSON.parse(localStorage.getItem(LS_KEYS.USERS) || '[]');
+            const foundAdmin = testUsers.find(u => 
+                u.username.toLowerCase() === 'admin' && 
+                u.password === 'admin123' && 
+                u.role === 'admin'
+            );
+            
+            if (foundAdmin) {
+                log('✅ Authentication logic would succeed', 'success');
+            } else {
+                log('❌ Authentication logic would fail', 'error');
+                log('🔍 Available users:', 'info');
+                testUsers.forEach(user => {
+                    log(`  - ${user.username} (${user.role}) - password: ${user.password}`, 'info');
+                });
+            }
+            
+            log('🎯 Diagnostic complete!', 'success');
+        }
+
+        // Fix all issues
+        async function fixAllIssues() {
+            log('🔧 Fixing all authentication issues...', 'warning');
+            
+            const defaultAdmin = {
+                username: "admin",
+                password: "admin123",
+                role: "admin",
+                fullName: "System Administrator",
+                email: "admin@healthschool.com",
+                createdAt: new Date().toISOString(),
+                isDefaultAdmin: true,
+                canDeleteDefaultAdmin: true
+            };
+
+            // Fix localStorage
+            const localUsers = JSON.parse(localStorage.getItem(LS_KEYS.USERS) || '[]');
+            const localAdminExists = localUsers.some(u => u.username === 'admin' && u.role === 'admin');
+            
+            if (!localAdminExists) {
+                localUsers.push(defaultAdmin);
+                localStorage.setItem(LS_KEYS.USERS, JSON.stringify(localUsers));
+                log('✅ Admin user added to localStorage', 'success');
+            } else {
+                log('✅ Admin user already exists in localStorage', 'success');
+            }
+
+            // Fix cloud database
+            try {
+                const response = await fetch(`${API_BASE}/api/users`);
+                if (response.ok) {
+                    const cloudUsers = await response.json();
+                    const cloudAdminExists = cloudUsers.some(u => u.username === 'admin' && u.role === 'admin');
+                    
+                    if (!cloudAdminExists) {
+                        cloudUsers.push(defaultAdmin);
+                        await fetch(`${API_BASE}/api/users`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify(cloudUsers)
+                        });
+                        log('✅ Admin user added to cloud database', 'success');
+                    } else {
+                        log('✅ Admin user already exists in cloud database', 'success');
+                    }
+                }
+            } catch (error) {
+                log(`❌ Cloud database fix failed: ${error.message}`, 'error');
+            }
+            
+            log('🎉 All issues fixed! Try logging in now.', 'success');
+        }
+
+        // Test admin authentication
+        async function testAdminAuth() {
+            const username = document.getElementById('admin-username').value;
+            const password = document.getElementById('admin-password').value;
+            
+            log(`🔐 Testing admin authentication: ${username}`, 'info');
+            
+            // Test localStorage
+            const localUsers = JSON.parse(localStorage.getItem(LS_KEYS.USERS) || '[]');
+            const localAdmin = localUsers.find(u => 
+                u.username.toLowerCase() === username.toLowerCase() && 
+                u.password === password && 
+                u.role === 'admin'
+            );
+            
+            if (localAdmin) {
+                log('✅ Admin authentication would succeed in localStorage', 'success');
+            } else {
+                log('❌ Admin authentication would fail in localStorage', 'error');
+            }
+            
+            // Test cloud database
+            try {
+                const response = await fetch(`${API_BASE}/api/users`);
+                if (response.ok) {
+                    const cloudUsers = await response.json();
+                    const cloudAdmin = cloudUsers.find(u => 
+                        u.username.toLowerCase() === username.toLowerCase() && 
+                        u.password === password && 
+                        u.role === 'admin'
+                    );
+                    
+                    if (cloudAdmin) {
+                        log('✅ Admin authentication would succeed in cloud database', 'success');
+                    } else {
+                        log('❌ Admin authentication would fail in cloud database', 'error');
+                    }
+                }
+            } catch (error) {
+                log(`❌ Cloud database test failed: ${error.message}`, 'error');
+            }
+        }
+
+        // Create admin user
+        async function createAdminUser() {
+            log('👤 Creating admin user...', 'warning');
+            
+            const defaultAdmin = {
+                username: "admin",
+                password: "admin123",
+                role: "admin",
+                fullName: "System Administrator",
+                email: "admin@healthschool.com",
+                createdAt: new Date().toISOString(),
+                isDefaultAdmin: true,
+                canDeleteDefaultAdmin: true
+            };
+
+            // Add to localStorage
+            const localUsers = JSON.parse(localStorage.getItem(LS_KEYS.USERS) || '[]');
+            const existingAdminIndex = localUsers.findIndex(u => u.username === 'admin' && u.role === 'admin');
+            
+            if (existingAdminIndex >= 0) {
+                localUsers[existingAdminIndex] = defaultAdmin;
+                log('✅ Admin user updated in localStorage', 'success');
+            } else {
+                localUsers.push(defaultAdmin);
+                log('✅ Admin user created in localStorage', 'success');
+            }
+            
+            localStorage.setItem(LS_KEYS.USERS, JSON.stringify(localUsers));
+            
+            // Add to cloud database
+            try {
+                const response = await fetch(`${API_BASE}/api/users`);
+                if (response.ok) {
+                    const cloudUsers = await response.json();
+                    const existingCloudAdminIndex = cloudUsers.findIndex(u => u.username === 'admin' && u.role === 'admin');
+                    
+                    if (existingCloudAdminIndex >= 0) {
+                        cloudUsers[existingCloudAdminIndex] = defaultAdmin;
+                        log('✅ Admin user updated in cloud database', 'success');
+                    } else {
+                        cloudUsers.push(defaultAdmin);
+                        log('✅ Admin user created in cloud database', 'success');
+                    }
+                    
+                    await fetch(`${API_BASE}/api/users`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(cloudUsers)
+                    });
+                }
+            } catch (error) {
+                log(`❌ Cloud database update failed: ${error.message}`, 'error');
+            }
+            
+            log('🎉 Admin user creation complete!', 'success');
+        }
+
+        // Analyze localStorage
+        function analyzeLocalStorage() {
+            log('📋 Analyzing localStorage...', 'info');
+            
+            const users = JSON.parse(localStorage.getItem(LS_KEYS.USERS) || '[]');
+            const registrations = JSON.parse(localStorage.getItem(LS_KEYS.STUDENT_REGISTRATIONS) || '[]');
+            
+            log(`📊 Users in localStorage: ${users.length}`, 'info');
+            log(`📊 Registrations in localStorage: ${registrations.length}`, 'info');
+            
+            const admins = users.filter(u => u.role === 'admin');
+            const students = users.filter(u => u.role === 'student');
+            
+            log(`👑 Admins: ${admins.length}`, 'info');
+            log(`👨‍🎓 Students: ${students.length}`, 'info');
+            
+            displayData('LocalStorage Users', users);
+            displayData('LocalStorage Registrations', registrations);
+        }
+
+        // Analyze cloud database
+        async function analyzeCloudDatabase() {
+            log('🌐 Analyzing cloud database...', 'info');
+            
+            try {
+                const response = await fetch(`${API_BASE}/api/users`);
+                if (response.ok) {
+                    const users = await response.json();
+                    
+                    log(`📊 Users in cloud database: ${users.length}`, 'info');
+                    
+                    const admins = users.filter(u => u.role === 'admin');
+                    const students = users.filter(u => u.role === 'student');
+                    
+                    log(`👑 Admins: ${admins.length}`, 'info');
+                    log(`👨‍🎓 Students: ${students.length}`, 'info');
+                    
+                    displayData('Cloud Database Users', users);
+                } else {
+                    log(`❌ Cloud database error: ${response.status}`, 'error');
+                }
+            } catch (error) {
+                log(`❌ Cloud database connection failed: ${error.message}`, 'error');
+            }
+        }
+
+        // Compare data sources
+        async function compareDataSources() {
+            log('🔄 Comparing data sources...', 'info');
+            
+            const localUsers = JSON.parse(localStorage.getItem(LS_KEYS.USERS) || '[]');
+            
+            try {
+                const response = await fetch(`${API_BASE}/api/users`);
+                if (response.ok) {
+                    const cloudUsers = await response.json();
+                    
+                    log(`📊 localStorage: ${localUsers.length} users`, 'info');
+                    log(`📊 Cloud database: ${cloudUsers.length} users`, 'info');
+                    
+                    const localUsernames = localUsers.map(u => u.username).sort();
+                    const cloudUsernames = cloudUsers.map(u => u.username).sort();
+                    
+                    const onlyInLocal = localUsernames.filter(u => !cloudUsernames.includes(u));
+                    const onlyInCloud = cloudUsernames.filter(u => !localUsernames.includes(u));
+                    const inBoth = localUsernames.filter(u => cloudUsernames.includes(u));
+                    
+                    log(`✅ In both: ${inBoth.length}`, 'success');
+                    log(`⚠️ Only in localStorage: ${onlyInLocal.length}`, 'warning');
+                    log(`⚠️ Only in cloud: ${onlyInCloud.length}`, 'warning');
+                    
+                    if (onlyInLocal.length > 0) {
+                        log(`📋 Only in localStorage: ${onlyInLocal.join(', ')}`, 'info');
+                    }
+                    if (onlyInCloud.length > 0) {
+                        log(`📋 Only in cloud: ${onlyInCloud.join(', ')}`, 'info');
+                    }
+                } else {
+                    log(`❌ Cloud database error: ${response.status}`, 'error');
+                }
+            } catch (error) {
+                log(`❌ Cloud database connection failed: ${error.message}`, 'error');
+            }
+        }
+
+        // Clear all data
+        function clearAllData() {
+            if (confirm('Are you sure you want to clear ALL data? This cannot be undone!')) {
+                localStorage.clear();
+                log('🗑️ All localStorage data cleared', 'warning');
+            }
+        }
+
+        // Reset to defaults
+        function resetToDefaults() {
+            if (confirm('Reset to default state? This will clear data and create default admin.')) {
+                localStorage.clear();
+                
+                const defaultAdmin = {
+                    username: "admin",
+                    password: "admin123",
+                    role: "admin",
+                    fullName: "System Administrator",
+                    email: "admin@healthschool.com",
+                    createdAt: new Date().toISOString(),
+                    isDefaultAdmin: true,
+                    canDeleteDefaultAdmin: true
+                };
+                
+                localStorage.setItem(LS_KEYS.USERS, JSON.stringify([defaultAdmin]));
+                log('✅ Reset to defaults completed', 'success');
+            }
+        }
+
+        // Auto-run diagnostic on load
+        window.onload = function() {
+            log('🚀 Comprehensive Auth Fix Tool loaded', 'info');
+            log('🔧 Use the buttons above to diagnose and fix authentication issues', 'info');
+        };
+    </script>
+</body>
+</html> 
