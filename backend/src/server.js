@@ -117,11 +117,11 @@ app.post('/api/auth/login', async (req, res, next) => {
 	} catch (err) { next(err); }
 });
 
-// Initialize admin user endpoint
+// Initialize admin user endpoint - only creates the default admin if no admin exists
 app.post('/api/init-admin', async (req, res, next) => {
 	try {
-		// Check if admin user already exists
-		const existingAdmin = await User.findOne({ username: 'admin' });
+		// Check if any admin user exists
+		const existingAdmin = await User.findOne({ role: 'admin' });
 		
 		if (existingAdmin) {
 			return res.json({ 
@@ -130,28 +130,166 @@ app.post('/api/init-admin', async (req, res, next) => {
 			});
 		}
 		
-		// Create default admin user
+		// Create default admin user only if no admin exists
 		const adminUser = new User({
 			username: 'admin',
 			password: 'admin123',
 			role: 'admin',
 			fullName: 'System Administrator',
 			email: 'admin@healthschool.com',
-			createdAt: new Date()
+			createdAt: new Date(),
+			isDefaultAdmin: true,
+			canDeleteDefaultAdmin: true
 		});
 		
 		await adminUser.save();
 		
 		res.status(201).json({
-			message: 'Admin user created successfully',
+			message: 'Default admin user created successfully',
 			exists: false,
 			user: {
 				username: adminUser.username,
 				role: adminUser.role,
 				fullName: adminUser.fullName,
-				email: adminUser.email
+				email: adminUser.email,
+				isDefaultAdmin: true
 			}
 		});
+		
+	} catch (err) { next(err); }
+});
+
+// Create new admin user (only default admin can do this)
+app.post('/api/admin/create', async (req, res, next) => {
+	try {
+		const { username, password, fullName, email, requestingAdmin } = req.body;
+		
+		if (!username || !password || !fullName || !email || !requestingAdmin) {
+			return res.status(400).json({ error: 'All fields are required' });
+		}
+		
+		// Check if requesting user is the default admin
+		const defaultAdmin = await User.findOne({ 
+			username: requestingAdmin,
+			isDefaultAdmin: true 
+		});
+		
+		if (!defaultAdmin) {
+			return res.status(403).json({ error: 'Only the default admin can create new admin users' });
+		}
+		
+		// Check if username already exists
+		const existingUser = await User.findOne({ 
+			username: { $regex: new RegExp(`^${username}$`, 'i') }
+		});
+		
+		if (existingUser) {
+			return res.status(400).json({ error: 'Username already exists' });
+		}
+		
+		// Create new admin user
+		const newAdmin = new User({
+			username,
+			password,
+			role: 'admin',
+			fullName,
+			email,
+			createdAt: new Date(),
+			isDefaultAdmin: false,
+			createdBy: requestingAdmin,
+			canDeleteDefaultAdmin: false
+		});
+		
+		await newAdmin.save();
+		
+		res.status(201).json({
+			message: 'Admin user created successfully',
+			user: {
+				username: newAdmin.username,
+				role: newAdmin.role,
+				fullName: newAdmin.fullName,
+				email: newAdmin.email,
+				isDefaultAdmin: false,
+				createdBy: newAdmin.createdBy
+			}
+		});
+		
+	} catch (err) { next(err); }
+});
+
+// Delete admin user (only default admin can delete other admins)
+app.delete('/api/admin/:username', async (req, res, next) => {
+	try {
+		const { username } = req.params;
+		const { requestingAdmin } = req.body;
+		
+		if (!requestingAdmin) {
+			return res.status(400).json({ error: 'Requesting admin username is required' });
+		}
+		
+		// Check if requesting user is the default admin
+		const defaultAdmin = await User.findOne({ 
+			username: requestingAdmin,
+			isDefaultAdmin: true 
+		});
+		
+		if (!defaultAdmin) {
+			return res.status(403).json({ error: 'Only the default admin can delete admin users' });
+		}
+		
+		// Prevent deletion of the default admin
+		if (username.toLowerCase() === 'admin') {
+			return res.status(403).json({ error: 'Cannot delete the default admin user' });
+		}
+		
+		// Find and delete the admin user
+		const adminToDelete = await User.findOne({ 
+			username: { $regex: new RegExp(`^${username}$`, 'i') },
+			role: 'admin'
+		});
+		
+		if (!adminToDelete) {
+			return res.status(404).json({ error: 'Admin user not found' });
+		}
+		
+		await User.findByIdAndDelete(adminToDelete._id);
+		
+		res.json({
+			message: 'Admin user deleted successfully',
+			deletedUser: {
+				username: adminToDelete.username,
+				fullName: adminToDelete.fullName
+			}
+		});
+		
+	} catch (err) { next(err); }
+});
+
+// Get all admin users (only default admin can see this)
+app.get('/api/admin/list', async (req, res, next) => {
+	try {
+		const { requestingAdmin } = req.query;
+		
+		if (!requestingAdmin) {
+			return res.status(400).json({ error: 'Requesting admin username is required' });
+		}
+		
+		// Check if requesting user is the default admin
+		const defaultAdmin = await User.findOne({ 
+			username: requestingAdmin,
+			isDefaultAdmin: true 
+		});
+		
+		if (!defaultAdmin) {
+			return res.status(403).json({ error: 'Only the default admin can view admin list' });
+		}
+		
+		// Get all admin users
+		const adminUsers = await User.find({ role: 'admin' })
+			.select('-password')
+			.lean();
+		
+		res.json(adminUsers);
 		
 	} catch (err) { next(err); }
 });

@@ -86,10 +86,10 @@ export const dataService = {
     const apiData = await apiCall('/api/users');
     
     if (apiData) {
-      // Check if admin exists in cloud data
-      const adminExists = apiData.some(user => user.username === 'admin');
+      // Check if any admin exists in cloud data
+      const adminExists = apiData.some(user => user.role === 'admin');
       if (!adminExists && USE_API) {
-        // Try to initialize admin user in cloud database
+        // Try to initialize default admin user in cloud database
         try {
           const response = await fetch(`${API_BASE}/api/init-admin`, {
             method: 'POST',
@@ -115,8 +115,8 @@ export const dataService = {
     const saved = getFromLS(LS_KEYS.USERS);
     let users = saved || [];
     
-    // ALWAYS ensure default admin user exists in localStorage as fallback
-    const adminExists = users.some(user => user.username === 'admin');
+    // Check if any admin exists in localStorage
+    const adminExists = users.some(user => user.role === 'admin');
     if (!adminExists) {
       const defaultAdmin = {
         username: "admin",
@@ -124,7 +124,9 @@ export const dataService = {
         role: "admin",
         fullName: "System Administrator",
         email: "admin@healthschool.com",
-        createdAt: new Date().toISOString()
+        createdAt: new Date().toISOString(),
+        isDefaultAdmin: true,
+        canDeleteDefaultAdmin: true
       };
       users.push(defaultAdmin);
       setToLS(LS_KEYS.USERS, users);
@@ -400,14 +402,16 @@ export const dataService = {
       role: "admin",
       fullName: "System Administrator",
       email: "admin@healthschool.com",
-      createdAt: new Date().toISOString()
+      createdAt: new Date().toISOString(),
+      isDefaultAdmin: true,
+      canDeleteDefaultAdmin: true
     };
     
     const saved = getFromLS(LS_KEYS.USERS);
     let users = saved || [];
     
     // Check if admin already exists
-    const adminExists = users.some(user => user.username === 'admin');
+    const adminExists = users.some(user => user.role === 'admin');
     if (!adminExists) {
       users.push(defaultAdmin);
       setToLS(LS_KEYS.USERS, users);
@@ -417,6 +421,111 @@ export const dataService = {
       console.log('👤 Admin user already exists');
       return false;
     }
+  },
+
+  // Admin management functions
+  createNewAdmin: async (adminData, requestingAdmin) => {
+    if (USE_API) {
+      try {
+        const response = await fetch(`${API_BASE}/api/admin/create`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ ...adminData, requestingAdmin })
+        });
+
+        if (response.ok) {
+          const result = await response.json();
+          console.log('✅ New admin created via API');
+          return result;
+        } else {
+          const error = await response.json();
+          throw new Error(error.error || 'Failed to create admin');
+        }
+      } catch (error) {
+        console.warn('API admin creation failed, falling back to localStorage:', error.message);
+        throw error;
+      }
+    }
+
+    // Fallback to localStorage
+    const users = await dataService.loadUsers();
+    const newAdmin = {
+      ...adminData,
+      role: 'admin',
+      createdAt: new Date().toISOString(),
+      isDefaultAdmin: false,
+      createdBy: requestingAdmin,
+      canDeleteDefaultAdmin: false
+    };
+    
+    users.push(newAdmin);
+    await dataService.saveUsers(users);
+    console.log('✅ New admin created in localStorage');
+    return { user: newAdmin };
+  },
+
+  listAdminUsers: async (requestingAdmin) => {
+    if (USE_API) {
+      try {
+        const response = await fetch(`${API_BASE}/api/admin/list?requestingAdmin=${encodeURIComponent(requestingAdmin)}`);
+        
+        if (response.ok) {
+          const admins = await response.json();
+          console.log('✅ Admin list retrieved via API');
+          return admins;
+        } else {
+          const error = await response.json();
+          throw new Error(error.error || 'Failed to get admin list');
+        }
+      } catch (error) {
+        console.warn('API admin list failed, falling back to localStorage:', error.message);
+        throw error;
+      }
+    }
+
+    // Fallback to localStorage
+    const users = await dataService.loadUsers();
+    const admins = users.filter(user => user.role === 'admin');
+    console.log('✅ Admin list retrieved from localStorage');
+    return admins;
+  },
+
+  deleteAdminUser: async (username, requestingAdmin) => {
+    if (USE_API) {
+      try {
+        const response = await fetch(`${API_BASE}/api/admin/${encodeURIComponent(username)}`, {
+          method: 'DELETE',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ requestingAdmin })
+        });
+
+        if (response.ok) {
+          const result = await response.json();
+          console.log('✅ Admin deleted via API');
+          return result;
+        } else {
+          const error = await response.json();
+          throw new Error(error.error || 'Failed to delete admin');
+        }
+      } catch (error) {
+        console.warn('API admin deletion failed, falling back to localStorage:', error.message);
+        throw error;
+      }
+    }
+
+    // Fallback to localStorage
+    const users = await dataService.loadUsers();
+    const filteredUsers = users.filter(user => 
+      !(user.username.toLowerCase() === username.toLowerCase() && user.role === 'admin')
+    );
+    
+    if (filteredUsers.length === users.length) {
+      throw new Error('Admin user not found');
+    }
+    
+    await dataService.saveUsers(filteredUsers);
+    console.log('✅ Admin deleted from localStorage');
+    return { message: 'Admin user deleted successfully' };
   }
 };
 

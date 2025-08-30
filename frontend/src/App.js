@@ -1290,6 +1290,7 @@ function AdminPanel(){
               exportResultsToExcel={exportResultsToExcel}
               exportResultsToWord={exportResultsToWord}
               dataService={dataService}
+              currentUser={user}
               onClearData={() => {
               // First confirmation
               if (!window.confirm('⚠️ WARNING: This will permanently delete ALL data!\n\nThis action will:\n• Remove all exams, questions, and results\n• Delete all student registrations\n• Clear both local and cloud databases\n• The admin user will be preserved\n\nAre you absolutely sure you want to proceed?')) {
@@ -1618,6 +1619,176 @@ function EditExamModal({ exam, onClose, onUpdate }) {
               className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-xl hover:bg-blue-700"
             >
               Update Exam
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+function CreateAdminModal({ onClose, onCreate }) {
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [fullName, setFullName] = useState("");
+  const [email, setEmail] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    
+    // Validation
+    if (!username || !password || !fullName || !email) {
+      alert("Please fill in all required fields");
+      return;
+    }
+
+    if (password !== confirmPassword) {
+      alert("Passwords do not match");
+      return;
+    }
+
+    if (password.length < 6) {
+      alert("Password must be at least 6 characters long");
+      return;
+    }
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      alert("Please enter a valid email address");
+      return;
+    }
+
+    if (username.toLowerCase() === 'admin') {
+      alert("Username 'admin' is reserved for the default administrator");
+      return;
+    }
+
+    onCreate({
+      username: username.trim(),
+      password,
+      fullName: fullName.trim(),
+      email: email.trim()
+    });
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+      <div className="bg-white rounded-xl p-6 max-w-md mx-4 w-full">
+        <div className="flex justify-between items-center mb-4">
+          <h3 className="text-lg font-bold">Create New Admin</h3>
+          <button
+            type="button"
+            onClick={onClose}
+            className="text-gray-500 hover:text-gray-700 text-xl"
+          >
+            ×
+          </button>
+        </div>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <label htmlFor="create-admin-username" className="block text-sm mb-1">Username *</label>
+            <input
+              id="create-admin-username"
+              name="username"
+              type="text"
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
+              className="w-full border rounded-xl px-3 py-2"
+              placeholder="Enter username"
+              required
+            />
+          </div>
+          
+          <div>
+            <label htmlFor="create-admin-fullname" className="block text-sm mb-1">Full Name *</label>
+            <input
+              id="create-admin-fullname"
+              name="fullName"
+              type="text"
+              value={fullName}
+              onChange={(e) => setFullName(e.target.value)}
+              className="w-full border rounded-xl px-3 py-2"
+              placeholder="Enter full name"
+              required
+            />
+          </div>
+          
+          <div>
+            <label htmlFor="create-admin-email" className="block text-sm mb-1">Email *</label>
+            <input
+              id="create-admin-email"
+              name="email"
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              className="w-full border rounded-xl px-3 py-2"
+              placeholder="Enter email address"
+              required
+            />
+          </div>
+          
+          <div>
+            <label htmlFor="create-admin-password" className="block text-sm mb-1">Password *</label>
+            <div className="relative">
+              <input
+                id="create-admin-password"
+                name="password"
+                type={showPassword ? "text" : "password"}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="w-full border rounded-xl px-3 py-2 pr-10"
+                placeholder="Enter password (min 6 characters)"
+                required
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-700"
+              >
+                {showPassword ? "🙈" : "👁️"}
+              </button>
+            </div>
+          </div>
+          
+          <div>
+            <label htmlFor="create-admin-confirm-password" className="block text-sm mb-1">Confirm Password *</label>
+            <div className="relative">
+              <input
+                id="create-admin-confirm-password"
+                name="confirmPassword"
+                type={showConfirmPassword ? "text" : "password"}
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                className="w-full border rounded-xl px-3 py-2 pr-10"
+                placeholder="Confirm password"
+                required
+              />
+              <button
+                type="button"
+                onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                className="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-700"
+              >
+                {showConfirmPassword ? "🙈" : "👁️"}
+              </button>
+            </div>
+          </div>
+          
+          <div className="flex gap-2 pt-4">
+            <button
+              type="button"
+              onClick={onClose}
+              className="flex-1 px-4 py-2 border border-gray-300 rounded-xl hover:bg-gray-50"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-xl hover:bg-blue-700"
+            >
+              Create Admin
             </button>
           </div>
         </form>
@@ -2728,7 +2899,60 @@ async function parseQuestionsFromExcel(file) {
   }
 }
 
-function AdminSettings({ exams, questions, results, exportResultsToExcel, exportResultsToWord, dataService, onClearData }) {
+function AdminSettings({ exams, questions, results, exportResultsToExcel, exportResultsToWord, dataService, onClearData, currentUser }) {
+  const [adminUsers, setAdminUsers] = useState([]);
+  const [showCreateAdmin, setShowCreateAdmin] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+
+  // Load admin users
+  useEffect(() => {
+    const loadAdminUsers = async () => {
+      if (currentUser?.isDefaultAdmin) {
+        try {
+          setIsLoading(true);
+          const admins = await dataService.listAdminUsers(currentUser.username);
+          setAdminUsers(admins);
+        } catch (error) {
+          console.error('Error loading admin users:', error);
+          setAdminUsers([]);
+        } finally {
+          setIsLoading(false);
+        }
+      }
+    };
+
+    loadAdminUsers();
+  }, [currentUser, dataService]);
+
+  const handleCreateAdmin = async (adminData) => {
+    try {
+      await dataService.createNewAdmin(adminData, currentUser.username);
+      setShowCreateAdmin(false);
+      // Reload admin list
+      const admins = await dataService.listAdminUsers(currentUser.username);
+      setAdminUsers(admins);
+      alert('✅ New admin user created successfully!');
+    } catch (error) {
+      alert(`❌ Failed to create admin: ${error.message}`);
+    }
+  };
+
+  const handleDeleteAdmin = async (username) => {
+    if (!window.confirm(`Are you sure you want to delete admin user "${username}"? This action cannot be undone.`)) {
+      return;
+    }
+
+    try {
+      await dataService.deleteAdminUser(username, currentUser.username);
+      // Reload admin list
+      const admins = await dataService.listAdminUsers(currentUser.username);
+      setAdminUsers(admins);
+      alert('✅ Admin user deleted successfully!');
+    } catch (error) {
+      alert(`❌ Failed to delete admin: ${error.message}`);
+    }
+  };
+
   return (
     <div className="space-y-6">
       {/* System Information */}
@@ -2752,33 +2976,110 @@ function AdminSettings({ exams, questions, results, exportResultsToExcel, export
       <div className="bg-white border rounded-xl p-6">
         <h3 className="text-lg font-semibold text-gray-800 mb-4">Admin User Management</h3>
         
-        <div className="space-y-4">
-          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-            <div className="flex items-start gap-3">
-              <div className="text-2xl">👤</div>
-              <div className="flex-1">
-                <h5 className="font-semibold text-yellow-800 mb-2">Create Admin User</h5>
-                <p className="text-sm text-yellow-700 mb-3">
-                  If you cannot login to the admin panel, you can create a default admin user here.
-                </p>
+        {currentUser?.isDefaultAdmin ? (
+          <div className="space-y-4">
+            {/* Current Admin Info */}
+            <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+              <div className="flex items-start gap-3">
+                <div className="text-2xl">👑</div>
+                <div className="flex-1">
+                  <h5 className="font-semibold text-green-800 mb-2">Default Administrator</h5>
+                  <p className="text-sm text-green-700 mb-2">
+                    You are the default administrator with full system privileges.
+                  </p>
+                  <p className="text-xs text-green-600">
+                    Username: {currentUser.username} | Role: {currentUser.role}
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Create New Admin */}
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+              <div className="flex items-start justify-between">
+                <div className="flex-1">
+                  <h5 className="font-semibold text-blue-800 mb-2">Create New Admin</h5>
+                  <p className="text-sm text-blue-700 mb-3">
+                    Create additional administrator accounts. Only you can create and delete admin users.
+                  </p>
+                </div>
                 <button
-                  onClick={() => {
-                    const created = dataService.createAdminUser();
-                    if (created) {
-                      alert('✅ Admin user created successfully!\n\nYou can now login with:\nUsername: admin\nPassword: admin123');
-                    } else {
-                      alert('ℹ️ Admin user already exists in the system.');
-                    }
-                  }}
-                  className="px-4 py-2 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 font-medium text-sm"
+                  onClick={() => setShowCreateAdmin(true)}
+                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium text-sm"
                 >
-                  🔧 Create Default Admin User
+                  ➕ Create New Admin
                 </button>
               </div>
             </div>
+
+            {/* Admin Users List */}
+            <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
+              <h5 className="font-semibold text-gray-800 mb-3">Admin Users ({adminUsers.length})</h5>
+              
+              {isLoading ? (
+                <div className="text-center py-4">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
+                  <p className="text-sm text-gray-600 mt-2">Loading admin users...</p>
+                </div>
+              ) : adminUsers.length === 0 ? (
+                <p className="text-sm text-gray-600">No admin users found.</p>
+              ) : (
+                <div className="space-y-2">
+                  {adminUsers.map((admin, index) => (
+                    <div key={index} className="flex items-center justify-between p-3 bg-white rounded-lg border">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2">
+                          <span className="font-medium">{admin.fullName}</span>
+                          {admin.isDefaultAdmin && (
+                            <span className="px-2 py-1 bg-yellow-100 text-yellow-800 text-xs rounded-full">Default</span>
+                          )}
+                        </div>
+                        <p className="text-sm text-gray-600">
+                          Username: {admin.username} | Email: {admin.email}
+                        </p>
+                        {admin.createdBy && (
+                          <p className="text-xs text-gray-500">Created by: {admin.createdBy}</p>
+                        )}
+                      </div>
+                      {!admin.isDefaultAdmin && (
+                        <button
+                          onClick={() => handleDeleteAdmin(admin.username)}
+                          className="px-3 py-1 bg-red-600 text-white rounded-lg text-sm hover:bg-red-700"
+                        >
+                          Delete
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
-        </div>
+        ) : (
+          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+            <div className="flex items-start gap-3">
+              <div className="text-2xl">🔒</div>
+              <div className="flex-1">
+                <h5 className="font-semibold text-yellow-800 mb-2">Limited Access</h5>
+                <p className="text-sm text-yellow-700 mb-2">
+                  You are a regular administrator. Only the default administrator can manage admin users.
+                </p>
+                <p className="text-xs text-yellow-600">
+                  Username: {currentUser?.username} | Role: {currentUser?.role}
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
+
+      {/* Create Admin Modal */}
+      {showCreateAdmin && (
+        <CreateAdminModal
+          onClose={() => setShowCreateAdmin(false)}
+          onCreate={handleCreateAdmin}
+        />
+      )}
 
       {/* Data Management */}
       <div className="bg-white border rounded-xl p-6">
