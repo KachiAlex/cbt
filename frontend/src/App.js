@@ -4,6 +4,7 @@ import { saveAs } from "file-saver";
 import { Document, Packer, Paragraph, TextRun, Table, TableRow, TableCell } from "docx";
 import mammoth from "mammoth";
 import dataService from "./services/dataService";
+import InstitutionLoginPage from "./components/InstitutionLoginPage";
 
 // -------------------------
 // Advanced In-Browser CBT System
@@ -45,6 +46,7 @@ function App() {
   const [view, setView] = useState("login");
   const [showAdminLink, setShowAdminLink] = useState(false);
   const [institutionData, setInstitutionData] = useState(null);
+  const [isInstitutionRoute, setIsInstitutionRoute] = useState(false);
 
 
 
@@ -54,11 +56,19 @@ function App() {
     const slug = urlParams.get('slug');
     
     if (slug) {
-      // Load institution data and set up institution-specific mode
-      loadInstitutionData(slug);
+      // Show dedicated institution login page
+      setIsInstitutionRoute(true);
     } else {
+      // Check if user is already logged in with institution context
       const saved = localStorage.getItem("cbt_logged_in_user");
-      if (saved) {
+      const institutionSlug = localStorage.getItem("institution_slug");
+      
+      if (saved && institutionSlug) {
+        // Load institution data for logged-in user
+        loadInstitutionData(institutionSlug);
+        setUser(JSON.parse(saved));
+        setView("home");
+      } else if (saved) {
         setUser(JSON.parse(saved));
         setView("home");
       }
@@ -162,6 +172,11 @@ function App() {
   }, [user]);
 
 
+
+  // If this is an institution route, show the dedicated institution login page
+  if (isInstitutionRoute) {
+    return <InstitutionLoginPage />;
+  }
 
   return (
     <div className="min-h-screen bg-gray-50 text-gray-800">
