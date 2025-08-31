@@ -59,7 +59,6 @@ function App() {
     
     if (slug) {
       console.log('🏫 Institution route detected:', slug);
-      alert('Institution route detected: ' + slug); // Temporary debug alert
       // Show dedicated institution login page
       setIsInstitutionRoute(true);
       return; // Exit early for institution routes
