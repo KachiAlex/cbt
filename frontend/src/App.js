@@ -265,6 +265,7 @@ async function saveExams(exams) {
   }
 }
 
+// eslint-disable-next-line no-unused-vars
 async function createExam(examData) {
   try {
     return await dataService.createExam(examData);
@@ -296,6 +297,7 @@ async function loadQuestions() {
   }
 }
 
+// eslint-disable-next-line no-unused-vars
 async function saveQuestions(questions) {
   try {
     return await dataService.saveQuestions(questions);
@@ -2889,6 +2891,7 @@ function ResultsTable({results, setResults}){
 
 
 // Save questions for a specific exam (localStorage fallback)
+// eslint-disable-next-line no-unused-vars
 function saveQuestionsForExamLocal(examId, questions) {
   localStorage.setItem(`cbt_questions_${examId}`, JSON.stringify(questions));
 }
