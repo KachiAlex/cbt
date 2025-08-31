@@ -46,7 +46,6 @@ function App() {
   const [view, setView] = useState("login");
   const [showAdminLink, setShowAdminLink] = useState(false);
   const [institutionData, setInstitutionData] = useState(null);
-  const [isInstitutionRoute, setIsInstitutionRoute] = useState(false);
 
 
 
@@ -60,7 +59,6 @@ function App() {
     if (slug) {
       console.log('🏫 Institution route detected:', slug);
       // Show dedicated institution login page
-      setIsInstitutionRoute(true);
       return; // Exit early for institution routes
     } else {
       console.log('🏠 Regular route detected');
