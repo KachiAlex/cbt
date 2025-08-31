@@ -55,10 +55,15 @@ function App() {
     const urlParams = new URLSearchParams(window.location.search);
     const slug = urlParams.get('slug');
     
+    console.log('🔍 Checking URL parameters:', { slug, search: window.location.search });
+    
     if (slug) {
+      console.log('🏫 Institution route detected:', slug);
       // Show dedicated institution login page
       setIsInstitutionRoute(true);
+      return; // Exit early for institution routes
     } else {
+      console.log('🏠 Regular route detected');
       // Check if user is already logged in with institution context
       const saved = localStorage.getItem("cbt_logged_in_user");
       const institutionSlug = localStorage.getItem("institution_slug");
@@ -174,7 +179,10 @@ function App() {
 
 
   // If this is an institution route, show the dedicated institution login page
+  console.log('🎯 Rendering decision:', { isInstitutionRoute, user: !!user, view });
+  
   if (isInstitutionRoute) {
+    console.log('🏫 Rendering InstitutionLoginPage');
     return <InstitutionLoginPage />;
   }
 
