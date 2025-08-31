@@ -4,6 +4,7 @@ import { saveAs } from "file-saver";
 import { Document, Packer, Paragraph, TextRun, Table, TableRow, TableCell } from "docx";
 import mammoth from "mammoth";
 import dataService from "./services/dataService";
+import InstitutionLoginPage from "./components/InstitutionLoginPage";
 
 // -------------------------
 // Advanced In-Browser CBT System
@@ -44,14 +45,26 @@ function App() {
   const [user, setUser] = useState(null);
   const [view, setView] = useState("login");
   const [showAdminLink, setShowAdminLink] = useState(false);
+  const [isInstitutionRoute, setIsInstitutionRoute] = useState(false);
+  // eslint-disable-next-line no-unused-vars
+  const [institutionSlug, setInstitutionSlug] = useState(null);
 
 
 
   useEffect(() => {
-    const saved = localStorage.getItem("cbt_logged_in_user");
-    if (saved) {
-      setUser(JSON.parse(saved));
-      setView("home");
+    // Check if this is an institution-specific route
+    const urlParams = new URLSearchParams(window.location.search);
+    const slug = urlParams.get('slug');
+    
+    if (slug) {
+      setIsInstitutionRoute(true);
+      setInstitutionSlug(slug);
+    } else {
+      const saved = localStorage.getItem("cbt_logged_in_user");
+      if (saved) {
+        setUser(JSON.parse(saved));
+        setView("home");
+      }
     }
     
     // Ensure admin user exists in localStorage
@@ -129,6 +142,11 @@ function App() {
     document.addEventListener('keydown', handleKeyPress);
     return () => document.removeEventListener('keydown', handleKeyPress);
   }, [user]);
+
+  // If this is an institution route, render the institution login page
+  if (isInstitutionRoute) {
+    return <InstitutionLoginPage />;
+  }
 
   return (
     <div className="min-h-screen bg-gray-50 text-gray-800">
