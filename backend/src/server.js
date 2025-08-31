@@ -466,12 +466,15 @@ app.get('/api/v1/test', async (req, res) => {
 // Simple tenant creation endpoint (temporary workaround)
 app.post('/api/v1/managed-admin/tenants', async (req, res) => {
     try {
-        const { name, slug, address, contact_phone, plan, timezone, default_admin } = req.body;
+        const { name, address, contact_phone, plan, timezone, default_admin } = req.body;
         
-        // Validate required fields
-        if (!name || !slug || !default_admin) {
-            return res.status(400).json({ error: 'Missing required fields' });
+        // Validate required fields - removed slug requirement
+        if (!name || !default_admin) {
+            return res.status(400).json({ error: 'Missing required fields: name and default_admin' });
         }
+        
+        // Generate slug from name if not provided
+        const slug = name.toLowerCase().replace(/[^a-z0-9]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '');
         
         // For now, just return success without creating in database
         res.status(201).json({
@@ -481,7 +484,7 @@ app.post('/api/v1/managed-admin/tenants', async (req, res) => {
                 name: name,
                 slug: slug,
                 contact_email: default_admin.email,
-                plan: plan,
+                plan: plan || 'basic',
                 created_at: new Date().toISOString()
             },
             default_admin: {
