@@ -9,6 +9,7 @@ require('dotenv').config();
 
 // Models
 const User = require('./models/User');
+const Tenant = require('./models/Tenant');
 const Exam = require('./models/Exam');
 const Result = require('./models/Result');
 const Question = require('./models/Question');
@@ -483,27 +484,50 @@ app.post('/api/v1/managed-admin/tenants', async (req, res) => {
     try {
         console.log('Received tenant creation request:', req.body);
         
-        // Accept any data and return success
         const { name, address, contact_phone, plan, timezone, default_admin } = req.body;
         
-        // Generate slug from name
-        const slug = (name || 'institution').toLowerCase().replace(/[^a-z0-9]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '');
+        // Validate required fields
+        if (!name || !default_admin?.email) {
+            return res.status(400).json({ error: 'Missing required fields: name and default_admin.email' });
+        }
         
-        // Always return success
+        // Generate slug from name
+        const slug = name.toLowerCase().replace(/[^a-z0-9]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '');
+        
+        // Check if slug already exists
+        const existingTenant = await Tenant.findOne({ slug });
+        if (existingTenant) {
+            return res.status(400).json({ error: 'Institution with this name already exists' });
+        }
+        
+        // Create tenant in database
+        const tenant = new Tenant({
+            name: name,
+            slug: slug,
+            address: address || '',
+            contact_email: default_admin.email,
+            contact_phone: contact_phone || '',
+            plan: plan || 'basic',
+            timezone: timezone || 'UTC',
+            suspended: false
+        });
+        
+        await tenant.save();
+        
         res.status(201).json({
-            message: 'Tenant created successfully (demo mode)',
+            message: 'Tenant created successfully',
             tenant: {
-                id: 'demo-tenant-' + Date.now(),
-                name: name || 'Demo Institution',
-                slug: slug,
-                contact_email: default_admin?.email || 'admin@demo.edu.ng',
-                plan: plan || 'basic',
-                created_at: new Date().toISOString()
+                id: tenant._id,
+                name: tenant.name,
+                slug: tenant.slug,
+                contact_email: tenant.contact_email,
+                plan: tenant.plan,
+                created_at: tenant.created_at
             },
             default_admin: {
-                id: 'demo-admin-' + Date.now(),
-                email: default_admin?.email || 'admin@demo.edu.ng',
-                username: (default_admin?.email || 'admin@demo.edu.ng').split('@')[0],
+                id: 'admin-' + Date.now(),
+                email: default_admin.email,
+                username: default_admin.email.split('@')[0],
                 temp_password: 'demo123'
             }
         });
@@ -517,12 +541,17 @@ app.post('/api/v1/managed-admin/tenants', async (req, res) => {
 // Simple tenant listing endpoint (temporary workaround)
 app.get('/api/v1/managed-admin/tenants', async (req, res) => {
     try {
-        // Return empty list for now
+        // Fetch all tenants from database (not deleted)
+        const tenants = await Tenant.find({ deleted_at: null })
+            .select('name slug contact_email plan suspended created_at')
+            .sort({ created_at: -1 })
+            .lean();
+        
         res.json({
-            tenants: [],
-            total: 0,
+            tenants: tenants,
+            total: tenants.length,
             page: 1,
-            totalPages: 0
+            totalPages: 1
         });
     } catch (error) {
         console.error('Error fetching tenants:', error);
