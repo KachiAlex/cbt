@@ -56,10 +56,10 @@ app.get('/health', (req, res) => {
 app.get('/api', (req, res) => {
 	res.json({ 
 		message: 'CBT Backend API is running',
-		version: '2.0.1',
+		version: '2.0.3-FINAL',
 		database: process.env.DB_TYPE || 'mongodb',
 		multi_tenant: true,
-		deployment: 'force-update-' + Date.now(),
+		deployment: 'final-version-' + Date.now(),
 		endpoints: {
 			health: '/health',
 			landing_page: '/',
@@ -480,7 +480,7 @@ app.post('/api/v1/test-tenant', async (req, res) => {
     }
 });
 
-// Real tenant creation endpoint (NEW VERSION)
+// FINAL REAL DATABASE TENANT CREATION ENDPOINT
 app.post('/api/v1/managed-admin/tenants', async (req, res) => {
     try {
         console.log('Received tenant creation request:', req.body);
@@ -516,7 +516,7 @@ app.post('/api/v1/managed-admin/tenants', async (req, res) => {
         await tenant.save();
         
         res.status(201).json({
-            message: 'Tenant created successfully (NEW VERSION - REAL DATABASE)',
+            message: '✅ TENANT SAVED TO REAL DATABASE - DEPLOYMENT WORKING',
             tenant: {
                 id: tenant._id,
                 name: tenant.name,
