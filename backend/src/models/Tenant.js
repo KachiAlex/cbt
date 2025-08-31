@@ -64,6 +64,34 @@ const tenantSchema = new mongoose.Schema({
     default: null
   },
   
+  // Default Admin Information
+  default_admin: {
+    username: {
+      type: String,
+      required: true,
+      trim: true
+    },
+    email: {
+      type: String,
+      required: true,
+      trim: true,
+      lowercase: true
+    },
+    fullName: {
+      type: String,
+      required: true,
+      trim: true
+    },
+    phone: {
+      type: String,
+      trim: true
+    },
+    password: {
+      type: String,
+      required: true
+    }
+  },
+  
   // Metadata
   metadata: {
     type: mongoose.Schema.Types.Mixed,

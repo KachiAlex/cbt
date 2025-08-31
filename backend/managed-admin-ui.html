@@ -449,25 +449,29 @@
                     </div>
                 </div>
 
-                <h3>Admin Account Details</h3>
-                <div class="form-grid">
-                    <div class="form-group">
-                        <label for="adminName">Admin Full Name *</label>
-                        <input type="text" id="adminName" placeholder="e.g., John Doe">
-                    </div>
-                    <div class="form-group">
-                        <label for="adminEmail">Admin Email *</label>
-                        <input type="email" id="adminEmail" placeholder="admin@institution.edu.ng">
-                    </div>
-                    <div class="form-group">
-                        <label for="adminPhone">Admin Phone</label>
-                        <input type="text" id="adminPhone" placeholder="+2348012345678">
-                    </div>
-                    <div class="form-group">
-                        <label for="adminPassword">Admin Password *</label>
-                        <input type="password" id="adminPassword" placeholder="Enter secure password">
-                    </div>
-                </div>
+                                 <h3>Admin Account Details</h3>
+                 <div class="form-grid">
+                     <div class="form-group">
+                         <label for="adminName">Admin Full Name *</label>
+                         <input type="text" id="adminName" placeholder="e.g., John Doe">
+                     </div>
+                     <div class="form-group">
+                         <label for="adminEmail">Admin Email *</label>
+                         <input type="email" id="adminEmail" placeholder="admin@institution.edu.ng" onchange="generateUsername()">
+                     </div>
+                     <div class="form-group">
+                         <label for="adminUsername">Admin Username *</label>
+                         <input type="text" id="adminUsername" placeholder="Will be auto-generated from email">
+                     </div>
+                     <div class="form-group">
+                         <label for="adminPhone">Admin Phone</label>
+                         <input type="text" id="adminPhone" placeholder="+2348012345678">
+                     </div>
+                     <div class="form-group">
+                         <label for="adminPassword">Admin Password *</label>
+                         <input type="password" id="adminPassword" placeholder="Enter secure password">
+                     </div>
+                 </div>
 
                 <button class="btn btn-success" onclick="createTenant()">Create Institution Account</button>
                 <div id="createResult" class="response"></div>
@@ -622,35 +626,45 @@
             loadTenants();
         }
 
-        function showConfig() {
-            document.getElementById('mainDashboard').style.display = 'none';
-            document.getElementById('createAccountSection').classList.remove('active');
-            document.getElementById('manageAccountsSection').classList.remove('active');
-            document.getElementById('configSection').classList.add('active');
-        }
+                 function showConfig() {
+             document.getElementById('mainDashboard').style.display = 'none';
+             document.getElementById('createAccountSection').classList.remove('active');
+             document.getElementById('manageAccountsSection').classList.remove('active');
+             document.getElementById('configSection').classList.add('active');
+         }
+
+         function generateUsername() {
+             const email = document.getElementById('adminEmail').value;
+             if (email) {
+                 const username = email.split('@')[0];
+                 document.getElementById('adminUsername').value = username;
+             }
+         }
 
         async function createTenant() {
             try {
-                const tenantData = {
-                    name: document.getElementById('institutionName').value,
-                    address: document.getElementById('institutionAddress').value,
-                    contact_phone: document.getElementById('institutionPhone').value,
-                    plan: document.getElementById('subscriptionPlan').value,
-                    timezone: document.getElementById('timezone').value,
-                    default_admin: {
-                        email: document.getElementById('adminEmail').value,
-                        fullName: document.getElementById('adminName').value,
-                        phone: document.getElementById('adminPhone').value,
-                        password: document.getElementById('adminPassword').value
-                    }
-                };
+                                 const tenantData = {
+                     name: document.getElementById('institutionName').value,
+                     address: document.getElementById('institutionAddress').value,
+                     contact_phone: document.getElementById('institutionPhone').value,
+                     plan: document.getElementById('subscriptionPlan').value,
+                     timezone: document.getElementById('timezone').value,
+                     default_admin: {
+                         email: document.getElementById('adminEmail').value,
+                         username: document.getElementById('adminUsername').value,
+                         fullName: document.getElementById('adminName').value,
+                         phone: document.getElementById('adminPhone').value,
+                         password: document.getElementById('adminPassword').value
+                     }
+                 };
 
-                // Validate required fields - removed slug requirement
-                if (!tenantData.name || !tenantData.default_admin.email || 
-                    !tenantData.default_admin.fullName || !tenantData.default_admin.password) {
-                    showAlert('❌ Please fill in all required fields', 'error');
-                    return;
-                }
+                                 // Validate required fields - removed slug requirement
+                 if (!tenantData.name || !tenantData.default_admin.email || 
+                     !tenantData.default_admin.username || !tenantData.default_admin.fullName || 
+                     !tenantData.default_admin.password) {
+                     showAlert('❌ Please fill in all required fields', 'error');
+                     return;
+                 }
 
                 const data = await makeRequest(getApiUrl('/api/v1/managed-admin/tenants'), {
                     method: 'POST',
@@ -660,14 +674,21 @@
                 showAlert('✅ Institution account created successfully!', 'success');
                 showResponse('createResult', data);
                 
-                // Clear form
-                document.getElementById('institutionName').value = '';
-                document.getElementById('institutionAddress').value = '';
-                document.getElementById('institutionPhone').value = '';
-                document.getElementById('adminName').value = '';
-                document.getElementById('adminEmail').value = '';
-                document.getElementById('adminPhone').value = '';
-                document.getElementById('adminPassword').value = '';
+                                 // Clear form
+                 document.getElementById('institutionName').value = '';
+                 document.getElementById('institutionAddress').value = '';
+                 document.getElementById('institutionPhone').value = '';
+                 document.getElementById('adminName').value = '';
+                 document.getElementById('adminEmail').value = '';
+                 document.getElementById('adminUsername').value = '';
+                 document.getElementById('adminPhone').value = '';
+                 document.getElementById('adminPassword').value = '';
+                
+                // Switch to Manage Accounts tab and refresh the list
+                setTimeout(() => {
+                    showManageAccounts();
+                    loadTenants();
+                }, 1000);
                 
             } catch (error) {
                 showAlert(`❌ Failed to create institution: ${error.message}`, 'error');
@@ -690,13 +711,14 @@
                                     ${tenant.suspended ? 'Suspended' : 'Active'}
                                 </div>
                             </div>
-                            <div class="tenant-info">
-                                <p><strong>Slug:</strong> ${tenant.slug}</p>
-                                <p><strong>Contact:</strong> ${tenant.contact_email}</p>
-                                <p><strong>Plan:</strong> ${tenant.plan}</p>
-                                <p><strong>Created:</strong> ${new Date(tenant.created_at).toLocaleDateString()}</p>
-                                <p><strong>Admin:</strong> ${tenant.default_admin?.email || 'N/A'}</p>
-                            </div>
+                                                         <div class="tenant-info">
+                                 <p><strong>Slug:</strong> ${tenant.slug}</p>
+                                 <p><strong>Contact:</strong> ${tenant.contact_email}</p>
+                                 <p><strong>Plan:</strong> ${tenant.plan}</p>
+                                 <p><strong>Created:</strong> ${new Date(tenant.created_at).toLocaleDateString()}</p>
+                                 <p><strong>Admin Email:</strong> ${tenant.default_admin?.email || 'N/A'}</p>
+                                 <p><strong>Admin Username:</strong> ${tenant.default_admin?.username || 'N/A'}</p>
+                             </div>
                             <div class="tenant-actions">
                                 <button class="btn btn-small" onclick="viewTenantDetails('${tenant._id}')">View Details</button>
                                 <button class="btn btn-small btn-warning" onclick="resetAdminPassword('${tenant._id}')">Reset Password</button>
