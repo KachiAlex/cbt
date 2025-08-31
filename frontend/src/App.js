@@ -4,7 +4,6 @@ import { saveAs } from "file-saver";
 import { Document, Packer, Paragraph, TextRun, Table, TableRow, TableCell } from "docx";
 import mammoth from "mammoth";
 import dataService from "./services/dataService";
-import InstitutionLoginPage from "./components/InstitutionLoginPage";
 
 // -------------------------
 // Advanced In-Browser CBT System
@@ -45,10 +44,7 @@ function App() {
   const [user, setUser] = useState(null);
   const [view, setView] = useState("login");
   const [showAdminLink, setShowAdminLink] = useState(false);
-  const [isInstitutionRoute, setIsInstitutionRoute] = useState(false);
-  const [institutionSlug, setInstitutionSlug] = useState(null);
   const [institutionData, setInstitutionData] = useState(null);
-  const [error, setError] = useState('');
 
 
 
@@ -125,8 +121,6 @@ function App() {
       
       const data = await response.json();
       setInstitutionData(data);
-      setInstitutionSlug(slug);
-      setIsInstitutionRoute(true);
       
       // Store institution data in localStorage for use throughout the app
       localStorage.setItem('institution_data', JSON.stringify(data));
@@ -135,7 +129,7 @@ function App() {
     } catch (error) {
       console.error('Failed to load institution data:', error);
       // If institution not found, show error or redirect
-      setError('Institution not found or suspended');
+      console.error('Institution not found or suspended');
     }
   };
 
