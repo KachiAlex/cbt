@@ -3316,7 +3316,7 @@ function AdminSettings({ exams, questions, results, exportResultsToExcel, export
                           )}
                         </div>
                         <p className="text-sm text-gray-600">
-                          Username: {admin.username} | Email: {admin.email}
+                          Username: {admin.username}
                         </p>
                         {admin.createdBy && (
                           <p className="text-xs text-gray-500">Created by: {admin.createdBy}</p>

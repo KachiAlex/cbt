@@ -289,8 +289,25 @@ export const dataService = {
     console.log('📋 Loading questions for exam:', examId);
     try {
       const allQuestions = await dataService.loadQuestions();
+      console.log('📋 All questions loaded:', allQuestions.length);
+      console.log('📋 Sample questions:', allQuestions.slice(0, 2).map(q => ({ id: q.id, examId: q.examId, text: q.text?.substring(0, 50) })));
+      
       const examQuestions = allQuestions.filter(q => q.examId === examId);
       console.log(`📋 Found ${examQuestions.length} questions for exam ${examId}`);
+      
+      // If no questions found, try to find questions without examId (fallback for old data)
+      if (examQuestions.length === 0) {
+        console.log('⚠️ No questions found with examId, checking for questions without examId...');
+        const questionsWithoutExamId = allQuestions.filter(q => !q.examId);
+        console.log(`📋 Found ${questionsWithoutExamId.length} questions without examId`);
+        
+        // If there are questions without examId, assume they belong to this exam
+        if (questionsWithoutExamId.length > 0) {
+          console.log('📋 Using questions without examId as fallback');
+          return questionsWithoutExamId;
+        }
+      }
+      
       return examQuestions;
     } catch (error) {
       console.error('❌ Error loading questions for exam:', error);
@@ -303,9 +320,11 @@ export const dataService = {
     try {
       // Load all questions first
       const allQuestions = await dataService.loadQuestions();
+      console.log('💾 Current total questions:', allQuestions.length);
       
       // Remove existing questions for this exam
       const otherQuestions = allQuestions.filter(q => q.examId !== examId);
+      console.log('💾 Questions not for this exam:', otherQuestions.length);
       
       // Add examId to each question
       const examQuestionsWithId = questions.map(q => ({
@@ -314,8 +333,13 @@ export const dataService = {
         id: q.id || crypto.randomUUID?.() || Date.now().toString()
       }));
       
+      console.log('💾 Questions with examId added:', examQuestionsWithId.length);
+      console.log('💾 Sample question with examId:', examQuestionsWithId[0]);
+      
       // Combine and save
       const updatedQuestions = [...otherQuestions, ...examQuestionsWithId];
+      console.log('💾 Total questions after combining:', updatedQuestions.length);
+      
       const result = await dataService.saveQuestions(updatedQuestions);
       
       console.log('💾 Questions saved for exam:', examId, 'Result:', result);
