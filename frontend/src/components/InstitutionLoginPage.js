@@ -13,6 +13,8 @@ const InstitutionLoginPage = () => {
   const [studentCredentials, setStudentCredentials] = useState({ studentId: '', password: '' });
 
   useEffect(() => {
+    // Add immediate debug alert
+    alert('InstitutionLoginPage component loaded!');
     loadInstitutionData();
   }, []);
 

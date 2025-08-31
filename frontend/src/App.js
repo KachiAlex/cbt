@@ -179,15 +179,12 @@ function App() {
 
 
 
-  // If this is an institution route, show the dedicated institution login page
-  console.log('🎯 Rendering decision:', { isInstitutionRoute, user: !!user, view });
-  
-  // Double-check URL for institution route (fallback)
+  // Simple direct check for institution route
   const urlParams = new URLSearchParams(window.location.search);
   const slug = urlParams.get('slug');
   
-  if (isInstitutionRoute || slug) {
-    console.log('🏫 Rendering InstitutionLoginPage (slug detected:', slug, ')');
+  if (slug) {
+    console.log('🏫 Direct slug detection:', slug);
     return <InstitutionLoginPage />;
   }
 
