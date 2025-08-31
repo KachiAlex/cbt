@@ -46,8 +46,9 @@ function App() {
   const [view, setView] = useState("login");
   const [showAdminLink, setShowAdminLink] = useState(false);
   const [isInstitutionRoute, setIsInstitutionRoute] = useState(false);
-  // eslint-disable-next-line no-unused-vars
   const [institutionSlug, setInstitutionSlug] = useState(null);
+  const [institutionData, setInstitutionData] = useState(null);
+  const [error, setError] = useState('');
 
 
 
@@ -57,8 +58,8 @@ function App() {
     const slug = urlParams.get('slug');
     
     if (slug) {
-      setIsInstitutionRoute(true);
-      setInstitutionSlug(slug);
+      // Load institution data and set up institution-specific mode
+      loadInstitutionData(slug);
     } else {
       const saved = localStorage.getItem("cbt_logged_in_user");
       if (saved) {
@@ -113,7 +114,30 @@ function App() {
     checkConnection();
   }, []);
 
-
+  // Load institution data for institution-specific routes
+  const loadInstitutionData = async (slug) => {
+    try {
+      const response = await fetch(`https://cbt-rew7.onrender.com/api/tenant/${slug}/profile`);
+      
+      if (!response.ok) {
+        throw new Error('Institution not found or suspended');
+      }
+      
+      const data = await response.json();
+      setInstitutionData(data);
+      setInstitutionSlug(slug);
+      setIsInstitutionRoute(true);
+      
+      // Store institution data in localStorage for use throughout the app
+      localStorage.setItem('institution_data', JSON.stringify(data));
+      localStorage.setItem('institution_slug', slug);
+      
+    } catch (error) {
+      console.error('Failed to load institution data:', error);
+      // If institution not found, show error or redirect
+      setError('Institution not found or suspended');
+    }
+  };
 
   const onLogout = () => {
     setUser(null);
@@ -143,14 +167,11 @@ function App() {
     return () => document.removeEventListener('keydown', handleKeyPress);
   }, [user]);
 
-  // If this is an institution route, render the institution login page
-  if (isInstitutionRoute) {
-    return <InstitutionLoginPage />;
-  }
+
 
   return (
     <div className="min-h-screen bg-gray-50 text-gray-800">
-      <Header user={user} onLogout={onLogout} onLogoClick={handleLogoClick} />
+      <Header user={user} onLogout={onLogout} onLogoClick={handleLogoClick} institutionData={institutionData} />
       <main className="max-w-5xl mx-auto w-full px-3 sm:px-8 py-4 sm:py-8">
         {user ? (
           user.role === "admin" ? (
@@ -161,7 +182,10 @@ function App() {
         ) : (
           <>
             {view !== "admin-login" && (
-              <Login onLogin={(u)=>{setUser(u); localStorage.setItem("cbt_logged_in_user", JSON.stringify(u)); setView("home");}} />
+              <Login 
+                onLogin={(u)=>{setUser(u); localStorage.setItem("cbt_logged_in_user", JSON.stringify(u)); setView("home");}}
+                institutionData={institutionData}
+              />
             )}
             {showAdminLink && (
               <div className="mt-8 p-4 bg-red-50 border border-red-200 rounded-lg">
@@ -180,13 +204,14 @@ function App() {
               <AdminLogin 
                 onLogin={(u)=>{setUser(u); localStorage.setItem("cbt_logged_in_user", JSON.stringify(u)); setView("home");}}
                 onBack={() => setView("login")}
+                institutionData={institutionData}
               />
             )}
           </>
         )}
       </main>
       <footer className="text-center text-xs text-gray-500 py-6">
-        © {new Date().getFullYear()} College of Nursing, Eku, Delta State
+        © {new Date().getFullYear()} {institutionData ? institutionData.name : 'College of Nursing, Eku, Delta State'}
         {!user && (
           <div className="mt-1 text-gray-400">
             <span className="opacity-30 hover:opacity-100 transition-opacity cursor-help" title="Admin Access: Click logo or press Ctrl+Alt+A">

@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import dataService from '../services/dataService';
 
-const Login = ({ onLogin }) => {
+const Login = ({ onLogin, institutionData }) => {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
@@ -15,22 +15,54 @@ const Login = ({ onLogin }) => {
     try {
       console.log('🔐 Attempting student login...');
       
-      // Load users from dataService
-      const users = await dataService.loadUsers();
-      
-      // Find student user
-      const user = users.find(u => 
-        u.username.toLowerCase() === username.toLowerCase() && 
-        u.password === password &&
-        u.role === 'student'
-      );
+      // If we're in institution mode, use the multi-tenant API
+      if (institutionData) {
+        const institutionSlug = localStorage.getItem('institution_slug');
+        
+        const response = await fetch('https://cbt-rew7.onrender.com/api/auth/login', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            username: username,
+            password: password,
+            tenant_slug: institutionSlug,
+            user_type: 'student'
+          })
+        });
 
-      if (user) {
-        console.log('✅ Student login successful:', user.username);
-        onLogin(user);
+        const data = await response.json();
+
+        if (data.success) {
+          console.log('✅ Institution student login successful:', data.user.username);
+          // Store institution data with the user
+          const userWithInstitution = {
+            ...data.user,
+            institution: institutionData
+          };
+          onLogin(userWithInstitution);
+        } else {
+          console.log('❌ Institution student login failed:', data.message);
+          setError(data.message || 'Invalid username or password. Please try again.');
+        }
       } else {
-        console.log('❌ Student login failed: Invalid credentials');
-        setError('Invalid username or password. Please try again.');
+        // Regular local authentication
+        const users = await dataService.loadUsers();
+        
+        const user = users.find(u => 
+          u.username.toLowerCase() === username.toLowerCase() && 
+          u.password === password &&
+          u.role === 'student'
+        );
+
+        if (user) {
+          console.log('✅ Student login successful:', user.username);
+          onLogin(user);
+        } else {
+          console.log('❌ Student login failed: Invalid credentials');
+          setError('Invalid username or password. Please try again.');
+        }
       }
     } catch (error) {
       console.error('❌ Login error:', error);
@@ -43,8 +75,25 @@ const Login = ({ onLogin }) => {
   return (
     <div className="max-w-md mx-auto bg-white rounded-lg shadow-md p-6">
       <div className="text-center mb-6">
-        <h2 className="text-2xl font-bold text-gray-800">Student Login</h2>
-        <p className="text-gray-600 mt-2">Enter your credentials to access the CBT system</p>
+        {institutionData && (
+          <>
+            {institutionData.logo_url && (
+              <img 
+                src={institutionData.logo_url} 
+                alt={`${institutionData.name} Logo`}
+                className="mx-auto h-16 w-auto mb-4"
+              />
+            )}
+            <h2 className="text-2xl font-bold text-gray-800">{institutionData.name}</h2>
+            <p className="text-gray-600 mt-2">Student Login - Computer-Based Test System</p>
+          </>
+        )}
+        {!institutionData && (
+          <>
+            <h2 className="text-2xl font-bold text-gray-800">Student Login</h2>
+            <p className="text-gray-600 mt-2">Enter your credentials to access the CBT system</p>
+          </>
+        )}
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-4">

@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import dataService from '../services/dataService';
 
-const AdminLogin = ({ onLogin, onBack }) => {
+const AdminLogin = ({ onLogin, onBack, institutionData }) => {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
@@ -15,22 +15,55 @@ const AdminLogin = ({ onLogin, onBack }) => {
     try {
       console.log('🔐 Attempting admin login...');
       
-      // Use localStorage authentication
-      console.log('💾 Using localStorage authentication...');
-      const users = await dataService.loadUsers();
-      
-      const user = users.find(u => 
-        u.username.toLowerCase() === username.toLowerCase() && 
-        u.password === password &&
-        u.role === 'admin'
-      );
+      // If we're in institution mode, use the multi-tenant API
+      if (institutionData) {
+        const institutionSlug = localStorage.getItem('institution_slug');
+        
+        const response = await fetch('https://cbt-rew7.onrender.com/api/auth/login', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            username: username,
+            password: password,
+            tenant_slug: institutionSlug,
+            user_type: 'admin'
+          })
+        });
 
-      if (user) {
-        console.log('✅ Admin login successful:', user.username);
-        onLogin(user);
+        const data = await response.json();
+
+        if (data.success) {
+          console.log('✅ Institution admin login successful:', data.user.username);
+          // Store institution data with the user
+          const userWithInstitution = {
+            ...data.user,
+            institution: institutionData
+          };
+          onLogin(userWithInstitution);
+        } else {
+          console.log('❌ Institution admin login failed:', data.message);
+          setError(data.message || 'Invalid admin credentials. Please try again.');
+        }
       } else {
-        console.log('❌ Admin login failed: Invalid credentials');
-        setError('Invalid admin credentials. Please try again.');
+        // Regular local authentication
+        console.log('💾 Using localStorage authentication...');
+        const users = await dataService.loadUsers();
+        
+        const user = users.find(u => 
+          u.username.toLowerCase() === username.toLowerCase() && 
+          u.password === password &&
+          u.role === 'admin'
+        );
+
+        if (user) {
+          console.log('✅ Admin login successful:', user.username);
+          onLogin(user);
+        } else {
+          console.log('❌ Admin login failed: Invalid credentials');
+          setError('Invalid admin credentials. Please try again.');
+        }
       }
     } catch (error) {
       console.error('❌ Admin login error:', error);
@@ -43,8 +76,25 @@ const AdminLogin = ({ onLogin, onBack }) => {
   return (
     <div className="max-w-md mx-auto bg-white rounded-lg shadow-md p-6">
       <div className="text-center mb-6">
-        <h2 className="text-2xl font-bold text-gray-800">Admin Login</h2>
-        <p className="text-gray-600 mt-2">Administrator access only</p>
+        {institutionData && (
+          <>
+            {institutionData.logo_url && (
+              <img 
+                src={institutionData.logo_url} 
+                alt={`${institutionData.name} Logo`}
+                className="mx-auto h-16 w-auto mb-4"
+              />
+            )}
+            <h2 className="text-2xl font-bold text-gray-800">{institutionData.name}</h2>
+            <p className="text-gray-600 mt-2">Admin Login - Administrator Access</p>
+          </>
+        )}
+        {!institutionData && (
+          <>
+            <h2 className="text-2xl font-bold text-gray-800">Admin Login</h2>
+            <p className="text-gray-600 mt-2">Administrator access only</p>
+          </>
+        )}
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-4">
