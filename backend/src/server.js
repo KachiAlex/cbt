@@ -56,9 +56,10 @@ app.get('/health', (req, res) => {
 app.get('/api', (req, res) => {
 	res.json({ 
 		message: 'CBT Backend API is running',
-		version: '2.0.0',
+		version: '2.0.1',
 		database: process.env.DB_TYPE || 'mongodb',
 		multi_tenant: true,
+		deployment: 'force-update-' + Date.now(),
 		endpoints: {
 			health: '/health',
 			landing_page: '/',
