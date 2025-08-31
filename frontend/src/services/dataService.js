@@ -1,7 +1,7 @@
 
 
-// Configuration - Cloud Database Disabled (using localStorage only for now)
-const USE_API = false; // Disabled due to cloud API issues
+// Configuration - Cloud Database Enabled
+const USE_API = true; // Enable cloud API for centralized data
 const API_BASE = process.env.REACT_APP_API_URL || 'https://cbt-rew7.onrender.com';
 
 // LocalStorage keys
