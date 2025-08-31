@@ -352,16 +352,22 @@ export const dataService = {
 
   // Results management
   loadResults: async () => {
+    console.log('📊 dataService: Loading results...');
     initializeLocalStorage(); // Ensure data exists
     const apiData = await apiCall('/api/results');
-    if (apiData) return apiData;
+    if (apiData) {
+      console.log('📊 dataService: Loaded results from API:', apiData.length);
+      return apiData;
+    }
 
     // Fallback to localStorage
     const saved = getFromLS(LS_KEYS.RESULTS);
+    console.log('📊 dataService: Loaded results from localStorage:', saved?.length || 0);
     return saved || [];
   },
 
   saveResults: async (results) => {
+    console.log('💾 dataService: Saving results:', results?.length || 0);
     // Try API first, fallback to localStorage
     if (USE_API) {
       try {
@@ -378,7 +384,9 @@ export const dataService = {
         console.warn('Failed to save results to API, using localStorage:', error.message);
       }
     }
-    return setToLS(LS_KEYS.RESULTS, results);
+    const result = setToLS(LS_KEYS.RESULTS, results);
+    console.log('💾 dataService: Results saved to localStorage:', result);
+    return result;
   },
 
   // Student registrations

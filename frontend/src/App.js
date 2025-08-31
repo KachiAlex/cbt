@@ -327,7 +327,12 @@ async function saveQuestionsForExam(examId, questions) {
 // Results management functions
 async function loadResults() {
   try {
+    console.log('📊 Loading results...');
     const data = await dataService.loadResults();
+    console.log('📊 Results loaded:', data?.length || 0, 'results');
+    if (data && data.length > 0) {
+      console.log('📊 Sample result:', data[0]);
+    }
     return Array.isArray(data) ? data : [];
   } catch (error) {
     console.error('Error loading results:', error);
@@ -337,7 +342,13 @@ async function loadResults() {
 
 async function saveResults(results) {
   try {
-    return await dataService.saveResults(results);
+    console.log('💾 Saving results:', results?.length || 0, 'results');
+    if (results && results.length > 0) {
+      console.log('💾 Sample result being saved:', results[results.length - 1]);
+    }
+    const result = await dataService.saveResults(results);
+    console.log('💾 Save result:', result);
+    return result;
   } catch (error) {
     console.error('Error saving results:', error);
     return false;
@@ -901,6 +912,23 @@ function AdminPanel({ user }){
     };
     loadData();
   }, []);
+
+  // Reload results when switching to results tab
+  useEffect(() => {
+    if (activeTab === "results") {
+      const reloadResults = async () => {
+        try {
+          console.log('🔄 Reloading results for admin panel...');
+          const resultsData = await loadResults();
+          setResults(resultsData || []);
+          console.log('🔄 Results reloaded:', resultsData?.length || 0);
+        } catch (error) {
+          console.error('Error reloading results:', error);
+        }
+      };
+      reloadResults();
+    }
+  }, [activeTab]);
 
   useEffect(()=>{
     localStorage.setItem(LS_KEYS.QUESTIONS, JSON.stringify(questions));
