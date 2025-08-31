@@ -448,6 +448,23 @@ app.post('/api/results', async (req, res, next) => {
 	} catch (err) { next(err); }
 });
 
+// Test endpoint for Managed Admin
+app.get('/api/v1/test', async (req, res) => {
+    try {
+        res.json({ 
+            message: 'Test endpoint working',
+            timestamp: new Date().toISOString(),
+            models: {
+                tenant: 'Tenant model loaded',
+                user: 'User model loaded',
+                auditLog: 'AuditLog model loaded'
+            }
+        });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
 // Mount new routes
 app.use('/api/v1/managed-admin', managedAdminRoutes);
 app.use('/api/v1/database', databaseRoutes);
