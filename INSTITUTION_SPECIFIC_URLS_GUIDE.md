@@ -10,12 +10,12 @@ The CBT system now supports **institution-specific URLs** that provide each scho
 
 Each institution gets their own unique URL based on their slug:
 
-**Format**: `https://cbt.netlify.app/institution/{institution-slug}`
+**Format**: `https://cbt.netlify.app/institution.html?slug={institution-slug}`
 
 **Examples**:
-- `https://cbt.netlify.app/institution/harvard-university`
-- `https://cbt.netlify.app/institution/stanford-college`
-- `https://cbt.netlify.app/institution/mit-institute`
+- `https://cbt.netlify.app/institution.html?slug=harvard-university`
+- `https://cbt.netlify.app/institution.html?slug=stanford-college`
+- `https://cbt.netlify.app/institution.html?slug=mit-institute`
 
 ### 2. Branded Login Pages
 
@@ -129,7 +129,7 @@ The managed admin platform now shows:
 
 1. **Managed Admin** creates institution "Harvard University"
 2. **System generates** slug: `harvard-university`
-3. **Login URL created**: `https://cbt.netlify.app/institution/harvard-university`
+3. **Login URL created**: `https://cbt.netlify.app/institution.html?slug=harvard-university`
 4. **Default admin** can access and customize the institution
 
 ### Institution Customization
@@ -175,9 +175,9 @@ The managed admin platform now shows:
 ```
 Frontend (React App):
 https://cbt.netlify.app/
-├── /institution/{slug} (Institution Login Pages)
-├── /admin-dashboard (Admin Dashboard)
-└── /student-dashboard (Student Dashboard)
+├── /institution.html?slug={slug} (Institution Login Pages)
+├── /admin-dashboard.html (Admin Dashboard)
+└── /student-dashboard.html (Student Dashboard)
 
 Backend (API):
 https://cbt-rew7.onrender.com/
