@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Student Dashboard - CBT System</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100">
+    <div id="app" class="min-h-screen">
+        <nav class="bg-white shadow-sm border-b">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                <div class="flex justify-between h-16">
+                    <div class="flex items-center">
+                        <h1 class="text-xl font-semibold text-gray-900">CBT Student Dashboard</h1>
+                    </div>
+                    <div class="flex items-center space-x-4">
+                        <span id="studentName" class="text-sm text-gray-700"></span>
+                        <span id="institutionName" class="text-sm text-gray-700"></span>
+                        <button onclick="logout()" class="bg-red-600 text-white px-4 py-2 rounded-md hover:bg-red-700">Logout</button>
+                    </div>
+                </div>
+            </div>
+        </nav>
+        
+        <main class="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
+            <div class="px-4 py-6 sm:px-0">
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    <div class="bg-white overflow-hidden shadow rounded-lg">
+                        <div class="p-5">
+                            <div class="flex items-center">
+                                <div class="flex-shrink-0">
+                                    <div class="w-8 h-8 bg-green-500 rounded-md flex items-center justify-center">
+                                        <span class="text-white font-bold">T</span>
+                                    </div>
+                                </div>
+                                <div class="ml-5 w-0 flex-1">
+                                    <dl>
+                                        <dt class="text-sm font-medium text-gray-500 truncate">Take Exam</dt>
+                                        <dd class="text-lg font-medium text-gray-900">Available Exams</dd>
+                                    </dl>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="bg-white overflow-hidden shadow rounded-lg">
+                        <div class="p-5">
+                            <div class="flex items-center">
+                                <div class="flex-shrink-0">
+                                    <div class="w-8 h-8 bg-blue-500 rounded-md flex items-center justify-center">
+                                        <span class="text-white font-bold">R</span>
+                                    </div>
+                                </div>
+                                <div class="ml-5 w-0 flex-1">
+                                    <dl>
+                                        <dt class="text-sm font-medium text-gray-500 truncate">Results</dt>
+                                        <dd class="text-lg font-medium text-gray-900">My Results</dd>
+                                    </dl>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="bg-white overflow-hidden shadow rounded-lg">
+                        <div class="p-5">
+                            <div class="flex items-center">
+                                <div class="flex-shrink-0">
+                                    <div class="w-8 h-8 bg-purple-500 rounded-md flex items-center justify-center">
+                                        <span class="text-white font-bold">P</span>
+                                    </div>
+                                </div>
+                                <div class="ml-5 w-0 flex-1">
+                                    <dl>
+                                        <dt class="text-sm font-medium text-gray-500 truncate">Profile</dt>
+                                        <dd class="text-lg font-medium text-gray-900">My Profile</dd>
+                                    </dl>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="bg-white overflow-hidden shadow rounded-lg">
+                        <div class="p-5">
+                            <div class="flex items-center">
+                                <div class="flex-shrink-0">
+                                    <div class="w-8 h-8 bg-yellow-500 rounded-md flex items-center justify-center">
+                                        <span class="text-white font-bold">H</span>
+                                    </div>
+                                </div>
+                                <div class="ml-5 w-0 flex-1">
+                                    <dl>
+                                        <dt class="text-sm font-medium text-gray-500 truncate">History</dt>
+                                        <dd class="text-lg font-medium text-gray-900">Exam History</dd>
+                                    </dl>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="bg-white overflow-hidden shadow rounded-lg">
+                        <div class="p-5">
+                            <div class="flex items-center">
+                                <div class="flex-shrink-0">
+                                    <div class="w-8 h-8 bg-gray-500 rounded-md flex items-center justify-center">
+                                        <span class="text-white font-bold">S</span>
+                                    </div>
+                                </div>
+                                <div class="ml-5 w-0 flex-1">
+                                    <dl>
+                                        <dt class="text-sm font-medium text-gray-500 truncate">Settings</dt>
+                                        <dd class="text-lg font-medium text-gray-900">Account Settings</dd>
+                                    </dl>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="mt-8 bg-white shadow rounded-lg p-6">
+                    <h2 class="text-lg font-medium text-gray-900 mb-4">Welcome to your Student Dashboard</h2>
+                    <p class="text-gray-600">
+                        This is a placeholder dashboard for institution-specific student functionality. 
+                        The full CBT system features will be integrated here, including exam taking, 
+                        results viewing, profile management, and exam history.
+                    </p>
+                </div>
+            </div>
+        </main>
+    </div>
+    
+    <script>
+        // Load user and tenant data
+        const user = JSON.parse(localStorage.getItem('user') || '{}');
+        const tenant = JSON.parse(localStorage.getItem('tenant') || '{}');
+        
+        // Display student name and institution
+        document.getElementById('studentName').textContent = user.fullName || 'Unknown Student';
+        document.getElementById('institutionName').textContent = tenant.name || 'Unknown Institution';
+        
+        // Check if user is logged in
+        if (!user._id) {
+            window.location.href = '/';
+        }
+        
+        function logout() {
+            localStorage.clear();
+            window.location.href = '/';
+        }
+    </script>
+</body>
+</html>
