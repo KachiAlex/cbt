@@ -1,7 +1,7 @@
 
 
-// Configuration - Cloud Database Enabled (but with localStorage fallback for admin)
-const USE_API = process.env.REACT_APP_USE_API !== 'false'; // Default to true unless explicitly set to false
+// Configuration - Cloud Database Disabled (using localStorage only for now)
+const USE_API = false; // Disabled due to cloud API issues
 const API_BASE = process.env.REACT_APP_API_URL || 'https://cbt-rew7.onrender.com';
 
 // LocalStorage keys
@@ -48,6 +48,7 @@ const initializeLocalStorage = () => {
   // Check if admin user exists, create if not
   const users = getFromLS(LS_KEYS.USERS) || [];
   const adminExists = users.some(user => user.username === 'admin' && user.role === 'admin');
+  const studentExists = users.some(user => user.username === 'student1' && user.role === 'student');
   
   if (!adminExists) {
     console.log('👤 Creating default admin user in localStorage...');
@@ -63,11 +64,30 @@ const initializeLocalStorage = () => {
     };
     
     users.push(defaultAdmin);
-    setToLS(LS_KEYS.USERS, users);
     console.log('✅ Default admin user created in localStorage');
   } else {
     console.log('👤 Admin user already exists in localStorage');
   }
+  
+  if (!studentExists) {
+    console.log('👤 Creating test student user in localStorage...');
+    const testStudent = {
+      username: "student1",
+      password: "student123",
+      role: "student",
+      fullName: "Test Student",
+      email: "student1@healthschool.com",
+      createdAt: new Date().toISOString(),
+      isDefaultAdmin: false
+    };
+    
+    users.push(testStudent);
+    console.log('✅ Test student user created in localStorage');
+  } else {
+    console.log('👤 Test student user already exists in localStorage');
+  }
+  
+  setToLS(LS_KEYS.USERS, users);
 };
 
 // API wrapper with fallback to localStorage

@@ -15,40 +15,8 @@ const AdminLogin = ({ onLogin, onBack }) => {
     try {
       console.log('🔐 Attempting admin login...');
       
-      // Try API authentication first
-      const API_BASE = process.env.REACT_APP_API_URL || 'https://cbt-rew7.onrender.com';
-      const USE_API = process.env.REACT_APP_USE_API !== 'false';
-      
-      if (USE_API) {
-        try {
-          console.log('🌐 Trying API authentication...');
-          const response = await fetch(`${API_BASE}/api/auth/login`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({ username, password }),
-          });
-
-          if (response.ok) {
-            const userData = await response.json();
-            if (userData.role === 'admin') {
-              console.log('✅ Admin login successful via API:', userData.username);
-              onLogin(userData);
-              return;
-            } else {
-              throw new Error('User is not an admin');
-            }
-          } else {
-            throw new Error('API authentication failed');
-          }
-        } catch (apiError) {
-          console.warn('❌ API authentication failed, trying localStorage:', apiError.message);
-        }
-      }
-
-      // Fallback to localStorage authentication
-      console.log('💾 Trying localStorage authentication...');
+      // Use localStorage authentication
+      console.log('💾 Using localStorage authentication...');
       const users = await dataService.loadUsers();
       
       const user = users.find(u => 
@@ -58,7 +26,7 @@ const AdminLogin = ({ onLogin, onBack }) => {
       );
 
       if (user) {
-        console.log('✅ Admin login successful via localStorage:', user.username);
+        console.log('✅ Admin login successful:', user.username);
         onLogin(user);
       } else {
         console.log('❌ Admin login failed: Invalid credentials');

@@ -3,40 +3,55 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CBT Auth Test</title>
+    <title>CBT Authentication Test</title>
     <style>
-        body { font-family: Arial, sans-serif; padding: 20px; }
-        .result { margin: 10px 0; padding: 10px; border-radius: 5px; }
-        .success { background: #d4edda; color: #155724; }
-        .error { background: #f8d7da; color: #721c24; }
-        .info { background: #d1ecf1; color: #0c5460; }
+        body { font-family: Arial, sans-serif; margin: 40px; }
+        .container { max-width: 600px; margin: 0 auto; }
+        .test-section { margin: 20px 0; padding: 20px; border: 1px solid #ddd; border-radius: 8px; }
+        .success { background-color: #d4edda; border-color: #c3e6cb; }
+        .error { background-color: #f8d7da; border-color: #f5c6cb; }
         button { padding: 10px 20px; margin: 5px; cursor: pointer; }
+        input { padding: 8px; margin: 5px; width: 200px; }
     </style>
 </head>
 <body>
-    <h1>🔐 CBT Authentication Test</h1>
-    
-    <div>
-        <button onclick="testAuth()">Test Authentication</button>
-        <button onclick="createAdmin()">Create Admin User</button>
-        <button onclick="clearData()">Clear All Data</button>
+    <div class="container">
+        <h1>CBT Authentication Test</h1>
+        
+        <div class="test-section">
+            <h3>1. Initialize localStorage</h3>
+            <button onclick="initializeUsers()">Initialize Users</button>
+            <button onclick="clearStorage()">Clear Storage</button>
+            <div id="init-result"></div>
+        </div>
+        
+        <div class="test-section">
+            <h3>2. Test Admin Login</h3>
+            <input type="text" id="admin-username" placeholder="Username" value="admin">
+            <input type="password" id="admin-password" placeholder="Password" value="admin123">
+            <button onclick="testAdminLogin()">Test Admin Login</button>
+            <div id="admin-result"></div>
+        </div>
+        
+        <div class="test-section">
+            <h3>3. Test Student Login</h3>
+            <input type="text" id="student-username" placeholder="Username" value="student1">
+            <input type="password" id="student-password" placeholder="Password" value="student123">
+            <button onclick="testStudentLogin()">Test Student Login</button>
+            <div id="student-result"></div>
+        </div>
+        
+        <div class="test-section">
+            <h3>4. View All Users</h3>
+            <button onclick="viewUsers()">View Users</button>
+            <div id="users-result"></div>
+        </div>
     </div>
-    
-    <div id="results"></div>
 
     <script>
         const LS_KEYS = {
             USERS: "cbt_users_v1"
         };
-
-        function log(message, type = 'info') {
-            const results = document.getElementById('results');
-            const div = document.createElement('div');
-            div.className = `result ${type}`;
-            div.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
-            results.appendChild(div);
-            console.log(message);
-        }
 
         function getFromLS(key) {
             try {
@@ -56,74 +71,107 @@
             }
         }
 
-        function createAdmin() {
-            log('👤 Creating admin user...', 'info');
+        function initializeUsers() {
+            console.log('🔧 Initializing localStorage...');
             
             const users = getFromLS(LS_KEYS.USERS) || [];
-            const adminExists = users.some(user => user.username === 'admin');
+            const adminExists = users.some(user => user.username === 'admin' && user.role === 'admin');
+            const studentExists = users.some(user => user.username === 'student1' && user.role === 'student');
             
-            if (adminExists) {
-                log('⚠️ Admin user already exists', 'info');
-                return;
+            if (!adminExists) {
+                console.log('👤 Creating default admin user in localStorage...');
+                const defaultAdmin = {
+                    username: "admin",
+                    password: "admin123",
+                    role: "admin",
+                    fullName: "System Administrator",
+                    email: "admin@healthschool.com",
+                    createdAt: new Date().toISOString(),
+                    isDefaultAdmin: true,
+                    canDeleteDefaultAdmin: true
+                };
+                users.push(defaultAdmin);
             }
             
-            const defaultAdmin = {
-                username: "admin",
-                password: "admin123",
-                role: "admin",
-                fullName: "System Administrator",
-                email: "admin@healthschool.com",
-                createdAt: new Date().toISOString(),
-                isDefaultAdmin: true,
-                canDeleteDefaultAdmin: true
-            };
-            
-            users.push(defaultAdmin);
-            const success = setToLS(LS_KEYS.USERS, users);
-            
-            if (success) {
-                log('✅ Admin user created successfully', 'success');
-            } else {
-                log('❌ Failed to create admin user', 'error');
+            if (!studentExists) {
+                console.log('👤 Creating test student user in localStorage...');
+                const testStudent = {
+                    username: "student1",
+                    password: "student123",
+                    role: "student",
+                    fullName: "Test Student",
+                    email: "student1@healthschool.com",
+                    createdAt: new Date().toISOString(),
+                    isDefaultAdmin: false
+                };
+                users.push(testStudent);
             }
+            
+            setToLS(LS_KEYS.USERS, users);
+            
+            document.getElementById('init-result').innerHTML = 
+                `<div class="success">✅ Users initialized successfully! Total users: ${users.length}</div>`;
         }
 
-        function testAuth() {
-            log('🔐 Testing authentication...', 'info');
+        function clearStorage() {
+            localStorage.removeItem(LS_KEYS.USERS);
+            document.getElementById('init-result').innerHTML = 
+                `<div class="success">✅ Storage cleared!</div>`;
+        }
+
+        function testAdminLogin() {
+            const username = document.getElementById('admin-username').value;
+            const password = document.getElementById('admin-password').value;
             
             const users = getFromLS(LS_KEYS.USERS) || [];
-            log(`📋 Found ${users.length} users in localStorage`, 'info');
-            
-            if (users.length > 0) {
-                users.forEach(user => {
-                    log(`👤 User: ${user.username} (${user.role})`, 'info');
-                });
-            }
-            
-            const admin = users.find(u => 
-                u.username.toLowerCase() === 'admin' && 
-                u.password === 'admin123'
+            const user = users.find(u => 
+                u.username.toLowerCase() === username.toLowerCase() && 
+                u.password === password &&
+                u.role === 'admin'
             );
             
-            if (admin) {
-                log('✅ Authentication test passed!', 'success');
-                log(`👤 Authenticated user: ${admin.username} (${admin.role})`, 'success');
+            if (user) {
+                document.getElementById('admin-result').innerHTML = 
+                    `<div class="success">✅ Admin login successful! Welcome ${user.fullName}</div>`;
             } else {
-                log('❌ Authentication test failed - admin not found', 'error');
-                log('🔍 Make sure to create the admin user first', 'error');
+                document.getElementById('admin-result').innerHTML = 
+                    `<div class="error">❌ Admin login failed! Invalid credentials</div>`;
             }
         }
 
-        function clearData() {
-            log('🗑️ Clearing all localStorage data...', 'info');
-            localStorage.clear();
-            log('✅ All data cleared', 'success');
+        function testStudentLogin() {
+            const username = document.getElementById('student-username').value;
+            const password = document.getElementById('student-password').value;
+            
+            const users = getFromLS(LS_KEYS.USERS) || [];
+            const user = users.find(u => 
+                u.username.toLowerCase() === username.toLowerCase() && 
+                u.password === password &&
+                u.role === 'student'
+            );
+            
+            if (user) {
+                document.getElementById('student-result').innerHTML = 
+                    `<div class="success">✅ Student login successful! Welcome ${user.fullName}</div>`;
+            } else {
+                document.getElementById('student-result').innerHTML = 
+                    `<div class="error">❌ Student login failed! Invalid credentials</div>`;
+            }
         }
 
-        // Auto-test on load
+        function viewUsers() {
+            const users = getFromLS(LS_KEYS.USERS) || [];
+            const userList = users.map(user => 
+                `<div>${user.username} (${user.role}) - ${user.fullName}</div>`
+            ).join('');
+            
+            document.getElementById('users-result').innerHTML = 
+                `<div class="success">📋 Users in localStorage: ${userList}</div>`;
+        }
+
+        // Auto-initialize on page load
         window.onload = function() {
-            log('🚀 CBT Auth Test loaded', 'info');
-            testAuth();
+            initializeUsers();
         };
     </script>
 </body>
