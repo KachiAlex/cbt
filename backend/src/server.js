@@ -3,6 +3,7 @@ const cors = require('cors');
 const helmet = require('helmet');
 const morgan = require('morgan');
 const rateLimit = require('express-rate-limit');
+const path = require('path');
 const connectDB = require('./config/database');
 require('dotenv').config();
 
@@ -27,12 +28,20 @@ app.use(morgan('combined'));
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
 
+// Serve static files from public directory
+app.use(express.static(path.join(__dirname, '../public')));
+
 // Rate limiting
 const limiter = rateLimit({
 	windowMs: 15 * 60 * 1000, // 15 minutes
 	max: 100 // limit each IP to 100 requests per windowMs
 });
 app.use(limiter);
+
+// Root redirect to admin UI
+app.get('/', (req, res) => {
+	res.redirect('/admin');
+});
 
 // Health check endpoint
 app.get('/health', (req, res) => {
@@ -53,6 +62,10 @@ app.get('/api', (req, res) => {
 		multi_tenant: true,
 		endpoints: {
 			health: '/health',
+			landing_page: '/',
+			admin_ui: '/admin',
+			managed_admin_ui: '/managed-admin',
+			admin_ui_alt: '/admin-ui',
 			exams: '/api/exams',
 			questions: '/api/questions',
 			results: '/api/results',
@@ -66,6 +79,20 @@ app.get('/api', (req, res) => {
 // Import new routes
 const managedAdminRoutes = require('./routes/managedAdmin');
 const databaseRoutes = require('./routes/database');
+
+// Serve Managed Admin UI
+app.get('/admin', (req, res) => {
+	res.sendFile(path.join(__dirname, '../managed-admin-ui.html'));
+});
+
+app.get('/managed-admin', (req, res) => {
+	res.sendFile(path.join(__dirname, '../managed-admin-ui.html'));
+});
+
+// Serve admin UI from public directory as well
+app.get('/admin-ui', (req, res) => {
+	res.sendFile(path.join(__dirname, '../public/admin-ui.html'));
+});
 
 // Read-only API routes
 app.get('/api/exams', async (req, res, next) => {
