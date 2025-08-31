@@ -716,19 +716,26 @@
                                  <p><strong>Contact:</strong> ${tenant.contact_email}</p>
                                  <p><strong>Plan:</strong> ${tenant.plan}</p>
                                  <p><strong>Created:</strong> ${new Date(tenant.created_at).toLocaleDateString()}</p>
-                                 <p><strong>Admin Email:</strong> ${tenant.default_admin?.email || 'N/A'}</p>
-                                 <p><strong>Admin Username:</strong> ${tenant.default_admin?.username || 'N/A'}</p>
-                                                                    <p><strong>Login URL:</strong> <a href="https://cbt.netlify.app/institution/${tenant.slug}" target="_blank" class="text-blue-600 hover:text-blue-800 underline">https://cbt.netlify.app/institution/${tenant.slug}</a></p>
+                                                                    <p><strong>Admin Email:</strong> ${tenant.default_admin?.email || 'N/A'}</p>
+                                   <p><strong>Admin Username:</strong> ${tenant.default_admin?.username || 'N/A'}</p>
+                                   <div class="mt-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                                       <p class="text-sm font-semibold text-blue-800 mb-2">🔗 Institution Login URL:</p>
+                                       <div class="flex items-center space-x-2">
+                                           <a href="https://cbt.netlify.app/institution.html?slug=${tenant.slug}" target="_blank" class="text-blue-600 hover:text-blue-800 underline font-medium flex-1">https://cbt.netlify.app/institution.html?slug=${tenant.slug}</a>
+                                           <button onclick="copyToClipboard('https://cbt.netlify.app/institution.html?slug=${tenant.slug}')" class="bg-blue-600 text-white px-2 py-1 rounded text-xs hover:bg-blue-700">Copy</button>
+                                       </div>
+                                   </div>
                              </div>
-                            <div class="tenant-actions">
-                                <button class="btn btn-small" onclick="viewTenantDetails('${tenant._id}')">View Details</button>
-                                <button class="btn btn-small btn-warning" onclick="resetAdminPassword('${tenant._id}')">Reset Password</button>
-                                ${tenant.suspended ? 
-                                    `<button class="btn btn-small btn-success" onclick="reinstateTenant('${tenant._id}')">Activate</button>` :
-                                    `<button class="btn btn-small btn-warning" onclick="suspendTenant('${tenant._id}')">Suspend</button>`
-                                }
-                                <button class="btn btn-small btn-danger" onclick="removeTenant('${tenant._id}')">Remove</button>
-                            </div>
+                                                         <div class="tenant-actions">
+                                 <button class="btn btn-small" onclick="viewTenantDetails('${tenant._id}')">View Details</button>
+                                 <button class="btn btn-small btn-success" onclick="window.open('https://cbt.netlify.app/institution.html?slug=${tenant.slug}', '_blank')">Visit Login Page</button>
+                                 <button class="btn btn-small btn-warning" onclick="resetAdminPassword('${tenant._id}')">Reset Password</button>
+                                 ${tenant.suspended ? 
+                                     `<button class="btn btn-small btn-success" onclick="reinstateTenant('${tenant._id}')">Activate</button>` :
+                                     `<button class="btn btn-small btn-warning" onclick="suspendTenant('${tenant._id}')">Suspend</button>`
+                                 }
+                                 <button class="btn btn-small btn-danger" onclick="removeTenant('${tenant._id}')">Remove</button>
+                             </div>
                         </div>
                     `).join('');
                 } else {
@@ -865,12 +872,28 @@
             showAlert('✅ Logged out successfully', 'success');
         }
 
-        // Auto-load stats on page load (only if authenticated)
-        window.addEventListener('load', () => {
-            if (authToken) {
-                loadStats();
-            }
-        });
+                 // Copy URL to clipboard function
+         function copyToClipboard(text) {
+             navigator.clipboard.writeText(text).then(() => {
+                 showAlert('✅ URL copied to clipboard!', 'success');
+             }).catch(() => {
+                 // Fallback for older browsers
+                 const textArea = document.createElement('textarea');
+                 textArea.value = text;
+                 document.body.appendChild(textArea);
+                 textArea.select();
+                 document.execCommand('copy');
+                 document.body.removeChild(textArea);
+                 showAlert('✅ URL copied to clipboard!', 'success');
+             });
+         }
+         
+         // Auto-load stats on page load (only if authenticated)
+         window.addEventListener('load', () => {
+             if (authToken) {
+                 loadStats();
+             }
+         });
     </script>
 </body>
 </html>
