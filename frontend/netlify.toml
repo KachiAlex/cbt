@@ -5,22 +5,26 @@
 [build.environment]
   NODE_VERSION = "18"
 
+# Serve HTML files directly
 [[redirects]]
   from = "/institution.html"
   to = "/institution.html"
   status = 200
+  force = true
 
 [[redirects]]
   from = "/admin-dashboard.html"
   to = "/admin-dashboard.html"
   status = 200
+  force = true
 
 [[redirects]]
   from = "/student-dashboard.html"
   to = "/student-dashboard.html"
   status = 200
+  force = true
 
-# Handle React Router fallback
+# Handle React Router fallback for all other routes
 [[redirects]]
   from = "/*"
   to = "/index.html"
