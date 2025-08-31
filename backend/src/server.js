@@ -9,8 +9,6 @@ require('dotenv').config();
 
 // Models
 const User = require('./models/User');
-const Tenant = require('./models/Tenant');
-const AuditLog = require('./models/AuditLog');
 const Exam = require('./models/Exam');
 const Result = require('./models/Result');
 const Question = require('./models/Question');
@@ -76,9 +74,9 @@ app.get('/api', (req, res) => {
 	});
 });
 
-// Import new routes
-const managedAdminRoutes = require('./routes/managedAdmin');
-const databaseRoutes = require('./routes/database');
+// Import new routes (commented out for now)
+// const managedAdminRoutes = require('./routes/managedAdmin');
+// const databaseRoutes = require('./routes/database');
 
 // Serve Managed Admin UI
 app.get('/admin', (req, res) => {
