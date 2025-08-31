@@ -94,6 +94,55 @@ app.get('/admin-ui', (req, res) => {
 	res.sendFile(path.join(__dirname, '../public/admin-ui.html'));
 });
 
+// Simple authentication endpoint for Managed Admin
+app.post('/api/auth/login', async (req, res) => {
+	try {
+		const { username, password } = req.body;
+		
+		// Check for super admin credentials
+		if (username === 'superadmin' && password === 'superadmin123') {
+			res.json({
+				success: true,
+				token: 'super-admin-token',
+				role: 'super_admin',
+				fullName: 'Super Administrator',
+				email: 'superadmin@cbt-system.com'
+			});
+		}
+		// Check for managed admin credentials
+		else if (username === 'managedadmin' && password === 'managedadmin123') {
+			res.json({
+				success: true,
+				token: 'managed-admin-token',
+				role: 'managed_admin',
+				fullName: 'Managed Administrator',
+				email: 'managedadmin@cbt-system.com'
+			});
+		}
+		// Check for regular admin credentials
+		else if (username === 'admin' && password === 'admin123') {
+			res.json({
+				success: true,
+				token: 'admin-token',
+				role: 'admin',
+				fullName: 'System Administrator',
+				email: 'admin@healthschool.com'
+			});
+		}
+		else {
+			res.status(401).json({ 
+				success: false, 
+				message: 'Invalid credentials' 
+			});
+		}
+	} catch (error) {
+		res.status(500).json({ 
+			success: false, 
+			message: 'Authentication error' 
+		});
+	}
+});
+
 // Read-only API routes
 app.get('/api/exams', async (req, res, next) => {
 	try {

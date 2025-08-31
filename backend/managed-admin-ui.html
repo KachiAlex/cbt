@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Managed Admin Console - CBT System</title>
+    <title>Multi-Tenant CBT Admin Platform</title>
     <style>
         * {
             margin: 0;
@@ -19,7 +19,7 @@
         }
 
         .container {
-            max-width: 1200px;
+            max-width: 1400px;
             margin: 0 auto;
             background: white;
             border-radius: 15px;
@@ -48,20 +48,70 @@
             padding: 30px;
         }
 
+        .dashboard {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+            margin-bottom: 40px;
+        }
+
+        .card {
+            background: #f8f9fa;
+            border: 1px solid #e1e8ed;
+            border-radius: 15px;
+            padding: 30px;
+            text-align: center;
+            transition: transform 0.3s, box-shadow 0.3s;
+            cursor: pointer;
+        }
+
+        .card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 15px 30px rgba(0,0,0,0.1);
+        }
+
+        .card-icon {
+            font-size: 4rem;
+            margin-bottom: 20px;
+        }
+
+        .card h2 {
+            color: #2c3e50;
+            margin-bottom: 15px;
+            font-size: 1.8rem;
+        }
+
+        .card p {
+            color: #7f8c8d;
+            line-height: 1.6;
+        }
+
         .section {
             margin-bottom: 40px;
             padding: 25px;
             border: 1px solid #e1e8ed;
-            border-radius: 10px;
+            border-radius: 15px;
             background: #f8f9fa;
+            display: none;
+        }
+
+        .section.active {
+            display: block;
         }
 
         .section h2 {
             color: #2c3e50;
             margin-bottom: 20px;
-            font-size: 1.5rem;
+            font-size: 1.8rem;
             border-bottom: 2px solid #3498db;
             padding-bottom: 10px;
+        }
+
+        .form-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin-bottom: 20px;
         }
 
         .form-group {
@@ -107,10 +157,6 @@
             transform: translateY(-2px);
         }
 
-        .btn-danger {
-            background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%);
-        }
-
         .btn-success {
             background: linear-gradient(135deg, #27ae60 0%, #229954 100%);
         }
@@ -119,14 +165,12 @@
             background: linear-gradient(135deg, #f39c12 0%, #e67e22 100%);
         }
 
-        .api-url {
-            background: #2c3e50;
-            color: #ecf0f1;
-            padding: 15px;
-            border-radius: 8px;
-            font-family: 'Courier New', monospace;
-            margin-bottom: 20px;
-            word-break: break-all;
+        .btn-danger {
+            background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%);
+        }
+
+        .btn-secondary {
+            background: linear-gradient(135deg, #95a5a6 0%, #7f8c8d 100%);
         }
 
         .response {
@@ -144,33 +188,6 @@
             white-space: pre-wrap;
             font-family: 'Courier New', monospace;
             font-size: 12px;
-        }
-
-        .grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-            gap: 20px;
-            margin-bottom: 20px;
-        }
-
-        .status-indicator {
-            display: inline-block;
-            width: 12px;
-            height: 12px;
-            border-radius: 50%;
-            margin-right: 8px;
-        }
-
-        .status-active {
-            background: #27ae60;
-        }
-
-        .status-suspended {
-            background: #f39c12;
-        }
-
-        .status-deleted {
-            background: #e74c3c;
         }
 
         .alert {
@@ -196,128 +213,309 @@
             color: #0c5460;
             border: 1px solid #bee5eb;
         }
+
+        .tenants-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+            gap: 20px;
+            margin-top: 20px;
+        }
+
+        .tenant-card {
+            background: white;
+            border: 1px solid #e1e8ed;
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        .tenant-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+
+        .tenant-name {
+            font-size: 1.2rem;
+            font-weight: 600;
+            color: #2c3e50;
+        }
+
+        .tenant-status {
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .status-active {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .status-suspended {
+            background: #fff3cd;
+            color: #856404;
+        }
+
+        .status-expired {
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        .tenant-info {
+            margin-bottom: 15px;
+        }
+
+        .tenant-info p {
+            margin: 5px 0;
+            color: #7f8c8d;
+            font-size: 14px;
+        }
+
+        .tenant-actions {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .btn-small {
+            padding: 8px 15px;
+            font-size: 12px;
+        }
+
+        .back-btn {
+            background: linear-gradient(135deg, #95a5a6 0%, #7f8c8d 100%);
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            margin-bottom: 20px;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .stat-card {
+            background: white;
+            border: 1px solid #e1e8ed;
+            border-radius: 10px;
+            padding: 20px;
+            text-align: center;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        .stat-number {
+            font-size: 2rem;
+            font-weight: bold;
+            color: #3498db;
+            margin-bottom: 5px;
+        }
+
+        .stat-label {
+            color: #7f8c8d;
+            font-size: 14px;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #7f8c8d;
+        }
+
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #3498db;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
     </style>
 </head>
 <body>
     <div class="container">
         <div class="header">
-            <h1>🏫 Managed Admin Console</h1>
-            <p>Manage deployed schools, reset default admin passwords, and suspend access</p>
+            <h1>🏫 Multi-Tenant CBT Admin Platform</h1>
+            <p>Manage School Institutions and Their Admin Accounts</p>
+            <div id="userInfo" style="margin-top: 15px; display: none;">
+                <span id="currentUserName" style="margin-right: 15px;"></span>
+                <button class="btn btn-secondary" onclick="logout()" style="padding: 8px 15px; font-size: 12px;">Logout</button>
+            </div>
         </div>
 
         <div class="content">
-            <!-- Configuration Section -->
-            <div class="section">
-                <h2>⚙️ Configuration</h2>
-                <div class="grid">
+            <!-- Login Section -->
+            <div id="loginSection" class="section active">
+                <h2>🔐 Admin Authentication</h2>
+                <div class="form-grid">
                     <div class="form-group">
-                        <label for="apiBase">API Base URL:</label>
-                        <input type="text" id="apiBase" value="https://cbt-rew7.onrender.com" placeholder="https://your-api.com">
+                        <label for="loginUsername">Username:</label>
+                        <input type="text" id="loginUsername" placeholder="superadmin">
                     </div>
                     <div class="form-group">
-                        <label for="authToken">Auth Token:</label>
-                        <input type="password" id="authToken" placeholder="Enter your JWT token">
+                        <label for="loginPassword">Password:</label>
+                        <input type="password" id="loginPassword" placeholder="superadmin123">
                     </div>
                 </div>
-                <button class="btn" onclick="testConnection()">Test Connection</button>
+                <button class="btn btn-success" onclick="login()">Login</button>
+                <div id="loginResult" class="response"></div>
             </div>
 
-            <!-- Create Tenant Section -->
-            <div class="section">
-                <h2>🏫 Create New School Tenant</h2>
-                <div class="grid">
+            <!-- Main Dashboard -->
+            <div id="mainDashboard" style="display: none;">
+                <div class="dashboard">
+                    <div class="card" onclick="showCreateAccount()">
+                        <div class="card-icon">➕</div>
+                        <h2>Create New Account</h2>
+                        <p>Set up a new school institution with admin credentials, contact information, and subscription details.</p>
+                    </div>
+                    <div class="card" onclick="showManageAccounts()">
+                        <div class="card-icon">⚙️</div>
+                        <h2>Manage Accounts</h2>
+                        <p>View, suspend, activate, or remove existing school accounts. Monitor usage and expiration dates.</p>
+                    </div>
+                </div>
+
+                <!-- Statistics -->
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-number" id="totalTenants">-</div>
+                        <div class="stat-label">Total Institutions</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-number" id="activeTenants">-</div>
+                        <div class="stat-label">Active Accounts</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-number" id="suspendedTenants">-</div>
+                        <div class="stat-label">Suspended Accounts</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-number" id="expiringSoon">-</div>
+                        <div class="stat-label">Expiring Soon</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Create Account Section -->
+            <div id="createAccountSection" class="section">
+                <button class="back-btn" onclick="showMainDashboard()">← Back to Dashboard</button>
+                <h2>➕ Create New School Account</h2>
+                
+                <div class="form-grid">
                     <div class="form-group">
-                        <label for="tenantName">School Name:</label>
-                        <input type="text" id="tenantName" placeholder="College of Nursing Sciences">
+                        <label for="institutionName">Institution Name *</label>
+                        <input type="text" id="institutionName" placeholder="e.g., College of Nursing Sciences">
                     </div>
                     <div class="form-group">
-                        <label for="tenantSlug">Slug:</label>
-                        <input type="text" id="tenantSlug" placeholder="conursing">
+                        <label for="institutionSlug">Institution Slug *</label>
+                        <input type="text" id="institutionSlug" placeholder="e.g., conursing">
                     </div>
                     <div class="form-group">
-                        <label for="tenantEmail">Contact Email:</label>
-                        <input type="email" id="tenantEmail" placeholder="admin@conursing.edu.ng">
+                        <label for="institutionAddress">Institution Address</label>
+                        <textarea id="institutionAddress" rows="2" placeholder="123 Nursing Street, Lagos"></textarea>
                     </div>
                     <div class="form-group">
-                        <label for="tenantPhone">Contact Phone:</label>
-                        <input type="text" id="tenantPhone" placeholder="+2348012345678">
+                        <label for="institutionPhone">Institution Phone</label>
+                        <input type="text" id="institutionPhone" placeholder="+2348012345678">
                     </div>
                     <div class="form-group">
-                        <label for="tenantAddress">Address:</label>
-                        <textarea id="tenantAddress" rows="2" placeholder="123 Nursing Street, Lagos"></textarea>
-                    </div>
-                    <div class="form-group">
-                        <label for="tenantPlan">Plan:</label>
-                        <select id="tenantPlan">
+                        <label for="subscriptionPlan">Subscription Plan *</label>
+                        <select id="subscriptionPlan">
                             <option value="basic">Basic</option>
                             <option value="premium">Premium</option>
                             <option value="enterprise">Enterprise</option>
                         </select>
                     </div>
+                    <div class="form-group">
+                        <label for="timezone">Timezone</label>
+                        <select id="timezone">
+                            <option value="Africa/Lagos">Africa/Lagos</option>
+                            <option value="UTC">UTC</option>
+                            <option value="America/New_York">America/New_York</option>
+                            <option value="Europe/London">Europe/London</option>
+                        </select>
+                    </div>
                 </div>
-                <h3>Default Admin Details</h3>
-                <div class="grid">
+
+                <h3>Admin Account Details</h3>
+                <div class="form-grid">
                     <div class="form-group">
-                        <label for="adminEmail">Admin Email:</label>
-                        <input type="email" id="adminEmail" placeholder="admin@conursing.edu.ng">
+                        <label for="adminName">Admin Full Name *</label>
+                        <input type="text" id="adminName" placeholder="e.g., John Doe">
                     </div>
                     <div class="form-group">
-                        <label for="adminName">Admin Full Name:</label>
-                        <input type="text" id="adminName" placeholder="School Administrator">
+                        <label for="adminEmail">Admin Email *</label>
+                        <input type="email" id="adminEmail" placeholder="admin@institution.edu.ng">
                     </div>
                     <div class="form-group">
-                        <label for="adminPhone">Admin Phone:</label>
+                        <label for="adminPhone">Admin Phone</label>
                         <input type="text" id="adminPhone" placeholder="+2348012345678">
                     </div>
-                </div>
-                <button class="btn btn-success" onclick="createTenant()">Create Tenant</button>
-            </div>
-
-            <!-- List Tenants Section -->
-            <div class="section">
-                <h2>📋 List All Tenants</h2>
-                <button class="btn" onclick="listTenants()">Load Tenants</button>
-                <div id="tenantsList" class="response"></div>
-            </div>
-
-            <!-- Tenant Actions Section -->
-            <div class="section">
-                <h2>🔧 Tenant Actions</h2>
-                <div class="grid">
                     <div class="form-group">
-                        <label for="tenantId">Tenant ID:</label>
-                        <input type="text" id="tenantId" placeholder="Enter tenant ID">
+                        <label for="adminPassword">Admin Password *</label>
+                        <input type="password" id="adminPassword" placeholder="Enter secure password">
                     </div>
                 </div>
-                <button class="btn" onclick="getTenantDetails()">Get Details</button>
-                <button class="btn btn-warning" onclick="resetAdminPassword()">Reset Admin Password</button>
-                <button class="btn btn-warning" onclick="suspendTenant()">Suspend Tenant</button>
-                <button class="btn btn-success" onclick="reinstateTenant()">Reinstate Tenant</button>
-                <button class="btn btn-danger" onclick="removeTenant()">Remove Tenant</button>
-                <div id="tenantActions" class="response"></div>
+
+                <button class="btn btn-success" onclick="createTenant()">Create Institution Account</button>
+                <div id="createResult" class="response"></div>
             </div>
 
-            <!-- Audit Logs Section -->
-            <div class="section">
-                <h2>📊 Audit Logs</h2>
-                <button class="btn" onclick="getAuditLogs()">Load Audit Logs</button>
-                <div id="auditLogs" class="response"></div>
+            <!-- Manage Accounts Section -->
+            <div id="manageAccountsSection" class="section">
+                <button class="back-btn" onclick="showMainDashboard()">← Back to Dashboard</button>
+                <h2>⚙️ Manage Institution Accounts</h2>
+                
+                <div style="margin-bottom: 20px;">
+                    <button class="btn" onclick="loadTenants()">🔄 Refresh Accounts</button>
+                    <button class="btn btn-secondary" onclick="exportTenants()">📊 Export Data</button>
+                </div>
+
+                <div id="tenantsList" class="tenants-grid">
+                    <div class="loading">
+                        <div class="spinner"></div>
+                        <p>Loading institution accounts...</p>
+                    </div>
+                </div>
             </div>
 
-            <!-- Database Management Section -->
-            <div class="section">
-                <h2>🗄️ Database Management</h2>
-                <button class="btn" onclick="getDatabaseStatus()">Get Status</button>
-                <button class="btn btn-success" onclick="createBackup()">Create Backup</button>
-                <button class="btn" onclick="listBackups()">List Backups</button>
-                <div id="databaseActions" class="response"></div>
+            <!-- Configuration Section (Hidden by default) -->
+            <div id="configSection" class="section">
+                <button class="back-btn" onclick="showMainDashboard()">← Back to Dashboard</button>
+                <h2>⚙️ System Configuration</h2>
+                
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label for="apiBase">API Base URL:</label>
+                        <input type="text" id="apiBase" value="https://cbt-rew7.onrender.com" placeholder="https://your-api.com">
+                    </div>
+                </div>
+                <button class="btn" onclick="testConnection()">Test Connection</button>
+                <div id="configResult" class="response"></div>
             </div>
         </div>
     </div>
 
     <script>
         const API_BASE = document.getElementById('apiBase');
-        const AUTH_TOKEN = document.getElementById('authToken');
+        let authToken = null;
+        let currentUser = null;
 
         function getApiUrl(endpoint) {
             return `${API_BASE.value}${endpoint}`;
@@ -327,8 +525,8 @@
             const headers = {
                 'Content-Type': 'application/json'
             };
-            if (AUTH_TOKEN.value) {
-                headers['Authorization'] = `Bearer ${AUTH_TOKEN.value}`;
+            if (authToken) {
+                headers['Authorization'] = `Bearer ${authToken}`;
             }
             return headers;
         }
@@ -367,195 +565,295 @@
             }
         }
 
-        async function testConnection() {
+        async function login() {
             try {
-                const data = await makeRequest(getApiUrl('/health'));
-                showAlert('✅ Connection successful!', 'success');
-                showResponse('databaseActions', data);
+                const username = document.getElementById('loginUsername').value;
+                const password = document.getElementById('loginPassword').value;
+
+                if (!username || !password) {
+                    showAlert('❌ Please enter username and password', 'error');
+                    return;
+                }
+
+                const data = await makeRequest(getApiUrl('/api/auth/login'), {
+                    method: 'POST',
+                    body: JSON.stringify({ username, password })
+                });
+
+                // Check if user has appropriate role
+                if (data.role !== 'super_admin' && data.role !== 'managed_admin') {
+                    showAlert('❌ Access denied. Super admin or managed admin role required.', 'error');
+                    return;
+                }
+
+                authToken = data.token || 'authenticated'; // Use token if available, otherwise just mark as authenticated
+                currentUser = data;
+
+                // Show user info in header
+                document.getElementById('currentUserName').textContent = `Welcome, ${data.fullName} (${data.role})`;
+                document.getElementById('userInfo').style.display = 'block';
+
+                showAlert('✅ Login successful! Welcome ' + data.fullName, 'success');
+                showMainDashboard();
+                
             } catch (error) {
-                showAlert(`❌ Connection failed: ${error.message}`, 'error');
+                showAlert(`❌ Login failed: ${error.message}`, 'error');
             }
+        }
+
+        function showMainDashboard() {
+            document.getElementById('loginSection').classList.remove('active');
+            document.getElementById('mainDashboard').style.display = 'block';
+            document.getElementById('createAccountSection').classList.remove('active');
+            document.getElementById('manageAccountsSection').classList.remove('active');
+            document.getElementById('configSection').classList.remove('active');
+            loadStats();
+        }
+
+        function showCreateAccount() {
+            document.getElementById('mainDashboard').style.display = 'none';
+            document.getElementById('createAccountSection').classList.add('active');
+            document.getElementById('manageAccountsSection').classList.remove('active');
+            document.getElementById('configSection').classList.remove('active');
+        }
+
+        function showManageAccounts() {
+            document.getElementById('mainDashboard').style.display = 'none';
+            document.getElementById('createAccountSection').classList.remove('active');
+            document.getElementById('manageAccountsSection').classList.add('active');
+            document.getElementById('configSection').classList.remove('active');
+            loadTenants();
+        }
+
+        function showConfig() {
+            document.getElementById('mainDashboard').style.display = 'none';
+            document.getElementById('createAccountSection').classList.remove('active');
+            document.getElementById('manageAccountsSection').classList.remove('active');
+            document.getElementById('configSection').classList.add('active');
         }
 
         async function createTenant() {
             try {
                 const tenantData = {
-                    name: document.getElementById('tenantName').value,
-                    slug: document.getElementById('tenantSlug').value,
-                    address: document.getElementById('tenantAddress').value,
-                    contact_email: document.getElementById('tenantEmail').value,
-                    contact_phone: document.getElementById('tenantPhone').value,
-                    plan: document.getElementById('tenantPlan').value,
+                    name: document.getElementById('institutionName').value,
+                    slug: document.getElementById('institutionSlug').value,
+                    address: document.getElementById('institutionAddress').value,
+                    contact_phone: document.getElementById('institutionPhone').value,
+                    plan: document.getElementById('subscriptionPlan').value,
+                    timezone: document.getElementById('timezone').value,
                     default_admin: {
                         email: document.getElementById('adminEmail').value,
                         fullName: document.getElementById('adminName').value,
-                        phone: document.getElementById('adminPhone').value
+                        phone: document.getElementById('adminPhone').value,
+                        password: document.getElementById('adminPassword').value
                     }
                 };
+
+                // Validate required fields
+                if (!tenantData.name || !tenantData.slug || !tenantData.default_admin.email || 
+                    !tenantData.default_admin.fullName || !tenantData.default_admin.password) {
+                    showAlert('❌ Please fill in all required fields', 'error');
+                    return;
+                }
 
                 const data = await makeRequest(getApiUrl('/api/v1/managed-admin/tenants'), {
                     method: 'POST',
                     body: JSON.stringify(tenantData)
                 });
 
-                showAlert('✅ Tenant created successfully!', 'success');
-                showResponse('tenantActions', data);
+                showAlert('✅ Institution account created successfully!', 'success');
+                showResponse('createResult', data);
+                
+                // Clear form
+                document.getElementById('institutionName').value = '';
+                document.getElementById('institutionSlug').value = '';
+                document.getElementById('institutionAddress').value = '';
+                document.getElementById('institutionPhone').value = '';
+                document.getElementById('adminName').value = '';
+                document.getElementById('adminEmail').value = '';
+                document.getElementById('adminPhone').value = '';
+                document.getElementById('adminPassword').value = '';
+                
             } catch (error) {
-                showAlert(`❌ Failed to create tenant: ${error.message}`, 'error');
+                showAlert(`❌ Failed to create institution: ${error.message}`, 'error');
             }
         }
 
-        async function listTenants() {
+        async function loadTenants() {
+            try {
+                const tenantsList = document.getElementById('tenantsList');
+                tenantsList.innerHTML = '<div class="loading"><div class="spinner"></div><p>Loading institution accounts...</p></div>';
+
+                const data = await makeRequest(getApiUrl('/api/v1/managed-admin/tenants'));
+                
+                if (data.tenants && data.tenants.length > 0) {
+                    tenantsList.innerHTML = data.tenants.map(tenant => `
+                        <div class="tenant-card">
+                            <div class="tenant-header">
+                                <div class="tenant-name">${tenant.name}</div>
+                                <div class="tenant-status status-${tenant.suspended ? 'suspended' : 'active'}">
+                                    ${tenant.suspended ? 'Suspended' : 'Active'}
+                                </div>
+                            </div>
+                            <div class="tenant-info">
+                                <p><strong>Slug:</strong> ${tenant.slug}</p>
+                                <p><strong>Contact:</strong> ${tenant.contact_email}</p>
+                                <p><strong>Plan:</strong> ${tenant.plan}</p>
+                                <p><strong>Created:</strong> ${new Date(tenant.created_at).toLocaleDateString()}</p>
+                                <p><strong>Admin:</strong> ${tenant.default_admin?.email || 'N/A'}</p>
+                            </div>
+                            <div class="tenant-actions">
+                                <button class="btn btn-small" onclick="viewTenantDetails('${tenant._id}')">View Details</button>
+                                <button class="btn btn-small btn-warning" onclick="resetAdminPassword('${tenant._id}')">Reset Password</button>
+                                ${tenant.suspended ? 
+                                    `<button class="btn btn-small btn-success" onclick="reinstateTenant('${tenant._id}')">Activate</button>` :
+                                    `<button class="btn btn-small btn-warning" onclick="suspendTenant('${tenant._id}')">Suspend</button>`
+                                }
+                                <button class="btn btn-small btn-danger" onclick="removeTenant('${tenant._id}')">Remove</button>
+                            </div>
+                        </div>
+                    `).join('');
+                } else {
+                    tenantsList.innerHTML = '<div class="loading"><p>No institution accounts found.</p></div>';
+                }
+            } catch (error) {
+                showAlert(`❌ Failed to load accounts: ${error.message}`, 'error');
+                document.getElementById('tenantsList').innerHTML = '<div class="loading"><p>Error loading accounts.</p></div>';
+            }
+        }
+
+        async function loadStats() {
             try {
                 const data = await makeRequest(getApiUrl('/api/v1/managed-admin/tenants'));
-                showResponse('tenantsList', data);
+                const tenants = data.tenants || [];
+                
+                document.getElementById('totalTenants').textContent = tenants.length;
+                document.getElementById('activeTenants').textContent = tenants.filter(t => !t.suspended).length;
+                document.getElementById('suspendedTenants').textContent = tenants.filter(t => t.suspended).length;
+                document.getElementById('expiringSoon').textContent = '0'; // Placeholder
             } catch (error) {
-                showAlert(`❌ Failed to load tenants: ${error.message}`, 'error');
+                console.error('Failed to load stats:', error);
             }
         }
 
-        async function getTenantDetails() {
+        async function suspendTenant(tenantId) {
+            if (!confirm('Are you sure you want to suspend this institution?')) return;
+            
             try {
-                const tenantId = document.getElementById('tenantId').value;
-                if (!tenantId) {
-                    showAlert('❌ Please enter a tenant ID', 'error');
-                    return;
-                }
-
-                const data = await makeRequest(getApiUrl(`/api/v1/managed-admin/tenants/${tenantId}`));
-                showResponse('tenantActions', data);
+                const data = await makeRequest(getApiUrl(`/api/v1/managed-admin/tenants/${tenantId}/suspend`), {
+                    method: 'POST',
+                    body: JSON.stringify({ reason: 'Suspended by admin' })
+                });
+                showAlert('✅ Institution suspended successfully!', 'success');
+                loadTenants();
             } catch (error) {
-                showAlert(`❌ Failed to get tenant details: ${error.message}`, 'error');
+                showAlert(`❌ Failed to suspend institution: ${error.message}`, 'error');
             }
         }
 
-        async function resetAdminPassword() {
+        async function reinstateTenant(tenantId) {
+            if (!confirm('Are you sure you want to activate this institution?')) return;
+            
             try {
-                const tenantId = document.getElementById('tenantId').value;
-                if (!tenantId) {
-                    showAlert('❌ Please enter a tenant ID', 'error');
-                    return;
-                }
+                const data = await makeRequest(getApiUrl(`/api/v1/managed-admin/tenants/${tenantId}/reinstate`), {
+                    method: 'POST'
+                });
+                showAlert('✅ Institution activated successfully!', 'success');
+                loadTenants();
+            } catch (error) {
+                showAlert(`❌ Failed to activate institution: ${error.message}`, 'error');
+            }
+        }
 
+        async function resetAdminPassword(tenantId) {
+            if (!confirm('Are you sure you want to reset the admin password?')) return;
+            
+            try {
                 const data = await makeRequest(getApiUrl(`/api/v1/managed-admin/tenants/${tenantId}/reset-default-admin`), {
                     method: 'POST'
                 });
-
                 showAlert('✅ Admin password reset successfully!', 'success');
-                showResponse('tenantActions', data);
+                showResponse('createResult', data);
             } catch (error) {
                 showAlert(`❌ Failed to reset password: ${error.message}`, 'error');
             }
         }
 
-        async function suspendTenant() {
+        async function removeTenant(tenantId) {
+            if (!confirm('Are you sure you want to remove this institution? This action cannot be undone.')) return;
+            
             try {
-                const tenantId = document.getElementById('tenantId').value;
-                if (!tenantId) {
-                    showAlert('❌ Please enter a tenant ID', 'error');
-                    return;
-                }
-
-                const reason = prompt('Enter suspension reason:');
-                const data = await makeRequest(getApiUrl(`/api/v1/managed-admin/tenants/${tenantId}/suspend`), {
-                    method: 'POST',
-                    body: JSON.stringify({ reason })
-                });
-
-                showAlert('✅ Tenant suspended successfully!', 'success');
-                showResponse('tenantActions', data);
-            } catch (error) {
-                showAlert(`❌ Failed to suspend tenant: ${error.message}`, 'error');
-            }
-        }
-
-        async function reinstateTenant() {
-            try {
-                const tenantId = document.getElementById('tenantId').value;
-                if (!tenantId) {
-                    showAlert('❌ Please enter a tenant ID', 'error');
-                    return;
-                }
-
-                const data = await makeRequest(getApiUrl(`/api/v1/managed-admin/tenants/${tenantId}/reinstate`), {
-                    method: 'POST'
-                });
-
-                showAlert('✅ Tenant reinstated successfully!', 'success');
-                showResponse('tenantActions', data);
-            } catch (error) {
-                showAlert(`❌ Failed to reinstate tenant: ${error.message}`, 'error');
-            }
-        }
-
-        async function removeTenant() {
-            try {
-                const tenantId = document.getElementById('tenantId').value;
-                if (!tenantId) {
-                    showAlert('❌ Please enter a tenant ID', 'error');
-                    return;
-                }
-
-                const hardDelete = confirm('Do you want to hard delete? (This will permanently remove all data)');
-                const url = getApiUrl(`/api/v1/managed-admin/tenants/${tenantId}?hard=${hardDelete}`);
-                
-                const data = await makeRequest(url, {
+                const data = await makeRequest(getApiUrl(`/api/v1/managed-admin/tenants/${tenantId}`), {
                     method: 'DELETE'
                 });
-
-                showAlert('✅ Tenant removed successfully!', 'success');
-                showResponse('tenantActions', data);
+                showAlert('✅ Institution removed successfully!', 'success');
+                loadTenants();
             } catch (error) {
-                showAlert(`❌ Failed to remove tenant: ${error.message}`, 'error');
+                showAlert(`❌ Failed to remove institution: ${error.message}`, 'error');
             }
         }
 
-        async function getAuditLogs() {
+        async function viewTenantDetails(tenantId) {
             try {
-                const data = await makeRequest(getApiUrl('/api/v1/managed-admin/audit-logs'));
-                showResponse('auditLogs', data);
+                const data = await makeRequest(getApiUrl(`/api/v1/managed-admin/tenants/${tenantId}`));
+                showResponse('createResult', data);
             } catch (error) {
-                showAlert(`❌ Failed to load audit logs: ${error.message}`, 'error');
+                showAlert(`❌ Failed to get tenant details: ${error.message}`, 'error');
             }
         }
 
-        async function getDatabaseStatus() {
+        async function exportTenants() {
             try {
-                const data = await makeRequest(getApiUrl('/api/v1/database/status'));
-                showResponse('databaseActions', data);
+                const data = await makeRequest(getApiUrl('/api/v1/managed-admin/tenants'));
+                const csvContent = "data:text/csv;charset=utf-8," + 
+                    "Name,Slug,Email,Plan,Status,Created\n" +
+                    data.tenants.map(t => 
+                        `${t.name},${t.slug},${t.contact_email},${t.plan},${t.suspended ? 'Suspended' : 'Active'},${new Date(t.created_at).toLocaleDateString()}`
+                    ).join("\n");
+                
+                const encodedUri = encodeURI(csvContent);
+                const link = document.createElement("a");
+                link.setAttribute("href", encodedUri);
+                link.setAttribute("download", "institutions.csv");
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                
+                showAlert('✅ Data exported successfully!', 'success');
             } catch (error) {
-                showAlert(`❌ Failed to get database status: ${error.message}`, 'error');
+                showAlert(`❌ Failed to export data: ${error.message}`, 'error');
             }
         }
 
-        async function createBackup() {
+        async function testConnection() {
             try {
-                const description = prompt('Enter backup description (optional):');
-                const data = await makeRequest(getApiUrl('/api/v1/database/backup'), {
-                    method: 'POST',
-                    body: JSON.stringify({ description })
-                });
-
-                showAlert('✅ Backup created successfully!', 'success');
-                showResponse('databaseActions', data);
+                const data = await makeRequest(getApiUrl('/health'));
+                showAlert('✅ Connection successful!', 'success');
+                showResponse('configResult', data);
             } catch (error) {
-                showAlert(`❌ Failed to create backup: ${error.message}`, 'error');
+                showAlert(`❌ Connection failed: ${error.message}`, 'error');
             }
         }
 
-        async function listBackups() {
-            try {
-                const data = await makeRequest(getApiUrl('/api/v1/database/backups'));
-                showResponse('databaseActions', data);
-            } catch (error) {
-                showAlert(`❌ Failed to load backups: ${error.message}`, 'error');
-            }
+        function logout() {
+            authToken = null;
+            currentUser = null;
+            document.getElementById('userInfo').style.display = 'none';
+            document.getElementById('loginSection').classList.add('active');
+            document.getElementById('mainDashboard').style.display = 'none';
+            document.getElementById('createAccountSection').classList.remove('active');
+            document.getElementById('manageAccountsSection').classList.remove('active');
+            document.getElementById('configSection').classList.remove('active');
+            showAlert('✅ Logged out successfully', 'success');
         }
 
-        // Auto-fill admin email when tenant email changes
-        document.getElementById('tenantEmail').addEventListener('input', function() {
-            document.getElementById('adminEmail').value = this.value;
+        // Auto-load stats on page load (only if authenticated)
+        window.addEventListener('load', () => {
+            if (authToken) {
+                loadStats();
+            }
         });
     </script>
 </body>
 </html>
+
