@@ -480,7 +480,7 @@ app.post('/api/v1/test-tenant', async (req, res) => {
     }
 });
 
-// Simple tenant creation endpoint (temporary workaround)
+// Real tenant creation endpoint (NEW VERSION)
 app.post('/api/v1/managed-admin/tenants', async (req, res) => {
     try {
         console.log('Received tenant creation request:', req.body);
@@ -516,7 +516,7 @@ app.post('/api/v1/managed-admin/tenants', async (req, res) => {
         await tenant.save();
         
         res.status(201).json({
-            message: 'Tenant created successfully (REAL DATABASE)',
+            message: 'Tenant created successfully (NEW VERSION - REAL DATABASE)',
             tenant: {
                 id: tenant._id,
                 name: tenant.name,
