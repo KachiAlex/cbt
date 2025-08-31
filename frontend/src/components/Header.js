@@ -1,6 +1,6 @@
 import React from 'react';
 
-const Header = ({ user, onLogout, onLogoClick }) => {
+const Header = ({ user, onLogout, onLogoClick, institutionData }) => {
   return (
     <header className="bg-white shadow-sm border-b">
       <div className="max-w-5xl mx-auto px-3 sm:px-8 py-4">
@@ -10,12 +10,24 @@ const Header = ({ user, onLogout, onLogoClick }) => {
               className="flex items-center space-x-3 cursor-pointer hover:opacity-80 transition-opacity"
               onClick={onLogoClick}
             >
-              <div className="w-10 h-10 bg-blue-600 rounded-lg flex items-center justify-center">
-                <span className="text-white font-bold text-lg">C</span>
-              </div>
+              {institutionData && institutionData.logo_url ? (
+                <img 
+                  src={institutionData.logo_url} 
+                  alt={`${institutionData.name} Logo`}
+                  className="w-10 h-10 rounded-lg object-cover"
+                />
+              ) : (
+                <div className="w-10 h-10 bg-blue-600 rounded-lg flex items-center justify-center">
+                  <span className="text-white font-bold text-lg">C</span>
+                </div>
+              )}
               <div>
-                <h1 className="text-xl font-bold text-gray-800">College of Nursing</h1>
-                <p className="text-sm text-gray-600">Eku, Delta State</p>
+                <h1 className="text-xl font-bold text-gray-800">
+                  {institutionData ? institutionData.name : 'College of Nursing'}
+                </h1>
+                <p className="text-sm text-gray-600">
+                  {institutionData ? 'Computer-Based Test System' : 'Eku, Delta State'}
+                </p>
               </div>
             </div>
           </div>
