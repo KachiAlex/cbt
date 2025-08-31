@@ -718,6 +718,7 @@
                                  <p><strong>Created:</strong> ${new Date(tenant.created_at).toLocaleDateString()}</p>
                                  <p><strong>Admin Email:</strong> ${tenant.default_admin?.email || 'N/A'}</p>
                                  <p><strong>Admin Username:</strong> ${tenant.default_admin?.username || 'N/A'}</p>
+                                 <p><strong>Login URL:</strong> <a href="https://cbt-rew7.onrender.com/institution/${tenant.slug}" target="_blank" class="text-blue-600 hover:text-blue-800 underline">https://cbt-rew7.onrender.com/institution/${tenant.slug}</a></p>
                              </div>
                             <div class="tenant-actions">
                                 <button class="btn btn-small" onclick="viewTenantDetails('${tenant._id}')">View Details</button>

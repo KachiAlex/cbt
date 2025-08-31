@@ -94,53 +94,327 @@ app.get('/admin-ui', (req, res) => {
 	res.sendFile(path.join(__dirname, '../public/admin-ui.html'));
 });
 
-// Simple authentication endpoint for Managed Admin
+// Institution-specific landing page
+app.get('/institution/:slug', async (req, res) => {
+    try {
+        const { slug } = req.params;
+        
+        // Find the institution
+        const tenant = await Tenant.findOne({ 
+            slug: slug,
+            deleted_at: null,
+            suspended: false
+        });
+        
+        if (!tenant) {
+            return res.status(404).send(`
+                <html>
+                    <head><title>Institution Not Found</title></head>
+                    <body>
+                        <h1>Institution Not Found</h1>
+                        <p>The requested institution does not exist or has been suspended.</p>
+                    </body>
+                </html>
+            `);
+        }
+        
+        // Serve institution-specific login page
+        const loginPage = `
+        <!DOCTYPE html>
+        <html lang="en">
+        <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>${tenant.name} - CBT System</title>
+            <script src="https://cdn.tailwindcss.com"></script>
+            <style>
+                .gradient-bg { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
+            </style>
+        </head>
+        <body class="gradient-bg min-h-screen">
+            <div class="min-h-screen flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
+                <div class="max-w-md w-full space-y-8">
+                    <div class="text-center">
+                        ${tenant.logo_url ? `<img class="mx-auto h-20 w-auto mb-4" src="${tenant.logo_url}" alt="${tenant.name} Logo">` : ''}
+                        <h2 class="mt-6 text-center text-3xl font-extrabold text-white">
+                            ${tenant.name}
+                        </h2>
+                        <p class="mt-2 text-center text-sm text-gray-200">
+                            Computer-Based Test System
+                        </p>
+                    </div>
+                    
+                    <div class="bg-white rounded-lg shadow-xl p-8">
+                        <div class="mb-6">
+                            <h3 class="text-lg font-medium text-gray-900 mb-4">Sign in to your account</h3>
+                            
+                            <div class="space-y-4">
+                                <button onclick="showAdminLogin()" class="w-full flex justify-center py-3 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
+                                    Admin Login
+                                </button>
+                                
+                                <button onclick="showStudentLogin()" class="w-full flex justify-center py-3 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500">
+                                    Student Login
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <!-- Admin Login Form -->
+                        <div id="adminLoginForm" class="hidden">
+                            <form onsubmit="handleAdminLogin(event)" class="space-y-4">
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700">Username</label>
+                                    <input type="text" id="adminUsername" required class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700">Password</label>
+                                    <input type="password" id="adminPassword" required class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
+                                </div>
+                                <div class="flex space-x-3">
+                                    <button type="submit" class="flex-1 bg-indigo-600 text-white px-4 py-2 rounded-md hover:bg-indigo-700">Login</button>
+                                    <button type="button" onclick="hideForms()" class="flex-1 bg-gray-500 text-white px-4 py-2 rounded-md hover:bg-gray-600">Cancel</button>
+                                </div>
+                            </form>
+                        </div>
+                        
+                        <!-- Student Login Form -->
+                        <div id="studentLoginForm" class="hidden">
+                            <form onsubmit="handleStudentLogin(event)" class="space-y-4">
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700">Student ID</label>
+                                    <input type="text" id="studentId" required class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700">Password</label>
+                                    <input type="password" id="studentPassword" required class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
+                                </div>
+                                <div class="flex space-x-3">
+                                    <button type="submit" class="flex-1 bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700">Login</button>
+                                    <button type="button" onclick="hideForms()" class="flex-1 bg-gray-500 text-white px-4 py-2 rounded-md hover:bg-gray-600">Cancel</button>
+                                </div>
+                            </form>
+                        </div>
+                        
+                        <div id="errorMessage" class="hidden mt-4 p-3 bg-red-100 border border-red-400 text-red-700 rounded"></div>
+                    </div>
+                </div>
+            </div>
+            
+            <script>
+                const institutionSlug = '${tenant.slug}';
+                const institutionName = '${tenant.name}';
+                
+                function showAdminLogin() {
+                    document.getElementById('adminLoginForm').classList.remove('hidden');
+                    document.getElementById('studentLoginForm').classList.add('hidden');
+                    document.getElementById('errorMessage').classList.add('hidden');
+                }
+                
+                function showStudentLogin() {
+                    document.getElementById('studentLoginForm').classList.remove('hidden');
+                    document.getElementById('adminLoginForm').classList.add('hidden');
+                    document.getElementById('errorMessage').classList.add('hidden');
+                }
+                
+                function hideForms() {
+                    document.getElementById('adminLoginForm').classList.add('hidden');
+                    document.getElementById('studentLoginForm').classList.add('hidden');
+                    document.getElementById('errorMessage').classList.add('hidden');
+                }
+                
+                async function handleAdminLogin(event) {
+                    event.preventDefault();
+                    
+                    const username = document.getElementById('adminUsername').value;
+                    const password = document.getElementById('adminPassword').value;
+                    
+                    try {
+                        const response = await fetch('/api/auth/login', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                username,
+                                password,
+                                tenant_slug: institutionSlug,
+                                user_type: 'admin'
+                            })
+                        });
+                        
+                        const data = await response.json();
+                        
+                        if (response.ok) {
+                            // Store user data
+                            localStorage.setItem('user', JSON.stringify(data));
+                            localStorage.setItem('tenant', JSON.stringify(data.tenant));
+                            localStorage.setItem('userType', 'admin');
+                            
+                            // Redirect to admin dashboard
+                            window.location.href = '/admin-dashboard';
+                        } else {
+                            showError(data.error || 'Login failed');
+                        }
+                    } catch (error) {
+                        showError('Network error. Please try again.');
+                    }
+                }
+                
+                async function handleStudentLogin(event) {
+                    event.preventDefault();
+                    
+                    const studentId = document.getElementById('studentId').value;
+                    const password = document.getElementById('studentPassword').value;
+                    
+                    try {
+                        const response = await fetch('/api/auth/login', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                username: studentId,
+                                password,
+                                tenant_slug: institutionSlug,
+                                user_type: 'student'
+                            })
+                        });
+                        
+                        const data = await response.json();
+                        
+                        if (response.ok) {
+                            // Store user data
+                            localStorage.setItem('user', JSON.stringify(data));
+                            localStorage.setItem('tenant', JSON.stringify(data.tenant));
+                            localStorage.setItem('userType', 'student');
+                            
+                            // Redirect to student dashboard
+                            window.location.href = '/student-dashboard';
+                        } else {
+                            showError(data.error || 'Login failed');
+                        }
+                    } catch (error) {
+                        showError('Network error. Please try again.');
+                    }
+                }
+                
+                function showError(message) {
+                    const errorDiv = document.getElementById('errorMessage');
+                    errorDiv.textContent = message;
+                    errorDiv.classList.remove('hidden');
+                }
+            </script>
+        </body>
+        </html>
+        `;
+        
+        res.send(loginPage);
+        
+    } catch (error) {
+        console.error('Error serving institution page:', error);
+        res.status(500).send('Internal server error');
+    }
+});
+
+// Institution-specific authentication endpoint
 app.post('/api/auth/login', async (req, res) => {
-	try {
-		const { username, password } = req.body;
-		
-		// Check for super admin credentials
-		if (username === 'superadmin' && password === 'superadmin123') {
-			res.json({
-				success: true,
-				token: 'super-admin-token',
-				role: 'super_admin',
-				fullName: 'Super Administrator',
-				email: 'superadmin@cbt-system.com'
-			});
-		}
-		// Check for managed admin credentials
-		else if (username === 'managedadmin' && password === 'managedadmin123') {
-			res.json({
-				success: true,
-				token: 'managed-admin-token',
-				role: 'managed_admin',
-				fullName: 'Managed Administrator',
-				email: 'managedadmin@cbt-system.com'
-			});
-		}
-		// Check for regular admin credentials
-		else if (username === 'admin' && password === 'admin123') {
-			res.json({
-				success: true,
-				token: 'admin-token',
-				role: 'admin',
-				fullName: 'System Administrator',
-				email: 'admin@healthschool.com'
-			});
-		}
-		else {
-			res.status(401).json({ 
-				success: false, 
-				message: 'Invalid credentials' 
-			});
-		}
-	} catch (error) {
-		res.status(500).json({ 
-			success: false, 
-			message: 'Authentication error' 
-		});
-	}
+    try {
+        const { username, password, tenant_slug, user_type } = req.body;
+        
+        // Handle managed admin login (no tenant_slug required)
+        if (!tenant_slug) {
+            // Check for super admin credentials
+            if (username === 'superadmin' && password === 'superadmin123') {
+                return res.json({
+                    success: true,
+                    token: 'super-admin-token',
+                    role: 'super_admin',
+                    fullName: 'Super Administrator',
+                    email: 'superadmin@cbt-system.com'
+                });
+            }
+            // Check for managed admin credentials
+            else if (username === 'managedadmin' && password === 'managedadmin123') {
+                return res.json({
+                    success: true,
+                    token: 'managed-admin-token',
+                    role: 'managed_admin',
+                    fullName: 'Managed Administrator',
+                    email: 'managedadmin@cbt-system.com'
+                });
+            }
+            // Check for regular admin credentials
+            else if (username === 'admin' && password === 'admin123') {
+                return res.json({
+                    success: true,
+                    token: 'admin-token',
+                    role: 'admin',
+                    fullName: 'System Administrator',
+                    email: 'admin@healthschool.com'
+                });
+            }
+            else {
+                return res.status(401).json({ 
+                    success: false, 
+                    message: 'Invalid credentials' 
+                });
+            }
+        }
+        
+        // Institution-specific login
+        if (!username || !password || !tenant_slug) {
+            return res.status(400).json({ error: 'Username, password, and institution are required' });
+        }
+        
+        // Find tenant by slug
+        const tenant = await Tenant.findOne({ 
+            slug: tenant_slug,
+            deleted_at: null,
+            suspended: false
+        });
+        
+        if (!tenant) {
+            return res.status(401).json({ error: 'Invalid institution or institution is suspended' });
+        }
+        
+        // Find user by username within tenant (case-insensitive)
+        const user = await User.findOne({ 
+            tenant_id: tenant._id,
+            username: { $regex: new RegExp(`^${username}$`, 'i') },
+            is_active: true
+        });
+        
+        if (!user) {
+            return res.status(401).json({ error: 'Invalid credentials' });
+        }
+        
+        // Check password
+        if (user.password !== password) {
+            return res.status(401).json({ error: 'Invalid credentials' });
+        }
+        
+        // Validate user type if specified
+        if (user_type && user.role !== user_type) {
+            return res.status(401).json({ error: 'Invalid user type for this login' });
+        }
+        
+        // Update last login
+        user.last_login = new Date();
+        await user.save();
+        
+        // Return user data with tenant info
+        const { password: _, ...userData } = user.toObject();
+        res.json({
+            ...userData,
+            tenant: {
+                id: tenant._id,
+                name: tenant.name,
+                slug: tenant.slug,
+                logo_url: tenant.logo_url,
+                plan: tenant.plan
+            }
+        });
+        
+    } catch (err) { 
+        console.error('Login error:', err);
+        res.status(500).json({ error: 'Internal server error' });
+    }
 });
 
 // Read-only API routes
@@ -591,11 +865,11 @@ app.post('/api/v1/managed-admin/tenants', async (req, res) => {
 // Simple tenant listing endpoint (temporary workaround)
 app.get('/api/v1/managed-admin/tenants', async (req, res) => {
     try {
-                 // Fetch all tenants from database (not deleted)
-         const tenants = await Tenant.find({ deleted_at: null })
-             .select('name slug contact_email plan suspended created_at default_admin')
-             .sort({ created_at: -1 })
-             .lean();
+        // Fetch all tenants from database (not deleted)
+        const tenants = await Tenant.find({ deleted_at: null })
+            .select('name slug contact_email plan suspended created_at default_admin')
+            .sort({ created_at: -1 })
+            .lean();
         
         res.json({
             tenants: tenants,
@@ -620,7 +894,16 @@ app.delete('/api/v1/managed-admin/tenants/:id', async (req, res) => {
             return res.status(404).json({ error: 'Tenant not found' });
         }
         
-        // Soft delete by setting deleted_at timestamp
+        // Soft delete all users associated with this tenant
+        await User.updateMany(
+            { tenant_id: tenant._id },
+            { 
+                is_active: false,
+                updated_at: new Date()
+            }
+        );
+        
+        // Soft delete the tenant by setting deleted_at timestamp
         tenant.deleted_at = new Date();
         await tenant.save();
         
@@ -635,7 +918,12 @@ app.delete('/api/v1/managed-admin/tenants/:id', async (req, res) => {
         
     } catch (error) {
         console.error('Error removing tenant:', error);
-        res.status(500).json({ error: 'Failed to remove tenant' });
+        console.error('Tenant ID:', id);
+        console.error('Error details:', error.message);
+        res.status(500).json({ 
+            error: 'Failed to remove tenant',
+            details: error.message 
+        });
     }
 });
 
@@ -872,6 +1160,324 @@ app.patch('/api/v1/managed-admin/tenants/:id/status', async (req, res) => {
  // Mount new routes (commented out for now)
  // app.use('/api/v1/managed-admin', managedAdminRoutes);
  // app.use('/api/v1/database', databaseRoutes);
+
+// Admin Dashboard for institution users
+app.get('/admin-dashboard', (req, res) => {
+    const dashboardPage = `
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Admin Dashboard - CBT System</title>
+        <script src="https://cdn.tailwindcss.com"></script>
+    </head>
+    <body class="bg-gray-100">
+        <div id="app" class="min-h-screen">
+            <nav class="bg-white shadow-sm border-b">
+                <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                    <div class="flex justify-between h-16">
+                        <div class="flex items-center">
+                            <h1 class="text-xl font-semibold text-gray-900">CBT Admin Dashboard</h1>
+                        </div>
+                        <div class="flex items-center space-x-4">
+                            <span id="institutionName" class="text-sm text-gray-700"></span>
+                            <button onclick="logout()" class="bg-red-600 text-white px-4 py-2 rounded-md hover:bg-red-700">Logout</button>
+                        </div>
+                    </div>
+                </div>
+            </nav>
+            
+            <main class="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
+                <div class="px-4 py-6 sm:px-0">
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                        <div class="bg-white overflow-hidden shadow rounded-lg">
+                            <div class="p-5">
+                                <div class="flex items-center">
+                                    <div class="flex-shrink-0">
+                                        <div class="w-8 h-8 bg-indigo-500 rounded-md flex items-center justify-center">
+                                            <span class="text-white font-bold">E</span>
+                                        </div>
+                                    </div>
+                                    <div class="ml-5 w-0 flex-1">
+                                        <dl>
+                                            <dt class="text-sm font-medium text-gray-500 truncate">Exams</dt>
+                                            <dd class="text-lg font-medium text-gray-900">Manage Exams</dd>
+                                        </dl>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="bg-white overflow-hidden shadow rounded-lg">
+                            <div class="p-5">
+                                <div class="flex items-center">
+                                    <div class="flex-shrink-0">
+                                        <div class="w-8 h-8 bg-green-500 rounded-md flex items-center justify-center">
+                                            <span class="text-white font-bold">S</span>
+                                        </div>
+                                    </div>
+                                    <div class="ml-5 w-0 flex-1">
+                                        <dl>
+                                            <dt class="text-sm font-medium text-gray-500 truncate">Students</dt>
+                                            <dd class="text-lg font-medium text-gray-900">Manage Students</dd>
+                                        </dl>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="bg-white overflow-hidden shadow rounded-lg">
+                            <div class="p-5">
+                                <div class="flex items-center">
+                                    <div class="flex-shrink-0">
+                                        <div class="w-8 h-8 bg-purple-500 rounded-md flex items-center justify-center">
+                                            <span class="text-white font-bold">R</span>
+                                        </div>
+                                    </div>
+                                    <div class="ml-5 w-0 flex-1">
+                                        <dl>
+                                            <dt class="text-sm font-medium text-gray-500 truncate">Results</dt>
+                                            <dd class="text-lg font-medium text-gray-900">View Results</dd>
+                                        </dl>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="bg-white overflow-hidden shadow rounded-lg">
+                            <div class="p-5">
+                                <div class="flex items-center">
+                                    <div class="flex-shrink-0">
+                                        <div class="w-8 h-8 bg-yellow-500 rounded-md flex items-center justify-center">
+                                            <span class="text-white font-bold">P</span>
+                                        </div>
+                                    </div>
+                                    <div class="ml-5 w-0 flex-1">
+                                        <dl>
+                                            <dt class="text-sm font-medium text-gray-500 truncate">Profile</dt>
+                                            <dd class="text-lg font-medium text-gray-900">Institution Profile</dd>
+                                        </dl>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="bg-white overflow-hidden shadow rounded-lg">
+                            <div class="p-5">
+                                <div class="flex items-center">
+                                    <div class="flex-shrink-0">
+                                        <div class="w-8 h-8 bg-blue-500 rounded-md flex items-center justify-center">
+                                            <span class="text-white font-bold">A</span>
+                                        </div>
+                                    </div>
+                                    <div class="ml-5 w-0 flex-1">
+                                        <dl>
+                                            <dt class="text-sm font-medium text-gray-500 truncate">Admins</dt>
+                                            <dd class="text-lg font-medium text-gray-900">Manage Admins</dd>
+                                        </dl>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="bg-white overflow-hidden shadow rounded-lg">
+                            <div class="p-5">
+                                <div class="flex items-center">
+                                    <div class="flex-shrink-0">
+                                        <div class="w-8 h-8 bg-gray-500 rounded-md flex items-center justify-center">
+                                            <span class="text-white font-bold">S</span>
+                                        </div>
+                                    </div>
+                                    <div class="ml-5 w-0 flex-1">
+                                        <dl>
+                                            <dt class="text-sm font-medium text-gray-500 truncate">Settings</dt>
+                                            <dd class="text-lg font-medium text-gray-900">Account Settings</dd>
+                                        </dl>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </main>
+        </div>
+        
+        <script>
+            // Load user and tenant data
+            const user = JSON.parse(localStorage.getItem('user') || '{}');
+            const tenant = JSON.parse(localStorage.getItem('tenant') || '{}');
+            
+            // Display institution name
+            document.getElementById('institutionName').textContent = tenant.name || 'Unknown Institution';
+            
+            // Check if user is logged in
+            if (!user._id) {
+                window.location.href = '/';
+            }
+            
+            function logout() {
+                localStorage.clear();
+                window.location.href = '/';
+            }
+        </script>
+    </body>
+    </html>
+    `;
+    
+    res.send(dashboardPage);
+});
+
+// Student Dashboard for institution users
+app.get('/student-dashboard', (req, res) => {
+    const dashboardPage = `
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Student Dashboard - CBT System</title>
+        <script src="https://cdn.tailwindcss.com"></script>
+    </head>
+    <body class="bg-gray-100">
+        <div id="app" class="min-h-screen">
+            <nav class="bg-white shadow-sm border-b">
+                <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                    <div class="flex justify-between h-16">
+                        <div class="flex items-center">
+                            <h1 class="text-xl font-semibold text-gray-900">CBT Student Dashboard</h1>
+                        </div>
+                        <div class="flex items-center space-x-4">
+                            <span id="studentName" class="text-sm text-gray-700"></span>
+                            <span id="institutionName" class="text-sm text-gray-700"></span>
+                            <button onclick="logout()" class="bg-red-600 text-white px-4 py-2 rounded-md hover:bg-red-700">Logout</button>
+                        </div>
+                    </div>
+                </div>
+            </nav>
+            
+            <main class="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
+                <div class="px-4 py-6 sm:px-0">
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                        <div class="bg-white overflow-hidden shadow rounded-lg">
+                            <div class="p-5">
+                                <div class="flex items-center">
+                                    <div class="flex-shrink-0">
+                                        <div class="w-8 h-8 bg-green-500 rounded-md flex items-center justify-center">
+                                            <span class="text-white font-bold">T</span>
+                                        </div>
+                                    </div>
+                                    <div class="ml-5 w-0 flex-1">
+                                        <dl>
+                                            <dt class="text-sm font-medium text-gray-500 truncate">Take Exam</dt>
+                                            <dd class="text-lg font-medium text-gray-900">Available Exams</dd>
+                                        </dl>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="bg-white overflow-hidden shadow rounded-lg">
+                            <div class="p-5">
+                                <div class="flex items-center">
+                                    <div class="flex-shrink-0">
+                                        <div class="w-8 h-8 bg-blue-500 rounded-md flex items-center justify-center">
+                                            <span class="text-white font-bold">R</span>
+                                        </div>
+                                    </div>
+                                    <div class="ml-5 w-0 flex-1">
+                                        <dl>
+                                            <dt class="text-sm font-medium text-gray-500 truncate">Results</dt>
+                                            <dd class="text-lg font-medium text-gray-900">My Results</dd>
+                                        </dl>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="bg-white overflow-hidden shadow rounded-lg">
+                            <div class="p-5">
+                                <div class="flex items-center">
+                                    <div class="flex-shrink-0">
+                                        <div class="w-8 h-8 bg-purple-500 rounded-md flex items-center justify-center">
+                                            <span class="text-white font-bold">P</span>
+                                        </div>
+                                    </div>
+                                    <div class="ml-5 w-0 flex-1">
+                                        <dl>
+                                            <dt class="text-sm font-medium text-gray-500 truncate">Profile</dt>
+                                            <dd class="text-lg font-medium text-gray-900">My Profile</dd>
+                                        </dl>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="bg-white overflow-hidden shadow rounded-lg">
+                            <div class="p-5">
+                                <div class="flex items-center">
+                                    <div class="flex-shrink-0">
+                                        <div class="w-8 h-8 bg-yellow-500 rounded-md flex items-center justify-center">
+                                            <span class="text-white font-bold">H</span>
+                                        </div>
+                                    </div>
+                                    <div class="ml-5 w-0 flex-1">
+                                        <dl>
+                                            <dt class="text-sm font-medium text-gray-500 truncate">History</dt>
+                                            <dd class="text-lg font-medium text-gray-900">Exam History</dd>
+                                        </dl>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="bg-white overflow-hidden shadow rounded-lg">
+                            <div class="p-5">
+                                <div class="flex items-center">
+                                    <div class="flex-shrink-0">
+                                        <div class="w-8 h-8 bg-gray-500 rounded-md flex items-center justify-center">
+                                            <span class="text-white font-bold">S</span>
+                                        </div>
+                                    </div>
+                                    <div class="ml-5 w-0 flex-1">
+                                        <dl>
+                                            <dt class="text-sm font-medium text-gray-500 truncate">Settings</dt>
+                                            <dd class="text-lg font-medium text-gray-900">Account Settings</dd>
+                                        </dl>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </main>
+        </div>
+        
+        <script>
+            // Load user and tenant data
+            const user = JSON.parse(localStorage.getItem('user') || '{}');
+            const tenant = JSON.parse(localStorage.getItem('tenant') || '{}');
+            
+            // Display student name and institution
+            document.getElementById('studentName').textContent = user.fullName || 'Unknown Student';
+            document.getElementById('institutionName').textContent = tenant.name || 'Unknown Institution';
+            
+            // Check if user is logged in
+            if (!user._id) {
+                window.location.href = '/';
+            }
+            
+            function logout() {
+                localStorage.clear();
+                window.location.href = '/';
+            }
+        </script>
+    </body>
+    </html>
+    `;
+    
+    res.send(dashboardPage);
+});
 
 // Error handling middleware
 app.use((err, req, res, next) => {
