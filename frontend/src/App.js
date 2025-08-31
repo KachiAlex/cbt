@@ -55,10 +55,11 @@ function App() {
     const urlParams = new URLSearchParams(window.location.search);
     const slug = urlParams.get('slug');
     
-    console.log('🔍 Checking URL parameters:', { slug, search: window.location.search });
+    console.log('🔍 Checking URL parameters:', { slug, search: window.location.search, href: window.location.href });
     
     if (slug) {
       console.log('🏫 Institution route detected:', slug);
+      alert('Institution route detected: ' + slug); // Temporary debug alert
       // Show dedicated institution login page
       setIsInstitutionRoute(true);
       return; // Exit early for institution routes
@@ -181,8 +182,12 @@ function App() {
   // If this is an institution route, show the dedicated institution login page
   console.log('🎯 Rendering decision:', { isInstitutionRoute, user: !!user, view });
   
-  if (isInstitutionRoute) {
-    console.log('🏫 Rendering InstitutionLoginPage');
+  // Double-check URL for institution route (fallback)
+  const urlParams = new URLSearchParams(window.location.search);
+  const slug = urlParams.get('slug');
+  
+  if (isInstitutionRoute || slug) {
+    console.log('🏫 Rendering InstitutionLoginPage (slug detected:', slug, ')');
     return <InstitutionLoginPage />;
   }
 
