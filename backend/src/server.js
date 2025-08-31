@@ -248,8 +248,8 @@ app.get('/institution/:slug', async (req, res) => {
                             localStorage.setItem('tenant', JSON.stringify(data.tenant));
                             localStorage.setItem('userType', 'admin');
                             
-                            // Redirect to admin dashboard
-                            window.location.href = '/admin-dashboard';
+                                                         // Redirect to frontend admin dashboard
+                             window.location.href = 'https://cbt.netlify.app/admin-dashboard';
                         } else {
                             showError(data.error || 'Login failed');
                         }
@@ -284,8 +284,8 @@ app.get('/institution/:slug', async (req, res) => {
                             localStorage.setItem('tenant', JSON.stringify(data.tenant));
                             localStorage.setItem('userType', 'student');
                             
-                            // Redirect to student dashboard
-                            window.location.href = '/student-dashboard';
+                                                         // Redirect to frontend student dashboard
+                             window.location.href = 'https://cbt.netlify.app/student-dashboard';
                         } else {
                             showError(data.error || 'Login failed');
                         }
