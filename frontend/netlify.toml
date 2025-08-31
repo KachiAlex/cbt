@@ -1,0 +1,27 @@
+[build]
+  publish = "build"
+  command = "npm run build"
+
+[build.environment]
+  NODE_VERSION = "18"
+
+[[redirects]]
+  from = "/institution.html"
+  to = "/institution.html"
+  status = 200
+
+[[redirects]]
+  from = "/admin-dashboard.html"
+  to = "/admin-dashboard.html"
+  status = 200
+
+[[redirects]]
+  from = "/student-dashboard.html"
+  to = "/student-dashboard.html"
+  status = 200
+
+# Handle React Router fallback
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
