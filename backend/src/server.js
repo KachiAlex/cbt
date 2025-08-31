@@ -516,7 +516,7 @@ app.post('/api/v1/managed-admin/tenants', async (req, res) => {
         await tenant.save();
         
         res.status(201).json({
-            message: 'Tenant created successfully',
+            message: 'Tenant created successfully (REAL DATABASE)',
             tenant: {
                 id: tenant._id,
                 name: tenant.name,
