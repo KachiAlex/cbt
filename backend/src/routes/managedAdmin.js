@@ -1,0 +1,394 @@
+const express = require('express');
+const router = express.Router();
+const bcrypt = require('bcryptjs');
+const crypto = require('crypto');
+
+// Import models
+const Tenant = require('../models/Tenant');
+const User = require('../models/User');
+const AuditLog = require('../models/AuditLog');
+
+// Middleware to check if user is managed admin
+const requireManagedAdmin = async (req, res, next) => {
+  try {
+    const user = await User.findById(req.user.id);
+    if (!user || !['super_admin', 'managed_admin'].includes(user.role)) {
+      return res.status(403).json({ error: 'Access denied. Managed admin role required.' });
+    }
+    next();
+  } catch (error) {
+    res.status(500).json({ error: 'Authentication error' });
+  }
+};
+
+// Generate temporary password
+const generateTempPassword = () => {
+  return crypto.randomBytes(8).toString('hex');
+};
+
+// Create tenant with default admin
+router.post('/tenants', requireManagedAdmin, async (req, res) => {
+  try {
+    const {
+      name,
+      slug,
+      address,
+      contact_email,
+      contact_phone,
+      timezone = 'UTC',
+      language = 'en',
+      logo_url,
+      plan = 'basic',
+      default_admin
+    } = req.body;
+
+    // Validate required fields
+    if (!name || !slug || !contact_email || !default_admin) {
+      return res.status(400).json({
+        error: 'Missing required fields: name, slug, contact_email, default_admin'
+      });
+    }
+
+    // Check if tenant slug already exists
+    const existingTenant = await Tenant.findOne({ slug });
+    if (existingTenant) {
+      return res.status(400).json({ error: 'Tenant slug already exists' });
+    }
+
+    // Create tenant
+    const tenant = new Tenant({
+      name,
+      slug,
+      address,
+      contact_email,
+      contact_phone,
+      timezone,
+      language,
+      logo_url,
+      plan
+    });
+
+    await tenant.save();
+
+    // Generate temporary password for default admin
+    const tempPassword = generateTempPassword();
+
+    // Create default admin user
+    const defaultAdminUser = new User({
+      tenant_id: tenant._id,
+      username: default_admin.username || default_admin.email.split('@')[0],
+      email: default_admin.email,
+      phone: default_admin.phone,
+      fullName: default_admin.fullName || default_admin.email.split('@')[0],
+      password: tempPassword,
+      role: 'tenant_admin',
+      is_default_admin: true,
+      must_change_password: true
+    });
+
+    await defaultAdminUser.save();
+
+    // Create audit log
+    await new AuditLog({
+      actor_user_id: req.user.id,
+      actor_ip: req.ip,
+      actor_user_agent: req.get('User-Agent'),
+      action: 'tenant.create',
+      resource_type: 'tenant',
+      resource_id: tenant._id,
+      details: {
+        tenant_name: name,
+        tenant_slug: slug,
+        default_admin_email: default_admin.email,
+        plan: plan
+      }
+    }).save();
+
+    res.status(201).json({
+      message: 'Tenant created successfully',
+      tenant: {
+        id: tenant._id,
+        name: tenant.name,
+        slug: tenant.slug,
+        contact_email: tenant.contact_email,
+        plan: tenant.plan,
+        created_at: tenant.created_at
+      },
+      default_admin: {
+        id: defaultAdminUser._id,
+        email: defaultAdminUser.email,
+        username: defaultAdminUser.username,
+        temp_password: tempPassword
+      }
+    });
+
+  } catch (error) {
+    console.error('Error creating tenant:', error);
+    res.status(500).json({ error: 'Failed to create tenant' });
+  }
+});
+
+// Get all tenants
+router.get('/tenants', requireManagedAdmin, async (req, res) => {
+  try {
+    const { page = 1, limit = 10, status } = req.query;
+    
+    let query = {};
+    if (status === 'active') {
+      query = { suspended: false, deleted_at: null };
+    } else if (status === 'suspended') {
+      query = { suspended: true, deleted_at: null };
+    } else if (status === 'deleted') {
+      query = { deleted_at: { $ne: null } };
+    }
+
+    const tenants = await Tenant.find(query)
+      .sort({ created_at: -1 })
+      .limit(limit * 1)
+      .skip((page - 1) * limit)
+      .lean();
+
+    const total = await Tenant.countDocuments(query);
+
+    res.json({
+      tenants,
+      total,
+      page: parseInt(page),
+      totalPages: Math.ceil(total / limit)
+    });
+
+  } catch (error) {
+    console.error('Error fetching tenants:', error);
+    res.status(500).json({ error: 'Failed to fetch tenants' });
+  }
+});
+
+// Get tenant details
+router.get('/tenants/:id', requireManagedAdmin, async (req, res) => {
+  try {
+    const tenant = await Tenant.findById(req.params.id);
+    if (!tenant) {
+      return res.status(404).json({ error: 'Tenant not found' });
+    }
+
+    // Get tenant users
+    const users = await User.find({ tenant_id: tenant._id })
+      .select('-password')
+      .lean();
+
+    // Get recent audit logs for this tenant
+    const auditLogs = await AuditLog.find({
+      resource_type: 'tenant',
+      resource_id: tenant._id
+    })
+      .sort({ created_at: -1 })
+      .limit(10)
+      .populate('actor_user_id', 'username email')
+      .lean();
+
+    res.json({
+      tenant,
+      users,
+      audit_logs: auditLogs
+    });
+
+  } catch (error) {
+    console.error('Error fetching tenant details:', error);
+    res.status(500).json({ error: 'Failed to fetch tenant details' });
+  }
+});
+
+// Suspend tenant
+router.post('/tenants/:id/suspend', requireManagedAdmin, async (req, res) => {
+  try {
+    const { reason } = req.body;
+    const tenant = await Tenant.findById(req.params.id);
+    
+    if (!tenant) {
+      return res.status(404).json({ error: 'Tenant not found' });
+    }
+
+    tenant.suspended = true;
+    await tenant.save();
+
+    // Create audit log
+    await new AuditLog({
+      actor_user_id: req.user.id,
+      actor_ip: req.ip,
+      actor_user_agent: req.get('User-Agent'),
+      action: 'tenant.suspend',
+      resource_type: 'tenant',
+      resource_id: tenant._id,
+      details: { reason }
+    }).save();
+
+    res.json({ message: 'Tenant suspended successfully' });
+
+  } catch (error) {
+    console.error('Error suspending tenant:', error);
+    res.status(500).json({ error: 'Failed to suspend tenant' });
+  }
+});
+
+// Reinstate tenant
+router.post('/tenants/:id/reinstate', requireManagedAdmin, async (req, res) => {
+  try {
+    const tenant = await Tenant.findById(req.params.id);
+    
+    if (!tenant) {
+      return res.status(404).json({ error: 'Tenant not found' });
+    }
+
+    tenant.suspended = false;
+    await tenant.save();
+
+    // Create audit log
+    await new AuditLog({
+      actor_user_id: req.user.id,
+      actor_ip: req.ip,
+      actor_user_agent: req.get('User-Agent'),
+      action: 'tenant.reinstate',
+      resource_type: 'tenant',
+      resource_id: tenant._id
+    }).save();
+
+    res.json({ message: 'Tenant reinstated successfully' });
+
+  } catch (error) {
+    console.error('Error reinstating tenant:', error);
+    res.status(500).json({ error: 'Failed to reinstate tenant' });
+  }
+});
+
+// Reset default admin password
+router.post('/tenants/:id/reset-default-admin', requireManagedAdmin, async (req, res) => {
+  try {
+    const tenant = await Tenant.findById(req.params.id);
+    if (!tenant) {
+      return res.status(404).json({ error: 'Tenant not found' });
+    }
+
+    const defaultAdmin = await User.findOne({
+      tenant_id: tenant._id,
+      is_default_admin: true
+    });
+
+    if (!defaultAdmin) {
+      return res.status(404).json({ error: 'Default admin not found' });
+    }
+
+    // Generate new temporary password
+    const tempPassword = generateTempPassword();
+    defaultAdmin.password = tempPassword;
+    defaultAdmin.must_change_password = true;
+    await defaultAdmin.save();
+
+    // Create audit log
+    await new AuditLog({
+      actor_user_id: req.user.id,
+      actor_ip: req.ip,
+      actor_user_agent: req.get('User-Agent'),
+      action: 'user.reset_password',
+      resource_type: 'user',
+      resource_id: defaultAdmin._id,
+      details: {
+        tenant_id: tenant._id,
+        tenant_name: tenant.name
+      }
+    }).save();
+
+    res.json({
+      message: 'Default admin password reset successfully',
+      temp_password: tempPassword,
+      admin_email: defaultAdmin.email
+    });
+
+  } catch (error) {
+    console.error('Error resetting default admin password:', error);
+    res.status(500).json({ error: 'Failed to reset password' });
+  }
+});
+
+// Remove tenant (soft delete)
+router.delete('/tenants/:id', requireManagedAdmin, async (req, res) => {
+  try {
+    const { hard = false } = req.query;
+    const tenant = await Tenant.findById(req.params.id);
+    
+    if (!tenant) {
+      return res.status(404).json({ error: 'Tenant not found' });
+    }
+
+    if (hard === 'true') {
+      // Hard delete - remove all tenant data
+      await User.deleteMany({ tenant_id: tenant._id });
+      await Tenant.findByIdAndDelete(tenant._id);
+      
+      // Create audit log
+      await new AuditLog({
+        actor_user_id: req.user.id,
+        actor_ip: req.ip,
+        actor_user_agent: req.get('User-Agent'),
+        action: 'tenant.delete',
+        resource_type: 'tenant',
+        resource_id: tenant._id,
+        details: { hard_delete: true }
+      }).save();
+    } else {
+      // Soft delete
+      tenant.deleted_at = new Date();
+      tenant.suspended = true;
+      await tenant.save();
+      
+      // Create audit log
+      await new AuditLog({
+        actor_user_id: req.user.id,
+        actor_ip: req.ip,
+        actor_user_agent: req.get('User-Agent'),
+        action: 'tenant.remove',
+        resource_type: 'tenant',
+        resource_id: tenant._id,
+        details: { soft_delete: true }
+      }).save();
+    }
+
+    res.json({ message: `Tenant ${hard === 'true' ? 'deleted' : 'removed'} successfully` });
+
+  } catch (error) {
+    console.error('Error removing tenant:', error);
+    res.status(500).json({ error: 'Failed to remove tenant' });
+  }
+});
+
+// Get audit logs
+router.get('/audit-logs', requireManagedAdmin, async (req, res) => {
+  try {
+    const { page = 1, limit = 20, action, resource_type } = req.query;
+    
+    let query = {};
+    if (action) query.action = action;
+    if (resource_type) query.resource_type = resource_type;
+
+    const auditLogs = await AuditLog.find(query)
+      .sort({ created_at: -1 })
+      .limit(limit * 1)
+      .skip((page - 1) * limit)
+      .populate('actor_user_id', 'username email')
+      .lean();
+
+    const total = await AuditLog.countDocuments(query);
+
+    res.json({
+      audit_logs: auditLogs,
+      total,
+      page: parseInt(page),
+      totalPages: Math.ceil(total / limit)
+    });
+
+  } catch (error) {
+    console.error('Error fetching audit logs:', error);
+    res.status(500).json({ error: 'Failed to fetch audit logs' });
+  }
+});
+
+module.exports = router;

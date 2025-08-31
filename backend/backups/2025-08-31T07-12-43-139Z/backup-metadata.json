@@ -1,0 +1,8 @@
+{
+  "timestamp": "2025-08-31T07:12:43.142Z",
+  "snapshot_id": "snap-2025-08-31T07-12-43-139Z",
+  "operator_id": "system-backup",
+  "commit_hash": "unknown",
+  "database_url": "mongodb://localhost:27017/cbt_database",
+  "backup_type": "full_database_backup"
+}

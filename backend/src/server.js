@@ -8,6 +8,8 @@ require('dotenv').config();
 
 // Models
 const User = require('./models/User');
+const Tenant = require('./models/Tenant');
+const AuditLog = require('./models/AuditLog');
 const Exam = require('./models/Exam');
 const Result = require('./models/Result');
 const Question = require('./models/Question');
@@ -46,17 +48,24 @@ app.get('/health', (req, res) => {
 app.get('/api', (req, res) => {
 	res.json({ 
 		message: 'CBT Backend API is running',
-		version: '1.0.0',
+		version: '2.0.0',
 		database: process.env.DB_TYPE || 'mongodb',
+		multi_tenant: true,
 		endpoints: {
 			health: '/health',
 			exams: '/api/exams',
 			questions: '/api/questions',
 			results: '/api/results',
-			users: '/api/users'
+			users: '/api/users',
+			managed_admin: '/api/v1/managed-admin',
+			database: '/api/v1/database'
 		}
 	});
 });
+
+// Import new routes
+const managedAdminRoutes = require('./routes/managedAdmin');
+const databaseRoutes = require('./routes/database');
 
 // Read-only API routes
 app.get('/api/exams', async (req, res, next) => {
@@ -362,6 +371,10 @@ app.post('/api/results', async (req, res, next) => {
 		});
 	} catch (err) { next(err); }
 });
+
+// Mount new routes
+app.use('/api/v1/managed-admin', managedAdminRoutes);
+app.use('/api/v1/database', databaseRoutes);
 
 // Error handling middleware
 app.use((err, req, res, next) => {
