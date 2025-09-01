@@ -86,7 +86,7 @@ app.get('/health', (req, res) => {
 app.get('/api', (req, res) => {
 	res.json({ 
 		message: 'CBT Backend API is running',
-		version: '2.0.8-FINAL', // Fixed User model enum to include admin role
+		version: '2.0.9-FINAL', // Fixed password comparison in login endpoint
 		database: process.env.DB_TYPE || 'mongodb',
 		multi_tenant: true,
 		deployment: 'final-version-' + Date.now(),
@@ -431,7 +431,8 @@ app.post('/api/auth/login', async (req, res) => {
         }
         
         // Check password
-        if (user.password !== password) {
+        const isPasswordValid = await user.comparePassword(password);
+        if (!isPasswordValid) {
             return res.status(401).json({ error: 'Invalid credentials' });
         }
         
