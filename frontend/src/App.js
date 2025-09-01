@@ -5,6 +5,7 @@ import { Document, Packer, Paragraph, TextRun, Table, TableRow, TableCell } from
 import mammoth from "mammoth";
 import dataService from "./services/dataService";
 import InstitutionLoginPage from "./components/InstitutionLoginPage";
+import MultiTenantAdmin from "./components/MultiTenantAdmin";
 
 // -------------------------
 // Advanced In-Browser CBT System
@@ -50,6 +51,13 @@ function App() {
 
 
   useEffect(() => {
+    // Check if this is a multi-tenant admin route
+    if (window.location.pathname === '/admin') {
+      console.log('🏢 Multi-tenant admin route detected');
+      setView("multi-tenant-admin");
+      return; // Exit early for admin routes
+    }
+    
     // Check if this is an institution-specific route
     const urlParams = new URLSearchParams(window.location.search);
     const slug = urlParams.get('slug');
@@ -199,7 +207,9 @@ function App() {
           )
         ) : (
           <>
-            {view === "institution-login" ? (
+            {view === "multi-tenant-admin" ? (
+              <MultiTenantAdmin />
+            ) : view === "institution-login" ? (
               <InstitutionLoginPage />
             ) : (
               <>
