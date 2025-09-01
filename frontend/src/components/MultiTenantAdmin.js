@@ -46,15 +46,21 @@ const MultiTenantAdmin = () => {
       setLoading(true);
       const token = getAuthToken();
       
+      console.log('🔍 Loading institutions...');
+      console.log('🔑 Token:', token ? 'Present' : 'Missing');
+      
       const response = await fetch(`${API_BASE_URL}/api/tenants`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
       });
       
+      console.log('📡 Response status:', response.status);
+      
       if (!response.ok) {
         if (response.status === 401) {
           // Token expired or invalid
+          console.log('❌ Token expired or invalid');
           handleLogout();
           return;
         }
@@ -62,8 +68,10 @@ const MultiTenantAdmin = () => {
       }
       
       const data = await response.json();
+      console.log('📊 Loaded institutions:', data);
       setInstitutions(data);
     } catch (error) {
+      console.error('❌ Error loading institutions:', error);
       setError('Failed to load institutions: ' + error.message);
       // Fallback to empty array
       setInstitutions([]);
