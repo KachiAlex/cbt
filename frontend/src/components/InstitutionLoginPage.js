@@ -85,11 +85,11 @@ const InstitutionLoginPage = () => {
       const data = await response.json();
 
       if (data.success) {
-        localStorage.setItem('user', JSON.stringify(data.user));
-        localStorage.setItem('tenant', JSON.stringify(data.tenant));
+        localStorage.setItem('cbt_logged_in_user', JSON.stringify(data.user));
         localStorage.setItem('institution_data', JSON.stringify(data.tenant));
         localStorage.setItem('institution_slug', institutionSlug);
-        window.location.href = 'https://cbt.netlify.app/?institution=' + institutionSlug;
+        // Reload the page to trigger the main App.js logic
+        window.location.reload();
       } else {
         setError(data.message || 'Login failed');
       }
@@ -122,11 +122,11 @@ const InstitutionLoginPage = () => {
       const data = await response.json();
 
       if (data.success) {
-        localStorage.setItem('user', JSON.stringify(data.user));
-        localStorage.setItem('tenant', JSON.stringify(data.tenant));
+        localStorage.setItem('cbt_logged_in_user', JSON.stringify(data.user));
         localStorage.setItem('institution_data', JSON.stringify(data.tenant));
         localStorage.setItem('institution_slug', institutionSlug);
-        window.location.href = 'https://cbt.netlify.app/?institution=' + institutionSlug;
+        // Reload the page to trigger the main App.js logic
+        window.location.reload();
       } else {
         setError(data.message || 'Login failed');
       }

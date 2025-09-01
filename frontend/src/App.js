@@ -58,7 +58,9 @@ function App() {
     
     if (slug) {
       console.log('🏫 Institution route detected:', slug);
-      // Show dedicated institution login page
+      // Load institution data and show dedicated institution login page
+      loadInstitutionData(slug);
+      setView("institution-login");
       return; // Exit early for institution routes
     } else {
       console.log('🏠 Regular route detected');
@@ -197,31 +199,37 @@ function App() {
           )
         ) : (
           <>
-            {view !== "admin-login" && (
-              <Login 
-                onLogin={(u)=>{setUser(u); localStorage.setItem("cbt_logged_in_user", JSON.stringify(u)); setView("home");}}
-                institutionData={institutionData}
-              />
-            )}
-            {showAdminLink && (
-              <div className="mt-8 p-4 bg-red-50 border border-red-200 rounded-lg">
-                <div className="text-center">
-                  <p className="text-red-700 font-semibold mb-2">🔐 Admin Access</p>
-                  <button 
-                    onClick={() => setView("admin-login")}
-                    className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
-                  >
-                    Access Admin Panel
-                  </button>
-                </div>
-              </div>
-            )}
-            {view === "admin-login" && (
-              <AdminLogin 
-                onLogin={(u)=>{setUser(u); localStorage.setItem("cbt_logged_in_user", JSON.stringify(u)); setView("home");}}
-                onBack={() => setView("login")}
-                institutionData={institutionData}
-              />
+            {view === "institution-login" ? (
+              <InstitutionLoginPage />
+            ) : (
+              <>
+                {view !== "admin-login" && (
+                  <Login 
+                    onLogin={(u)=>{setUser(u); localStorage.setItem("cbt_logged_in_user", JSON.stringify(u)); setView("home");}}
+                    institutionData={institutionData}
+                  />
+                )}
+                {showAdminLink && (
+                  <div className="mt-8 p-4 bg-red-50 border border-red-200 rounded-lg">
+                    <div className="text-center">
+                      <p className="text-red-700 font-semibold mb-2">🔐 Admin Access</p>
+                      <button 
+                        onClick={() => setView("admin-login")}
+                        className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+                      >
+                        Access Admin Panel
+                      </button>
+                    </div>
+                  </div>
+                )}
+                {view === "admin-login" && (
+                  <AdminLogin 
+                    onLogin={(u)=>{setUser(u); localStorage.setItem("cbt_logged_in_user", JSON.stringify(u)); setView("home");}}
+                    onBack={() => setView("login")}
+                    institutionData={institutionData}
+                  />
+                )}
+              </>
             )}
           </>
         )}

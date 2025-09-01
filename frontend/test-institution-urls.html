@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Institution URL Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .test-card {
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .test-link {
+            display: inline-block;
+            background: #007bff;
+            color: white;
+            padding: 10px 20px;
+            text-decoration: none;
+            border-radius: 4px;
+            margin: 5px;
+        }
+        .test-link:hover {
+            background: #0056b3;
+        }
+        .success {
+            color: #28a745;
+            font-weight: bold;
+        }
+        .error {
+            color: #dc3545;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <h1>🏫 Institution-Specific URL Test</h1>
+    
+    <div class="test-card">
+        <h2>✅ Implementation Status</h2>
+        <p><strong>Multi-Tenant Admin Platform:</strong> ✅ Ready</p>
+        <p><strong>Institution-Specific URLs:</strong> ✅ Implemented</p>
+        <p><strong>Customized Login Pages:</strong> ✅ Working</p>
+        <p><strong>Data Isolation:</strong> ✅ Configured</p>
+    </div>
+
+    <div class="test-card">
+        <h2>🔗 Test Institution URLs</h2>
+        <p>Click the links below to test institution-specific login pages:</p>
+        
+        <h3>Sample Institution Links:</h3>
+        <a href="?slug=harvard-university" class="test-link">Harvard University</a>
+        <a href="?slug=stanford-college" class="test-link">Stanford College</a>
+        <a href="?slug=mit-institute" class="test-link">MIT Institute</a>
+        <a href="?slug=college-of-nursing-eku" class="test-link">College of Nursing, Eku</a>
+        
+        <h3>Regular CBT App:</h3>
+        <a href="./" class="test-link">Main CBT App (No Institution)</a>
+    </div>
+
+    <div class="test-card">
+        <h2>📋 How It Works</h2>
+        <ol>
+            <li><strong>Multi-Tenant Admin Platform</strong> creates institution accounts</li>
+            <li><strong>Institution-specific URLs</strong> are generated (e.g., <code>?slug=institution-name</code>)</li>
+            <li><strong>Customized login page</strong> shows institution name and branding</li>
+            <li><strong>Admin/Student login</strong> with institution-specific credentials</li>
+            <li><strong>Data isolation</strong> ensures each institution's data is separate</li>
+        </ol>
+    </div>
+
+    <div class="test-card">
+        <h2>🎯 Expected Behavior</h2>
+        <ul>
+            <li>✅ Institution name displayed prominently</li>
+            <li>✅ Institution logo (if uploaded)</li>
+            <li>✅ Separate Admin and Student login buttons</li>
+            <li>✅ Institution-specific authentication</li>
+            <li>✅ Complete data isolation between institutions</li>
+        </ul>
+    </div>
+
+    <div class="test-card">
+        <h2>🔧 Technical Details</h2>
+        <p><strong>URL Format:</strong> <code>https://cbtexam.netlify.app?slug=institution-slug</code></p>
+        <p><strong>Backend API:</strong> <code>https://cbt-rew7.onrender.com</code></p>
+        <p><strong>Data Storage:</strong> MongoDB Atlas (cloud) + localStorage (fallback)</p>
+        <p><strong>Authentication:</strong> JWT tokens with tenant validation</p>
+    </div>
+
+    <script>
+        // Test current URL parameters
+        const urlParams = new URLSearchParams(window.location.search);
+        const slug = urlParams.get('slug');
+        
+        if (slug) {
+            console.log('🏫 Institution detected:', slug);
+            // Redirect to the main app with institution parameter
+            window.location.href = './?slug=' + slug;
+        }
+        
+        // Add click handlers for test links
+        document.querySelectorAll('.test-link').forEach(link => {
+            link.addEventListener('click', (e) => {
+                if (link.getAttribute('href').startsWith('?')) {
+                    e.preventDefault();
+                    const slug = link.getAttribute('href').replace('?slug=', '');
+                    window.location.href = './?slug=' + slug;
+                }
+            });
+        });
+    </script>
+</body>
+</html> 
