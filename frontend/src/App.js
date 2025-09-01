@@ -6,6 +6,7 @@ import mammoth from "mammoth";
 import dataService from "./services/dataService";
 import InstitutionLoginPage from "./components/InstitutionLoginPage";
 import MultiTenantAdmin from "./components/MultiTenantAdmin";
+import RouteDebug from "./components/RouteDebug";
 
 // -------------------------
 // Advanced In-Browser CBT System
@@ -51,8 +52,12 @@ function App() {
 
 
   useEffect(() => {
+    console.log('🔍 Current URL:', window.location.href);
+    console.log('🔍 Pathname:', window.location.pathname);
+    console.log('🔍 Search:', window.location.search);
+    
     // Check if this is a multi-tenant admin route
-    if (window.location.pathname === '/admin') {
+    if (window.location.pathname === '/admin' || window.location.pathname === '/admin/' || urlParams.get('admin') === 'true') {
       console.log('🏢 Multi-tenant admin route detected');
       setView("multi-tenant-admin");
       return; // Exit early for admin routes
@@ -197,6 +202,7 @@ function App() {
 
   return (
     <div className="min-h-screen bg-gray-50 text-gray-800">
+      <RouteDebug />
       <Header user={user} onLogout={onLogout} onLogoClick={handleLogoClick} institutionData={institutionData} />
       <main className="max-w-5xl mx-auto w-full px-3 sm:px-8 py-4 sm:py-8">
         {user ? (
