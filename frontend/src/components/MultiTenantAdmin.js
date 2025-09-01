@@ -25,16 +25,46 @@ const MultiTenantAdmin = () => {
   // MongoDB API base URL
   const API_BASE_URL = 'https://cbt-rew7.onrender.com';
 
+  // Get authentication token
+  const getAuthToken = () => {
+    return localStorage.getItem('multi_tenant_admin_token');
+  };
+
+  // Check if user is authenticated
+  const isAuthenticated = () => {
+    return !!getAuthToken();
+  };
+
+  // Logout function
+  const handleLogout = () => {
+    localStorage.removeItem('multi_tenant_admin_token');
+    localStorage.removeItem('multi_tenant_admin_user');
+    window.location.reload();
+  };
+
   useEffect(() => {
-    loadInstitutions();
+    if (isAuthenticated()) {
+      loadInstitutions();
+    }
   }, []);
 
   const loadInstitutions = async () => {
     try {
       setLoading(true);
-      const response = await fetch(`${API_BASE_URL}/api/tenants`);
+      const token = getAuthToken();
+      
+      const response = await fetch(`${API_BASE_URL}/api/tenants`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
       
       if (!response.ok) {
+        if (response.status === 401) {
+          // Token expired or invalid
+          handleLogout();
+          return;
+        }
         throw new Error('Failed to load institutions from MongoDB');
       }
       
@@ -53,10 +83,13 @@ const MultiTenantAdmin = () => {
     e.preventDefault();
     
     try {
+      const token = getAuthToken();
+      
       const response = await fetch(`${API_BASE_URL}/api/tenants`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
         },
         body: JSON.stringify(formData)
       });
@@ -92,10 +125,13 @@ const MultiTenantAdmin = () => {
 
   const toggleInstitutionStatus = async (slug, currentStatus) => {
     try {
+      const token = getAuthToken();
+      
       const response = await fetch(`${API_BASE_URL}/api/tenants/${slug}/toggle-status`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
         },
         body: JSON.stringify({ suspended: !currentStatus })
       });
@@ -119,8 +155,13 @@ const MultiTenantAdmin = () => {
     }
 
     try {
+      const token = getAuthToken();
+      
       const response = await fetch(`${API_BASE_URL}/api/tenants/${slug}`, {
-        method: 'DELETE'
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
       });
 
       if (!response.ok) {
@@ -132,6 +173,10 @@ const MultiTenantAdmin = () => {
       setError('Failed to delete institution: ' + error.message);
     }
   };
+
+  if (!isAuthenticated()) {
+    return null; // This should be handled by the parent component
+  }
 
   if (loading) {
     return (
@@ -149,16 +194,26 @@ const MultiTenantAdmin = () => {
       <div className="max-w-7xl mx-auto p-6">
         {/* Header */}
         <div className="bg-white rounded-t-2xl shadow-xl p-8">
-          <div className="text-center">
-            <h1 className="text-4xl font-bold text-gray-800 mb-4">
-              🏫 Multi-Tenant CBT Admin Platform
-            </h1>
-            <p className="text-xl text-gray-600">
-              Manage multiple institutions and their CBT systems
-            </p>
-            <p className="text-sm text-gray-500 mt-2">
-              MongoDB Atlas • Real-time updates • Secure management
-            </p>
+          <div className="flex justify-between items-center">
+            <div className="text-center flex-1">
+              <h1 className="text-4xl font-bold text-gray-800 mb-4">
+                🏫 Multi-Tenant CBT Admin Platform
+              </h1>
+              <p className="text-xl text-gray-600">
+                Manage multiple institutions and their CBT systems
+              </p>
+              <p className="text-sm text-gray-500 mt-2">
+                MongoDB Atlas • Real-time updates • Secure management
+              </p>
+            </div>
+            <div className="ml-4">
+              <button
+                onClick={handleLogout}
+                className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700"
+              >
+                Logout
+              </button>
+            </div>
           </div>
         </div>
 
@@ -339,7 +394,10 @@ const MultiTenantAdmin = () => {
 
                 {/* Default Admin Details */}
                 <div className="bg-gray-50 p-6 rounded-lg">
-                  <h3 className="text-lg font-semibold text-gray-800 mb-4">Default Administrator</h3>
+                  <h3 className="text-lg font-semibold text-gray-800 mb-4">Default Administrator (Institution Login)</h3>
+                  <p className="text-sm text-gray-600 mb-4">
+                    These credentials will be used to access the institution's CBT platform.
+                  </p>
                   
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
@@ -378,17 +436,18 @@ const MultiTenantAdmin = () => {
                     
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Username
+                        Username *
                       </label>
                       <input
                         type="text"
+                        required
                         value={formData.default_admin.username}
                         onChange={(e) => setFormData({
                           ...formData, 
                           default_admin: {...formData.default_admin, username: e.target.value}
                         })}
                         className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                        placeholder="Auto-generated from email"
+                        placeholder="Enter username for institution login"
                       />
                     </div>
                     
@@ -421,7 +480,7 @@ const MultiTenantAdmin = () => {
                           default_admin: {...formData.default_admin, password: e.target.value}
                         })}
                         className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                        placeholder="Enter password (min 6 characters)"
+                        placeholder="Enter password for institution login (min 6 characters)"
                         minLength={6}
                       />
                     </div>
@@ -494,7 +553,7 @@ const MultiTenantAdmin = () => {
                               <strong>Admin:</strong> {institution.default_admin?.fullName}
                             </div>
                             <div>
-                              <strong>Email:</strong> {institution.default_admin?.email}
+                              <strong>Username:</strong> {institution.default_admin?.username}
                             </div>
                             <div>
                               <strong>Created:</strong> {new Date(institution.createdAt).toLocaleDateString()}
@@ -531,6 +590,9 @@ const MultiTenantAdmin = () => {
                         >
                           🔗 View Institution URL: https://cbtexam.netlify.app?slug={institution.slug}
                         </a>
+                        <p className="text-xs text-gray-500 mt-1">
+                          Login with: {institution.default_admin?.username} / [password]
+                        </p>
                       </div>
                     </div>
                   ))}

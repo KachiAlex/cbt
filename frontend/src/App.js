@@ -6,6 +6,7 @@ import mammoth from "mammoth";
 import dataService from "./services/dataService";
 import InstitutionLoginPage from "./components/InstitutionLoginPage";
 import MultiTenantAdmin from "./components/MultiTenantAdmin";
+import MultiTenantAdminLogin from "./components/MultiTenantAdminLogin";
 import RouteDebug from "./components/RouteDebug";
 
 // -------------------------
@@ -48,6 +49,7 @@ function App() {
   const [view, setView] = useState("login");
   const [showAdminLink, setShowAdminLink] = useState(false);
   const [institutionData, setInstitutionData] = useState(null);
+  const [multiTenantAdminAuthenticated, setMultiTenantAdminAuthenticated] = useState(false);
 
 
 
@@ -62,7 +64,15 @@ function App() {
     // Check if this is a multi-tenant admin route
     if (window.location.pathname === '/admin' || window.location.pathname === '/admin/' || urlParams.get('admin') === 'true') {
       console.log('🏢 Multi-tenant admin route detected');
-      setView("multi-tenant-admin");
+      
+      // Check if multi-tenant admin is authenticated
+      const token = localStorage.getItem('multi_tenant_admin_token');
+      if (token) {
+        setMultiTenantAdminAuthenticated(true);
+        setView("multi-tenant-admin");
+      } else {
+        setView("multi-tenant-admin-login");
+      }
       return; // Exit early for admin routes
     }
     
@@ -170,6 +180,12 @@ function App() {
     setView("login");
   };
 
+  // Multi-tenant admin login handler
+  const handleMultiTenantAdminLogin = (loginData) => {
+    setMultiTenantAdminAuthenticated(true);
+    setView("multi-tenant-admin");
+  };
+
   // Hidden admin access - click on the logo
   const handleLogoClick = () => {
     if (!user) {
@@ -216,7 +232,9 @@ function App() {
           )
         ) : (
           <>
-            {view === "multi-tenant-admin" ? (
+            {view === "multi-tenant-admin-login" ? (
+              <MultiTenantAdminLogin onLogin={handleMultiTenantAdminLogin} />
+            ) : view === "multi-tenant-admin" ? (
               <MultiTenantAdmin />
             ) : view === "institution-login" ? (
               <InstitutionLoginPage />

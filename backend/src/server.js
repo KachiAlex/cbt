@@ -14,6 +14,9 @@ const Exam = require('./models/Exam');
 const Result = require('./models/Result');
 const Question = require('./models/Question');
 
+// Middleware
+const { authenticateMultiTenantAdmin, loginMultiTenantAdmin } = require('./middleware/auth');
+
 const app = express();
 const PORT = process.env.PORT || 5000;
 
@@ -790,8 +793,11 @@ app.post('/api/v1/test-tenant', async (req, res) => {
 
 // ===== MULTI-TENANT ADMIN API ENDPOINTS =====
 
-// Create tenant endpoint
-app.post('/api/tenants', async (req, res) => {
+// Login endpoint for multi-tenant admin
+app.post('/api/multi-tenant-admin/login', loginMultiTenantAdmin);
+
+// Protected routes - require authentication
+app.post('/api/tenants', authenticateMultiTenantAdmin, async (req, res) => {
   try {
     console.log('Received tenant creation request:', req.body);
     
@@ -872,7 +878,7 @@ app.post('/api/tenants', async (req, res) => {
 });
 
 // Get all tenants endpoint
-app.get('/api/tenants', async (req, res) => {
+app.get('/api/tenants', authenticateMultiTenantAdmin, async (req, res) => {
   try {
     const tenants = await Tenant.find({ deleted_at: null })
       .select('name slug contact_email plan suspended createdAt default_admin')
@@ -887,7 +893,7 @@ app.get('/api/tenants', async (req, res) => {
 });
 
 // Delete tenant endpoint
-app.delete('/api/tenants/:slug', async (req, res) => {
+app.delete('/api/tenants/:slug', authenticateMultiTenantAdmin, async (req, res) => {
   try {
     const { slug } = req.params;
     
@@ -926,7 +932,7 @@ app.delete('/api/tenants/:slug', async (req, res) => {
 });
 
 // Toggle tenant status endpoint
-app.patch('/api/tenants/:slug/toggle-status', async (req, res) => {
+app.patch('/api/tenants/:slug/toggle-status', authenticateMultiTenantAdmin, async (req, res) => {
   try {
     const { slug } = req.params;
     const { suspended } = req.body;
