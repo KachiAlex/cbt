@@ -42,12 +42,6 @@ const MultiTenantAdmin = () => {
     window.location.reload();
   };
 
-  useEffect(() => {
-    if (isAuthenticated()) {
-      loadInstitutions();
-    }
-  }, [isAuthenticated, loadInstitutions]);
-
   const loadInstitutions = useCallback(async () => {
     try {
       setLoading(true);
@@ -78,6 +72,12 @@ const MultiTenantAdmin = () => {
       setLoading(false);
     }
   }, []);
+
+  useEffect(() => {
+    if (isAuthenticated()) {
+      loadInstitutions();
+    }
+  }, [isAuthenticated, loadInstitutions]);
 
   const handleCreateInstitution = async (e) => {
     e.preventDefault();
