@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Clear UI Institutions</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+        .container {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 30px;
+            border-radius: 15px;
+            backdrop-filter: blur(10px);
+        }
+        button {
+            background: #ff4757;
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 10px;
+            transition: background 0.3s;
+        }
+        button:hover {
+            background: #ff3742;
+        }
+        .success {
+            background: #2ed573;
+        }
+        .success:hover {
+            background: #26d0ce;
+        }
+        .info {
+            background: #3742fa;
+        }
+        .info:hover {
+            background: #2f3542;
+        }
+        .log {
+            background: rgba(0, 0, 0, 0.3);
+            padding: 15px;
+            border-radius: 8px;
+            margin: 15px 0;
+            font-family: monospace;
+            white-space: pre-wrap;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🗑️ Clear UI Institutions</h1>
+        <p>This tool will clear institutions from the UI cache and localStorage.</p>
+        
+        <button onclick="clearLocalStorage()" class="success">🧹 Clear localStorage</button>
+        <button onclick="clearSessionStorage()" class="success">🧹 Clear sessionStorage</button>
+        <button onclick="clearAllStorage()" class="success">🧹 Clear All Storage</button>
+        <button onclick="refreshPage()" class="info">🔄 Refresh Page</button>
+        <button onclick="goToAdmin()" class="info">🏢 Go to Admin</button>
+        
+        <div id="log" class="log">Ready to clear institutions...</div>
+    </div>
+
+    <script>
+        function log(message) {
+            const logDiv = document.getElementById('log');
+            logDiv.textContent += new Date().toLocaleTimeString() + ': ' + message + '\n';
+            logDiv.scrollTop = logDiv.scrollHeight;
+        }
+
+        function clearLocalStorage() {
+            try {
+                const keys = Object.keys(localStorage);
+                let cleared = 0;
+                
+                keys.forEach(key => {
+                    if (key.includes('institution') || key.includes('tenant') || key.includes('admin')) {
+                        localStorage.removeItem(key);
+                        cleared++;
+                        log(`Cleared: ${key}`);
+                    }
+                });
+                
+                log(`✅ Cleared ${cleared} localStorage items`);
+            } catch (error) {
+                log(`❌ Error clearing localStorage: ${error.message}`);
+            }
+        }
+
+        function clearSessionStorage() {
+            try {
+                const keys = Object.keys(sessionStorage);
+                let cleared = 0;
+                
+                keys.forEach(key => {
+                    if (key.includes('institution') || key.includes('tenant') || key.includes('admin')) {
+                        sessionStorage.removeItem(key);
+                        cleared++;
+                        log(`Cleared: ${key}`);
+                    }
+                });
+                
+                log(`✅ Cleared ${cleared} sessionStorage items`);
+            } catch (error) {
+                log(`❌ Error clearing sessionStorage: ${error.message}`);
+            }
+        }
+
+        function clearAllStorage() {
+            try {
+                localStorage.clear();
+                sessionStorage.clear();
+                log(`✅ Cleared ALL storage`);
+            } catch (error) {
+                log(`❌ Error clearing all storage: ${error.message}`);
+            }
+        }
+
+        function refreshPage() {
+            log(`🔄 Refreshing page...`);
+            setTimeout(() => {
+                window.location.reload();
+            }, 1000);
+        }
+
+        function goToAdmin() {
+            log(`🏢 Redirecting to admin...`);
+            setTimeout(() => {
+                window.location.href = 'https://cbtexam.netlify.app/?admin=true';
+            }, 1000);
+        }
+
+        // Auto-clear on page load
+        window.onload = function() {
+            log(`🚀 Page loaded. Auto-clearing storage...`);
+            clearLocalStorage();
+            clearSessionStorage();
+            log(`✅ Auto-clear completed`);
+        };
+    </script>
+</body>
+</html>
