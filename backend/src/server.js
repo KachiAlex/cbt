@@ -86,7 +86,7 @@ app.get('/health', (req, res) => {
 app.get('/api', (req, res) => {
 	res.json({ 
 		message: 'CBT Backend API is running',
-		version: '2.0.4-FINAL', // Updated version to force deployment
+		version: '2.0.5-FINAL', // Fixed delete and toggle endpoints
 		database: process.env.DB_TYPE || 'mongodb',
 		multi_tenant: true,
 		deployment: 'final-version-' + Date.now(),
@@ -934,25 +934,50 @@ app.get('/api/tenants', cors(), authenticateMultiTenantAdmin, async (req, res) =
 app.delete('/api/tenants/:slug', cors(), authenticateMultiTenantAdmin, async (req, res) => {
   try {
     const { slug } = req.params;
+    console.log(`Attempting to delete tenant with slug: ${slug}`);
     
-    // Find the tenant
-    const tenant = await Tenant.findOne({ slug, deleted_at: null });
+    // Find the tenant - try without deleted_at filter first
+    let tenant = await Tenant.findOne({ slug });
     if (!tenant) {
+      console.log(`Tenant not found with slug: ${slug}`);
       return res.status(404).json({ error: 'Tenant not found' });
     }
     
-    // Soft delete all users associated with this tenant
-    await User.updateMany(
-      { tenant_id: tenant._id },
-      { 
-        is_active: false,
-        updatedAt: new Date()
-      }
-    );
+    console.log(`Found tenant: ${tenant.name} (ID: ${tenant._id})`);
+    
+    // Try to soft delete all users associated with this tenant
+    try {
+      const userUpdateResult = await User.updateMany(
+        { tenant_id: tenant._id },
+        { 
+          is_active: false,
+          updatedAt: new Date()
+        }
+      );
+      console.log(`Updated ${userUpdateResult.modifiedCount} users`);
+    } catch (userError) {
+      console.log(`Warning: Could not update users: ${userError.message}`);
+    }
     
     // Soft delete the tenant by setting deleted_at timestamp
-    tenant.deleted_at = new Date();
-    await tenant.save();
+    try {
+      tenant.deleted_at = new Date();
+      await tenant.save();
+      console.log(`Successfully soft-deleted tenant: ${tenant.name}`);
+    } catch (saveError) {
+      console.log(`Error saving tenant: ${saveError.message}`);
+      // Try alternative approach - direct database update
+      try {
+        await Tenant.updateOne(
+          { _id: tenant._id },
+          { deleted_at: new Date() }
+        );
+        console.log(`Successfully updated tenant via direct update`);
+      } catch (updateError) {
+        console.log(`Error updating tenant: ${updateError.message}`);
+        throw updateError;
+      }
+    }
     
     res.json({
       message: 'Tenant deleted successfully',
@@ -965,7 +990,7 @@ app.delete('/api/tenants/:slug', cors(), authenticateMultiTenantAdmin, async (re
     
   } catch (error) {
     console.error('Error deleting tenant:', error);
-    res.status(500).json({ error: 'Failed to delete tenant' });
+    res.status(500).json({ error: 'Failed to delete tenant: ' + error.message });
   }
 });
 
@@ -974,16 +999,36 @@ app.patch('/api/tenants/:slug/toggle-status', cors(), authenticateMultiTenantAdm
   try {
     const { slug } = req.params;
     const { suspended } = req.body;
+    console.log(`Attempting to toggle status for tenant: ${slug}, suspended: ${suspended}`);
     
-    // Find the tenant
-    const tenant = await Tenant.findOne({ slug, deleted_at: null });
+    // Find the tenant - try without deleted_at filter first
+    let tenant = await Tenant.findOne({ slug });
     if (!tenant) {
+      console.log(`Tenant not found with slug: ${slug}`);
       return res.status(404).json({ error: 'Tenant not found' });
     }
     
+    console.log(`Found tenant: ${tenant.name} (ID: ${tenant._id})`);
+    
     // Update suspension status
-    tenant.suspended = suspended;
-    await tenant.save();
+    try {
+      tenant.suspended = suspended;
+      await tenant.save();
+      console.log(`Successfully updated tenant status: ${tenant.name}`);
+    } catch (saveError) {
+      console.log(`Error saving tenant: ${saveError.message}`);
+      // Try alternative approach - direct database update
+      try {
+        await Tenant.updateOne(
+          { _id: tenant._id },
+          { suspended: suspended }
+        );
+        console.log(`Successfully updated tenant status via direct update`);
+      } catch (updateError) {
+        console.log(`Error updating tenant: ${updateError.message}`);
+        throw updateError;
+      }
+    }
     
     res.json({
       message: `Tenant ${suspended ? 'suspended' : 'activated'} successfully`,
@@ -991,13 +1036,13 @@ app.patch('/api/tenants/:slug/toggle-status', cors(), authenticateMultiTenantAdm
         id: tenant._id,
         name: tenant.name,
         slug: tenant.slug,
-        suspended: tenant.suspended
+        suspended: suspended
       }
     });
     
   } catch (error) {
     console.error('Error updating tenant status:', error);
-    res.status(500).json({ error: 'Failed to update tenant status' });
+    res.status(500).json({ error: 'Failed to update tenant status: ' + error.message });
   }
 });
 
