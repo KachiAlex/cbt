@@ -856,6 +856,9 @@ app.post('/api/tenants', cors(), authenticateMultiTenantAdmin, async (req, res) 
     }
     
     // Create tenant in database
+    console.log('Plan value before tenant creation:', plan);
+    console.log('Plan type:', typeof plan);
+    
     const tenant = new Tenant({
       name: name,
       slug: slug,
@@ -873,6 +876,8 @@ app.post('/api/tenants', cors(), authenticateMultiTenantAdmin, async (req, res) 
         password: default_admin.password
       }
     });
+    
+    console.log('Tenant plan value:', tenant.plan);
     
     await tenant.save();
     
@@ -911,7 +916,11 @@ app.post('/api/tenants', cors(), authenticateMultiTenantAdmin, async (req, res) 
     
   } catch (error) {
     console.error('Error creating tenant:', error);
-    res.status(500).json({ error: 'Failed to create tenant' });
+    console.error('Error details:', error.message);
+    if (error.name === 'ValidationError') {
+      console.error('Validation errors:', error.errors);
+    }
+    res.status(500).json({ error: 'Failed to create tenant: ' + error.message });
   }
 });
 
