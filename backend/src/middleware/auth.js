@@ -1,4 +1,4 @@
-const bcrypt = require('bcryptjs');
+// Authentication middleware for multi-tenant admin platform
 
 // Super admin credentials
 const SUPER_ADMIN = {
