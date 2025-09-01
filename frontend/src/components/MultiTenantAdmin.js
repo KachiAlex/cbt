@@ -10,8 +10,6 @@ const MultiTenantAdmin = () => {
   const [formData, setFormData] = useState({
     name: '',
     address: '',
-    contact_phone: '',
-    contact_email: '',
     plan: 'Basic',
     timezone: 'UTC',
     default_admin: {
@@ -86,13 +84,20 @@ const MultiTenantAdmin = () => {
     try {
       const token = getAuthToken();
       
+      // Map admin email/phone to institution contact fields
+      const institutionData = {
+        ...formData,
+        contact_email: formData.default_admin.email,
+        contact_phone: formData.default_admin.phone
+      };
+      
       const response = await fetch(`${API_BASE_URL}/api/tenants`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
         },
-        body: JSON.stringify(formData)
+        body: JSON.stringify(institutionData)
       });
 
       if (!response.ok) {
@@ -106,8 +111,6 @@ const MultiTenantAdmin = () => {
       setFormData({
         name: '',
         address: '',
-        contact_phone: '',
-        contact_email: '',
         plan: 'Basic',
         timezone: 'UTC',
         default_admin: {
@@ -316,33 +319,6 @@ const MultiTenantAdmin = () => {
                         onChange={(e) => setFormData({...formData, name: e.target.value})}
                         className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
                         placeholder="Enter institution name"
-                      />
-                    </div>
-                    
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Contact Email *
-                      </label>
-                      <input
-                        type="email"
-                        required
-                        value={formData.contact_email}
-                        onChange={(e) => setFormData({...formData, contact_email: e.target.value})}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                        placeholder="Enter contact email"
-                      />
-                    </div>
-                    
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Contact Phone
-                      </label>
-                      <input
-                        type="tel"
-                        value={formData.contact_phone}
-                        onChange={(e) => setFormData({...formData, contact_phone: e.target.value})}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                        placeholder="Enter contact phone"
                       />
                     </div>
                     
