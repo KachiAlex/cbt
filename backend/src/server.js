@@ -28,10 +28,29 @@ app.use(helmet());
 
 // CORS configuration
 app.use(cors({
-  origin: ['http://localhost:3000', 'http://localhost:5000', 'https://cbt.netlify.app', 'https://cbtexam.netlify.app', 'null'],
+  origin: function (origin, callback) {
+    // Allow requests with no origin (like mobile apps or curl requests)
+    if (!origin) return callback(null, true);
+    
+    const allowedOrigins = [
+      'http://localhost:3000', 
+      'http://localhost:5000', 
+      'https://cbt.netlify.app', 
+      'https://cbtexam.netlify.app'
+    ];
+    
+    if (allowedOrigins.indexOf(origin) !== -1) {
+      callback(null, true);
+    } else {
+      console.log('CORS blocked origin:', origin);
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
   credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Origin', 'Accept'],
+  preflightContinue: false,
+  optionsSuccessStatus: 204
 }));
 
 app.use(morgan('combined'));
@@ -793,11 +812,14 @@ app.post('/api/v1/test-tenant', async (req, res) => {
 
 // ===== MULTI-TENANT ADMIN API ENDPOINTS =====
 
+// CORS preflight for login endpoint
+app.options('/api/multi-tenant-admin/login', cors());
+
 // Login endpoint for multi-tenant admin
-app.post('/api/multi-tenant-admin/login', loginMultiTenantAdmin);
+app.post('/api/multi-tenant-admin/login', cors(), loginMultiTenantAdmin);
 
 // Protected routes - require authentication
-app.post('/api/tenants', authenticateMultiTenantAdmin, async (req, res) => {
+app.post('/api/tenants', cors(), authenticateMultiTenantAdmin, async (req, res) => {
   try {
     console.log('Received tenant creation request:', req.body);
     
@@ -878,7 +900,7 @@ app.post('/api/tenants', authenticateMultiTenantAdmin, async (req, res) => {
 });
 
 // Get all tenants endpoint
-app.get('/api/tenants', authenticateMultiTenantAdmin, async (req, res) => {
+app.get('/api/tenants', cors(), authenticateMultiTenantAdmin, async (req, res) => {
   try {
     const tenants = await Tenant.find({ deleted_at: null })
       .select('name slug contact_email plan suspended createdAt default_admin')
@@ -893,7 +915,7 @@ app.get('/api/tenants', authenticateMultiTenantAdmin, async (req, res) => {
 });
 
 // Delete tenant endpoint
-app.delete('/api/tenants/:slug', authenticateMultiTenantAdmin, async (req, res) => {
+app.delete('/api/tenants/:slug', cors(), authenticateMultiTenantAdmin, async (req, res) => {
   try {
     const { slug } = req.params;
     
@@ -932,7 +954,7 @@ app.delete('/api/tenants/:slug', authenticateMultiTenantAdmin, async (req, res) 
 });
 
 // Toggle tenant status endpoint
-app.patch('/api/tenants/:slug/toggle-status', authenticateMultiTenantAdmin, async (req, res) => {
+app.patch('/api/tenants/:slug/toggle-status', cors(), authenticateMultiTenantAdmin, async (req, res) => {
   try {
     const { slug } = req.params;
     const { suspended } = req.body;
@@ -964,7 +986,7 @@ app.patch('/api/tenants/:slug/toggle-status', authenticateMultiTenantAdmin, asyn
 });
 
 // Get tenant profile endpoint
-app.get('/api/tenant/:slug/profile', async (req, res) => {
+app.get('/api/tenant/:slug/profile', cors(), async (req, res) => {
   try {
     const { slug } = req.params;
     
@@ -994,7 +1016,7 @@ app.get('/api/tenant/:slug/profile', async (req, res) => {
 });
 
 // Update tenant profile endpoint
-app.put('/api/tenant/:slug/profile', async (req, res) => {
+app.put('/api/tenant/:slug/profile', cors(), async (req, res) => {
   try {
     const { slug } = req.params;
     const { name, logo_url, address, contact_phone } = req.body;
