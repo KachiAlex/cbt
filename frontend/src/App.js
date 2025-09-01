@@ -34,7 +34,7 @@ const LS_KEYS = {
   SHARED_DATA: "cbt_shared_data_v1"
 };
 
-const DEFAULT_EXAM_TITLE = "College of Nursing, Eku, Delta State";
+const DEFAULT_EXAM_TITLE = "Computer-Based Test System";
 
 // Default admin user (referenced in comments)
 // username: "admin"
@@ -253,7 +253,7 @@ function App() {
         )}
       </main>
       <footer className="text-center text-xs text-gray-500 py-6">
-        © {new Date().getFullYear()} {institutionData ? institutionData.name : 'College of Nursing, Eku, Delta State'}
+        © {new Date().getFullYear()} {institutionData ? institutionData.name : 'CBT Platform'}
         {!user && (
           <div className="mt-1 text-gray-400">
             <span className="opacity-30 hover:opacity-100 transition-opacity cursor-help" title="Admin Access: Click logo or press Ctrl+Alt+A">
@@ -512,13 +512,10 @@ function Header({user, onLogout, onLogoClick}){
             className="flex items-center gap-2 text-left hover:text-blue-600 transition-colors cursor-pointer"
             title={!user ? "Click to reveal admin access" : ""}
           >
-            <img 
-              src="/logo-eku.png"
-              alt="College of Nursing Science, Eku"
-              className="h-10 md:h-12 w-auto object-contain"
-              onError={(e)=>{ e.currentTarget.onerror=null; e.currentTarget.src='/logo-eku.jpg'; }}
-            />
-            <span className="text-base sm:text-lg font-bold whitespace-nowrap">College of Nursing, Eku, Delta State</span>
+            <div className="h-10 md:h-12 w-10 md:w-12 bg-blue-600 rounded-lg flex items-center justify-center">
+              <span className="text-white font-bold text-lg md:text-xl">CBT</span>
+            </div>
+            <span className="text-base sm:text-lg font-bold whitespace-nowrap">CBT Platform</span>
           </button>
         </div>
         <div className="flex items-center gap-3">

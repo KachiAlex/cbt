@@ -1,6 +1,6 @@
 {
-  "short_name": "CBT System",
-  "name": "College of Nursing, Eku, Delta State - CBT System",
+  "short_name": "CBT Platform",
+  "name": "Multi-Tenant Computer-Based Test Platform",
   "icons": [
     {
       "src": "favicon.ico",

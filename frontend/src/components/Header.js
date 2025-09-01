@@ -23,10 +23,10 @@ const Header = ({ user, onLogout, onLogoClick, institutionData }) => {
               )}
               <div>
                 <h1 className="text-xl font-bold text-gray-800">
-                  {institutionData ? institutionData.name : 'College of Nursing'}
+                  {institutionData ? institutionData.name : 'CBT Platform'}
                 </h1>
                 <p className="text-sm text-gray-600">
-                  {institutionData ? 'Computer-Based Test System' : 'Eku, Delta State'}
+                  {institutionData ? 'Computer-Based Test System' : 'Multi-Tenant CBT System'}
                 </p>
               </div>
             </div>
