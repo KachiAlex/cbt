@@ -5,6 +5,7 @@ const MultiTenantAdmin = () => {
   const [institutions, setInstitutions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
   const [showCreateForm, setShowCreateForm] = useState(false); // eslint-disable-line no-unused-vars
   const [showPassword, setShowPassword] = useState(false);
   const [formData, setFormData] = useState({
@@ -132,9 +133,10 @@ const MultiTenantAdmin = () => {
         }
       });
       setActiveTab('manage');
-    } catch (error) {
-      setError('Failed to create institution: ' + error.message);
-    }
+         } catch (error) {
+       setError('Failed to create institution: ' + error.message);
+       setSuccess(''); // Clear any previous success message
+     }
   };
 
   const toggleInstitutionStatus = async (slug, currentStatus) => {
@@ -158,9 +160,10 @@ const MultiTenantAdmin = () => {
       setInstitutions(institutions.map(inst => 
         inst.slug === slug ? { ...inst, suspended: !currentStatus } : inst
       ));
-    } catch (error) {
-      setError('Failed to update institution status: ' + error.message);
-    }
+         } catch (error) {
+       setError('Failed to update institution status: ' + error.message);
+       setSuccess(''); // Clear any previous success message
+     }
   };
 
   const deleteInstitution = async (slug) => {
@@ -182,11 +185,13 @@ const MultiTenantAdmin = () => {
         throw new Error('Failed to delete institution');
       }
 
-      setInstitutions(institutions.filter(inst => inst.slug !== slug));
-      setSuccess('Institution permanently deleted from database');
-    } catch (error) {
-      setError('Failed to delete institution: ' + error.message);
-    }
+             setInstitutions(institutions.filter(inst => inst.slug !== slug));
+       setSuccess('Institution permanently deleted from database');
+       setError(''); // Clear any previous error message
+     } catch (error) {
+       setError('Failed to delete institution: ' + error.message);
+       setSuccess(''); // Clear any previous success message
+     }
   };
 
   if (!isAuthenticated()) {
@@ -270,11 +275,17 @@ const MultiTenantAdmin = () => {
 
         {/* Content */}
         <div className="bg-white rounded-b-2xl shadow-xl p-8">
-          {error && (
-            <div className="mb-6 p-4 bg-red-50 border border-red-200 text-red-700 rounded-lg">
-              {error}
-            </div>
-          )}
+                     {error && (
+             <div className="mb-6 p-4 bg-red-50 border border-red-200 text-red-700 rounded-lg">
+               {error}
+             </div>
+           )}
+           
+           {success && (
+             <div className="mb-6 p-4 bg-green-50 border border-green-200 text-green-700 rounded-lg">
+               {success}
+             </div>
+           )}
 
           {/* Dashboard Tab */}
           {activeTab === 'dashboard' && (
