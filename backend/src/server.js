@@ -86,7 +86,7 @@ app.get('/health', (req, res) => {
 app.get('/api', (req, res) => {
 	res.json({ 
 		message: 'CBT Backend API is running',
-		version: '2.0.9-FINAL', // Fixed password comparison in login endpoint
+		version: '2.0.10-FINAL', // Fixed duplicate login endpoint password comparison
 		database: process.env.DB_TYPE || 'mongodb',
 		multi_tenant: true,
 		deployment: 'final-version-' + Date.now(),
@@ -525,7 +525,8 @@ app.get('/api/users', async (req, res, next) => {
  		}
  		
  		// Check password
- 		if (user.password !== password) {
+ 		const isPasswordValid = await user.comparePassword(password);
+ 		if (!isPasswordValid) {
  			return res.status(401).json({ error: 'Invalid credentials' });
  		}
  		
