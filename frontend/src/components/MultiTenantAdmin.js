@@ -5,7 +5,7 @@ const MultiTenantAdmin = () => {
   const [institutions, setInstitutions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [showCreateForm, setShowCreateForm] = useState(false);
+  const [showCreateForm, setShowCreateForm] = useState(false); // eslint-disable-line no-unused-vars
   const [formData, setFormData] = useState({
     name: '',
     address: '',

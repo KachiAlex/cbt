@@ -56,6 +56,9 @@ function App() {
     console.log('🔍 Pathname:', window.location.pathname);
     console.log('🔍 Search:', window.location.search);
     
+    // Get URL parameters first
+    const urlParams = new URLSearchParams(window.location.search);
+    
     // Check if this is a multi-tenant admin route
     if (window.location.pathname === '/admin' || window.location.pathname === '/admin/' || urlParams.get('admin') === 'true') {
       console.log('🏢 Multi-tenant admin route detected');
@@ -64,7 +67,6 @@ function App() {
     }
     
     // Check if this is an institution-specific route
-    const urlParams = new URLSearchParams(window.location.search);
     const slug = urlParams.get('slug');
     
     console.log('🔍 Checking URL parameters:', { slug, search: window.location.search, href: window.location.href });
