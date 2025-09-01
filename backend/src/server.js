@@ -86,7 +86,7 @@ app.get('/health', (req, res) => {
 app.get('/api', (req, res) => {
 	res.json({ 
 		message: 'CBT Backend API is running',
-		version: '2.0.11-FINAL', // Fixed login response format to match frontend expectations
+		version: '2.0.12-FINAL', // Added student registration endpoint and improved institution page
 		database: process.env.DB_TYPE || 'mongodb',
 		multi_tenant: true,
 		deployment: 'final-version-' + Date.now(),
@@ -463,6 +463,123 @@ app.post('/api/auth/login', async (req, res) => {
         console.error('Login error:', err);
         res.status(500).json({ error: 'Internal server error' });
     }
+});
+
+// Student registration endpoint
+app.post('/api/auth/register', async (req, res) => {
+  try {
+    const { 
+      fullName, 
+      email, 
+      username, 
+      password, 
+      phone, 
+      dateOfBirth, 
+      tenant_slug, 
+      role = 'student' 
+    } = req.body;
+
+    // Validate required fields
+    if (!fullName || !email || !username || !password || !tenant_slug) {
+      return res.status(400).json({ 
+        success: false,
+        message: 'Missing required fields: fullName, email, username, password, and tenant_slug are required' 
+      });
+    }
+
+    // Validate password length
+    if (password.length < 6) {
+      return res.status(400).json({ 
+        success: false,
+        message: 'Password must be at least 6 characters long' 
+      });
+    }
+
+    // Find tenant by slug
+    const tenant = await Tenant.findOne({ 
+      slug: tenant_slug,
+      deleted_at: null,
+      suspended: false
+    });
+
+    if (!tenant) {
+      return res.status(400).json({ 
+        success: false,
+        message: 'Invalid institution or institution is suspended' 
+      });
+    }
+
+    // Check if username already exists in this tenant
+    const existingUser = await User.findOne({ 
+      tenant_id: tenant._id,
+      username: { $regex: new RegExp(`^${username}$`, 'i') }
+    });
+
+    if (existingUser) {
+      return res.status(400).json({ 
+        success: false,
+        message: 'Username already exists in this institution' 
+      });
+    }
+
+    // Check if email already exists in this tenant
+    const existingEmail = await User.findOne({ 
+      tenant_id: tenant._id,
+      email: { $regex: new RegExp(`^${email}$`, 'i') }
+    });
+
+    if (existingEmail) {
+      return res.status(400).json({ 
+        success: false,
+        message: 'Email already exists in this institution' 
+      });
+    }
+
+    // Create new user
+    const newUser = new User({
+      tenant_id: tenant._id,
+      username: username,
+      email: email,
+      fullName: fullName,
+      phone: phone || '',
+      password: password,
+      role: role,
+      dateOfBirth: dateOfBirth || null,
+      is_active: true,
+      created_at: new Date()
+    });
+
+    await newUser.save();
+
+    // Return success response
+    const { password: _, ...userData } = newUser.toObject();
+    res.status(201).json({
+      success: true,
+      message: 'Student account created successfully',
+      user: userData,
+      tenant: {
+        id: tenant._id,
+        name: tenant.name,
+        slug: tenant.slug
+      }
+    });
+
+  } catch (error) {
+    console.error('Registration error:', error);
+    
+    if (error.name === 'ValidationError') {
+      const validationErrors = Object.values(error.errors).map(err => err.message);
+      return res.status(400).json({ 
+        success: false,
+        message: 'Validation error: ' + validationErrors.join(', ') 
+      });
+    }
+
+    res.status(500).json({ 
+      success: false,
+      message: 'Failed to create account: ' + error.message 
+    });
+  }
 });
 
 // Read-only API routes
