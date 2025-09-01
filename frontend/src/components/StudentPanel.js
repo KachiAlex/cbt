@@ -1,11 +1,18 @@
 import React, { useState, useEffect } from 'react';
-import dataService from '../services/dataService';
+import StudentExam from './StudentExam';
 
-const StudentPanel = ({ user }) => {
+const LS_KEYS = {
+  QUESTIONS: "cbt_questions_v1",
+  RESULTS: "cbt_results_v1",
+  ACTIVE_EXAM: "cbt_active_exam_v1",
+};
+
+const StudentPanel = ({ user, tenant }) => {
   const [exams, setExams] = useState([]);
   const [results, setResults] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('dashboard');
+  const [showExam, setShowExam] = useState(false);
 
   useEffect(() => {
     loadData();
@@ -13,12 +20,13 @@ const StudentPanel = ({ user }) => {
 
   const loadData = async () => {
     try {
-      const [examData, resultData] = await Promise.all([
-        dataService.loadExams(),
-        dataService.loadResults()
-      ]);
-      setExams(examData || []);
-      setResults(resultData || []);
+      // Load questions and results from localStorage
+      const questions = JSON.parse(localStorage.getItem(LS_KEYS.QUESTIONS) || '[]');
+      const results = JSON.parse(localStorage.getItem(LS_KEYS.RESULTS) || '[]');
+      const examTitle = localStorage.getItem(LS_KEYS.ACTIVE_EXAM) || 'Institution CBT – 12 Questions';
+      
+      setExams(questions.length > 0 ? [{ id: 1, title: examTitle, questionCount: questions.length }] : []);
+      setResults(results.filter(r => r.username === user.username));
     } catch (error) {
       console.error('Error loading data:', error);
     } finally {
@@ -26,10 +34,23 @@ const StudentPanel = ({ user }) => {
     }
   };
 
-  const userResults = results.filter(r => r.studentId === user.id || r.username === user.username);
+  const userResults = results.filter(r => r.username === user.username);
   const availableExams = exams.filter(exam => 
-    !userResults.some(result => result.examId === exam.id)
+    !userResults.some(result => result.examTitle === exam.title)
   );
+
+  const startExam = () => {
+    setShowExam(true);
+  };
+
+  const backToDashboard = () => {
+    setShowExam(false);
+    loadData(); // Reload data to show new results
+  };
+
+  if (showExam) {
+    return <StudentExam user={user} tenant={tenant} onComplete={backToDashboard} />;
+  }
 
   if (loading) {
     return (
@@ -49,6 +70,9 @@ const StudentPanel = ({ user }) => {
         <h1 className="text-2xl font-bold mb-2">Student Dashboard</h1>
         <p className="opacity-90">
           Welcome back, {user.fullName || user.username}! Ready to take your exams?
+        </p>
+        <p className="text-sm opacity-75 mt-1">
+          Institution: {tenant?.name || 'Unknown Institution'}
         </p>
       </div>
 
@@ -93,7 +117,7 @@ const StudentPanel = ({ user }) => {
               <p className="text-sm font-medium text-gray-600">Average Score</p>
               <p className="text-2xl font-semibold text-gray-900">
                 {userResults.length > 0 
-                  ? Math.round(userResults.reduce((sum, r) => sum + (r.score || 0), 0) / userResults.length)
+                  ? Math.round(userResults.reduce((sum, r) => sum + (r.percent || 0), 0) / userResults.length)
                   : 0}%
               </p>
             </div>
@@ -101,134 +125,107 @@ const StudentPanel = ({ user }) => {
         </div>
       </div>
 
-      {/* Tabs */}
-      <div className="bg-white rounded-lg shadow">
-        <div className="border-b border-gray-200">
-          <nav className="-mb-px flex space-x-8 px-6">
-            <button
-              onClick={() => setActiveTab('dashboard')}
-              className={`py-4 px-1 border-b-2 font-medium text-sm ${
-                activeTab === 'dashboard'
-                  ? 'border-green-500 text-green-600'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-              }`}
-            >
-              Dashboard
-            </button>
-            <button
-              onClick={() => setActiveTab('exams')}
-              className={`py-4 px-1 border-b-2 font-medium text-sm ${
-                activeTab === 'exams'
-                  ? 'border-green-500 text-green-600'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-              }`}
-            >
-              Available Exams
-            </button>
-            <button
-              onClick={() => setActiveTab('results')}
-              className={`py-4 px-1 border-b-2 font-medium text-sm ${
-                activeTab === 'results'
-                  ? 'border-green-500 text-green-600'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-              }`}
-            >
-              My Results
-            </button>
-          </nav>
+      {/* Available Exams */}
+      {availableExams.length > 0 && (
+        <div className="bg-white rounded-lg shadow p-6">
+          <h3 className="text-lg font-semibold mb-4">Available Exams</h3>
+          <div className="space-y-4">
+            {availableExams.map((exam) => (
+              <div key={exam.id} className="border rounded-lg p-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h4 className="font-medium text-lg">{exam.title}</h4>
+                    <p className="text-gray-600">{exam.questionCount} questions</p>
+                    <p className="text-sm text-gray-500">
+                      Estimated time: {exam.questionCount} minutes
+                    </p>
+                  </div>
+                  <button
+                    onClick={startExam}
+                    className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition-colors"
+                  >
+                    Start Exam
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
+      )}
 
-        <div className="p-6">
-          {activeTab === 'dashboard' && (
-            <div className="space-y-6">
-              <h3 className="text-lg font-medium text-gray-900">Quick Actions</h3>
-              
-              {availableExams.length > 0 ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {availableExams.slice(0, 4).map((exam, index) => (
-                    <div key={index} className="bg-gray-50 rounded-lg p-4">
-                      <h4 className="font-medium text-gray-900">{exam.title}</h4>
-                      <p className="text-sm text-gray-600 mt-1">{exam.description}</p>
-                      <button className="mt-3 bg-green-600 text-white px-4 py-2 rounded-md text-sm hover:bg-green-700 transition-colors">
-                        Start Exam
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="bg-gray-50 rounded-lg p-4">
-                  <p className="text-gray-600">No exams available at the moment.</p>
-                </div>
-              )}
-            </div>
-          )}
+      {/* No Exams Available */}
+      {availableExams.length === 0 && exams.length === 0 && (
+        <div className="bg-white rounded-lg shadow p-6 text-center">
+          <div className="text-6xl mb-4">📝</div>
+          <h3 className="text-lg font-semibold mb-2">No Exams Available</h3>
+          <p className="text-gray-600 mb-4">
+            There are currently no active exams for you to take.
+          </p>
+          <p className="text-sm text-gray-500">
+            Please check back later or contact your administrator.
+          </p>
+        </div>
+      )}
 
-          {activeTab === 'exams' && (
-            <div className="space-y-6">
-              <h3 className="text-lg font-medium text-gray-900">Available Exams</h3>
-              
-              {availableExams.length > 0 ? (
-                <div className="space-y-4">
-                  {availableExams.map((exam, index) => (
-                    <div key={index} className="border border-gray-200 rounded-lg p-4">
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <h4 className="font-medium text-gray-900">{exam.title}</h4>
-                          <p className="text-sm text-gray-600 mt-1">{exam.description}</p>
-                          <div className="flex items-center space-x-4 mt-2 text-sm text-gray-500">
-                            <span>Duration: {exam.duration || 'N/A'} minutes</span>
-                            <span>Questions: {exam.questionCount || 'N/A'}</span>
-                          </div>
-                        </div>
-                        <button className="bg-green-600 text-white px-6 py-2 rounded-md hover:bg-green-700 transition-colors">
-                          Start Exam
-                        </button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="bg-gray-50 rounded-lg p-4">
-                  <p className="text-gray-600">No exams available at the moment.</p>
-                </div>
-              )}
-            </div>
-          )}
+      {/* Recent Results */}
+      {userResults.length > 0 && (
+        <div className="bg-white rounded-lg shadow p-6">
+          <h3 className="text-lg font-semibold mb-4">Recent Results</h3>
+          <div className="overflow-x-auto">
+            <table className="min-w-full text-sm">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="text-left p-2 font-medium">Exam</th>
+                  <th className="text-left p-2 font-medium">Score</th>
+                  <th className="text-left p-2 font-medium">Percentage</th>
+                  <th className="text-left p-2 font-medium">Date</th>
+                </tr>
+              </thead>
+              <tbody>
+                {userResults.slice(0, 5).map((result, idx) => (
+                  <tr key={idx} className="border-t">
+                    <td className="p-2">{result.examTitle}</td>
+                    <td className="p-2">{result.score}/{result.total}</td>
+                    <td className="p-2">{result.percent}%</td>
+                    <td className="p-2">
+                      {new Date(result.submittedAt).toLocaleDateString()}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
 
-          {activeTab === 'results' && (
-            <div className="space-y-6">
-              <h3 className="text-lg font-medium text-gray-900">My Results</h3>
-              
-              {userResults.length > 0 ? (
-                <div className="space-y-4">
-                  {userResults.map((result, index) => (
-                    <div key={index} className="border border-gray-200 rounded-lg p-4">
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <h4 className="font-medium text-gray-900">
-                            {exams.find(e => e.id === result.examId)?.title || 'Unknown Exam'}
-                          </h4>
-                          <p className="text-sm text-gray-600 mt-1">
-                            Completed: {new Date(result.completedAt || result.createdAt).toLocaleDateString()}
-                          </p>
-                        </div>
-                        <div className="text-right">
-                          <p className="text-2xl font-bold text-green-600">{result.score || 0}%</p>
-                          <p className="text-sm text-gray-500">
-                            {result.correctAnswers || 0}/{result.totalQuestions || 0} correct
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="bg-gray-50 rounded-lg p-4">
-                  <p className="text-gray-600">No exam results yet. Take an exam to see your results here.</p>
-                </div>
-              )}
+      {/* Quick Actions */}
+      <div className="bg-white rounded-lg shadow p-6">
+        <h3 className="text-lg font-semibold mb-4">Quick Actions</h3>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <button
+            onClick={startExam}
+            disabled={availableExams.length === 0}
+            className="flex items-center justify-center p-4 border-2 border-dashed border-gray-300 rounded-lg hover:border-blue-400 hover:bg-blue-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <div className="text-center">
+              <div className="text-3xl mb-2">🎯</div>
+              <div className="font-medium">Take Exam</div>
+              <div className="text-sm text-gray-500">
+                {availableExams.length > 0 ? 'Start your exam now' : 'No exams available'}
+              </div>
             </div>
-          )}
+          </button>
+
+          <button
+            onClick={() => setActiveTab('profile')}
+            className="flex items-center justify-center p-4 border-2 border-dashed border-gray-300 rounded-lg hover:border-green-400 hover:bg-green-50 transition-colors"
+          >
+            <div className="text-center">
+              <div className="text-3xl mb-2">👤</div>
+              <div className="font-medium">View Profile</div>
+              <div className="text-sm text-gray-500">Update your information</div>
+            </div>
+          </button>
         </div>
       </div>
     </div>

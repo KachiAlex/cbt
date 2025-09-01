@@ -579,7 +579,7 @@ app.post('/api/auth/register', async (req, res) => {
       success: false,
       message: 'Failed to create account: ' + error.message 
     });
-  }
+    }
 });
 
 // Read-only API routes
