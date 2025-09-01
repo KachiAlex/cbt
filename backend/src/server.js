@@ -110,8 +110,7 @@ app.get('/api', (req, res) => {
 // const managedAdminRoutes = require('./routes/managedAdmin');
 // const databaseRoutes = require('./routes/database');
 
-// Multi-tenant admin authentication middleware
-const { authenticateMultiTenantAdmin, loginMultiTenantAdmin } = require('./middleware/auth');
+// Multi-tenant admin authentication middleware (already imported above)
 
 // Multi-tenant admin login endpoint
 app.options('/api/multi-tenant-admin/login', cors());
