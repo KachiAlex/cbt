@@ -88,8 +88,10 @@ const MultiTenantAdmin = () => {
       const institutionData = {
         ...formData,
         contact_email: formData.default_admin.email,
-        contact_phone: formData.default_admin.phone
+        contact_phone: formData.default_admin.phone || ''
       };
+      
+      console.log('📤 Sending institution data:', institutionData);
       
       const response = await fetch(`${API_BASE_URL}/api/tenants`, {
         method: 'POST',
