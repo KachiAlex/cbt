@@ -86,7 +86,7 @@ app.get('/health', (req, res) => {
 app.get('/api', (req, res) => {
 	res.json({ 
 		message: 'CBT Backend API is running',
-		version: '2.0.6-FINAL', // Added hard delete functionality
+		version: '2.0.7-FINAL', // Fixed user role for institution login
 		database: process.env.DB_TYPE || 'mongodb',
 		multi_tenant: true,
 		deployment: 'final-version-' + Date.now(),
@@ -889,7 +889,7 @@ app.post('/api/tenants', cors(), authenticateMultiTenantAdmin, async (req, res) 
       fullName: default_admin.fullName,
       phone: default_admin.phone || '',
       password: default_admin.password,
-      role: 'tenant_admin',
+      role: 'admin', // Changed from 'tenant_admin' to 'admin'
       is_default_admin: true,
       is_active: true
     });
@@ -1016,21 +1016,21 @@ app.delete('/api/tenants/:slug', cors(), authenticateMultiTenantAdmin, async (re
       // Try to soft delete all users associated with this tenant
       try {
         const userUpdateResult = await User.updateMany(
-          { tenant_id: tenant._id },
-          { 
-            is_active: false,
-            updatedAt: new Date()
-          }
-        );
+      { tenant_id: tenant._id },
+      { 
+        is_active: false,
+        updatedAt: new Date()
+      }
+    );
         console.log(`Updated ${userUpdateResult.modifiedCount} users`);
       } catch (userError) {
         console.log(`Warning: Could not update users: ${userError.message}`);
       }
-      
-      // Soft delete the tenant by setting deleted_at timestamp
+    
+    // Soft delete the tenant by setting deleted_at timestamp
       try {
-        tenant.deleted_at = new Date();
-        await tenant.save();
+    tenant.deleted_at = new Date();
+    await tenant.save();
         console.log(`Successfully soft-deleted tenant: ${tenant.name}`);
       } catch (saveError) {
         console.log(`Error saving tenant: ${saveError.message}`);
@@ -1046,15 +1046,15 @@ app.delete('/api/tenants/:slug', cors(), authenticateMultiTenantAdmin, async (re
           throw updateError;
         }
       }
-      
-      res.json({
+    
+    res.json({
         message: 'Tenant soft-deleted successfully',
-        tenant: {
-          id: tenant._id,
-          name: tenant.name,
-          slug: tenant.slug
-        }
-      });
+      tenant: {
+        id: tenant._id,
+        name: tenant.name,
+        slug: tenant.slug
+      }
+    });
     }
     
   } catch (error) {
@@ -1081,8 +1081,8 @@ app.patch('/api/tenants/:slug/toggle-status', cors(), authenticateMultiTenantAdm
     
     // Update suspension status
     try {
-      tenant.suspended = suspended;
-      await tenant.save();
+    tenant.suspended = suspended;
+    await tenant.save();
       console.log(`Successfully updated tenant status: ${tenant.name}`);
     } catch (saveError) {
       console.log(`Error saving tenant: ${saveError.message}`);
