@@ -600,12 +600,12 @@ const MultiTenantAdmin = () => {
                       
                       <div className="mt-4 pt-4 border-t border-gray-200">
                         <a
-                          href={`https://cbtexam.netlify.app?slug=${institution.slug}`}
+                          href={`https://cbtexam.netlify.app/?slug=${institution.slug}`}
                           target="_blank"
                           rel="noopener noreferrer"
                           className="text-indigo-600 hover:text-indigo-800 text-sm font-medium"
                         >
-                          🔗 View Institution URL: https://cbtexam.netlify.app?slug={institution.slug}
+                          🔗 View Institution URL: https://cbtexam.netlify.app/?slug={institution.slug}
                         </a>
                         <p className="text-xs text-gray-500 mt-1">
                           Login with: {institution.default_admin?.username} / [password]
