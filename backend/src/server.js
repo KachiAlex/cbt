@@ -86,7 +86,7 @@ app.get('/health', (req, res) => {
 app.get('/api', (req, res) => {
 	res.json({ 
 		message: 'CBT Backend API is running',
-		version: '2.0.5-FINAL', // Fixed delete and toggle endpoints
+		version: '2.0.6-FINAL', // Added hard delete functionality
 		database: process.env.DB_TYPE || 'mongodb',
 		multi_tenant: true,
 		deployment: 'final-version-' + Date.now(),
@@ -943,7 +943,8 @@ app.get('/api/tenants', cors(), authenticateMultiTenantAdmin, async (req, res) =
 app.delete('/api/tenants/:slug', cors(), authenticateMultiTenantAdmin, async (req, res) => {
   try {
     const { slug } = req.params;
-    console.log(`Attempting to delete tenant with slug: ${slug}`);
+    const { hard, force } = req.query;
+    console.log(`Attempting to delete tenant with slug: ${slug}, hard: ${hard}, force: ${force}`);
     
     // Find the tenant - try without deleted_at filter first
     let tenant = await Tenant.findOne({ slug });
@@ -954,48 +955,107 @@ app.delete('/api/tenants/:slug', cors(), authenticateMultiTenantAdmin, async (re
     
     console.log(`Found tenant: ${tenant.name} (ID: ${tenant._id})`);
     
-    // Try to soft delete all users associated with this tenant
-    try {
-      const userUpdateResult = await User.updateMany(
-        { tenant_id: tenant._id },
-        { 
-          is_active: false,
-          updatedAt: new Date()
-        }
-      );
-      console.log(`Updated ${userUpdateResult.modifiedCount} users`);
-    } catch (userError) {
-      console.log(`Warning: Could not update users: ${userError.message}`);
-    }
-    
-    // Soft delete the tenant by setting deleted_at timestamp
-    try {
-      tenant.deleted_at = new Date();
-      await tenant.save();
-      console.log(`Successfully soft-deleted tenant: ${tenant.name}`);
-    } catch (saveError) {
-      console.log(`Error saving tenant: ${saveError.message}`);
-      // Try alternative approach - direct database update
+    // Check if this is a hard delete
+    if (hard === 'true' && force === 'true') {
+      console.log(`Performing HARD DELETE for tenant: ${tenant.name}`);
+      
+      // Hard delete all users associated with this tenant
       try {
-        await Tenant.updateOne(
-          { _id: tenant._id },
-          { deleted_at: new Date() }
+        const userDeleteResult = await User.deleteMany({ tenant_id: tenant._id });
+        console.log(`Hard deleted ${userDeleteResult.deletedCount} users`);
+      } catch (userError) {
+        console.log(`Warning: Could not delete users: ${userError.message}`);
+      }
+      
+      // Hard delete all exams associated with this tenant
+      try {
+        const examDeleteResult = await Exam.deleteMany({ tenant_id: tenant._id });
+        console.log(`Hard deleted ${examDeleteResult.deletedCount} exams`);
+      } catch (examError) {
+        console.log(`Warning: Could not delete exams: ${examError.message}`);
+      }
+      
+      // Hard delete all questions associated with this tenant
+      try {
+        const questionDeleteResult = await Question.deleteMany({ tenant_id: tenant._id });
+        console.log(`Hard deleted ${questionDeleteResult.deletedCount} questions`);
+      } catch (questionError) {
+        console.log(`Warning: Could not delete questions: ${questionError.message}`);
+      }
+      
+      // Hard delete all results associated with this tenant
+      try {
+        const resultDeleteResult = await Result.deleteMany({ tenant_id: tenant._id });
+        console.log(`Hard deleted ${resultDeleteResult.deletedCount} results`);
+      } catch (resultError) {
+        console.log(`Warning: Could not delete results: ${resultError.message}`);
+      }
+      
+      // Hard delete the tenant itself
+      try {
+        await Tenant.findByIdAndDelete(tenant._id);
+        console.log(`Successfully hard-deleted tenant: ${tenant.name}`);
+      } catch (tenantError) {
+        console.log(`Error hard-deleting tenant: ${tenantError.message}`);
+        throw tenantError;
+      }
+      
+      res.json({
+        message: 'Tenant and all associated data permanently deleted from database',
+        tenant: {
+          id: tenant._id,
+          name: tenant.name,
+          slug: tenant.slug
+        }
+      });
+      
+    } else {
+      // Soft delete (original behavior)
+      console.log(`Performing SOFT DELETE for tenant: ${tenant.name}`);
+      
+      // Try to soft delete all users associated with this tenant
+      try {
+        const userUpdateResult = await User.updateMany(
+          { tenant_id: tenant._id },
+          { 
+            is_active: false,
+            updatedAt: new Date()
+          }
         );
-        console.log(`Successfully updated tenant via direct update`);
-      } catch (updateError) {
-        console.log(`Error updating tenant: ${updateError.message}`);
-        throw updateError;
+        console.log(`Updated ${userUpdateResult.modifiedCount} users`);
+      } catch (userError) {
+        console.log(`Warning: Could not update users: ${userError.message}`);
       }
+      
+      // Soft delete the tenant by setting deleted_at timestamp
+      try {
+        tenant.deleted_at = new Date();
+        await tenant.save();
+        console.log(`Successfully soft-deleted tenant: ${tenant.name}`);
+      } catch (saveError) {
+        console.log(`Error saving tenant: ${saveError.message}`);
+        // Try alternative approach - direct database update
+        try {
+          await Tenant.updateOne(
+            { _id: tenant._id },
+            { deleted_at: new Date() }
+          );
+          console.log(`Successfully updated tenant via direct update`);
+        } catch (updateError) {
+          console.log(`Error updating tenant: ${updateError.message}`);
+          throw updateError;
+        }
+      }
+      
+      res.json({
+        message: 'Tenant soft-deleted successfully',
+        tenant: {
+          id: tenant._id,
+          name: tenant.name,
+          slug: tenant.slug
+        }
+      });
     }
-    
-    res.json({
-      message: 'Tenant deleted successfully',
-      tenant: {
-        id: tenant._id,
-        name: tenant.name,
-        slug: tenant.slug
-      }
-    });
     
   } catch (error) {
     console.error('Error deleting tenant:', error);

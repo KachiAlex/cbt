@@ -164,14 +164,14 @@ const MultiTenantAdmin = () => {
   };
 
   const deleteInstitution = async (slug) => {
-    if (!window.confirm('Are you sure you want to delete this institution? This action cannot be undone.')) {
+    if (!window.confirm('⚠️ HARD DELETE WARNING: This will permanently delete this institution and ALL its data (users, exams, results, etc.) from the database. This action cannot be undone. Are you absolutely sure?')) {
       return;
     }
 
     try {
       const token = getAuthToken();
       
-      const response = await fetch(`${API_BASE_URL}/api/tenants/${slug}`, {
+      const response = await fetch(`${API_BASE_URL}/api/tenants/${slug}?hard=true&force=true`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${token}`
@@ -183,6 +183,7 @@ const MultiTenantAdmin = () => {
       }
 
       setInstitutions(institutions.filter(inst => inst.slug !== slug));
+      setSuccess('Institution permanently deleted from database');
     } catch (error) {
       setError('Failed to delete institution: ' + error.message);
     }
