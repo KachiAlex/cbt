@@ -86,7 +86,7 @@ app.get('/health', (req, res) => {
 app.get('/api', (req, res) => {
 	res.json({ 
 		message: 'CBT Backend API is running',
-		version: '2.0.7-FINAL', // Fixed user role for institution login
+		version: '2.0.8-FINAL', // Fixed User model enum to include admin role
 		database: process.env.DB_TYPE || 'mongodb',
 		multi_tenant: true,
 		deployment: 'final-version-' + Date.now(),
