@@ -7,10 +7,7 @@ const connectDB = async () => {
   try {
     if (dbType === 'mongodb') {
       // MongoDB Atlas connection
-      const conn = await mongoose.connect(process.env.MONGODB_URI, {
-        useNewUrlParser: true,
-        useUnifiedTopology: true,
-      });
+      const conn = await mongoose.connect(process.env.MONGODB_URI);
       console.log(`✅ MongoDB Connected: ${conn.connection.host}`);
     } else if (dbType === 'supabase') {
       // Supabase connection (PostgreSQL)

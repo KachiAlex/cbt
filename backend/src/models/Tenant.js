@@ -92,8 +92,7 @@ const tenantSchema = new mongoose.Schema({
   timestamps: true
 });
 
-// Index for efficient queries
-tenantSchema.index({ slug: 1 });
+// Index for efficient queries (slug index is already created by unique: true)
 tenantSchema.index({ deleted_at: 1 });
 tenantSchema.index({ suspended: 1 });
 
