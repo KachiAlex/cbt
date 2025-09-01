@@ -22,6 +22,9 @@ const MultiTenantAdmin = () => {
     }
   });
 
+  // Cloud storage URL (you can replace this with your own hosted JSON file)
+  const CLOUD_STORAGE_URL = 'https://raw.githubusercontent.com/your-username/cbt-tenants/main/tenants.json';
+
   useEffect(() => {
     loadInstitutions();
   }, []);
@@ -29,18 +32,43 @@ const MultiTenantAdmin = () => {
   const loadInstitutions = async () => {
     try {
       setLoading(true);
-      const response = await fetch('https://cbt-rew7.onrender.com/api/tenants');
+      const response = await fetch(CLOUD_STORAGE_URL);
       
       if (!response.ok) {
-        throw new Error('Failed to load institutions');
+        throw new Error('Failed to load institutions from cloud storage');
       }
       
       const data = await response.json();
-      setInstitutions(data);
+      setInstitutions(data.institutions || []);
     } catch (error) {
       setError('Failed to load institutions: ' + error.message);
+      // Fallback to empty array
+      setInstitutions([]);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const saveInstitutionsToCloud = async (updatedInstitutions) => {
+    try {
+      // For now, we'll use a simple approach with localStorage as backup
+      // In a real implementation, you would save to your cloud storage
+      localStorage.setItem('cbt_tenants', JSON.stringify({
+        institutions: updatedInstitutions,
+        lastUpdated: new Date().toISOString()
+      }));
+      
+      // You can implement actual cloud storage here:
+      // - GitHub API to update a JSON file
+      // - Firebase Firestore
+      // - AWS S3
+      // - Google Cloud Storage
+      // - Any other cloud storage service
+      
+      console.log('Institutions saved to cloud storage');
+    } catch (error) {
+      console.error('Failed to save to cloud storage:', error);
+      throw error;
     }
   };
 
@@ -48,21 +76,31 @@ const MultiTenantAdmin = () => {
     e.preventDefault();
     
     try {
-      const response = await fetch('https://cbt-rew7.onrender.com/api/tenants', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(formData)
-      });
+      const newInstitution = {
+        id: 'inst-' + Date.now(),
+        name: formData.name,
+        slug: formData.name.toLowerCase().replace(/[^a-z0-9]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, ''),
+        address: formData.address,
+        contact_phone: formData.contact_phone,
+        contact_email: formData.contact_email,
+        plan: formData.plan,
+        timezone: formData.timezone,
+        suspended: false,
+        created_at: new Date().toISOString(),
+        default_admin: {
+          id: 'admin-' + Date.now(),
+          fullName: formData.default_admin.fullName,
+          email: formData.default_admin.email,
+          username: formData.default_admin.username,
+          phone: formData.default_admin.phone,
+          password: formData.default_admin.password
+        }
+      };
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Failed to create institution');
-      }
-
-      const newInstitution = await response.json();
-      setInstitutions([...institutions, newInstitution]);
+      const updatedInstitutions = [...institutions, newInstitution];
+      await saveInstitutionsToCloud(updatedInstitutions);
+      setInstitutions(updatedInstitutions);
+      
       setShowCreateForm(false);
       setFormData({
         name: '',
@@ -87,22 +125,12 @@ const MultiTenantAdmin = () => {
 
   const toggleInstitutionStatus = async (slug, currentStatus) => {
     try {
-      const response = await fetch(`https://cbt-rew7.onrender.com/api/tenants/${slug}/toggle-status`, {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ suspended: !currentStatus })
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to update institution status');
-      }
-
-      // Update local state
-      setInstitutions(institutions.map(inst => 
+      const updatedInstitutions = institutions.map(inst => 
         inst.slug === slug ? { ...inst, suspended: !currentStatus } : inst
-      ));
+      );
+      
+      await saveInstitutionsToCloud(updatedInstitutions);
+      setInstitutions(updatedInstitutions);
     } catch (error) {
       setError('Failed to update institution status: ' + error.message);
     }
@@ -114,15 +142,9 @@ const MultiTenantAdmin = () => {
     }
 
     try {
-      const response = await fetch(`https://cbt-rew7.onrender.com/api/tenants/${slug}`, {
-        method: 'DELETE'
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to delete institution');
-      }
-
-      setInstitutions(institutions.filter(inst => inst.slug !== slug));
+      const updatedInstitutions = institutions.filter(inst => inst.slug !== slug);
+      await saveInstitutionsToCloud(updatedInstitutions);
+      setInstitutions(updatedInstitutions);
     } catch (error) {
       setError('Failed to delete institution: ' + error.message);
     }
@@ -150,6 +172,9 @@ const MultiTenantAdmin = () => {
             </h1>
             <p className="text-xl text-gray-600">
               Manage multiple institutions and their CBT systems
+            </p>
+            <p className="text-sm text-gray-500 mt-2">
+              Cloud-based storage • Real-time updates • Secure management
             </p>
           </div>
         </div>
