@@ -86,7 +86,7 @@ app.get('/health', (req, res) => {
 app.get('/api', (req, res) => {
 	res.json({ 
 		message: 'CBT Backend API is running',
-		version: '2.0.10-FINAL', // Fixed duplicate login endpoint password comparison
+		version: '2.0.11-FINAL', // Fixed login response format to match frontend expectations
 		database: process.env.DB_TYPE || 'mongodb',
 		multi_tenant: true,
 		deployment: 'final-version-' + Date.now(),
@@ -448,7 +448,8 @@ app.post('/api/auth/login', async (req, res) => {
         // Return user data with tenant info
         const { password: _, ...userData } = user.toObject();
         res.json({
-            ...userData,
+            success: true,
+            user: userData,
             tenant: {
                 id: tenant._id,
                 name: tenant.name,
@@ -537,7 +538,8 @@ app.get('/api/users', async (req, res, next) => {
  		// Return user data with tenant info
  		const { password: _, ...userData } = user.toObject();
  		res.json({
- 			...userData,
+ 			success: true,
+ 			user: userData,
  			tenant: {
  				id: tenant._id,
  				name: tenant.name,
