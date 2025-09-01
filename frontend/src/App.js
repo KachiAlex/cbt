@@ -49,7 +49,6 @@ function App() {
   const [view, setView] = useState("login");
   const [showAdminLink, setShowAdminLink] = useState(false);
   const [institutionData, setInstitutionData] = useState(null);
-  const [multiTenantAdminAuthenticated, setMultiTenantAdminAuthenticated] = useState(false);
 
 
 
@@ -68,7 +67,6 @@ function App() {
       // Check if multi-tenant admin is authenticated
       const token = localStorage.getItem('multi_tenant_admin_token');
       if (token) {
-        setMultiTenantAdminAuthenticated(true);
         setView("multi-tenant-admin");
       } else {
         setView("multi-tenant-admin-login");
@@ -182,7 +180,6 @@ function App() {
 
   // Multi-tenant admin login handler
   const handleMultiTenantAdminLogin = (loginData) => {
-    setMultiTenantAdminAuthenticated(true);
     setView("multi-tenant-admin");
   };
 

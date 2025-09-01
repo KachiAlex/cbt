@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 
 const MultiTenantAdmin = () => {
   const [activeTab, setActiveTab] = useState('dashboard');
@@ -31,9 +31,9 @@ const MultiTenantAdmin = () => {
   };
 
   // Check if user is authenticated
-  const isAuthenticated = () => {
+  const isAuthenticated = useCallback(() => {
     return !!getAuthToken();
-  };
+  }, []);
 
   // Logout function
   const handleLogout = () => {
@@ -46,9 +46,9 @@ const MultiTenantAdmin = () => {
     if (isAuthenticated()) {
       loadInstitutions();
     }
-  }, []);
+  }, [isAuthenticated, loadInstitutions]);
 
-  const loadInstitutions = async () => {
+  const loadInstitutions = useCallback(async () => {
     try {
       setLoading(true);
       const token = getAuthToken();
@@ -77,7 +77,7 @@ const MultiTenantAdmin = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   const handleCreateInstitution = async (e) => {
     e.preventDefault();
