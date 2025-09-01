@@ -9,6 +9,7 @@ require('dotenv').config();
 
 // Models
 const User = require('./models/User');
+const Tenant = require('./models/Tenant');
 const Exam = require('./models/Exam');
 const Result = require('./models/Result');
 const Question = require('./models/Question');
@@ -787,17 +788,245 @@ app.post('/api/v1/test-tenant', async (req, res) => {
     }
 });
 
-// Tenant creation endpoint removed - multi-tenant functionality moved to frontend
+// ===== MULTI-TENANT ADMIN API ENDPOINTS =====
 
-// Tenant listing endpoint removed - multi-tenant functionality moved to frontend
+// Create tenant endpoint
+app.post('/api/tenants', async (req, res) => {
+  try {
+    console.log('Received tenant creation request:', req.body);
+    
+    const { name, address, contact_phone, plan, timezone, default_admin } = req.body;
+    
+    // Validate required fields
+    if (!name || !default_admin?.email || !default_admin?.username) {
+      return res.status(400).json({ error: 'Missing required fields: name, default_admin.email, and default_admin.username' });
+    }
+    
+    // Generate slug from name
+    const slug = name.toLowerCase().replace(/[^a-z0-9]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '');
+    
+    // Check if slug already exists
+    const existingTenant = await Tenant.findOne({ slug });
+    if (existingTenant) {
+      return res.status(400).json({ error: 'Institution with this name already exists' });
+    }
+    
+    // Create tenant in database
+    const tenant = new Tenant({
+      name: name,
+      slug: slug,
+      address: address || '',
+      contact_email: default_admin.email,
+      contact_phone: contact_phone || '',
+      plan: plan || 'Basic',
+      timezone: timezone || 'UTC',
+      suspended: false,
+      default_admin: {
+        username: default_admin.username,
+        email: default_admin.email,
+        fullName: default_admin.fullName,
+        phone: default_admin.phone || '',
+        password: default_admin.password
+      }
+    });
+    
+    await tenant.save();
+    
+    // Create default admin user
+    const defaultAdminUser = new User({
+      tenant_id: tenant._id,
+      username: default_admin.username,
+      email: default_admin.email,
+      fullName: default_admin.fullName,
+      phone: default_admin.phone || '',
+      password: default_admin.password,
+      role: 'tenant_admin',
+      is_default_admin: true,
+      is_active: true
+    });
+    
+    await defaultAdminUser.save();
+    
+    res.status(201).json({
+      message: '✅ Tenant created successfully in MongoDB Atlas',
+      tenant: {
+        id: tenant._id,
+        name: tenant.name,
+        slug: tenant.slug,
+        contact_email: tenant.contact_email,
+        plan: tenant.plan,
+        created_at: tenant.createdAt
+      },
+      default_admin: {
+        id: defaultAdminUser._id,
+        email: default_admin.email,
+        username: default_admin.username,
+        fullName: default_admin.fullName
+      }
+    });
+    
+  } catch (error) {
+    console.error('Error creating tenant:', error);
+    res.status(500).json({ error: 'Failed to create tenant' });
+  }
+});
 
-// Tenant deletion endpoint removed - multi-tenant functionality moved to frontend
+// Get all tenants endpoint
+app.get('/api/tenants', async (req, res) => {
+  try {
+    const tenants = await Tenant.find({ deleted_at: null })
+      .select('name slug contact_email plan suspended createdAt default_admin')
+      .sort({ createdAt: -1 })
+      .lean();
+    
+    res.json(tenants);
+  } catch (error) {
+    console.error('Error fetching tenants:', error);
+    res.status(500).json({ error: 'Failed to fetch tenants' });
+  }
+});
 
-// Tenant status toggle endpoint removed - multi-tenant functionality moved to frontend
+// Delete tenant endpoint
+app.delete('/api/tenants/:slug', async (req, res) => {
+  try {
+    const { slug } = req.params;
+    
+    // Find the tenant
+    const tenant = await Tenant.findOne({ slug, deleted_at: null });
+    if (!tenant) {
+      return res.status(404).json({ error: 'Tenant not found' });
+    }
+    
+    // Soft delete all users associated with this tenant
+    await User.updateMany(
+      { tenant_id: tenant._id },
+      { 
+        is_active: false,
+        updatedAt: new Date()
+      }
+    );
+    
+    // Soft delete the tenant by setting deleted_at timestamp
+    tenant.deleted_at = new Date();
+    await tenant.save();
+    
+    res.json({
+      message: 'Tenant deleted successfully',
+      tenant: {
+        id: tenant._id,
+        name: tenant.name,
+        slug: tenant.slug
+      }
+    });
+    
+  } catch (error) {
+    console.error('Error deleting tenant:', error);
+    res.status(500).json({ error: 'Failed to delete tenant' });
+  }
+});
 
-// Tenant profile endpoints removed - multi-tenant functionality moved to frontend
- 
-// Tenant admin management endpoints removed - multi-tenant functionality moved to frontend
+// Toggle tenant status endpoint
+app.patch('/api/tenants/:slug/toggle-status', async (req, res) => {
+  try {
+    const { slug } = req.params;
+    const { suspended } = req.body;
+    
+    // Find the tenant
+    const tenant = await Tenant.findOne({ slug, deleted_at: null });
+    if (!tenant) {
+      return res.status(404).json({ error: 'Tenant not found' });
+    }
+    
+    // Update suspension status
+    tenant.suspended = suspended;
+    await tenant.save();
+    
+    res.json({
+      message: `Tenant ${suspended ? 'suspended' : 'activated'} successfully`,
+      tenant: {
+        id: tenant._id,
+        name: tenant.name,
+        slug: tenant.slug,
+        suspended: tenant.suspended
+      }
+    });
+    
+  } catch (error) {
+    console.error('Error updating tenant status:', error);
+    res.status(500).json({ error: 'Failed to update tenant status' });
+  }
+});
+
+// Get tenant profile endpoint
+app.get('/api/tenant/:slug/profile', async (req, res) => {
+  try {
+    const { slug } = req.params;
+    
+    const tenant = await Tenant.findOne({ 
+      slug: slug,
+      deleted_at: null,
+      suspended: false
+    });
+    
+    if (!tenant) {
+      return res.status(404).json({ error: 'Tenant not found' });
+    }
+    
+    res.json({
+      name: tenant.name,
+      logo_url: tenant.logo_url,
+      address: tenant.address,
+      contact_email: tenant.contact_email,
+      contact_phone: tenant.contact_phone,
+      plan: tenant.plan,
+      timezone: tenant.timezone
+    });
+  } catch (error) {
+    console.error('Error fetching tenant profile:', error);
+    res.status(500).json({ error: 'Failed to fetch profile' });
+  }
+});
+
+// Update tenant profile endpoint
+app.put('/api/tenant/:slug/profile', async (req, res) => {
+  try {
+    const { slug } = req.params;
+    const { name, logo_url, address, contact_phone } = req.body;
+    
+    const tenant = await Tenant.findOne({ 
+      slug: slug,
+      deleted_at: null,
+      suspended: false
+    });
+    
+    if (!tenant) {
+      return res.status(404).json({ error: 'Tenant not found' });
+    }
+    
+    // Update tenant profile
+    if (name) tenant.name = name;
+    if (logo_url) tenant.logo_url = logo_url;
+    if (address) tenant.address = address;
+    if (contact_phone) tenant.contact_phone = contact_phone;
+    
+    await tenant.save();
+    
+    res.json({
+      message: 'Profile updated successfully',
+      tenant: {
+        name: tenant.name,
+        logo_url: tenant.logo_url,
+        address: tenant.address,
+        contact_email: tenant.contact_email,
+        contact_phone: tenant.contact_phone,
+        plan: tenant.plan
+      }
+    });
+  } catch (error) {
+    console.error('Error updating tenant profile:', error);
+    res.status(500).json({ error: 'Failed to update profile' });
+  }
+});
  
  // Mount new routes (commented out for now)
  // app.use('/api/v1/managed-admin', managedAdminRoutes);

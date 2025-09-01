@@ -143,35 +143,18 @@ function App() {
   // Load institution data for institution-specific routes
   const loadInstitutionData = async (slug) => {
     try {
-      // Load institution data from cloud storage
-      const CLOUD_STORAGE_URL = 'https://raw.githubusercontent.com/your-username/cbt-tenants/main/tenants.json';
+      // Load institution data from MongoDB API
+      const response = await fetch(`https://cbt-rew7.onrender.com/api/tenant/${slug}/profile`);
       
-      const response = await fetch(CLOUD_STORAGE_URL);
       if (!response.ok) {
-        throw new Error('Failed to load institutions from cloud storage');
+        throw new Error('Institution not found or suspended');
       }
       
       const data = await response.json();
-      const institution = data.institutions?.find(inst => inst.slug === slug);
-      
-      if (!institution) {
-        throw new Error('Institution not found');
-      }
-      
-      const institutionData = {
-        name: institution.name,
-        logo_url: institution.logo_url,
-        address: institution.address,
-        contact_email: institution.contact_email,
-        contact_phone: institution.contact_phone,
-        plan: institution.plan,
-        timezone: institution.timezone
-      };
-      
-      setInstitutionData(institutionData);
+      setInstitutionData(data);
       
       // Store institution data in localStorage for use throughout the app
-      localStorage.setItem('institution_data', JSON.stringify(institutionData));
+      localStorage.setItem('institution_data', JSON.stringify(data));
       localStorage.setItem('institution_slug', slug);
       
     } catch (error) {

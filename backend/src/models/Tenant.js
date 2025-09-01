@@ -1,7 +1,6 @@
 const mongoose = require('mongoose');
 
 const tenantSchema = new mongoose.Schema({
-  // Basic tenant information
   name: {
     type: String,
     required: true,
@@ -14,11 +13,9 @@ const tenantSchema = new mongoose.Schema({
     lowercase: true,
     trim: true
   },
-  
-  // Contact information
   address: {
     type: String,
-    trim: true
+    default: ''
   },
   contact_email: {
     type: String,
@@ -28,43 +25,25 @@ const tenantSchema = new mongoose.Schema({
   },
   contact_phone: {
     type: String,
-    trim: true
+    default: ''
   },
-  
-  // Configuration
+  plan: {
+    type: String,
+    enum: ['Basic', 'Premium', 'Enterprise'],
+    default: 'Basic'
+  },
   timezone: {
     type: String,
     default: 'UTC'
   },
-  language: {
-    type: String,
-    default: 'en'
-  },
-  
-  // Branding
   logo_url: {
     type: String,
-    trim: true
+    default: ''
   },
-  
-  // Subscription/Plan
-  plan: {
-    type: String,
-    enum: ['basic', 'premium', 'enterprise'],
-    default: 'basic'
-  },
-  
-  // Status
   suspended: {
     type: Boolean,
     default: false
   },
-  deleted_at: {
-    type: Date,
-    default: null
-  },
-  
-  // Default Admin Information
   default_admin: {
     username: {
       type: String,
@@ -84,47 +63,48 @@ const tenantSchema = new mongoose.Schema({
     },
     phone: {
       type: String,
-      trim: true
+      default: ''
     },
     password: {
       type: String,
       required: true
     }
   },
-  
-  // Metadata
-  metadata: {
-    type: mongoose.Schema.Types.Mixed,
-    default: {}
+  settings: {
+    max_students: {
+      type: Number,
+      default: 100
+    },
+    max_exams: {
+      type: Number,
+      default: 10
+    },
+    features: {
+      type: [String],
+      default: ['basic_exams', 'basic_reports']
+    }
   },
-  
-  // Audit fields
-  created_at: {
+  deleted_at: {
     type: Date,
-    default: Date.now
-  },
-  updated_at: {
-    type: Date,
-    default: Date.now
+    default: null
   }
 }, {
-  timestamps: { createdAt: 'created_at', updatedAt: 'updated_at' }
+  timestamps: true
 });
 
-// Indexes
+// Index for efficient queries
 tenantSchema.index({ slug: 1 });
-tenantSchema.index({ suspended: 1 });
 tenantSchema.index({ deleted_at: 1 });
-tenantSchema.index({ contact_email: 1 });
+tenantSchema.index({ suspended: 1 });
 
-// Virtual for active status
-tenantSchema.virtual('is_active').get(function() {
-  return !this.suspended && !this.deleted_at;
-});
-
-// Pre-save middleware
+// Pre-save middleware to generate slug if not provided
 tenantSchema.pre('save', function(next) {
-  this.updated_at = new Date();
+  if (!this.slug && this.name) {
+    this.slug = this.name.toLowerCase()
+      .replace(/[^a-z0-9]/g, '-')
+      .replace(/-+/g, '-')
+      .replace(/^-|-$/g, '');
+  }
   next();
 });
 

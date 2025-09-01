@@ -22,8 +22,8 @@ const MultiTenantAdmin = () => {
     }
   });
 
-  // Cloud storage URL (you can replace this with your own hosted JSON file)
-  const CLOUD_STORAGE_URL = 'https://raw.githubusercontent.com/your-username/cbt-tenants/main/tenants.json';
+  // MongoDB API base URL
+  const API_BASE_URL = 'https://cbt-rew7.onrender.com';
 
   useEffect(() => {
     loadInstitutions();
@@ -32,14 +32,14 @@ const MultiTenantAdmin = () => {
   const loadInstitutions = async () => {
     try {
       setLoading(true);
-      const response = await fetch(CLOUD_STORAGE_URL);
+      const response = await fetch(`${API_BASE_URL}/api/tenants`);
       
       if (!response.ok) {
-        throw new Error('Failed to load institutions from cloud storage');
+        throw new Error('Failed to load institutions from MongoDB');
       }
       
       const data = await response.json();
-      setInstitutions(data.institutions || []);
+      setInstitutions(data);
     } catch (error) {
       setError('Failed to load institutions: ' + error.message);
       // Fallback to empty array
@@ -49,58 +49,25 @@ const MultiTenantAdmin = () => {
     }
   };
 
-  const saveInstitutionsToCloud = async (updatedInstitutions) => {
-    try {
-      // For now, we'll use a simple approach with localStorage as backup
-      // In a real implementation, you would save to your cloud storage
-      localStorage.setItem('cbt_tenants', JSON.stringify({
-        institutions: updatedInstitutions,
-        lastUpdated: new Date().toISOString()
-      }));
-      
-      // You can implement actual cloud storage here:
-      // - GitHub API to update a JSON file
-      // - Firebase Firestore
-      // - AWS S3
-      // - Google Cloud Storage
-      // - Any other cloud storage service
-      
-      console.log('Institutions saved to cloud storage');
-    } catch (error) {
-      console.error('Failed to save to cloud storage:', error);
-      throw error;
-    }
-  };
-
   const handleCreateInstitution = async (e) => {
     e.preventDefault();
     
     try {
-      const newInstitution = {
-        id: 'inst-' + Date.now(),
-        name: formData.name,
-        slug: formData.name.toLowerCase().replace(/[^a-z0-9]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, ''),
-        address: formData.address,
-        contact_phone: formData.contact_phone,
-        contact_email: formData.contact_email,
-        plan: formData.plan,
-        timezone: formData.timezone,
-        suspended: false,
-        created_at: new Date().toISOString(),
-        default_admin: {
-          id: 'admin-' + Date.now(),
-          fullName: formData.default_admin.fullName,
-          email: formData.default_admin.email,
-          username: formData.default_admin.username,
-          phone: formData.default_admin.phone,
-          password: formData.default_admin.password
-        }
-      };
+      const response = await fetch(`${API_BASE_URL}/api/tenants`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(formData)
+      });
 
-      const updatedInstitutions = [...institutions, newInstitution];
-      await saveInstitutionsToCloud(updatedInstitutions);
-      setInstitutions(updatedInstitutions);
-      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to create institution');
+      }
+
+      const newInstitution = await response.json();
+      setInstitutions([...institutions, newInstitution.tenant]);
       setShowCreateForm(false);
       setFormData({
         name: '',
@@ -125,12 +92,22 @@ const MultiTenantAdmin = () => {
 
   const toggleInstitutionStatus = async (slug, currentStatus) => {
     try {
-      const updatedInstitutions = institutions.map(inst => 
+      const response = await fetch(`${API_BASE_URL}/api/tenants/${slug}/toggle-status`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ suspended: !currentStatus })
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to update institution status');
+      }
+
+      // Update local state
+      setInstitutions(institutions.map(inst => 
         inst.slug === slug ? { ...inst, suspended: !currentStatus } : inst
-      );
-      
-      await saveInstitutionsToCloud(updatedInstitutions);
-      setInstitutions(updatedInstitutions);
+      ));
     } catch (error) {
       setError('Failed to update institution status: ' + error.message);
     }
@@ -142,9 +119,15 @@ const MultiTenantAdmin = () => {
     }
 
     try {
-      const updatedInstitutions = institutions.filter(inst => inst.slug !== slug);
-      await saveInstitutionsToCloud(updatedInstitutions);
-      setInstitutions(updatedInstitutions);
+      const response = await fetch(`${API_BASE_URL}/api/tenants/${slug}`, {
+        method: 'DELETE'
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to delete institution');
+      }
+
+      setInstitutions(institutions.filter(inst => inst.slug !== slug));
     } catch (error) {
       setError('Failed to delete institution: ' + error.message);
     }
@@ -174,7 +157,7 @@ const MultiTenantAdmin = () => {
               Manage multiple institutions and their CBT systems
             </p>
             <p className="text-sm text-gray-500 mt-2">
-              Cloud-based storage • Real-time updates • Secure management
+              MongoDB Atlas • Real-time updates • Secure management
             </p>
           </div>
         </div>
@@ -245,7 +228,7 @@ const MultiTenantAdmin = () => {
                 <h3 className="text-xl font-semibold mb-2">Created This Month</h3>
                 <p className="text-3xl font-bold">
                   {institutions.filter(inst => {
-                    const created = new Date(inst.created_at);
+                    const created = new Date(inst.createdAt);
                     const now = new Date();
                     return created.getMonth() === now.getMonth() && 
                            created.getFullYear() === now.getFullYear();
@@ -514,7 +497,7 @@ const MultiTenantAdmin = () => {
                               <strong>Email:</strong> {institution.default_admin?.email}
                             </div>
                             <div>
-                              <strong>Created:</strong> {new Date(institution.created_at).toLocaleDateString()}
+                              <strong>Created:</strong> {new Date(institution.createdAt).toLocaleDateString()}
                             </div>
                           </div>
                         </div>
