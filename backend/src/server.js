@@ -849,8 +849,8 @@ app.post('/api/tenants', cors(), authenticateMultiTenantAdmin, async (req, res) 
     // Generate slug from name
     const slug = name.toLowerCase().replace(/[^a-z0-9]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '');
     
-    // Check if slug already exists
-    const existingTenant = await Tenant.findOne({ slug });
+    // Check if slug already exists (only for active tenants)
+    const existingTenant = await Tenant.findOne({ slug, deleted_at: null });
     if (existingTenant) {
       return res.status(400).json({ error: 'Institution with this name already exists' });
     }
