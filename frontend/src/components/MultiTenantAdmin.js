@@ -21,6 +21,13 @@ const MultiTenantAdmin = () => {
       password: ''
     }
   });
+  const [adminsModalSlug, setAdminsModalSlug] = useState(null);
+  const [admins, setAdmins] = useState([]);
+  const [adminsLoading, setAdminsLoading] = useState(false);
+  const [showAdminForm, setShowAdminForm] = useState(false);
+  const [adminFormData, setAdminFormData] = useState({ fullName: '', email: '', username: '', password: '' });
+  const [adminFormLoading, setAdminFormLoading] = useState(false);
+  const [adminFormError, setAdminFormError] = useState('');
 
   // MongoDB API base URL
   const API_BASE_URL = 'https://cbt-rew7.onrender.com';
@@ -28,6 +35,15 @@ const MultiTenantAdmin = () => {
   // Get authentication token
   const getAuthToken = () => {
     return localStorage.getItem('multi_tenant_admin_token');
+  };
+
+  const canManageAdmins = () => {
+    try {
+      const u = JSON.parse(localStorage.getItem('multi_tenant_admin_user'));
+      return u && (u.role === 'super_admin' || u.role === 'managed_admin');
+    } catch {
+      return false;
+    }
   };
 
   // Check if user is authenticated
@@ -80,6 +96,107 @@ const MultiTenantAdmin = () => {
       setLoading(false);
     }
   }, []);
+
+  const loadAdmins = async (slug) => {
+    try {
+      setAdminsLoading(true);
+      const token = getAuthToken();
+      const res = await fetch(`${API_BASE_URL}/api/tenants/${slug}/admins`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (!res.ok) throw new Error('Failed to load admins');
+      const data = await res.json();
+      setAdmins(data.admins || []);
+    } catch (e) {
+      setError('Failed to load admins: ' + e.message);
+      setSuccess('');
+      setAdmins([]);
+    } finally {
+      setAdminsLoading(false);
+    }
+  };
+
+  const openAdminsModal = async (slug) => {
+    setAdminsModalSlug(slug);
+    setShowAdminForm(false);
+    setAdminFormData({ fullName: '', email: '', username: '', password: '' });
+    setAdminFormError('');
+    await loadAdmins(slug);
+  };
+
+  const submitCreateAdmin = async () => {
+    if (!adminFormData.fullName || !adminFormData.email || !adminFormData.username || !adminFormData.password) {
+      setAdminFormError('All fields are required');
+      return;
+    }
+    if (adminFormData.password.length < 6) {
+      setAdminFormError('Password must be at least 6 characters');
+      return;
+    }
+    try {
+      setAdminFormLoading(true);
+      setAdminFormError('');
+      const token = getAuthToken();
+      const res = await fetch(`${API_BASE_URL}/api/tenants/${adminsModalSlug}/admins`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify(adminFormData)
+      });
+      if (!res.ok) {
+        let msg = 'Failed to create admin';
+        try { const e = await res.json(); msg = e.error || e.message || msg; } catch {}
+        throw new Error(msg);
+      }
+      await loadAdmins(adminsModalSlug);
+      setShowAdminForm(false);
+      setAdminFormData({ fullName: '', email: '', username: '', password: '' });
+      setSuccess('Admin created'); setError('');
+    } catch (e) {
+      setAdminFormError(e.message);
+    } finally {
+      setAdminFormLoading(false);
+    }
+  };
+
+  const setAdminStatus = async (slug, username, isActive) => {
+    try {
+      const token = getAuthToken();
+      const res = await fetch(`${API_BASE_URL}/api/tenants/${slug}/admins/${username}/status`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify({ is_active: isActive })
+      });
+      if (!res.ok) {
+        let msg = 'Failed to update admin status';
+        try { const e = await res.json(); msg = e.error || e.message || msg; } catch {}
+        throw new Error(msg);
+      }
+      await loadAdmins(slug);
+      setSuccess('Status updated'); setError('');
+    } catch (e) {
+      setError('Failed to update admin status: ' + e.message); setSuccess('');
+    }
+  };
+
+  const deleteAdmin = async (slug, username) => {
+    if (!window.confirm('Delete this admin?')) return;
+    try {
+      const token = getAuthToken();
+      const res = await fetch(`${API_BASE_URL}/api/tenants/${slug}/admins/${username}`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (!res.ok) {
+        let msg = 'Failed to delete admin';
+        try { const e = await res.json(); msg = e.error || e.message || msg; } catch {}
+        throw new Error(msg);
+      }
+      await loadAdmins(slug);
+      setSuccess('Admin deleted'); setError('');
+    } catch (e) {
+      setError('Failed to delete admin: ' + e.message); setSuccess('');
+    }
+  };
 
   useEffect(() => {
     if (isAuthenticated()) {
@@ -223,6 +340,40 @@ const MultiTenantAdmin = () => {
        setError('Failed to delete institution: ' + error.message);
        setSuccess(''); // Clear any previous success message
      }
+  };
+
+  const updateLogo = async (slug) => {
+    try {
+      const token = getAuthToken();
+      const inst = institutions.find(i => i.slug === slug);
+      const current = inst?.logo_url || '';
+      const logo = window.prompt('Enter logo URL (https://...)', current);
+      if (logo === null) return; // cancelled
+      const trimmed = logo.trim();
+      if (!trimmed) { setError('Logo URL cannot be empty'); setSuccess(''); return; }
+      if (!/^https?:\/\//i.test(trimmed)) { setError('Logo URL must start with http:// or https://'); setSuccess(''); return; }
+
+      const response = await fetch(`${API_BASE_URL}/api/tenants/${slug}/logo`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ logo_url: trimmed })
+      });
+      if (!response.ok) {
+        let msg = 'Failed to update logo';
+        try { const e = await response.json(); msg = e.error || e.message || msg; } catch {}
+        throw new Error(msg);
+      }
+      const data = await response.json();
+      setInstitutions(institutions.map(inst => inst.slug === slug ? { ...inst, logo_url: data.tenant.logo_url } : inst));
+      setSuccess('Logo updated');
+      setError('');
+    } catch (e) {
+      setError('Failed to update logo: ' + e.message);
+      setSuccess('');
+    }
   };
 
   if (!isAuthenticated()) {
@@ -620,12 +771,28 @@ const MultiTenantAdmin = () => {
                           >
                             {institution.suspended ? 'Activate' : 'Suspend'}
                           </button>
-                          <button
-                            onClick={() => deleteInstitution(institution.slug)}
-                            className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 text-sm"
-                          >
-                            Delete
-                          </button>
+                          {canManageAdmins() && (
+                            <>
+                              <button
+                                onClick={() => updateLogo(institution.slug)}
+                                className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 text-sm"
+                              >
+                                Change Logo
+                              </button>
+                              <button
+                                onClick={() => openAdminsModal(institution.slug)}
+                                className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 text-sm"
+                              >
+                                Manage Admins
+                              </button>
+                              <button
+                                onClick={() => deleteInstitution(institution.slug)}
+                                className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 text-sm"
+                              >
+                                Delete
+                              </button>
+                            </>
+                          )}
                         </div>
                       </div>
                       
@@ -650,6 +817,119 @@ const MultiTenantAdmin = () => {
           )}
         </div>
       </div>
+
+      {adminsModalSlug && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-xl p-6 w-full max-w-2xl mx-4">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-lg font-bold">Manage Admins</h3>
+              <button onClick={() => setAdminsModalSlug(null)} className="text-gray-500 hover:text-gray-700 text-xl">×</button>
+            </div>
+            <div className="mb-4 flex justify-between items-center">
+              <div className="text-sm text-gray-600">Tenant: <span className="font-medium">{adminsModalSlug}</span></div>
+              <button onClick={() => setShowAdminForm(true)} className="px-3 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 text-sm">+ Create Admin</button>
+            </div>
+            {showAdminForm && (
+              <div className="mb-4 border rounded-lg p-4 bg-gray-50">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Full Name *</label>
+                    <input
+                      type="text"
+                      value={adminFormData.fullName}
+                      onChange={(e) => setAdminFormData({ ...adminFormData, fullName: e.target.value })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                      placeholder="Enter full name"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Email *</label>
+                    <input
+                      type="email"
+                      value={adminFormData.email}
+                      onChange={(e) => setAdminFormData({ ...adminFormData, email: e.target.value })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                      placeholder="Enter email"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Username *</label>
+                    <input
+                      type="text"
+                      value={adminFormData.username}
+                      onChange={(e) => setAdminFormData({ ...adminFormData, username: e.target.value })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                      placeholder="Enter username"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Password *</label>
+                    <input
+                      type="password"
+                      value={adminFormData.password}
+                      onChange={(e) => setAdminFormData({ ...adminFormData, password: e.target.value })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                      placeholder="Min 6 characters"
+                      required
+                    />
+                  </div>
+                </div>
+                {adminFormError && (
+                  <div className="mt-3 p-2 rounded bg-red-50 border border-red-200 text-red-700 text-sm">{adminFormError}</div>
+                )}
+                <div className="mt-4 flex justify-end gap-2">
+                  <button onClick={() => { setShowAdminForm(false); setAdminFormError(''); }} className="px-4 py-2 border border-gray-300 rounded-md hover:bg-gray-50">Cancel</button>
+                  <button onClick={submitCreateAdmin} disabled={adminFormLoading} className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 disabled:opacity-50">
+                    {adminFormLoading ? 'Creating...' : 'Create Admin'}
+                  </button>
+                </div>
+              </div>
+            )}
+            <div className="border rounded-lg overflow-hidden">
+              <table className="min-w-full">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Username</th>
+                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Full Name</th>
+                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email</th>
+                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                    <th className="px-4 py-2"></th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-200">
+                  {adminsLoading && (
+                    <tr><td colSpan={5} className="px-4 py-4 text-center text-gray-500">Loading...</td></tr>
+                  )}
+                  {!adminsLoading && admins.length === 0 && (
+                    <tr><td colSpan={5} className="px-4 py-4 text-center text-gray-500">No admins found</td></tr>
+                  )}
+                  {admins.map(a => (
+                    <tr key={a.username}>
+                      <td className="px-4 py-2 text-sm font-medium text-gray-900">{a.username}</td>
+                      <td className="px-4 py-2 text-sm text-gray-700">{a.fullName}</td>
+                      <td className="px-4 py-2 text-sm text-gray-700">{a.email}</td>
+                      <td className="px-4 py-2 text-sm">
+                        <span className={`px-2 py-1 rounded-full text-xs ${a.is_active ? 'bg-emerald-100 text-emerald-700' : 'bg-orange-100 text-orange-700'}`}>{a.is_active ? 'Active' : 'Suspended'}</span>
+                      </td>
+                      <td className="px-4 py-2 text-sm text-right">
+                        {a.is_active ? (
+                          <button onClick={() => setAdminStatus(adminsModalSlug, a.username, false)} className="px-3 py-1 rounded-lg bg-orange-600 text-white hover:bg-orange-700 mr-2">Suspend</button>
+                        ) : (
+                          <button onClick={() => setAdminStatus(adminsModalSlug, a.username, true)} className="px-3 py-1 rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 mr-2">Activate</button>
+                        )}
+                        <button onClick={() => deleteAdmin(adminsModalSlug, a.username)} className="px-3 py-1 rounded-lg bg-red-600 text-white hover:bg-red-700">Delete</button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

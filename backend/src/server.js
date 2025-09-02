@@ -986,19 +986,19 @@ app.post('/api/tenants', cors(), authenticateMultiTenantAdmin, async (req, res) 
       normalizedPlan = 'Basic';
     }
 
-    // Generate slug from name
-    const slug = name.toLowerCase().replace(/[^a-z0-9]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '');
-    
-    // Check if slug already exists (only for active tenants)
-    const existingTenant = await Tenant.findOne({ slug, deleted_at: null });
-    if (existingTenant) {
-      return res.status(400).json({ error: 'Institution with this name already exists' });
-    }
+    // Generate a base slug from name
+    const baseSlug = name.toLowerCase().replace(/[^a-z0-9]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '');
 
-    // Pre-check duplicate admin username globally (case-insensitive)
-    const existingAdmin = await User.findOne({ username: { $regex: new RegExp(`^${default_admin.username}$`, 'i') } });
-    if (existingAdmin) {
-      return res.status(400).json({ error: 'Default admin username already exists. Please choose another username.' });
+    // Ensure unique slug by checking ALL tenants (including soft-deleted)
+    let slug = baseSlug;
+    let suffix = 1;
+    // Try up to a reasonable number of variants
+    // eslint-disable-next-line no-constant-condition
+    while (true) {
+      const existsAny = await Tenant.findOne({ slug });
+      if (!existsAny) break;
+      suffix += 1;
+      slug = `${baseSlug}-${suffix}`;
     }
     
     // Create tenant in database
@@ -1035,7 +1035,7 @@ app.post('/api/tenants', cors(), authenticateMultiTenantAdmin, async (req, res) 
       fullName: default_admin.fullName,
       phone: default_admin.phone || '',
       password: default_admin.password,
-      role: 'admin', // Changed from 'tenant_admin' to 'admin'
+      role: 'admin',
       is_default_admin: true,
       is_active: true
     });
@@ -1063,6 +1063,10 @@ app.post('/api/tenants', cors(), authenticateMultiTenantAdmin, async (req, res) 
   } catch (error) {
     console.error('Error creating tenant:', error);
     console.error('Error details:', error.message);
+    // Handle duplicate key error gracefully
+    if (error && (error.code === 11000 || String(error.message).includes('E11000'))) {
+      return res.status(400).json({ error: 'An institution with a similar name already exists. Please choose a different name.' });
+    }
     if (error.name === 'ValidationError') {
       console.error('Validation errors:', error.errors);
       return res.status(400).json({ error: 'Validation error: ' + error.message });
