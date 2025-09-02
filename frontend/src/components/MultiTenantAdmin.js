@@ -92,10 +92,35 @@ const MultiTenantAdmin = () => {
     
     try {
       const token = getAuthToken();
+
+      // Frontend validation & normalization
+      const allowedPlans = ['Basic', 'Premium', 'Enterprise'];
+      let normalizedPlan = formData.plan;
+      if (typeof normalizedPlan === 'string') {
+        const trimmed = normalizedPlan.trim().toLowerCase();
+        if (trimmed === 'basic') normalizedPlan = 'Basic';
+        else if (trimmed === 'premium') normalizedPlan = 'Premium';
+        else if (trimmed === 'enterprise') normalizedPlan = 'Enterprise';
+      }
+      if (!allowedPlans.includes(normalizedPlan)) {
+        normalizedPlan = 'Basic';
+      }
+
+      if (!formData.name || !formData.default_admin.email || !formData.default_admin.username || !formData.default_admin.fullName) {
+        setError('Please fill all required fields: Institution name, Admin full name, email, and username.');
+        setSuccess('');
+        return;
+      }
+      if (!formData.default_admin.password || String(formData.default_admin.password).length < 6) {
+        setError('Admin password must be at least 6 characters.');
+        setSuccess('');
+        return;
+      }
       
       // Map admin email/phone to institution contact fields
       const institutionData = {
         ...formData,
+        plan: normalizedPlan,
         contact_email: formData.default_admin.email,
         contact_phone: formData.default_admin.phone || ''
       };
@@ -112,8 +137,12 @@ const MultiTenantAdmin = () => {
       });
 
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Failed to create institution');
+        let msg = 'Failed to create institution';
+        try {
+          const errorData = await response.json();
+          msg = errorData.error || errorData.message || msg;
+        } catch {}
+        throw new Error(msg);
       }
 
       const newInstitution = await response.json();
@@ -133,10 +162,12 @@ const MultiTenantAdmin = () => {
         }
       });
       setActiveTab('manage');
-         } catch (error) {
-       setError('Failed to create institution: ' + error.message);
-       setSuccess(''); // Clear any previous success message
-     }
+      setSuccess('Institution created successfully');
+      setError('');
+    } catch (error) {
+      setError('Failed to create institution: ' + error.message);
+      setSuccess(''); // Clear any previous success message
+    }
   };
 
   const toggleInstitutionStatus = async (slug, currentStatus) => {

@@ -966,7 +966,26 @@ app.post('/api/tenants', cors(), authenticateMultiTenantAdmin, async (req, res) 
     if (!name || !default_admin?.email || !default_admin?.username) {
       return res.status(400).json({ error: 'Missing required fields: name, default_admin.email, and default_admin.username' });
     }
-    
+    if (!default_admin?.fullName) {
+      return res.status(400).json({ error: 'Missing required field: default_admin.fullName' });
+    }
+    if (!default_admin?.password || String(default_admin.password).length < 6) {
+      return res.status(400).json({ error: 'Missing or invalid default_admin.password (min 6 characters)' });
+    }
+
+    // Validate plan enum, normalize sensible variants
+    const allowedPlans = ['Basic', 'Premium', 'Enterprise'];
+    let normalizedPlan = plan;
+    if (typeof normalizedPlan === 'string') {
+      const trimmed = normalizedPlan.trim().toLowerCase();
+      if (trimmed === 'basic') normalizedPlan = 'Basic';
+      else if (trimmed === 'premium') normalizedPlan = 'Premium';
+      else if (trimmed === 'enterprise') normalizedPlan = 'Enterprise';
+    }
+    if (!normalizedPlan || !allowedPlans.includes(normalizedPlan)) {
+      normalizedPlan = 'Basic';
+    }
+
     // Generate slug from name
     const slug = name.toLowerCase().replace(/[^a-z0-9]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '');
     
@@ -975,10 +994,16 @@ app.post('/api/tenants', cors(), authenticateMultiTenantAdmin, async (req, res) 
     if (existingTenant) {
       return res.status(400).json({ error: 'Institution with this name already exists' });
     }
+
+    // Pre-check duplicate admin username globally (case-insensitive)
+    const existingAdmin = await User.findOne({ username: { $regex: new RegExp(`^${default_admin.username}$`, 'i') } });
+    if (existingAdmin) {
+      return res.status(400).json({ error: 'Default admin username already exists. Please choose another username.' });
+    }
     
     // Create tenant in database
-    console.log('Plan value before tenant creation:', plan);
-    console.log('Plan type:', typeof plan);
+    console.log('Plan value before tenant creation:', normalizedPlan);
+    console.log('Plan type:', typeof normalizedPlan);
     
     const tenant = new Tenant({
       name: name,
@@ -986,7 +1011,7 @@ app.post('/api/tenants', cors(), authenticateMultiTenantAdmin, async (req, res) 
       address: address || '',
       contact_email: default_admin.email,
       contact_phone: contact_phone || '',
-      plan: plan || 'Basic',
+      plan: normalizedPlan || 'Basic',
       timezone: timezone || 'UTC',
       suspended: false,
       default_admin: {
@@ -1040,6 +1065,7 @@ app.post('/api/tenants', cors(), authenticateMultiTenantAdmin, async (req, res) 
     console.error('Error details:', error.message);
     if (error.name === 'ValidationError') {
       console.error('Validation errors:', error.errors);
+      return res.status(400).json({ error: 'Validation error: ' + error.message });
     }
     res.status(500).json({ error: 'Failed to create tenant: ' + error.message });
   }
@@ -1233,6 +1259,31 @@ app.patch('/api/tenants/:slug/toggle-status', cors(), authenticateMultiTenantAdm
   } catch (error) {
     console.error('Error updating tenant status:', error);
     res.status(500).json({ error: 'Failed to update tenant status: ' + error.message });
+  }
+});
+
+// Update tenant logo URL
+app.patch('/api/tenants/:slug/logo', cors(), authenticateMultiTenantAdmin, async (req, res) => {
+  try {
+    const { slug } = req.params;
+    const { logo_url } = req.body;
+
+    if (!logo_url || typeof logo_url !== 'string' || logo_url.trim().length === 0) {
+      return res.status(400).json({ error: 'logo_url is required' });
+    }
+
+    const tenant = await Tenant.findOne({ slug, deleted_at: null });
+    if (!tenant) {
+      return res.status(404).json({ error: 'Tenant not found' });
+    }
+
+    tenant.logo_url = logo_url.trim();
+    await tenant.save();
+
+    res.json({ message: 'Logo updated', tenant: { slug: tenant.slug, logo_url: tenant.logo_url } });
+  } catch (err) {
+    console.error('Error updating logo:', err);
+    res.status(500).json({ error: 'Failed to update logo' });
   }
 });
 

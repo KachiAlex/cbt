@@ -232,47 +232,6 @@ const CBTAdminPanel = ({ user, institution, onLogout }) => {
     saveAs(blob, `${institution?.name || 'Institution'}_CBT_Results.docx`);
   };
 
-  // Sample template downloads
-  function downloadExcelQuestionTemplate() {
-    const workbook = XLSX.utils.book_new();
-    const rows = [
-      ['Question', 'A', 'B', 'C', 'D', 'Answer'],
-      ['What is 2 + 2?', '3', '4', '5', '6', 'B']
-    ];
-    const ws = XLSX.utils.aoa_to_sheet(rows);
-    XLSX.utils.book_append_sheet(workbook, ws, 'Questions');
-    const buf = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' });
-    const blob = new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
-    saveAs(blob, 'cbt_questions_template.xlsx');
-  }
-
-  async function downloadWordQuestionTemplate() {
-    const doc = new Document({
-      sections: [{
-        properties: {},
-        children: [
-          new Paragraph({ children: [new TextRun({ text: 'Sample CBT Questions Template', bold: true, size: 28 })] }),
-          new Paragraph(' '),
-          new Paragraph('1) What is 2 + 2?'),
-          new Paragraph('A) 3'),
-          new Paragraph('B) 4'),
-          new Paragraph('C) 5'),
-          new Paragraph('D) 6'),
-          new Paragraph('Answer: B'),
-          new Paragraph(' '),
-          new Paragraph('2) Capital of France is?'),
-          new Paragraph('A) Berlin'),
-          new Paragraph('B) Madrid'),
-          new Paragraph('C) Paris'),
-          new Paragraph('D) Rome'),
-          new Paragraph('Answer: C')
-        ]
-      }]
-    });
-    const blob = await Packer.toBlob(doc);
-    saveAs(blob, 'cbt_questions_template.docx');
-  }
-
   const handleCreateExam = async (examData) => {
     try {
       const newExam = {
@@ -580,10 +539,38 @@ function QuestionsTab({ selectedExam, questions, setQuestions, onFileUpload, imp
 
       <div className="bg-white rounded-xl border p-6">
         <div className="flex flex-wrap gap-2 mb-4">
-          {/* eslint-disable-next-line no-undef */}
-          <button onClick={downloadExcelQuestionTemplate} className="px-3 py-2 text-sm rounded-lg border hover:bg-gray-50">Download Excel sample</button>
-          {/* eslint-disable-next-line no-undef */}
-          <button onClick={downloadWordQuestionTemplate} className="px-3 py-2 text-sm rounded-lg border hover:bg-gray-50">Download Word sample</button>
+          <button onClick={() => {
+            const workbook = XLSX.utils.book_new();
+            const rows = [['Question', 'A', 'B', 'C', 'D', 'Answer'], ['What is 2 + 2?', '3', '4', '5', '6', 'B']];
+            const ws = XLSX.utils.aoa_to_sheet(rows);
+            XLSX.utils.book_append_sheet(workbook, ws, 'Questions');
+            const buf = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' });
+            const blob = new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+            saveAs(blob, 'cbt_questions_template.xlsx');
+          }} className="px-3 py-2 text-sm rounded-lg border hover:bg-gray-50">Download Excel sample</button>
+          <button onClick={async () => {
+            const doc = new Document({
+              sections: [{ properties: {}, children: [
+                new Paragraph({ children: [new TextRun({ text: 'Sample CBT Questions Template', bold: true, size: 28 })] }),
+                new Paragraph(' '),
+                new Paragraph('1) What is 2 + 2?'),
+                new Paragraph('A) 3'),
+                new Paragraph('B) 4'),
+                new Paragraph('C) 5'),
+                new Paragraph('D) 6'),
+                new Paragraph('Answer: B'),
+                new Paragraph(' '),
+                new Paragraph('2) Capital of France is?'),
+                new Paragraph('A) Berlin'),
+                new Paragraph('B) Madrid'),
+                new Paragraph('C) Paris'),
+                new Paragraph('D) Rome'),
+                new Paragraph('Answer: C'),
+              ] }]
+            });
+            const blob = await Packer.toBlob(doc);
+            saveAs(blob, 'cbt_questions_template.docx');
+          }} className="px-3 py-2 text-sm rounded-lg border hover:bg-gray-50">Download Word sample</button>
         </div>
         <h4 className="font-semibold mb-4">Upload Questions</h4>
         <div className="border-2 border-dashed border-blue-300 rounded-xl p-6 text-center bg-blue-50">
