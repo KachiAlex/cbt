@@ -47,7 +47,7 @@ const CBTAdminPanel = ({ user, institution, onLogout }) => {
     };
     
     initializeData();
-  }, []);
+  }, [loadExams, loadQuestions, loadResults]);
 
   // When the selected exam changes, load its own stored questions (or empty)
   useEffect(() => {
@@ -94,7 +94,7 @@ const CBTAdminPanel = ({ user, institution, onLogout }) => {
   }, [exams]);
 
 
-  const loadExams = async () => {
+  const loadExams = React.useCallback(async () => {
     try {
       const data = await dataService.loadExams();
       const list = Array.isArray(data) ? data : [];
@@ -103,7 +103,7 @@ const CBTAdminPanel = ({ user, institution, onLogout }) => {
       console.error('Error loading exams:', error);
       return [];
     }
-  };
+  }, [institution?.slug]);
 
   const saveExams = async (examsData) => {
     try {
@@ -124,7 +124,7 @@ const CBTAdminPanel = ({ user, institution, onLogout }) => {
     }
   };
 
-  const loadResults = async () => {
+  const loadResults = React.useCallback(async () => {
     try {
       const data = await dataService.loadResults();
       const list = Array.isArray(data) ? data : [];
@@ -133,7 +133,7 @@ const CBTAdminPanel = ({ user, institution, onLogout }) => {
       console.error('Error loading results:', error);
       return [];
     }
-  };
+  }, [institution?.slug]);
 
   // eslint-disable-next-line no-unused-vars
   const saveResults = async (resultsData) => {
