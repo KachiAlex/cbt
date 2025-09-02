@@ -10,6 +10,7 @@ const InstitutionLoginPage = () => {
   const [institutionData, setInstitutionData] = useState(null);
   const [user, setUser] = useState(null);
   const [view, setView] = useState("login"); // "login", "admin-panel", "student-portal"
+  const [showAdminLogin, setShowAdminLogin] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
@@ -97,6 +98,26 @@ const InstitutionLoginPage = () => {
     localStorage.removeItem("cbt_logged_in_user");
     setView("login");
   };
+
+  // Hidden admin access - click on the logo
+  const handleLogoClick = () => {
+    if (!user) {
+      setShowAdminLogin(!showAdminLogin);
+    }
+  };
+
+  // Keyboard shortcut for admin access (Ctrl + Alt + A)
+  useEffect(() => {
+    const handleKeyPress = (e) => {
+      if (!user && e.ctrlKey && e.altKey && e.key === 'A') {
+        e.preventDefault();
+        setShowAdminLogin(true);
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyPress);
+    return () => document.removeEventListener('keydown', handleKeyPress);
+  }, [user]);
 
   const handleStudentRegistration = async (studentData) => {
     try {
@@ -186,6 +207,7 @@ const InstitutionLoginPage = () => {
         user={null} 
         institution={institutionData} 
         onLogout={handleLogout}
+        onLogoClick={handleLogoClick}
       />
       
       <main className="max-w-5xl mx-auto w-full px-3 sm:px-8 py-4 sm:py-8">
@@ -196,21 +218,38 @@ const InstitutionLoginPage = () => {
           <p className="text-gray-600">Computer-Based Testing Portal</p>
         </div>
 
-        <div className="grid md:grid-cols-2 gap-8">
-          {/* Admin Login */}
-          <div className="bg-white rounded-2xl shadow p-6">
-            <h2 className="text-xl font-bold mb-4 text-center">🔐 Admin Access</h2>
-            <AdminLoginForm onLogin={(u, p) => handleLogin(u, p, "admin")} />
-          </div>
-
-          {/* Student Portal */}
-          <div className="bg-white rounded-2xl shadow p-6">
-            <h2 className="text-xl font-bold mb-4 text-center">👨‍🎓 Student Portal</h2>
-            <StudentPortalForm 
-              onLogin={(u, p) => handleLogin(u, p, "student")}
-              onRegister={handleStudentRegistration}
-            />
-          </div>
+        <div className="max-w-2xl mx-auto">
+          {showAdminLogin ? (
+            /* Admin Login */
+            <div className="bg-white rounded-2xl shadow p-6">
+              <div className="flex justify-between items-center mb-4">
+                <h2 className="text-xl font-bold text-center flex-1">🔐 Admin Access</h2>
+                <button
+                  onClick={() => setShowAdminLogin(false)}
+                  className="text-gray-500 hover:text-gray-700 text-xl"
+                  title="Back to student portal"
+                >
+                  ×
+                </button>
+              </div>
+              <AdminLoginForm onLogin={(u, p) => handleLogin(u, p, "admin")} />
+              <div className="text-xs text-gray-500 text-center mt-4">
+                <p>Default admin: username: admin | password: admin123</p>
+              </div>
+            </div>
+          ) : (
+            /* Student Portal */
+            <div className="bg-white rounded-2xl shadow p-6">
+              <h2 className="text-xl font-bold mb-4 text-center">👨‍🎓 Student Portal</h2>
+              <StudentPortalForm 
+                onLogin={(u, p) => handleLogin(u, p, "student")}
+                onRegister={handleStudentRegistration}
+              />
+              <div className="text-xs text-gray-500 text-center mt-4">
+                <p>💡 <strong>Tip:</strong> Click on the CBT logo above for admin access</p>
+              </div>
+            </div>
+          )}
         </div>
       </main>
     </div>
@@ -265,10 +304,6 @@ function AdminLoginForm({ onLogin }) {
       >
         {isLoading ? "Signing In..." : "Sign In as Admin"}
       </button>
-      
-      <div className="text-xs text-gray-500 text-center">
-        <p>Default admin: username: admin | password: admin123</p>
-      </div>
     </form>
   );
 }
