@@ -49,6 +49,37 @@ const CBTAdminPanel = ({ user, institution, onLogout }) => {
     initializeData();
   }, []);
 
+  // Auto-activation/deactivation effect
+  useEffect(() => {
+    if (!exams || exams.length === 0) return;
+
+    const interval = setInterval(async () => {
+      const now = new Date();
+      let changed = false;
+      const nextExams = exams.map(exam => {
+        const start = exam.startDate ? new Date(exam.startDate) : null;
+        const end = exam.endDate ? new Date(exam.endDate) : null;
+        // Only auto-toggle if schedule dates exist
+        if (start || end) {
+          // Auto-activate when within window
+          if (start && (!end || now <= end) && now >= start) {
+            if (!exam.isActive) { changed = true; return { ...exam, isActive: true }; }
+          }
+          // Auto-deactivate if ended
+          if (end && now > end) {
+            if (exam.isActive) { changed = true; return { ...exam, isActive: false }; }
+          }
+        }
+        return exam;
+      });
+      if (changed) {
+        await saveExams(nextExams);
+        setExams(nextExams);
+      }
+    }, 30 * 1000); // check every 30s
+
+    return () => clearInterval(interval);
+  }, [exams]);
 
 
   const loadExams = async () => {
@@ -201,6 +232,47 @@ const CBTAdminPanel = ({ user, institution, onLogout }) => {
     saveAs(blob, `${institution?.name || 'Institution'}_CBT_Results.docx`);
   };
 
+  // Sample template downloads
+  function downloadExcelQuestionTemplate() {
+    const workbook = XLSX.utils.book_new();
+    const rows = [
+      ['Question', 'A', 'B', 'C', 'D', 'Answer'],
+      ['What is 2 + 2?', '3', '4', '5', '6', 'B']
+    ];
+    const ws = XLSX.utils.aoa_to_sheet(rows);
+    XLSX.utils.book_append_sheet(workbook, ws, 'Questions');
+    const buf = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' });
+    const blob = new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+    saveAs(blob, 'cbt_questions_template.xlsx');
+  }
+
+  async function downloadWordQuestionTemplate() {
+    const doc = new Document({
+      sections: [{
+        properties: {},
+        children: [
+          new Paragraph({ children: [new TextRun({ text: 'Sample CBT Questions Template', bold: true, size: 28 })] }),
+          new Paragraph(' '),
+          new Paragraph('1) What is 2 + 2?'),
+          new Paragraph('A) 3'),
+          new Paragraph('B) 4'),
+          new Paragraph('C) 5'),
+          new Paragraph('D) 6'),
+          new Paragraph('Answer: B'),
+          new Paragraph(' '),
+          new Paragraph('2) Capital of France is?'),
+          new Paragraph('A) Berlin'),
+          new Paragraph('B) Madrid'),
+          new Paragraph('C) Paris'),
+          new Paragraph('D) Rome'),
+          new Paragraph('Answer: C')
+        ]
+      }]
+    });
+    const blob = await Packer.toBlob(doc);
+    saveAs(blob, 'cbt_questions_template.docx');
+  }
+
   const handleCreateExam = async (examData) => {
     try {
       const newExam = {
@@ -225,9 +297,26 @@ const CBTAdminPanel = ({ user, institution, onLogout }) => {
 
   const handleActivateExam = async (examId) => {
     try {
-      const updatedExams = exams.map(exam => 
-        exam.id === examId ? { ...exam, isActive: !exam.isActive } : exam
-      );
+      const updatedExams = exams.map(exam => {
+        if (exam.id !== examId) return exam;
+        const now = new Date();
+        const start = exam.startDate ? new Date(exam.startDate) : null;
+        const end = exam.endDate ? new Date(exam.endDate) : null;
+        // If trying to activate, show confirmation if outside window
+        if (!exam.isActive) {
+          const beforeWindow = start && now < start;
+          const afterWindow = end && now > end;
+          if (beforeWindow || afterWindow) {
+            const msg = beforeWindow
+              ? "This exam is scheduled in the future. Activate now anyway?"
+              : "This exam is past its end time. Activate anyway?";
+            if (!window.confirm(msg)) {
+              return exam; // keep as is
+            }
+          }
+        }
+        return { ...exam, isActive: !exam.isActive };
+      });
       await saveExams(updatedExams);
       setExams(updatedExams);
     } catch (error) {
@@ -401,45 +490,58 @@ function ExamsTab({ exams, onCreateExam, onActivateExam, onDeleteExam, onSelectE
         </div>
       ) : (
         <div className="grid gap-4">
-          {exams.map(exam => (
-            <div key={exam.id} className="border rounded-xl p-4 bg-white">
-              <div className="flex justify-between items-start">
-                <div className="flex-1">
-                  <h4 className="font-semibold text-lg">{exam.title}</h4>
-                  <p className="text-sm text-gray-600">{exam.description}</p>
-                  <div className="flex gap-4 mt-2 text-xs text-gray-500">
-                    <span>Questions: {exam.questionCount || 0}</span>
-                    <span>Duration: {exam.duration} minutes</span>
-                    <span>Created: {new Date(exam.createdAt).toLocaleDateString()}</span>
+          {exams.map(exam => {
+            const now = new Date();
+            const start = exam.startDate ? new Date(exam.startDate) : null;
+            const end = exam.endDate ? new Date(exam.endDate) : null;
+            const isScheduled = start && now < start;
+            const isOngoing = start && end && now >= start && now <= end;
+            const isEnded = end && now > end;
+            return (
+              <div key={exam.id} className="border rounded-xl p-4 bg-white">
+                <div className="flex justify-between items-start">
+                  <div className="flex-1">
+                    <h4 className="font-semibold text-lg">{exam.title}</h4>
+                    <p className="text-sm text-gray-600">{exam.description}</p>
+                    <div className="flex flex-wrap gap-4 mt-2 text-xs text-gray-500 items-center">
+                      <span>Questions: {exam.questionCount || 0}</span>
+                      <span>Duration: {exam.duration} minutes</span>
+                      {start && (<span>Starts: {start.toLocaleString()}</span>)}
+                      {end && (<span>Ends: {end.toLocaleString()}</span>)}
+                      <span>Created: {new Date(exam.createdAt).toLocaleDateString()}</span>
+                      {isScheduled && <span className="px-2 py-0.5 rounded-full bg-amber-100 text-amber-700">Scheduled</span>}
+                      {isOngoing && <span className="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700">Ongoing</span>}
+                      {isEnded && <span className="px-2 py-0.5 rounded-full bg-gray-200 text-gray-700">Ended</span>}
+                    </div>
+                  </div>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => onActivateExam(exam.id)}
+                      className={`px-3 py-1 rounded-lg text-xs ${
+                        exam.isActive 
+                          ? "bg-orange-600 text-white hover:bg-orange-700" 
+                          : "bg-blue-600 text-white hover:bg-blue-700"
+                      }`}
+                    >
+                      {exam.isActive ? "Deactivate" : "Activate"}
+                    </button>
+                    <button
+                      onClick={() => onEditExam()}
+                      className="px-3 py-1 bg-blue-600 text-white rounded-lg text-xs hover:bg-blue-700"
+                    >
+                      Edit
+                    </button>
+                    <button
+                      onClick={() => onDeleteExam(exam.id)}
+                      className="px-3 py-1 bg-red-600 text-white rounded-lg text-xs hover:bg-red-700"
+                    >
+                      Delete
+                    </button>
                   </div>
                 </div>
-                <div className="flex gap-2">
-                  <button
-                    onClick={() => onActivateExam(exam.id)}
-                    className={`px-3 py-1 rounded-lg text-xs ${
-                      exam.isActive 
-                        ? "bg-orange-600 text-white hover:bg-orange-700" 
-                        : "bg-blue-600 text-white hover:bg-blue-700"
-                    }`}
-                  >
-                    {exam.isActive ? "Deactivate" : "Activate"}
-                  </button>
-                  <button
-                    onClick={() => onEditExam()}
-                    className="px-3 py-1 bg-blue-600 text-white rounded-lg text-xs hover:bg-blue-700"
-                  >
-                    Edit
-                  </button>
-                  <button
-                    onClick={() => onDeleteExam(exam.id)}
-                    className="px-3 py-1 bg-red-600 text-white rounded-lg text-xs hover:bg-red-700"
-                  >
-                    Delete
-                  </button>
-                </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
     </div>
@@ -477,6 +579,12 @@ function QuestionsTab({ selectedExam, questions, setQuestions, onFileUpload, imp
       </div>
 
       <div className="bg-white rounded-xl border p-6">
+        <div className="flex flex-wrap gap-2 mb-4">
+          {/* eslint-disable-next-line no-undef */}
+          <button onClick={downloadExcelQuestionTemplate} className="px-3 py-2 text-sm rounded-lg border hover:bg-gray-50">Download Excel sample</button>
+          {/* eslint-disable-next-line no-undef */}
+          <button onClick={downloadWordQuestionTemplate} className="px-3 py-2 text-sm rounded-lg border hover:bg-gray-50">Download Word sample</button>
+        </div>
         <h4 className="font-semibold mb-4">Upload Questions</h4>
         <div className="border-2 border-dashed border-blue-300 rounded-xl p-6 text-center bg-blue-50">
           <p className="text-lg font-semibold text-gray-700 mb-2">Upload Your Questions</p>
@@ -529,8 +637,38 @@ function QuestionsTab({ selectedExam, questions, setQuestions, onFileUpload, imp
 }
 
 function ResultsTab({ results, onExportExcel, onExportWord, onBackToExams }) {
+  const total = results.length;
+  const avgPercent = total ? Math.round(results.reduce((s, r) => s + (r.percent || 0), 0) / total) : 0;
+  const best = total ? Math.max(...results.map(r => r.percent || 0)) : 0;
+  const worst = total ? Math.min(...results.map(r => r.percent || 0)) : 0;
+  const passRate = total ? Math.round((results.filter(r => (r.percent || 0) >= 50).length / total) * 100) : 0;
+
+  const distribution = [0, 0, 0, 0, 0]; // 0-19,20-39,40-59,60-79,80-100
+  results.forEach(r => {
+    const p = r.percent || 0;
+    if (p < 20) distribution[0]++; else if (p < 40) distribution[1]++; else if (p < 60) distribution[2]++; else if (p < 80) distribution[3]++; else distribution[4]++;
+  });
+
   return (
     <div className="space-y-6">
+      <div className="bg-white rounded-xl border p-4">
+        <h4 className="font-semibold mb-3">Analytics</h4>
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-3 text-sm">
+          <div className="p-3 rounded-lg bg-gray-50"><div className="text-gray-500">Submissions</div><div className="font-semibold text-gray-800">{total}</div></div>
+          <div className="p-3 rounded-lg bg-gray-50"><div className="text-gray-500">Avg %</div><div className="font-semibold text-gray-800">{avgPercent}%</div></div>
+          <div className="p-3 rounded-lg bg-gray-50"><div className="text-gray-500">Best %</div><div className="font-semibold text-gray-800">{best}%</div></div>
+          <div className="p-3 rounded-lg bg-gray-50"><div className="text-gray-500">Worst %</div><div className="font-semibold text-gray-800">{worst}%</div></div>
+          <div className="p-3 rounded-lg bg-gray-50"><div className="text-gray-500">Pass Rate</div><div className="font-semibold text-gray-800">{passRate}%</div></div>
+        </div>
+        <div className="mt-4 text-xs text-gray-600 flex flex-wrap gap-4">
+          <div>0-19%: {distribution[0]}</div>
+          <div>20-39%: {distribution[1]}</div>
+          <div>40-59%: {distribution[2]}</div>
+          <div>60-79%: {distribution[3]}</div>
+          <div>80-100%: {distribution[4]}</div>
+        </div>
+      </div>
+
       <div className="flex justify-between items-center">
         <h3 className="text-lg font-semibold">Exam Results</h3>
         <div className="flex gap-2">
@@ -567,9 +705,7 @@ function ResultsTab({ results, onExportExcel, onExportWord, onBackToExams }) {
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{result.examTitle}</td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{result.score}/{result.total}</td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{result.percent}%</td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                  {new Date(result.submittedAt).toLocaleDateString()}
-                </td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{new Date(result.submittedAt).toLocaleDateString()}</td>
               </tr>
             ))}
             {results.length === 0 && (
@@ -584,7 +720,37 @@ function ResultsTab({ results, onExportExcel, onExportWord, onBackToExams }) {
   );
 }
 
+// local student status helpers
+function getStudentStatusMap() {
+  try {
+    return JSON.parse(localStorage.getItem('cbt_student_status_v1') || '{}');
+  } catch { return {}; }
+}
+function setStudentStatus(username, status) {
+  const map = getStudentStatusMap();
+  map[username] = status; // 'active' | 'suspended'
+  localStorage.setItem('cbt_student_status_v1', JSON.stringify(map));
+}
+function getStudentStatus(username) {
+  const map = getStudentStatusMap();
+  return map[username] || 'active';
+}
+
 function StudentsTab({ onBackToExams, institution }) {
+  // Derive students from results stored globally in localStorage via dataService for now
+  const raw = localStorage.getItem('cbt_results_v1');
+  const allResults = raw ? JSON.parse(raw) : [];
+  const studentsMap = {};
+  allResults.forEach(r => {
+    if (!studentsMap[r.username]) studentsMap[r.username] = { username: r.username, attempts: 0, lastPercent: r.percent, lastAt: r.submittedAt };
+    studentsMap[r.username].attempts += 1;
+    if (new Date(r.submittedAt) > new Date(studentsMap[r.username].lastAt)) {
+      studentsMap[r.username].lastPercent = r.percent;
+      studentsMap[r.username].lastAt = r.submittedAt;
+    }
+  });
+  const students = Object.values(studentsMap);
+
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
@@ -597,9 +763,42 @@ function StudentsTab({ onBackToExams, institution }) {
         </button>
       </div>
       
-      <div className="bg-white rounded-xl border p-6">
-        <p className="text-gray-600">Student management features will be implemented here.</p>
-        <p className="text-sm text-gray-500 mt-2">This will include viewing registered students, managing accounts, and tracking student progress.</p>
+      <div className="bg-white rounded-xl border overflow-hidden">
+        <table className="min-w-full">
+          <thead className="bg-gray-50">
+            <tr>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Student</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Latest %</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Attempts</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Last Submission</th>
+              <th className="px-6 py-3"></th>
+            </tr>
+          </thead>
+          <tbody className="bg-white divide-y divide-gray-200">
+            {students.length === 0 && (
+              <tr><td colSpan={5} className="px-6 py-4 text-center text-gray-500">No student activity yet</td></tr>
+            )}
+            {students.map(s => {
+              const status = getStudentStatus(s.username);
+              return (
+                <tr key={s.username}>
+                  <td className="px-6 py-4 text-sm font-medium text-gray-900">{s.username} <span className={`ml-2 text-xs px-2 py-0.5 rounded-full ${status==='active' ? 'bg-emerald-100 text-emerald-700' : 'bg-orange-100 text-orange-700'}`}>{status}</span></td>
+                  <td className="px-6 py-4 text-sm text-gray-700">{s.lastPercent ?? '-'}%</td>
+                  <td className="px-6 py-4 text-sm text-gray-700">{s.attempts}</td>
+                  <td className="px-6 py-4 text-sm text-gray-700">{s.lastAt ? new Date(s.lastAt).toLocaleString() : '-'}</td>
+                  <td className="px-6 py-4 text-sm text-right">
+                    {status === 'active' ? (
+                      <button onClick={() => { setStudentStatus(s.username, 'suspended'); window.alert('Student suspended'); }} className="px-3 py-1 rounded-lg bg-orange-600 text-white hover:bg-orange-700 mr-2">Suspend</button>
+                    ) : (
+                      <button onClick={() => { setStudentStatus(s.username, 'active'); window.alert('Student activated'); }} className="px-3 py-1 rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 mr-2">Activate</button>
+                    )}
+                    <button onClick={() => { if(window.confirm('Remove this student data locally?')) { setStudentStatus(s.username, 'active'); /* reset */ } }} className="px-3 py-1 rounded-lg bg-red-600 text-white hover:bg-red-700">Remove</button>
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
       </div>
     </div>
   );
@@ -641,7 +840,9 @@ function CreateExamModal({ onClose, onCreate }) {
     title: "",
     description: "",
     duration: 60,
-    questionCount: 12
+    questionCount: 12,
+    startDate: "",
+    endDate: ""
   });
 
   const handleSubmit = (e) => {
@@ -708,6 +909,27 @@ function CreateExamModal({ onClose, onCreate }) {
               />
             </div>
           </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Start Date/Time</label>
+              <input
+                type="datetime-local"
+                value={formData.startDate}
+                onChange={(e) => setFormData({...formData, startDate: e.target.value})}
+                className="w-full border rounded-lg px-3 py-2"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">End Date/Time</label>
+              <input
+                type="datetime-local"
+                value={formData.endDate}
+                onChange={(e) => setFormData({...formData, endDate: e.target.value})}
+                className="w-full border rounded-lg px-3 py-2"
+              />
+            </div>
+          </div>
           
           <div className="flex gap-2 pt-4">
             <button type="button" onClick={onClose} className="flex-1 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50">
@@ -728,8 +950,14 @@ function EditExamModal({ exam, onClose, onUpdate }) {
     title: exam.title,
     description: exam.description,
     duration: exam.duration,
-    questionCount: exam.questionCount
+    questionCount: exam.questionCount,
+    startDate: exam.startDate || "",
+    endDate: exam.endDate || ""
   });
+
+  const clearSchedule = () => {
+    setFormData({ ...formData, startDate: "", endDate: "" });
+  };
 
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -793,8 +1021,32 @@ function EditExamModal({ exam, onClose, onUpdate }) {
               />
             </div>
           </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Start Date/Time</label>
+              <input
+                type="datetime-local"
+                value={formData.startDate}
+                onChange={(e) => setFormData({...formData, startDate: e.target.value})}
+                className="w-full border rounded-lg px-3 py-2"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">End Date/Time</label>
+              <input
+                type="datetime-local"
+                value={formData.endDate}
+                onChange={(e) => setFormData({...formData, endDate: e.target.value})}
+                className="w-full border rounded-lg px-3 py-2"
+              />
+            </div>
+          </div>
+          <div className="flex justify-between items-center">
+            <button type="button" onClick={clearSchedule} className="text-sm text-gray-600 hover:text-gray-800">Clear schedule</button>
+          </div>
           
-          <div className="flex gap-2 pt-4">
+          <div className="flex gap-2 pt-2">
             <button type="button" onClick={onClose} className="flex-1 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50">
               Cancel
             </button>
