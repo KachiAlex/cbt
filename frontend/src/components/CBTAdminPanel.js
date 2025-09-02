@@ -5,6 +5,7 @@ import { Document, Packer, Paragraph, TextRun, Table, TableRow, TableCell } from
 import mammoth from 'mammoth';
 import dataService from '../services/dataService';
 
+// eslint-disable-next-line no-unused-vars
 const LS_KEYS = {
   EXAMS: "cbt_exams_v1",
   QUESTIONS: "cbt_questions_v1",
@@ -27,26 +28,28 @@ const CBTAdminPanel = ({ user, institution, onLogout }) => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    loadData();
+    const initializeData = async () => {
+      try {
+        setLoading(true);
+        const [examsData, questionsData, resultsData] = await Promise.all([
+          loadExams(),
+          loadQuestions(),
+          loadResults()
+        ]);
+        setExams(examsData || []);
+        setQuestions(questionsData || []);
+        setResults(resultsData || []);
+      } catch (error) {
+        console.error('Error loading data:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    initializeData();
   }, []);
 
-  const loadData = async () => {
-    try {
-      setLoading(true);
-      const [examsData, questionsData, resultsData] = await Promise.all([
-        loadExams(),
-        loadQuestions(),
-        loadResults()
-      ]);
-      setExams(examsData || []);
-      setQuestions(questionsData || []);
-      setResults(resultsData || []);
-    } catch (error) {
-      console.error('Error loading data:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
+
 
   const loadExams = async () => {
     try {
@@ -87,6 +90,7 @@ const CBTAdminPanel = ({ user, institution, onLogout }) => {
     }
   };
 
+  // eslint-disable-next-line no-unused-vars
   const saveResults = async (resultsData) => {
     try {
       return await dataService.saveResults(resultsData);
