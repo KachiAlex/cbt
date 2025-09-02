@@ -345,12 +345,12 @@ const CBTAdminPanel = ({ user, institution, onLogout }) => {
         {/* Tab Navigation */}
         <div className="flex space-x-1 bg-gray-100 p-1 rounded-xl mb-8">
           {[
-            { id: "exams", label: "📋 Exam Management", icon: "📋" },
-            { id: "questions", label: "❓ Questions", icon: "❓" },
-            { id: "results", label: "📊 Results", icon: "📊" },
-            { id: "students", label: "👥 Students", icon: "👥" },
-            { id: "settings", label: "⚙️ Settings", icon: "⚙️" }
-          ].map(tab => (
+            { id: "exams", label: "📋 Exam Management", icon: "📋", adminOnly: false },
+            { id: "questions", label: "❓ Questions", icon: "❓", adminOnly: false },
+            { id: "results", label: "📊 Results", icon: "📊", adminOnly: false },
+            { id: "students", label: "👥 Students", icon: "👥", adminOnly: true },
+            { id: "settings", label: "⚙️ Settings", icon: "⚙️", adminOnly: true }
+          ].filter(tab => !tab.adminOnly || user.role === 'admin' || user.role === 'super_admin' || user.role === 'managed_admin').map(tab => (
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
@@ -375,6 +375,7 @@ const CBTAdminPanel = ({ user, institution, onLogout }) => {
             onSelectExam={setSelectedExam}
             selectedExam={selectedExam}
             onEditExam={() => setShowEditExam(true)}
+            user={user}
           />
         )}
 
@@ -387,6 +388,7 @@ const CBTAdminPanel = ({ user, institution, onLogout }) => {
             importError={importError}
             onBackToExams={() => setActiveTab("exams")}
             institution={institution}
+            user={user}
           />
         )}
 
@@ -396,17 +398,19 @@ const CBTAdminPanel = ({ user, institution, onLogout }) => {
             onExportExcel={exportResultsToExcel}
             onExportWord={exportResultsToWord}
             onBackToExams={() => setActiveTab("exams")}
+            user={user}
           />
         )}
 
-        {activeTab === "students" && (
+        {activeTab === "students" && (user.role === 'admin' || user.role === 'super_admin' || user.role === 'managed_admin') && (
           <StudentsTab 
             onBackToExams={() => setActiveTab("exams")}
             institution={institution}
+            user={user}
           />
         )}
 
-        {activeTab === "settings" && (
+        {activeTab === "settings" && (user.role === 'admin' || user.role === 'super_admin' || user.role === 'managed_admin') && (
           <SettingsTab 
             onBackToExams={() => setActiveTab("exams")}
             institution={institution}
@@ -443,26 +447,32 @@ const CBTAdminPanel = ({ user, institution, onLogout }) => {
 };
 
 // Helper Components
-function ExamsTab({ exams, onCreateExam, onActivateExam, onDeleteExam, onSelectExam, selectedExam, onEditExam }) {
+function ExamsTab({ exams, onCreateExam, onActivateExam, onDeleteExam, onSelectExam, selectedExam, onEditExam, user }) {
+  const isAdmin = user.role === 'admin' || user.role === 'super_admin' || user.role === 'managed_admin';
+  
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <div>
           <h3 className="text-lg font-semibold">Available Exams</h3>
-          <p className="text-sm text-gray-600">Create and manage exam events for students</p>
+          <p className="text-sm text-gray-600">
+            {isAdmin ? 'Create and manage exam events for students' : 'Available exams for you to take'}
+          </p>
         </div>
-        <button
-          onClick={onCreateExam}
-          className="px-4 py-2 bg-blue-600 text-white rounded-xl hover:bg-blue-700"
-        >
-          + Create New Exam
-        </button>
+        {isAdmin && (
+          <button
+            onClick={onCreateExam}
+            className="px-4 py-2 bg-blue-600 text-white rounded-xl hover:bg-blue-700"
+          >
+            + Create New Exam
+          </button>
+        )}
       </div>
 
       {exams.length === 0 ? (
         <div className="text-center py-8 text-gray-500">
-          <p>No exams created yet.</p>
-          <p className="text-sm mt-2">Create your first exam to get started.</p>
+          <p>{isAdmin ? 'No exams created yet.' : 'No exams available yet.'}</p>
+          <p className="text-sm mt-2">{isAdmin ? 'Create your first exam to get started.' : 'Please check back later or contact your administrator.'}</p>
         </div>
       ) : (
         <div className="grid gap-4">
@@ -490,30 +500,32 @@ function ExamsTab({ exams, onCreateExam, onActivateExam, onDeleteExam, onSelectE
                       {isEnded && <span className="px-2 py-0.5 rounded-full bg-gray-200 text-gray-700">Ended</span>}
                     </div>
                   </div>
-                  <div className="flex gap-2">
-                    <button
-                      onClick={() => onActivateExam(exam.id)}
-                      className={`px-3 py-1 rounded-lg text-xs ${
-                        exam.isActive 
-                          ? "bg-orange-600 text-white hover:bg-orange-700" 
-                          : "bg-blue-600 text-white hover:bg-blue-700"
-                      }`}
-                    >
-                      {exam.isActive ? "Deactivate" : "Activate"}
-                    </button>
-                    <button
-                      onClick={() => onEditExam()}
-                      className="px-3 py-1 bg-blue-600 text-white rounded-lg text-xs hover:bg-blue-700"
-                    >
-                      Edit
-                    </button>
-                    <button
-                      onClick={() => onDeleteExam(exam.id)}
-                      className="px-3 py-1 bg-red-600 text-white rounded-lg text-xs hover:bg-red-700"
-                    >
-                      Delete
-                    </button>
-                  </div>
+                  {isAdmin && (
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => onActivateExam(exam.id)}
+                        className={`px-3 py-1 rounded-lg text-xs ${
+                          exam.isActive 
+                            ? "bg-orange-600 text-white hover:bg-orange-700" 
+                            : "bg-blue-600 text-white hover:bg-blue-700"
+                        }`}
+                      >
+                        {exam.isActive ? "Deactivate" : "Activate"}
+                      </button>
+                      <button
+                        onClick={() => onEditExam()}
+                        className="px-3 py-1 bg-blue-600 text-white rounded-lg text-xs hover:bg-blue-700"
+                      >
+                        Edit
+                      </button>
+                      <button
+                        onClick={() => onDeleteExam(exam.id)}
+                        className="px-3 py-1 bg-red-600 text-white rounded-lg text-xs hover:bg-red-700"
+                      >
+                        Delete
+                      </button>
+                    </div>
+                  )}
                 </div>
               </div>
             );
@@ -524,11 +536,13 @@ function ExamsTab({ exams, onCreateExam, onActivateExam, onDeleteExam, onSelectE
   );
 }
 
-function QuestionsTab({ selectedExam, questions, setQuestions, onFileUpload, importError, onBackToExams, institution }) {
+function QuestionsTab({ selectedExam, questions, setQuestions, onFileUpload, importError, onBackToExams, institution, user }) {
+  const isAdmin = user.role === 'admin' || user.role === 'super_admin' || user.role === 'managed_admin';
+  
   if (!selectedExam) {
     return (
       <div className="text-center py-8 text-gray-500">
-        <p>Please select an exam from the Exam Management tab to manage its questions.</p>
+        <p>{isAdmin ? 'Please select an exam from the Exam Management tab to manage its questions.' : 'Please select an exam to view its questions.'}</p>
         <button
           onClick={onBackToExams}
           className="mt-4 px-4 py-2 bg-gray-600 text-white rounded-xl hover:bg-gray-700"
@@ -544,7 +558,7 @@ function QuestionsTab({ selectedExam, questions, setQuestions, onFileUpload, imp
       <div className="flex justify-between items-start mb-4">
         <div>
           <h3 className="text-lg font-semibold">Questions for {selectedExam.title}</h3>
-          <p className="text-sm text-gray-600">Upload and manage exam questions</p>
+          <p className="text-sm text-gray-600">{isAdmin ? 'Upload and manage exam questions' : 'Review exam questions'}</p>
         </div>
         <button
           onClick={onBackToExams}
@@ -554,65 +568,67 @@ function QuestionsTab({ selectedExam, questions, setQuestions, onFileUpload, imp
         </button>
       </div>
 
-      <div className="bg-white rounded-xl border p-6">
-        <div className="flex flex-wrap gap-2 mb-4">
-          <button onClick={() => {
-            const workbook = XLSX.utils.book_new();
-            const rows = [['Question', 'A', 'B', 'C', 'D', 'Answer'], ['What is 2 + 2?', '3', '4', '5', '6', 'B']];
-            const ws = XLSX.utils.aoa_to_sheet(rows);
-            XLSX.utils.book_append_sheet(workbook, ws, 'Questions');
-            const buf = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' });
-            const blob = new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
-            saveAs(blob, 'cbt_questions_template.xlsx');
-          }} className="px-3 py-2 text-sm rounded-lg border hover:bg-gray-50">Download Excel sample</button>
-          <button onClick={async () => {
-            const doc = new Document({
-              sections: [{ properties: {}, children: [
-                new Paragraph({ children: [new TextRun({ text: 'Sample CBT Questions Template', bold: true, size: 28 })] }),
-                new Paragraph(' '),
-                new Paragraph('1) What is 2 + 2?'),
-                new Paragraph('A) 3'),
-                new Paragraph('B) 4'),
-                new Paragraph('C) 5'),
-                new Paragraph('D) 6'),
-                new Paragraph('Answer: B'),
-                new Paragraph(' '),
-                new Paragraph('2) Capital of France is?'),
-                new Paragraph('A) Berlin'),
-                new Paragraph('B) Madrid'),
-                new Paragraph('C) Paris'),
-                new Paragraph('D) Rome'),
-                new Paragraph('Answer: C'),
-              ] }]
-            });
-            const blob = await Packer.toBlob(doc);
-            saveAs(blob, 'cbt_questions_template.docx');
-          }} className="px-3 py-2 text-sm rounded-lg border hover:bg-gray-50">Download Word sample</button>
+      {isAdmin && (
+        <div className="bg-white rounded-xl border p-6">
+          <div className="flex flex-wrap gap-2 mb-4">
+            <button onClick={() => {
+              const workbook = XLSX.utils.book_new();
+              const rows = [['Question', 'A', 'B', 'C', 'D', 'Answer'], ['What is 2 + 2?', '3', '4', '5', '6', 'B']];
+              const ws = XLSX.utils.aoa_to_sheet(rows);
+              XLSX.utils.book_append_sheet(workbook, ws, 'Questions');
+              const buf = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' });
+              const blob = new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+              saveAs(blob, 'cbt_questions_template.xlsx');
+            }} className="px-3 py-2 text-sm rounded-lg border hover:bg-gray-50">Download Excel sample</button>
+            <button onClick={async () => {
+              const doc = new Document({
+                sections: [{ properties: {}, children: [
+                  new Paragraph({ children: [new TextRun({ text: 'Sample CBT Questions Template', bold: true, size: 28 })] }),
+                  new Paragraph(' '),
+                  new Paragraph('1) What is 2 + 2?'),
+                  new Paragraph('A) 3'),
+                  new Paragraph('B) 4'),
+                  new Paragraph('C) 5'),
+                  new Paragraph('D) 6'),
+                  new Paragraph('Answer: B'),
+                  new Paragraph(' '),
+                  new Paragraph('2) Capital of France is?'),
+                  new Paragraph('A) Berlin'),
+                  new Paragraph('B) Madrid'),
+                  new Paragraph('C) Paris'),
+                  new Paragraph('D) Rome'),
+                  new Paragraph('Answer: C'),
+                ] }]
+              });
+              const blob = await Packer.toBlob(doc);
+              saveAs(blob, 'cbt_questions_template.docx');
+            }} className="px-3 py-2 text-sm rounded-lg border hover:bg-gray-50">Download Word sample</button>
+          </div>
+          <h4 className="font-semibold mb-4">Upload Questions</h4>
+          <div className="border-2 border-dashed border-blue-300 rounded-xl p-6 text-center bg-blue-50">
+            <p className="text-lg font-semibold text-gray-700 mb-2">Upload Your Questions</p>
+            <p className="text-sm text-gray-600 mb-4">Drag and drop a .docx or .xlsx file here, or click to browse</p>
+            <input 
+              type="file" 
+              accept=".docx,.xlsx" 
+              onChange={e => { if (e.target.files && e.target.files[0]) onFileUpload(e.target.files[0]); }}
+              className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+            />
+            {importError && (
+              <div className={`mt-3 p-2 rounded-lg text-sm ${
+                importError.includes('Successfully') ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
+              }`}>
+                {importError}
+              </div>
+            )}
+          </div>
         </div>
-        <h4 className="font-semibold mb-4">Upload Questions</h4>
-        <div className="border-2 border-dashed border-blue-300 rounded-xl p-6 text-center bg-blue-50">
-          <p className="text-lg font-semibold text-gray-700 mb-2">Upload Your Questions</p>
-          <p className="text-sm text-gray-600 mb-4">Drag and drop a .docx or .xlsx file here, or click to browse</p>
-          <input 
-            type="file" 
-            accept=".docx,.xlsx" 
-            onChange={e => { if (e.target.files && e.target.files[0]) onFileUpload(e.target.files[0]); }}
-            className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
-          />
-          {importError && (
-            <div className={`mt-3 p-2 rounded-lg text-sm ${
-              importError.includes('Successfully') ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
-            }`}>
-              {importError}
-            </div>
-          )}
-        </div>
-      </div>
+      )}
 
       <div className="bg-white rounded-xl border p-6">
         <h4 className="font-semibold mb-4">Current Questions ({questions.length})</h4>
         {questions.length === 0 ? (
-          <p className="text-gray-500">No questions uploaded yet. Upload a file to get started.</p>
+          <p className="text-gray-500">{isAdmin ? 'No questions uploaded yet. Upload a file to get started.' : 'No questions available for this exam yet.'}</p>
         ) : (
           <div className="space-y-4">
             {questions.map((q, i) => (
@@ -640,7 +656,8 @@ function QuestionsTab({ selectedExam, questions, setQuestions, onFileUpload, imp
   );
 }
 
-function ResultsTab({ results, onExportExcel, onExportWord, onBackToExams }) {
+function ResultsTab({ results, onExportExcel, onExportWord, onBackToExams, user }) {
+  const isAdmin = user.role === 'admin' || user.role === 'super_admin' || user.role === 'managed_admin';
   const total = results.length;
   const avgPercent = total ? Math.round(results.reduce((s, r) => s + (r.percent || 0), 0) / total) : 0;
   const best = total ? Math.max(...results.map(r => r.percent || 0)) : 0;
@@ -655,33 +672,39 @@ function ResultsTab({ results, onExportExcel, onExportWord, onBackToExams }) {
 
   return (
     <div className="space-y-6">
-      <div className="bg-white rounded-xl border p-4">
-        <h4 className="font-semibold mb-3">Analytics</h4>
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-3 text-sm">
-          <div className="p-3 rounded-lg bg-gray-50"><div className="text-gray-500">Submissions</div><div className="font-semibold text-gray-800">{total}</div></div>
-          <div className="p-3 rounded-lg bg-gray-50"><div className="text-gray-500">Avg %</div><div className="font-semibold text-gray-800">{avgPercent}%</div></div>
-          <div className="p-3 rounded-lg bg-gray-50"><div className="text-gray-500">Best %</div><div className="font-semibold text-gray-800">{best}%</div></div>
-          <div className="p-3 rounded-lg bg-gray-50"><div className="text-gray-500">Worst %</div><div className="font-semibold text-gray-800">{worst}%</div></div>
-          <div className="p-3 rounded-lg bg-gray-50"><div className="text-gray-500">Pass Rate</div><div className="font-semibold text-gray-800">{passRate}%</div></div>
+      {isAdmin && (
+        <div className="bg-white rounded-xl border p-4">
+          <h4 className="font-semibold mb-3">Analytics</h4>
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-3 text-sm">
+            <div className="p-3 rounded-lg bg-gray-50"><div className="text-gray-500">Submissions</div><div className="font-semibold text-gray-800">{total}</div></div>
+            <div className="p-3 rounded-lg bg-gray-50"><div className="text-gray-500">Avg %</div><div className="font-semibold text-gray-800">{avgPercent}%</div></div>
+            <div className="p-3 rounded-lg bg-gray-50"><div className="text-gray-500">Best %</div><div className="font-semibold text-gray-800">{best}%</div></div>
+            <div className="p-3 rounded-lg bg-gray-50"><div className="text-gray-500">Worst %</div><div className="font-semibold text-gray-800">{worst}%</div></div>
+            <div className="p-3 rounded-lg bg-gray-50"><div className="text-gray-500">Pass Rate</div><div className="font-semibold text-gray-800">{passRate}%</div></div>
+          </div>
+          <div className="mt-4 text-xs text-gray-600 flex flex-wrap gap-4">
+            <div>0-19%: {distribution[0]}</div>
+            <div>20-39%: {distribution[1]}</div>
+            <div>40-59%: {distribution[2]}</div>
+            <div>60-79%: {distribution[3]}</div>
+            <div>80-100%: {distribution[4]}</div>
+          </div>
         </div>
-        <div className="mt-4 text-xs text-gray-600 flex flex-wrap gap-4">
-          <div>0-19%: {distribution[0]}</div>
-          <div>20-39%: {distribution[1]}</div>
-          <div>40-59%: {distribution[2]}</div>
-          <div>60-79%: {distribution[3]}</div>
-          <div>80-100%: {distribution[4]}</div>
-        </div>
-      </div>
+      )}
 
       <div className="flex justify-between items-center">
         <h3 className="text-lg font-semibold">Exam Results</h3>
         <div className="flex gap-2">
-          <button onClick={onExportExcel} className="px-4 py-2 bg-green-600 text-white rounded-xl hover:bg-green-700">
-            Export to Excel
-          </button>
-          <button onClick={onExportWord} className="px-4 py-2 bg-blue-600 text-white rounded-xl hover:bg-blue-700">
-            Export to Word
-          </button>
+          {isAdmin && (
+            <>
+              <button onClick={onExportExcel} className="px-4 py-2 bg-green-600 text-white rounded-xl hover:bg-green-700">
+                Export to Excel
+              </button>
+              <button onClick={onExportWord} className="px-4 py-2 bg-blue-600 text-white rounded-xl hover:bg-blue-700">
+                Export to Word
+              </button>
+            </>
+          )}
           <button
             onClick={onBackToExams}
             className="px-4 py-2 bg-gray-600 text-white rounded-xl hover:bg-gray-700 text-sm"
@@ -702,22 +725,24 @@ function ResultsTab({ results, onExportExcel, onExportWord, onBackToExams }) {
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Submitted</th>
             </tr>
           </thead>
-          <tbody className="bg-white divide-y divide-gray-200">
-            {results.map((result, index) => (
-              <tr key={index}>
-                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{result.username}</td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{result.examTitle}</td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{result.score}/{result.total}</td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{result.percent}%</td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{new Date(result.submittedAt).toLocaleDateString()}</td>
-              </tr>
-            ))}
-            {results.length === 0 && (
-              <tr>
-                <td colSpan={5} className="px-6 py-4 text-center text-gray-500">No results yet</td>
-              </tr>
-            )}
-          </tbody>
+                      <tbody className="bg-white divide-y divide-gray-200">
+              {results
+                .filter(result => isAdmin || result.username === user.username)
+                .map((result, index) => (
+                  <tr key={index}>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{result.username}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{result.examTitle}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{result.score}/{result.total}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{result.percent}%</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{new Date(result.submittedAt).toLocaleDateString()}</td>
+                  </tr>
+                ))}
+              {results.filter(result => isAdmin || result.username === user.username).length === 0 && (
+                <tr>
+                  <td colSpan={5} className="px-6 py-4 text-center text-gray-500">No results yet</td>
+                </tr>
+              )}
+            </tbody>
         </table>
       </div>
     </div>
@@ -740,20 +765,16 @@ function getStudentStatus(username) {
   return map[username] || 'active';
 }
 
-function StudentsTab({ onBackToExams, institution }) {
-  // Derive students from results stored globally in localStorage via dataService for now
-  const raw = localStorage.getItem('cbt_results_v1');
-  const allResults = raw ? JSON.parse(raw) : [];
-  const studentsMap = {};
-  allResults.forEach(r => {
-    if (!studentsMap[r.username]) studentsMap[r.username] = { username: r.username, attempts: 0, lastPercent: r.percent, lastAt: r.submittedAt };
-    studentsMap[r.username].attempts += 1;
-    if (new Date(r.submittedAt) > new Date(studentsMap[r.username].lastAt)) {
-      studentsMap[r.username].lastPercent = r.percent;
-      studentsMap[r.username].lastAt = r.submittedAt;
-    }
-  });
-  const students = Object.values(studentsMap);
+function StudentsTab({ onBackToExams, institution, user }) {
+  // eslint-disable-next-line no-unused-vars
+  const isAdmin = user.role === 'admin' || user.role === 'super_admin' || user.role === 'managed_admin';
+  
+  // Load actual registered students from localStorage or API
+  const raw = localStorage.getItem('cbt_student_registrations_v1');
+  const allStudents = raw ? JSON.parse(raw) : [];
+  
+  // Filter students by institution if needed
+  const students = allStudents.filter(s => !institution?.slug || s.institutionSlug === institution.slug);
 
   return (
     <div className="space-y-6">
@@ -769,27 +790,29 @@ function StudentsTab({ onBackToExams, institution }) {
       
       <div className="bg-white rounded-xl border overflow-hidden">
         <table className="min-w-full">
-          <thead className="bg-gray-50">
-            <tr>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Student</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Latest %</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Attempts</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Last Submission</th>
-              <th className="px-6 py-3"></th>
-            </tr>
-          </thead>
+                      <thead className="bg-gray-50">
+              <tr>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Username</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Full Name</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                <th className="px-6 py-3"></th>
+              </tr>
+            </thead>
           <tbody className="bg-white divide-y divide-gray-200">
             {students.length === 0 && (
-              <tr><td colSpan={5} className="px-6 py-4 text-center text-gray-500">No student activity yet</td></tr>
+              <tr><td colSpan={5} className="px-6 py-4 text-center text-gray-500">No students registered yet</td></tr>
             )}
             {students.map(s => {
               const status = getStudentStatus(s.username);
               return (
                 <tr key={s.username}>
-                  <td className="px-6 py-4 text-sm font-medium text-gray-900">{s.username} <span className={`ml-2 text-xs px-2 py-0.5 rounded-full ${status==='active' ? 'bg-emerald-100 text-emerald-700' : 'bg-orange-100 text-orange-700'}`}>{status}</span></td>
-                  <td className="px-6 py-4 text-sm text-gray-700">{s.lastPercent ?? '-'}%</td>
-                  <td className="px-6 py-4 text-sm text-gray-700">{s.attempts}</td>
-                  <td className="px-6 py-4 text-sm text-gray-700">{s.lastAt ? new Date(s.lastAt).toLocaleString() : '-'}</td>
+                  <td className="px-6 py-4 text-sm font-medium text-gray-900">{s.username}</td>
+                  <td className="px-6 py-4 text-sm text-gray-700">{s.fullName || 'N/A'}</td>
+                  <td className="px-6 py-4 text-sm text-gray-700">{s.email || 'N/A'}</td>
+                  <td className="px-6 py-4 text-sm">
+                    <span className={`px-2 py-1 rounded-full text-xs ${status==='active' ? 'bg-emerald-100 text-emerald-700' : 'bg-orange-100 text-orange-700'}`}>{status}</span>
+                  </td>
                   <td className="px-6 py-4 text-sm text-right">
                     {status === 'active' ? (
                       <button onClick={() => { setStudentStatus(s.username, 'suspended'); window.alert('Student suspended'); }} className="px-3 py-1 rounded-lg bg-orange-600 text-white hover:bg-orange-700 mr-2">Suspend</button>
