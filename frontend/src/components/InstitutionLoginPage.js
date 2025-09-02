@@ -72,12 +72,15 @@ const InstitutionLoginPage = () => {
       
       console.log('🔍 Login attempt:', { username, role, user });
       
-      if (user && user.role === role) {
+      const isAdminRoleAccepted = user && ['admin', 'super_admin', 'managed_admin'].includes(user.role);
+      const roleIsValid = role === 'admin' ? isAdminRoleAccepted : (user && user.role === role);
+      
+      if (roleIsValid) {
         // Store user data with institution context
         const userWithInstitution = {
           ...user,
-          institutionSlug: institutionData.slug,
-          institutionName: institutionData.name
+          institutionSlug: institutionData?.slug || null,
+          institutionName: institutionData?.name || null
         };
         
         console.log('✅ Login successful:', userWithInstitution);
@@ -85,7 +88,7 @@ const InstitutionLoginPage = () => {
         setUser(userWithInstitution);
         localStorage.setItem("cbt_logged_in_user", JSON.stringify(userWithInstitution));
         
-        // Redirect based on role
+        // Redirect based on role requested
         if (role === "admin") {
           setView("admin-panel");
         } else {
