@@ -8,6 +8,7 @@ const MultiTenantAdmin = () => {
   const [success, setSuccess] = useState('');
   const [showCreateForm, setShowCreateForm] = useState(false); // eslint-disable-line no-unused-vars
   const [showPassword, setShowPassword] = useState(false);
+  const [isSubmittingInstitution, setIsSubmittingInstitution] = useState(false);
   const [formData, setFormData] = useState({
     name: '',
     address: '',
@@ -281,42 +282,55 @@ const MultiTenantAdmin = () => {
   const handleCreateInstitution = async (e) => {
     e.preventDefault();
     
+    if (isSubmittingInstitution) return;
+
     try {
+      setIsSubmittingInstitution(true);
+      setError('');
+      setSuccess('');
+
       const token = getAuthToken();
 
       // Frontend validation & normalization
       const allowedPlans = ['Basic', 'Premium', 'Enterprise'];
-      let normalizedPlan = formData.plan;
-      if (typeof normalizedPlan === 'string') {
-        const trimmed = normalizedPlan.trim().toLowerCase();
-        if (trimmed === 'basic') normalizedPlan = 'Basic';
-        else if (trimmed === 'premium') normalizedPlan = 'Premium';
-        else if (trimmed === 'enterprise') normalizedPlan = 'Enterprise';
-      }
-      if (!allowedPlans.includes(normalizedPlan)) {
-        normalizedPlan = 'Basic';
-      }
+      let normalizedPlan = (formData.plan || '').toString().trim();
+      const tl = normalizedPlan.toLowerCase();
+      if (tl === 'basic') normalizedPlan = 'Basic';
+      else if (tl === 'premium') normalizedPlan = 'Premium';
+      else if (tl === 'enterprise') normalizedPlan = 'Enterprise';
+      if (!allowedPlans.includes(normalizedPlan)) normalizedPlan = 'Basic';
 
-      if (!formData.name || !formData.default_admin.email || !formData.default_admin.username || !formData.default_admin.fullName) {
-        setError('Please fill all required fields: Institution name, Admin full name, email, and username.');
-        setSuccess('');
-        return;
-      }
-      if (!formData.default_admin.password || String(formData.default_admin.password).length < 6) {
-        setError('Admin password must be at least 6 characters.');
-        setSuccess('');
-        return;
-      }
-      
-      // Map admin email/phone to institution contact fields
-      const institutionData = {
-        ...formData,
-        plan: normalizedPlan,
-        contact_email: formData.default_admin.email,
-        contact_phone: formData.default_admin.phone || ''
+      const trimmedName = (formData.name || '').trim();
+      const trimmedAddress = (formData.address || '').trim();
+      const da = formData.default_admin || {};
+      const defaultAdmin = {
+        fullName: (da.fullName || '').trim(),
+        email: (da.email || '').trim(),
+        username: (da.username || '').trim(),
+        phone: (da.phone || '').trim(),
+        password: (da.password || '')
       };
+
+      if (!trimmedName || !defaultAdmin.email || !defaultAdmin.username || !defaultAdmin.fullName) {
+        setError('Please fill all required fields: Institution name, Admin full name, email, and username.');
+        setIsSubmittingInstitution(false);
+        return;
+      }
+      if (!defaultAdmin.password || defaultAdmin.password.length < 6) {
+        setError('Admin password must be at least 6 characters.');
+        setIsSubmittingInstitution(false);
+        return;
+      }
       
-      console.log('📤 Sending institution data:', institutionData);
+      const institutionData = {
+        name: trimmedName,
+        address: trimmedAddress,
+        plan: normalizedPlan,
+        timezone: formData.timezone || 'UTC',
+        default_admin: defaultAdmin,
+        contact_email: defaultAdmin.email,
+        contact_phone: defaultAdmin.phone || ''
+      };
       
       const response = await fetch(`${API_BASE_URL}/api/tenants`, {
         method: 'POST',
@@ -336,28 +350,24 @@ const MultiTenantAdmin = () => {
         throw new Error(msg);
       }
 
-      const newInstitution = await response.json();
-      setInstitutions([...institutions, newInstitution.tenant]);
+      // Prefer reloading list from server to avoid local desync
+      await loadInstitutions();
       setShowCreateForm(false);
       setFormData({
         name: '',
         address: '',
         plan: 'Basic',
         timezone: 'UTC',
-        default_admin: {
-          fullName: '',
-          email: '',
-          username: '',
-          phone: '',
-          password: ''
-        }
+        default_admin: { fullName: '', email: '', username: '', phone: '', password: '' }
       });
       setActiveTab('manage');
       setSuccess('Institution created successfully');
       setError('');
     } catch (error) {
       setError('Failed to create institution: ' + error.message);
-      setSuccess(''); // Clear any previous success message
+      setSuccess('');
+    } finally {
+      setIsSubmittingInstitution(false);
     }
   };
 
@@ -770,9 +780,10 @@ const MultiTenantAdmin = () => {
                   </button>
                   <button
                     type="submit"
-                    className="px-6 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700"
+                    disabled={isSubmittingInstitution}
+                    className={`px-6 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 ${isSubmittingInstitution ? 'opacity-60 cursor-not-allowed' : ''}`}
                   >
-                    Create Institution
+                    {isSubmittingInstitution ? 'Creating...' : 'Create Institution'}
                   </button>
                 </div>
               </form>

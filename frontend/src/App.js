@@ -2,7 +2,6 @@ import React, { useEffect, useState } from "react";
 import InstitutionLoginPage from "./components/InstitutionLoginPage";
 import MultiTenantAdmin from "./components/MultiTenantAdmin";
 import MultiTenantAdminLogin from "./components/MultiTenantAdminLogin";
-import RouteDebug from "./components/RouteDebug";
 import CBTExam from "./components/CBTExam";
 import StudentExam from "./components/StudentExam";
 import dataService from "./services/dataService";
@@ -1094,7 +1093,6 @@ function App() {
 
   return (
     <div className="min-h-screen bg-gray-50 text-gray-800">
-      <RouteDebug />
       <Header user={user} onLogout={onLogout} onLogoClick={handleLogoClick} institutionData={institutionData} />
       <main className="max-w-5xl mx-auto w-full px-3 sm:px-8 py-4 sm:py-8">
         {user ? (
