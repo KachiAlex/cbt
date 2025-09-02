@@ -565,8 +565,8 @@ export const dataService = {
   },
 
   // Authentication
-  authenticateUser: async (username, password) => {
-    console.log('🔐 Authenticating user:', username);
+  authenticateUser: async (username, password, tenantSlug = null) => {
+    console.log('🔐 Authenticating user:', username, 'for tenant:', tenantSlug);
     console.log('🔧 USE_API setting:', USE_API);
     console.log('🌐 API_BASE:', API_BASE);
     
@@ -576,13 +576,28 @@ export const dataService = {
         const response = await fetch(`${API_BASE}/api/auth/login`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ username, password })
+          body: JSON.stringify({ 
+            username, 
+            password, 
+            tenant_slug: tenantSlug 
+          })
         });
 
         if (response.ok) {
-          const user = await response.json();
-          console.log('✅ API authentication successful:', user);
-          return user;
+          const responseData = await response.json();
+          console.log('✅ API authentication successful:', responseData);
+          
+          // Handle different response structures
+          if (responseData.success && responseData.user) {
+            // Institution-specific login response
+            return responseData.user;
+          } else if (responseData.success && responseData.role) {
+            // Direct admin login response (no tenant)
+            return responseData;
+          } else {
+            // Fallback to direct response
+            return responseData;
+          }
         } else {
           const error = await response.json();
           console.log('❌ API authentication failed:', error);

@@ -64,8 +64,10 @@ const InstitutionLoginPage = () => {
     try {
       setError("");
       
-      // Use dataService to authenticate user
-      const user = await dataService.authenticateUser(username, password);
+      // Use dataService to authenticate user with institution context
+      const user = await dataService.authenticateUser(username, password, institutionData.slug);
+      
+      console.log('🔍 Login attempt:', { username, role, user });
       
       if (user && user.role === role) {
         // Store user data with institution context
@@ -74,6 +76,8 @@ const InstitutionLoginPage = () => {
           institutionSlug: institutionData.slug,
           institutionName: institutionData.name
         };
+        
+        console.log('✅ Login successful:', userWithInstitution);
         
         setUser(userWithInstitution);
         localStorage.setItem("cbt_logged_in_user", JSON.stringify(userWithInstitution));
@@ -85,7 +89,12 @@ const InstitutionLoginPage = () => {
           setView("student-portal");
         }
       } else {
-        setError(`Invalid ${role} credentials. Please check your username and password.`);
+        console.log('❌ Role mismatch:', { expectedRole: role, actualRole: user?.role, user });
+        if (!user) {
+          setError(`Authentication failed. Please check your username and password.`);
+        } else {
+          setError(`Invalid ${role} credentials. User role is '${user.role}', but '${role}' is required.`);
+        }
       }
     } catch (error) {
       console.error('Login error:', error);
