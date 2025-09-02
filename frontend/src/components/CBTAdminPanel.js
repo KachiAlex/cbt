@@ -49,6 +49,18 @@ const CBTAdminPanel = ({ user, institution, onLogout }) => {
     initializeData();
   }, []);
 
+  // When the selected exam changes, load its own stored questions (or empty)
+  useEffect(() => {
+    if (!selectedExam) { setQuestions([]); return; }
+    try {
+      const raw = localStorage.getItem(`cbt_questions_${selectedExam.id}`);
+      const q = raw ? JSON.parse(raw) : [];
+      setQuestions(Array.isArray(q) ? q : []);
+    } catch {
+      setQuestions([]);
+    }
+  }, [selectedExam]);
+
   // Auto-activation/deactivation effect
   useEffect(() => {
     if (!exams || exams.length === 0) return;
@@ -85,7 +97,8 @@ const CBTAdminPanel = ({ user, institution, onLogout }) => {
   const loadExams = async () => {
     try {
       const data = await dataService.loadExams();
-      return Array.isArray(data) ? data : [];
+      const list = Array.isArray(data) ? data : [];
+      return institution?.slug ? list.filter(e => e.institutionSlug === institution.slug) : list;
     } catch (error) {
       console.error('Error loading exams:', error);
       return [];
@@ -114,7 +127,8 @@ const CBTAdminPanel = ({ user, institution, onLogout }) => {
   const loadResults = async () => {
     try {
       const data = await dataService.loadResults();
-      return Array.isArray(data) ? data : [];
+      const list = Array.isArray(data) ? data : [];
+      return institution?.slug ? list.filter(r => r.institutionSlug === institution.slug) : list;
     } catch (error) {
       console.error('Error loading results:', error);
       return [];
@@ -248,6 +262,7 @@ const CBTAdminPanel = ({ user, institution, onLogout }) => {
       setExams(updatedExams);
       setShowCreateExam(false);
       setSelectedExam(newExam);
+      setQuestions([]); // ensure fresh questions list for a new exam
       setActiveTab("questions");
     } catch (error) {
       console.error('Error creating exam:', error);

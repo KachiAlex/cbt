@@ -745,6 +745,63 @@ export const dataService = {
     await dataService.saveUsers(filteredUsers);
     console.log('✅ Admin deleted from localStorage');
     return { message: 'Admin user deleted successfully' };
+  },
+
+  // Student registration (API first, then local fallback)
+  registerStudent: async (studentData, tenantSlug = null) => {
+    const { username, password, fullName, email } = studentData || {};
+    if (!username || !password || !fullName || !email) {
+      throw new Error('Please fill in all required fields');
+    }
+    if (String(password).length < 6) {
+      throw new Error('Password must be at least 6 characters long');
+    }
+
+    if (USE_API) {
+      try {
+        const response = await fetch(`${API_BASE}/api/auth/register`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ username, password, fullName, email, tenant_slug: tenantSlug })
+        });
+        if (response.ok) {
+          const data = await response.json();
+          return data.user || data; // accept either structure
+        } else {
+          const error = await response.json().catch(() => ({}));
+          throw new Error(error.error || error.message || 'Registration failed');
+        }
+      } catch (e) {
+        console.warn('API registration failed, falling back to localStorage:', e.message);
+      }
+    }
+
+    // Fallback to localStorage
+    const users = await dataService.loadUsers();
+    const newName = (username || '').trim().toLowerCase();
+    if (users.find(u => (u.username || '').toLowerCase() === newName)) {
+      throw new Error('Username already exists. Please choose a different username.');
+    }
+    if (users.find(u => (u.email || '').toLowerCase() === (email || '').toLowerCase())) {
+      throw new Error('Email already registered. Please use a different email.');
+    }
+    const newStudent = {
+      username,
+      password,
+      fullName,
+      email,
+      role: 'student',
+      registeredAt: new Date().toISOString()
+    };
+    users.push(newStudent);
+    await dataService.saveUsers(users);
+
+    // Track registrations locally
+    const regs = (await dataService.loadStudentRegistrations()) || [];
+    regs.push(newStudent);
+    await dataService.saveStudentRegistrations(regs);
+
+    return newStudent;
   }
 };
 
