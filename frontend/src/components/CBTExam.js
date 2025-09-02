@@ -310,7 +310,7 @@ function QuestionsEditor({ questions, setQuestions }) {
 
 function ResultsTable({ results, setResults }) {
   const clear = () => {
-    if (confirm("Clear all results?")) {
+    if (window.confirm("Clear all results?")) {
       setResults([]);
     }
   };
