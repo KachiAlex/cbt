@@ -28,6 +28,16 @@ const MultiTenantAdmin = () => {
   const [adminFormData, setAdminFormData] = useState({ fullName: '', email: '', username: '', password: '' });
   const [adminFormLoading, setAdminFormLoading] = useState(false);
   const [adminFormError, setAdminFormError] = useState('');
+  const [toast, setToast] = useState({ type: '', message: '' });
+  const showToast = (type, message) => {
+    setToast({ type, message });
+    setTimeout(() => setToast({ type: '', message: '' }), 3000);
+  };
+  const [adminsFilter, setAdminsFilter] = useState('');
+  const [studentsModalSlug, setStudentsModalSlug] = useState(null);
+  const [students, setStudents] = useState([]);
+  const [studentsLoading, setStudentsLoading] = useState(false);
+  const [studentsFilter, setStudentsFilter] = useState('');
 
   // MongoDB API base URL
   const API_BASE_URL = 'https://cbt-rew7.onrender.com';
@@ -195,6 +205,70 @@ const MultiTenantAdmin = () => {
       setSuccess('Admin deleted'); setError('');
     } catch (e) {
       setError('Failed to delete admin: ' + e.message); setSuccess('');
+    }
+  };
+
+  const loadStudents = async (slug) => {
+    try {
+      setStudentsLoading(true);
+      const token = getAuthToken();
+      const res = await fetch(`${API_BASE_URL}/api/tenants/${slug}/students`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (!res.ok) throw new Error('Failed to load students');
+      const data = await res.json();
+      setStudents(Array.isArray(data.students) ? data.students : []);
+    } catch (e) {
+      setError('Failed to load students: ' + e.message); setSuccess('');
+      setStudents([]);
+    } finally {
+      setStudentsLoading(false);
+    }
+  };
+
+  const openStudentsModal = async (slug) => {
+    setStudentsModalSlug(slug);
+    setStudentsFilter('');
+    await loadStudents(slug);
+  };
+
+  const setStudentStatusRemote = async (slug, username, isActive) => {
+    try {
+      const token = getAuthToken();
+      const res = await fetch(`${API_BASE_URL}/api/tenants/${slug}/students/${username}/status`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify({ is_active: isActive })
+      });
+      if (!res.ok) {
+        let msg = 'Failed to update student status';
+        try { const e = await res.json(); msg = e.error || e.message || msg; } catch {}
+        throw new Error(msg);
+      }
+      await loadStudents(slug);
+      showToast('success', isActive ? 'Student activated' : 'Student suspended');
+    } catch (e) {
+      showToast('error', e.message); setError('Failed to update student status: ' + e.message); setSuccess('');
+    }
+  };
+
+  const deleteStudentRemote = async (slug, username) => {
+    if (!window.confirm('Delete this student?')) return;
+    try {
+      const token = getAuthToken();
+      const res = await fetch(`${API_BASE_URL}/api/tenants/${slug}/students/${username}`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (!res.ok) {
+        let msg = 'Failed to delete student';
+        try { const e = await res.json(); msg = e.error || e.message || msg; } catch {}
+        throw new Error(msg);
+      }
+      await loadStudents(slug);
+      showToast('success', 'Student deleted');
+    } catch (e) {
+      showToast('error', e.message); setError('Failed to delete student: ' + e.message); setSuccess('');
     }
   };
 
@@ -786,6 +860,12 @@ const MultiTenantAdmin = () => {
                                 Manage Admins
                               </button>
                               <button
+                                onClick={() => openStudentsModal(institution.slug)}
+                                className="px-4 py-2 bg-teal-600 text-white rounded-md hover:bg-teal-700 text-sm"
+                              >
+                                Manage Students
+                              </button>
+                              <button
                                 onClick={() => deleteInstitution(institution.slug)}
                                 className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 text-sm"
                               >
@@ -821,13 +901,24 @@ const MultiTenantAdmin = () => {
       {adminsModalSlug && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-xl p-6 w-full max-w-2xl mx-4">
+            {toast.message && (
+              <div className={`mb-3 p-2 rounded text-sm ${toast.type==='error' ? 'bg-red-50 text-red-700' : 'bg-green-50 text-green-700'}`}>{toast.message}</div>
+            )}
             <div className="flex justify-between items-center mb-4">
               <h3 className="text-lg font-bold">Manage Admins</h3>
               <button onClick={() => setAdminsModalSlug(null)} className="text-gray-500 hover:text-gray-700 text-xl">×</button>
             </div>
-            <div className="mb-4 flex justify-between items-center">
+            <div className="mb-4 flex flex-col md:flex-row md:items-center md:justify-between gap-2">
               <div className="text-sm text-gray-600">Tenant: <span className="font-medium">{adminsModalSlug}</span></div>
-              <button onClick={() => setShowAdminForm(true)} className="px-3 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 text-sm">+ Create Admin</button>
+              <div className="flex gap-2 items-center">
+                <input
+                  value={adminsFilter}
+                  onChange={(e) => setAdminsFilter(e.target.value)}
+                  placeholder="Search username/email"
+                  className="px-3 py-2 border border-gray-300 rounded-md text-sm"
+                />
+                <button onClick={() => setShowAdminForm(true)} className="px-3 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 text-sm">+ Create Admin</button>
+              </div>
             </div>
             {showAdminForm && (
               <div className="mb-4 border rounded-lg p-4 bg-gray-50">
@@ -882,7 +973,7 @@ const MultiTenantAdmin = () => {
                 )}
                 <div className="mt-4 flex justify-end gap-2">
                   <button onClick={() => { setShowAdminForm(false); setAdminFormError(''); }} className="px-4 py-2 border border-gray-300 rounded-md hover:bg-gray-50">Cancel</button>
-                  <button onClick={submitCreateAdmin} disabled={adminFormLoading} className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 disabled:opacity-50">
+                  <button onClick={async () => { await submitCreateAdmin(); showToast('success', 'Admin created'); }} disabled={adminFormLoading} className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 disabled:opacity-50">
                     {adminFormLoading ? 'Creating...' : 'Create Admin'}
                   </button>
                 </div>
@@ -895,32 +986,130 @@ const MultiTenantAdmin = () => {
                     <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Username</th>
                     <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Full Name</th>
                     <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email</th>
+                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Role</th>
                     <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
                     <th className="px-4 py-2"></th>
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
                   {adminsLoading && (
-                    <tr><td colSpan={5} className="px-4 py-4 text-center text-gray-500">Loading...</td></tr>
+                    <tr><td colSpan={6} className="px-4 py-4 text-center text-gray-500">Loading...</td></tr>
                   )}
-                  {!adminsLoading && admins.length === 0 && (
-                    <tr><td colSpan={5} className="px-4 py-4 text-center text-gray-500">No admins found</td></tr>
+                  {!adminsLoading && admins.filter(a => {
+                    const q = adminsFilter.toLowerCase().trim();
+                    if (!q) return true;
+                    return (
+                      (a.username || '').toLowerCase().includes(q) ||
+                      (a.email || '').toLowerCase().includes(q)
+                    );
+                  }).length === 0 && (
+                    <tr><td colSpan={6} className="px-4 py-4 text-center text-gray-500">No admins found</td></tr>
                   )}
-                  {admins.map(a => (
+                  {admins.filter(a => {
+                    const q = adminsFilter.toLowerCase().trim();
+                    if (!q) return true;
+                    return (
+                      (a.username || '').toLowerCase().includes(q) ||
+                      (a.email || '').toLowerCase().includes(q)
+                    );
+                  }).map(a => (
                     <tr key={a.username}>
                       <td className="px-4 py-2 text-sm font-medium text-gray-900">{a.username}</td>
                       <td className="px-4 py-2 text-sm text-gray-700">{a.fullName}</td>
                       <td className="px-4 py-2 text-sm text-gray-700">{a.email}</td>
+                      <td className="px-4 py-2 text-sm text-gray-700">{a.role || 'admin'}</td>
                       <td className="px-4 py-2 text-sm">
                         <span className={`px-2 py-1 rounded-full text-xs ${a.is_active ? 'bg-emerald-100 text-emerald-700' : 'bg-orange-100 text-orange-700'}`}>{a.is_active ? 'Active' : 'Suspended'}</span>
                       </td>
                       <td className="px-4 py-2 text-sm text-right">
                         {a.is_active ? (
-                          <button onClick={() => setAdminStatus(adminsModalSlug, a.username, false)} className="px-3 py-1 rounded-lg bg-orange-600 text-white hover:bg-orange-700 mr-2">Suspend</button>
+                          <button onClick={async () => { await setAdminStatus(adminsModalSlug, a.username, false); showToast('success', 'Admin suspended'); }} className="px-3 py-1 rounded-lg bg-orange-600 text-white hover:bg-orange-700 mr-2">Suspend</button>
                         ) : (
-                          <button onClick={() => setAdminStatus(adminsModalSlug, a.username, true)} className="px-3 py-1 rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 mr-2">Activate</button>
+                          <button onClick={async () => { await setAdminStatus(adminsModalSlug, a.username, true); showToast('success', 'Admin activated'); }} className="px-3 py-1 rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 mr-2">Activate</button>
                         )}
-                        <button onClick={() => deleteAdmin(adminsModalSlug, a.username)} className="px-3 py-1 rounded-lg bg-red-600 text-white hover:bg-red-700">Delete</button>
+                        <button
+                          onClick={async () => { await deleteAdmin(adminsModalSlug, a.username); showToast('success', 'Admin deleted'); }}
+                          className={`px-3 py-1 rounded-lg text-white ${a.is_default_admin ? 'bg-gray-300 cursor-not-allowed' : 'bg-red-600 hover:bg-red-700'}`}
+                          title={a.is_default_admin ? 'Cannot delete default admin' : 'Delete admin'}
+                          disabled={!!a.is_default_admin}
+                        >
+                          Delete
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      )}
+      {studentsModalSlug && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-xl p-6 w-full max-w-2xl mx-4">
+            {toast.message && (
+              <div className={`mb-3 p-2 rounded text-sm ${toast.type==='error' ? 'bg-red-50 text-red-700' : 'bg-green-50 text-green-700'}`}>{toast.message}</div>
+            )}
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-lg font-bold">Manage Students</h3>
+              <button onClick={() => setStudentsModalSlug(null)} className="text-gray-500 hover:text-gray-700 text-xl">×</button>
+            </div>
+            <div className="mb-4 flex justify-between items-center">
+              <div className="text-sm text-gray-600">Tenant: <span className="font-medium">{studentsModalSlug}</span></div>
+              <input
+                value={studentsFilter}
+                onChange={(e) => setStudentsFilter(e.target.value)}
+                placeholder="Search username/email"
+                className="px-3 py-2 border border-gray-300 rounded-md text-sm"
+              />
+            </div>
+            <div className="border rounded-lg overflow-hidden">
+              <table className="min-w-full">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Username</th>
+                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Full Name</th>
+                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email</th>
+                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                    <th className="px-4 py-2"></th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-200">
+                  {studentsLoading && (
+                    <tr><td colSpan={5} className="px-4 py-4 text-center text-gray-500">Loading...</td></tr>
+                  )}
+                  {!studentsLoading && students.filter(s => {
+                    const q = studentsFilter.toLowerCase().trim();
+                    if (!q) return true;
+                    return (
+                      (s.username || '').toLowerCase().includes(q) ||
+                      (s.email || '').toLowerCase().includes(q)
+                    );
+                  }).length === 0 && (
+                    <tr><td colSpan={5} className="px-4 py-4 text-center text-gray-500">No students found</td></tr>
+                  )}
+                  {students.filter(s => {
+                    const q = studentsFilter.toLowerCase().trim();
+                    if (!q) return true;
+                    return (
+                      (s.username || '').toLowerCase().includes(q) ||
+                      (s.email || '').toLowerCase().includes(q)
+                    );
+                  }).map(s => (
+                    <tr key={s.username}>
+                      <td className="px-4 py-2 text-sm font-medium text-gray-900">{s.username}</td>
+                      <td className="px-4 py-2 text-sm text-gray-700">{s.fullName}</td>
+                      <td className="px-4 py-2 text-sm text-gray-700">{s.email}</td>
+                      <td className="px-4 py-2 text-sm">
+                        <span className={`px-2 py-1 rounded-full text-xs ${s.is_active ? 'bg-emerald-100 text-emerald-700' : 'bg-orange-100 text-orange-700'}`}>{s.is_active ? 'Active' : 'Suspended'}</span>
+                      </td>
+                      <td className="px-4 py-2 text-sm text-right">
+                        {s.is_active ? (
+                          <button onClick={() => setStudentStatusRemote(studentsModalSlug, s.username, false)} className="px-3 py-1 rounded-lg bg-orange-600 text-white hover:bg-orange-700 mr-2">Suspend</button>
+                        ) : (
+                          <button onClick={() => setStudentStatusRemote(studentsModalSlug, s.username, true)} className="px-3 py-1 rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 mr-2">Activate</button>
+                        )}
+                        <button onClick={() => deleteStudentRemote(studentsModalSlug, s.username)} className="px-3 py-1 rounded-lg bg-red-600 text-white hover:bg-red-700">Delete</button>
                       </td>
                     </tr>
                   ))}
