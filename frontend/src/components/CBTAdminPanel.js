@@ -832,6 +832,47 @@ function StudentsTab({ onBackToExams, institution, user }) {
 }
 
 function SettingsTab({ onBackToExams, institution, user }) {
+  // eslint-disable-next-line no-unused-vars
+  const isAdmin = user.role === 'admin' || user.role === 'super_admin' || user.role === 'managed_admin';
+  const isSuperAdmin = user.role === 'super_admin' || user.role === 'managed_admin';
+  
+  const [logoModalOpen, setLogoModalOpen] = useState(false);
+  const [selectedLogoFile, setSelectedLogoFile] = useState(null);
+  const [logoUrlInput, setLogoUrlInput] = useState('');
+  const [adminsModalOpen, setAdminsModalOpen] = useState(false);
+  const [studentsModalOpen, setStudentsModalOpen] = useState(false);
+  const [toast, setToast] = useState({ message: '', type: 'success' });
+
+  const updateLogo = async (logoUrl) => {
+    try {
+      const response = await fetch(`${process.env.REACT_APP_API_URL || 'https://cbt-rew7.onrender.com'}/api/tenants/${institution.slug}/logo`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('cbt_token')}`
+        },
+        body: JSON.stringify({ logo: logoUrl })
+      });
+      
+      if (response.ok) {
+        setToast({ message: 'Logo updated successfully', type: 'success' });
+        setLogoModalOpen(false);
+        setSelectedLogoFile(null);
+        setLogoUrlInput('');
+      } else {
+        const errorData = await response.json();
+        setToast({ message: `Failed to update logo: ${errorData.message || 'Unknown error'}`, type: 'error' });
+      }
+    } catch (error) {
+      setToast({ message: `Failed to update logo: ${error.message}`, type: 'error' });
+    }
+  };
+
+  const showToast = (message, type = 'success') => {
+    setToast({ message, type });
+    setTimeout(() => setToast({ message: '', type: 'success' }), 3000);
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
@@ -843,6 +884,12 @@ function SettingsTab({ onBackToExams, institution, user }) {
           ← Back to Exams
         </button>
       </div>
+      
+      {toast.message && (
+        <div className={`p-3 rounded-lg text-sm ${toast.type === 'error' ? 'bg-red-50 text-red-700' : 'bg-green-50 text-green-700'}`}>
+          {toast.message}
+        </div>
+      )}
       
       <div className="bg-white rounded-xl border p-6">
         <h4 className="font-semibold mb-4">Institution Information</h4>
@@ -856,7 +903,192 @@ function SettingsTab({ onBackToExams, institution, user }) {
             <p className="mt-1 text-sm text-gray-900">{institution?.slug || 'N/A'}</p>
           </div>
         </div>
+        
+        {isSuperAdmin && (
+          <div className="mt-6 pt-6 border-t border-gray-200">
+            <h5 className="font-semibold mb-4">Administrative Actions</h5>
+            <div className="flex flex-wrap gap-3">
+              <button
+                onClick={() => setLogoModalOpen(true)}
+                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm"
+              >
+                Change Logo
+              </button>
+              <button
+                onClick={() => setAdminsModalOpen(true)}
+                className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 text-sm"
+              >
+                Manage Admins
+              </button>
+              <button
+                onClick={() => setStudentsModalOpen(true)}
+                className="px-4 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700 text-sm"
+              >
+                Manage Students
+              </button>
+            </div>
+          </div>
+        )}
       </div>
+
+      {/* Logo Update Modal */}
+      {logoModalOpen && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-xl p-6 w-full max-w-md mx-4">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-lg font-bold">Update Institution Logo</h3>
+              <button
+                onClick={() => {
+                  setLogoModalOpen(false);
+                  setSelectedLogoFile(null);
+                  setLogoUrlInput('');
+                }}
+                className="text-gray-500 hover:text-gray-700 text-xl"
+              >
+                ×
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              {/* File Upload Section */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Upload Logo File</label>
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={(e) => {
+                    const file = e.target.files[0];
+                    if (file) {
+                      setSelectedLogoFile(file);
+                      setLogoUrlInput(''); // Clear URL input when file is selected
+                    }
+                  }}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100"
+                />
+              </div>
+
+              {/* File Preview */}
+              {selectedLogoFile && (
+                <div className="p-3 bg-gray-50 rounded-lg">
+                  <p className="text-sm text-gray-600 mb-2">Selected file: {selectedLogoFile.name}</p>
+                  <div className="flex items-center gap-2">
+                    <img
+                      src={URL.createObjectURL(selectedLogoFile)}
+                      alt="Logo preview"
+                      className="w-16 h-16 object-contain border rounded"
+                    />
+                    <button
+                      onClick={() => {
+                        setSelectedLogoFile(null);
+                        const fileInput = document.querySelector('input[type="file"]');
+                        if (fileInput) fileInput.value = '';
+                      }}
+                      className="text-sm text-red-600 hover:text-red-800"
+                    >
+                      Remove file
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* Divider */}
+              <div className="text-center text-sm text-gray-500">- OR -</div>
+
+              {/* URL Input Section */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Or Enter Logo URL</label>
+                <input
+                  type="text"
+                  value={logoUrlInput}
+                  placeholder="Enter logo URL (https://...)"
+                  onChange={(e) => {
+                    const url = e.target.value;
+                    setLogoUrlInput(url);
+                    if (url.trim() && /^https?:\/\//i.test(url.trim())) {
+                      // If valid URL is entered, clear the file selection
+                      setSelectedLogoFile(null);
+                    }
+                  }}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                />
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex gap-2 pt-4">
+                <button
+                  onClick={() => {
+                    setLogoModalOpen(false);
+                    setSelectedLogoFile(null);
+                    setLogoUrlInput('');
+                  }}
+                  className="flex-1 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={() => {
+                    if (selectedLogoFile) {
+                      // Convert file to data URL for now
+                      // In a production environment, you'd upload to a cloud storage service first
+                      const reader = new FileReader();
+                      reader.onload = function(e) {
+                        updateLogo(e.target.result);
+                      };
+                      reader.onerror = function() {
+                        showToast('Failed to read the selected file', 'error');
+                      };
+                      reader.readAsDataURL(selectedLogoFile);
+                    } else {
+                      // Use URL input if no file selected
+                      const url = logoUrlInput.trim();
+                      if (url && /^https?:\/\//i.test(url)) {
+                        updateLogo(url);
+                      } else {
+                        showToast('Please select a file or enter a valid URL', 'error');
+                      }
+                    }
+                  }}
+                  className="flex-1 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700"
+                >
+                  Update Logo
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Manage Admins Modal */}
+      {adminsModalOpen && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-xl p-6 w-full max-w-2xl mx-4">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-lg font-bold">Manage Admins</h3>
+              <button onClick={() => setAdminsModalOpen(false)} className="text-gray-500 hover:text-gray-700 text-xl">×</button>
+            </div>
+            <div className="text-center text-gray-500 py-8">
+              <p>Admin management functionality will be implemented here.</p>
+              <p className="text-sm mt-2">This will allow you to create, suspend, and manage admin accounts.</p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Manage Students Modal */}
+      {studentsModalOpen && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-xl p-6 w-full max-w-2xl mx-4">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-lg font-bold">Manage Students</h3>
+              <button onClick={() => setStudentsModalOpen(false)} className="text-gray-500 hover:text-gray-700 text-xl">×</button>
+            </div>
+            <div className="text-center text-gray-500 py-8">
+              <p>Student management functionality will be implemented here.</p>
+              <p className="text-sm mt-2">This will allow you to view, suspend, and manage student accounts.</p>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
