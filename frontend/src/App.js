@@ -879,7 +879,8 @@ function App() {
   const [showAdminLink, setShowAdminLink] = useState(false);
   const [institutionData, setInstitutionData] = useState(null);
   const [currentView, setCurrentView] = useState("main"); // "main", "cbt-admin", "student-exam"
-  const [selectedExam, setSelectedExam] = useState(null);
+  // eslint-disable-next-line no-unused-vars
+  const [selectedExam, setSelectedExam] = useState(null); // Used in handleStudentExamView
 
   useEffect(() => {
     console.log('🔍 Current URL:', window.location.href);

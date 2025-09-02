@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 
 const LS_KEYS = {
   QUESTIONS: "cbt_questions_v1",
@@ -17,51 +17,7 @@ const StudentExam = ({ user, tenant }) => {
   const [timeLeft, setTimeLeft] = useState(0); // Time in seconds
   const [examStarted, setExamStarted] = useState(false);
 
-  useEffect(() => {
-    loadExamData();
-  }, []);
-
-  useEffect(() => {
-    if (examStarted && timeLeft > 0) {
-      const timer = setTimeout(() => setTimeLeft(timeLeft - 1), 1000);
-      return () => clearTimeout(timer);
-    } else if (examStarted && timeLeft === 0) {
-      handleSubmit(); // Auto-submit when time runs out
-    }
-  }, [examStarted, timeLeft]);
-
-  const loadExamData = () => {
-    try {
-      const loadedQuestions = JSON.parse(localStorage.getItem(LS_KEYS.QUESTIONS) || '[]');
-      const loadedExamTitle = localStorage.getItem(LS_KEYS.ACTIVE_EXAM) || 'Institution CBT – 12 Questions';
-      
-      if (loadedQuestions.length === 0) {
-        setLoading(false);
-        return;
-      }
-
-      setQuestions(loadedQuestions);
-      setExamTitle(loadedExamTitle);
-      setAnswers(new Array(loadedQuestions.length).fill(-1));
-      setTimeLeft(loadedQuestions.length * 60); // 1 minute per question
-      setLoading(false);
-    } catch (error) {
-      console.error('Error loading exam data:', error);
-      setLoading(false);
-    }
-  };
-
-  const startExam = () => {
-    setExamStarted(true);
-  };
-
-  const onSelectAnswer = (questionIndex, optionIndex) => {
-    const newAnswers = [...answers];
-    newAnswers[questionIndex] = optionIndex;
-    setAnswers(newAnswers);
-  };
-
-  const handleSubmit = () => {
+  const handleSubmit = useCallback(() => {
     let correctAnswers = 0;
     questions.forEach((q, i) => {
       if (answers[i] === q.correctIndex) correctAnswers++;
@@ -92,6 +48,50 @@ const StudentExam = ({ user, tenant }) => {
     } catch (error) {
       console.error('Error saving result:', error);
     }
+  }, [questions, answers, user.username, user.fullName, examTitle, timeLeft, tenant?.name]);
+
+  useEffect(() => {
+    loadExamData();
+  }, []);
+
+  useEffect(() => {
+    if (examStarted && timeLeft > 0) {
+      const timer = setTimeout(() => setTimeLeft(timeLeft - 1), 1000);
+      return () => clearTimeout(timer);
+    } else if (examStarted && timeLeft === 0) {
+      handleSubmit(); // Auto-submit when time runs out
+    }
+  }, [examStarted, timeLeft, handleSubmit]);
+
+  const loadExamData = () => {
+    try {
+      const loadedQuestions = JSON.parse(localStorage.getItem(LS_KEYS.QUESTIONS) || '[]');
+      const loadedExamTitle = localStorage.getItem(LS_KEYS.ACTIVE_EXAM) || 'Institution CBT – 12 Questions';
+      
+      if (loadedQuestions.length === 0) {
+        setLoading(false);
+        return;
+      }
+
+      setQuestions(loadedQuestions);
+      setExamTitle(loadedExamTitle);
+      setAnswers(new Array(loadedQuestions.length).fill(-1));
+      setTimeLeft(loadedQuestions.length * 60); // 1 minute per question
+      setLoading(false);
+    } catch (error) {
+      console.error('Error loading exam data:', error);
+      setLoading(false);
+    }
+  };
+
+  const startExam = () => {
+    setExamStarted(true);
+  };
+
+  const onSelectAnswer = (questionIndex, optionIndex) => {
+    const newAnswers = [...answers];
+    newAnswers[questionIndex] = optionIndex;
+    setAnswers(newAnswers);
   };
 
   const formatTime = (seconds) => {

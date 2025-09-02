@@ -49,6 +49,8 @@ const CBTExam = ({ user, tenant }) => {
     }
   };
 
+  // Function to add a blank question (available for future use)
+  // eslint-disable-next-line no-unused-vars
   const addBlankQuestion = () => {
     setQuestions(q => [...q, {
       id: crypto.randomUUID(),
@@ -375,6 +377,8 @@ function loadResults() {
 // Parse .docx converted markdown with pattern:
 // n) Question text\nA) option\nB) option\nC) option\nD) option\nAnswer: X
 function parseQuestionsFromMarkdown(md) {
+  // Split into blocks for potential future use
+  // eslint-disable-next-line no-unused-vars
   const blocks = md.split(/\n\s*\n/).map(b => b.trim()).filter(Boolean);
   const out = [];
 
