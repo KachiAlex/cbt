@@ -65,7 +65,10 @@ const InstitutionLoginPage = () => {
       setError("");
       
       // Use dataService to authenticate user with institution context
-      const user = await dataService.authenticateUser(username, password, institutionData.slug);
+      console.log('🔍 Institution data for authentication:', institutionData);
+      console.log('🔍 Institution slug being passed:', institutionData?.slug);
+      
+      const user = await dataService.authenticateUser(username, password, institutionData?.slug);
       
       console.log('🔍 Login attempt:', { username, role, user });
       

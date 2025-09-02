@@ -586,16 +586,25 @@ export const dataService = {
         if (response.ok) {
           const responseData = await response.json();
           console.log('✅ API authentication successful:', responseData);
+          console.log('🔍 Response structure analysis:', {
+            hasSuccess: !!responseData.success,
+            hasUser: !!responseData.user,
+            hasRole: !!responseData.role,
+            responseKeys: Object.keys(responseData)
+          });
           
           // Handle different response structures
           if (responseData.success && responseData.user) {
             // Institution-specific login response
+            console.log('📋 Returning user from institution response');
             return responseData.user;
           } else if (responseData.success && responseData.role) {
             // Direct admin login response (no tenant)
+            console.log('📋 Returning direct admin response');
             return responseData;
           } else {
             // Fallback to direct response
+            console.log('📋 Returning fallback response');
             return responseData;
           }
         } else {
