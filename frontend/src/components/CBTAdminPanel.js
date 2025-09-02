@@ -27,27 +27,48 @@ const CBTAdminPanel = ({ user, institution, onLogout }) => {
   const [selectedExam, setSelectedExam] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    const initializeData = async () => {
-      try {
-        setLoading(true);
-        const [examsData, questionsData, resultsData] = await Promise.all([
-          loadExams(),
-          loadQuestions(),
-          loadResults()
-        ]);
-        setExams(examsData || []);
-        setQuestions(questionsData || []);
-        setResults(resultsData || []);
-      } catch (error) {
-        console.error('Error loading data:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
-    
-    initializeData();
-  }, [loadExams, loadQuestions, loadResults]);
+
+
+  const loadExams = React.useCallback(async () => {
+    try {
+      const data = await dataService.loadExams();
+      const list = Array.isArray(data) ? data : [];
+      return institution?.slug ? list.filter(e => e.institutionSlug === institution.slug) : list;
+    } catch (error) {
+      console.error('Error loading exams:', error);
+      return [];
+    }
+  }, [institution?.slug]);
+
+  const saveExams = React.useCallback(async (examsData) => {
+    try {
+      return await dataService.saveExams(examsData);
+    } catch (error) {
+      console.error('Error saving exams:', error);
+      return false;
+    }
+  }, []);
+
+  const loadQuestions = React.useCallback(async () => {
+    try {
+      const data = await dataService.loadQuestions();
+      return Array.isArray(data) ? data : [];
+    } catch (error) {
+      console.error('Error loading questions:', error);
+      return [];
+    }
+  }, []);
+
+  const loadResults = React.useCallback(async () => {
+    try {
+      const data = await dataService.loadResults();
+      const list = Array.isArray(data) ? data : [];
+      return institution?.slug ? list.filter(r => r.institutionSlug === institution.slug) : list;
+    } catch (error) {
+      console.error('Error loading results:', error);
+      return [];
+    }
+  }, [institution?.slug]);
 
   // When the selected exam changes, load its own stored questions (or empty)
   useEffect(() => {
@@ -91,49 +112,30 @@ const CBTAdminPanel = ({ user, institution, onLogout }) => {
     }, 30 * 1000); // check every 30s
 
     return () => clearInterval(interval);
-  }, [exams]);
+  }, [exams, saveExams]);
 
-
-  const loadExams = React.useCallback(async () => {
-    try {
-      const data = await dataService.loadExams();
-      const list = Array.isArray(data) ? data : [];
-      return institution?.slug ? list.filter(e => e.institutionSlug === institution.slug) : list;
-    } catch (error) {
-      console.error('Error loading exams:', error);
-      return [];
-    }
-  }, [institution?.slug]);
-
-  const saveExams = async (examsData) => {
-    try {
-      return await dataService.saveExams(examsData);
-    } catch (error) {
-      console.error('Error saving exams:', error);
-      return false;
-    }
-  };
-
-  const loadQuestions = async () => {
-    try {
-      const data = await dataService.loadQuestions();
-      return Array.isArray(data) ? data : [];
-    } catch (error) {
-      console.error('Error loading questions:', error);
-      return [];
-    }
-  };
-
-  const loadResults = React.useCallback(async () => {
-    try {
-      const data = await dataService.loadResults();
-      const list = Array.isArray(data) ? data : [];
-      return institution?.slug ? list.filter(r => r.institutionSlug === institution.slug) : list;
-    } catch (error) {
-      console.error('Error loading results:', error);
-      return [];
-    }
-  }, [institution?.slug]);
+  // Initialize data effect - must come after function definitions
+  useEffect(() => {
+    const initializeData = async () => {
+      try {
+        setLoading(true);
+        const [examsData, questionsData, resultsData] = await Promise.all([
+          loadExams(),
+          loadQuestions(),
+          loadResults()
+        ]);
+        setExams(examsData || []);
+        setQuestions(questionsData || []);
+        setResults(resultsData || []);
+      } catch (error) {
+        console.error('Error loading data:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    initializeData();
+  }, [loadExams, loadQuestions, loadResults]);
 
   // eslint-disable-next-line no-unused-vars
   const saveResults = async (resultsData) => {
