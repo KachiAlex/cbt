@@ -1,51 +1,30 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import tokenService from '../services/tokenService';
 
 const MultiTenantAdmin = () => {
-  const [activeTab, setActiveTab] = useState('manage');
   const [institutions, setInstitutions] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
-  const [success, setSuccess] = useState('');
-  const [showCreateForm, setShowCreateForm] = useState(false); // eslint-disable-line no-unused-vars
-  const [showPassword, setShowPassword] = useState(false);
-  const [isSubmittingInstitution, setIsSubmittingInstitution] = useState(false);
+  const [error, setError] = useState(null);
+  const [showAddForm, setShowAddForm] = useState(false);
+  const [showManageAdminsForm, setShowManageAdminsForm] = useState(false);
+  const [showManageStudentsForm, setShowManageStudentsForm] = useState(false);
+  const [selectedInstitution, setSelectedInstitution] = useState(null);
   const [formData, setFormData] = useState({
     name: '',
-    address: '',
-    plan: 'Basic',
-    timezone: 'UTC',
-    default_admin: {
-      fullName: '',
-      email: '',
-      username: '',
-      phone: '',
-      password: ''
-    }
+    slug: '',
+    subscriptionPlan: 'Basic',
+    primaryAdmin: '',
+    adminUsername: '',
+    adminPassword: '',
+    address: ''
   });
-  const [adminsModalSlug, setAdminsModalSlug] = useState(null);
-  const [admins, setAdmins] = useState([]);
-  const [adminsLoading, setAdminsLoading] = useState(false);
-  const [showAdminForm, setShowAdminForm] = useState(false);
-  const [adminFormData, setAdminFormData] = useState({ fullName: '', email: '', username: '', password: '' });
-  const [adminFormLoading, setAdminFormLoading] = useState(false);
-  const [adminFormError, setAdminFormError] = useState('');
-  const [toast, setToast] = useState({ type: '', message: '' });
-  const showToast = (type, message) => {
-    setToast({ type, message });
-    setTimeout(() => setToast({ type: '', message: '' }), 3000);
+
+  // Check authentication status
+  const isAuthenticated = () => {
+    return tokenService.isAuthenticated();
   };
-  const [adminsFilter, setAdminsFilter] = useState('');
-  const [studentsModalSlug, setStudentsModalSlug] = useState(null);
-  const [students, setStudents] = useState([]);
-  const [studentsLoading, setStudentsLoading] = useState(false);
-  const [studentsFilter, setStudentsFilter] = useState('');
 
-
-  // MongoDB API base URL
-  const API_BASE_URL = 'https://cbt-rew7.onrender.com';
-
-  // Get authentication token using token service
+  // Get authentication token
   const getAuthToken = async () => {
     try {
       return await tokenService.getValidToken();
@@ -55,1340 +34,681 @@ const MultiTenantAdmin = () => {
     }
   };
 
-  // Note: role checks are handled server-side for security
-
-  // Check if user is authenticated
-  const isAuthenticated = useCallback(() => {
-    return tokenService.isAuthenticated();
-  }, []);
-
-  // Logout function
+  // Handle logout
   const handleLogout = () => {
     tokenService.logout();
   };
 
-  const loadInstitutions = useCallback(async () => {
+  // Load institutions
+  const loadInstitutions = async () => {
     try {
-      setLoading(true);
       const token = await getAuthToken();
-      
-      console.log('🔍 Loading institutions...');
-      console.log('🔑 Token:', token ? 'Present' : 'Missing');
-      
       if (!token) {
-        console.log('❌ No valid token available');
-        return { error: 'unauthorized' };
+        setError('No valid authentication token available');
+        setLoading(false);
+        return;
       }
-      
-      const response = await fetch(`${API_BASE_URL}/api/tenants`, {
+
+      const response = await fetch('https://cbt-rew7.onrender.com/api/tenants', {
         headers: {
-          'Authorization': `Bearer ${token}`
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
         }
       });
-      
-      console.log('📡 Response status:', response.status);
-      
+
       if (!response.ok) {
-        if (response.status === 401) {
-          // Token expired or invalid
-          console.log('❌ Token expired or invalid');
-          return { error: 'unauthorized' };
-        }
-        throw new Error('Failed to load institutions from MongoDB');
+        throw new Error(`HTTP error! status: ${response.status}`);
       }
-      
+
       const data = await response.json();
-      console.log('📊 Loaded institutions:', data);
-      return { data };
+      setInstitutions(data);
+      setError(null);
     } catch (error) {
-      console.error('❌ Error loading institutions:', error);
-      return { error: error.message };
+      console.error('Error loading institutions:', error);
+      setError('Failed to load institutions. Please try again.');
     } finally {
       setLoading(false);
     }
-  }, []);
-
-  // Effect to handle institution loading and logout if needed
-  useEffect(() => {
-    const loadData = async () => {
-      const result = await loadInstitutions();
-      if (result.error === 'unauthorized') {
-        handleLogout();
-        return;
-      }
-      if (result.data) {
-        setInstitutions(result.data);
-      } else if (result.error) {
-        setError('Failed to load institutions: ' + result.error);
-        setInstitutions([]);
-      }
-    };
-    
-    if (isAuthenticated()) {
-      loadData();
-    }
-  }, [loadInstitutions, isAuthenticated]);
-
-  // Effect to handle institution loading and logout if needed
-  useEffect(() => {
-    const loadData = async () => {
-      const result = await loadInstitutions();
-      if (result.error === 'unauthorized') {
-        handleLogout();
-        return;
-      }
-      if (result.data) {
-        setInstitutions(result.data);
-      } else if (result.error) {
-        setError('Failed to load institutions: ' + result.error);
-        setInstitutions([]);
-      }
-    };
-    
-    if (isAuthenticated()) {
-      loadData();
-    }
-  }, [loadInstitutions, isAuthenticated]);
-
-  // Separate effect to load user counts after institutions are loaded
-  useEffect(() => {
-    if (institutions.length > 0) {
-      console.log('🔍 Loading user counts for all institutions...');
-      console.log('📊 Institutions to process:', institutions.map(i => i.slug));
-      
-      // Add a longer delay to ensure DOM elements are fully rendered
-      setTimeout(() => {
-        console.log('🔍 DOM should be ready now, checking for elements...');
-        
-        // Debug: Check what elements exist
-        const allElements = document.querySelectorAll('[id*="user-count"]');
-        console.log(`🔍 Found ${allElements.length} elements with user-count in ID:`, 
-          Array.from(allElements).map(el => el.id));
-        
-        institutions.forEach(institution => {
-          console.log(`🔄 Loading user count for: ${institution.slug}`);
-          loadUserCount(institution.slug);
-        });
-      }, 500); // Increased delay to 500ms
-    }
-  }, [institutions]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  const loadAdmins = async (slug) => {
-    try {
-      setAdminsLoading(true);
-      const token = getAuthToken();
-      const res = await fetch(`${API_BASE_URL}/api/tenants/${slug}/admins`, {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-      if (!res.ok) throw new Error('Failed to load admins');
-      const data = await res.json();
-      setAdmins(data.admins || []);
-    } catch (e) {
-      setError('Failed to load admins: ' + e.message);
-      setSuccess('');
-      setAdmins([]);
-    } finally {
-      setAdminsLoading(false);
-    }
   };
 
-  // eslint-disable-next-line no-unused-vars
-  const openAdminsModal = async (slug) => {
-    setAdminsModalSlug(slug);
-    setShowAdminForm(false);
-    setAdminFormData({ fullName: '', email: '', username: '', password: '' });
-    setAdminFormError('');
-    await loadAdmins(slug);
-  };
-
-  const submitCreateAdmin = async () => {
-    if (!adminFormData.fullName || !adminFormData.email || !adminFormData.username || !adminFormData.password) {
-      setAdminFormError('All fields are required');
-      return;
-    }
-    if (adminFormData.password.length < 6) {
-      setAdminFormError('Password must be at least 6 characters');
-      return;
-    }
-    try {
-      setAdminFormLoading(true);
-      setAdminFormError('');
-      const token = getAuthToken();
-      const res = await fetch(`${API_BASE_URL}/api/tenants/${adminsModalSlug}/admins`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-        body: JSON.stringify(adminFormData)
-      });
-      if (!res.ok) {
-        let msg = 'Failed to create admin';
-        try { const e = await res.json(); msg = e.error || e.message || msg; } catch {}
-        throw new Error(msg);
-      }
-      await loadAdmins(adminsModalSlug);
-      setShowAdminForm(false);
-      setAdminFormData({ fullName: '', email: '', username: '', password: '' });
-      setSuccess('Admin created'); setError('');
-    } catch (e) {
-      setAdminFormError(e.message);
-    } finally {
-      setAdminFormLoading(false);
-    }
-  };
-
-  const setAdminStatus = async (slug, username, isActive) => {
-    try {
-      const token = getAuthToken();
-      const res = await fetch(`${API_BASE_URL}/api/tenants/${slug}/admins/${username}/status`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-        body: JSON.stringify({ is_active: isActive })
-      });
-      if (!res.ok) {
-        let msg = 'Failed to update admin status';
-        try { const e = await res.json(); msg = e.error || e.message || msg; } catch {}
-        throw new Error(msg);
-      }
-      await loadAdmins(slug);
-      setSuccess('Status updated'); setError('');
-    } catch (e) {
-      setError('Failed to update admin status: ' + e.message); setSuccess('');
-    }
-  };
-
-  const deleteAdmin = async (slug, username) => {
-    if (!window.confirm('Delete this admin?')) return;
-    try {
-      const token = getAuthToken();
-      const res = await fetch(`${API_BASE_URL}/api/tenants/${slug}/admins/${username}`, {
-        method: 'DELETE',
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-      if (!res.ok) {
-        let msg = 'Failed to delete admin';
-        try { const e = await res.json(); msg = e.error || e.message || msg; } catch {}
-        throw new Error(msg);
-      }
-      await loadAdmins(slug);
-      setSuccess('Admin deleted'); setError('');
-    } catch (e) {
-      setError('Failed to delete admin: ' + e.message); setSuccess('');
-    }
-  };
-
-  const loadStudents = async (slug) => {
-    try {
-      setStudentsLoading(true);
-      const token = getAuthToken();
-      const res = await fetch(`${API_BASE_URL}/api/tenants/${slug}/students`, {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-      if (!res.ok) throw new Error('Failed to load students');
-      const data = await res.json();
-      setStudents(Array.isArray(data.students) ? data.students : []);
-    } catch (e) {
-      setError('Failed to load students: ' + e.message); setSuccess('');
-      setStudents([]);
-    } finally {
-      setStudentsLoading(false);
-    }
-  };
-
-  // eslint-disable-next-line no-unused-vars
-  const openStudentsModal = async (slug) => {
-    setStudentsModalSlug(slug);
-    setStudentsFilter('');
-    await loadStudents(slug);
-  };
-
-  const setStudentStatusRemote = async (slug, username, isActive) => {
-    try {
-      const token = getAuthToken();
-      const res = await fetch(`${API_BASE_URL}/api/tenants/${slug}/students/${username}/status`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-        body: JSON.stringify({ is_active: isActive })
-      });
-      if (!res.ok) {
-        let msg = 'Failed to update student status';
-        try { const e = await res.json(); msg = e.error || e.message || msg; } catch {}
-        throw new Error(msg);
-      }
-      await loadStudents(slug);
-      showToast('success', isActive ? 'Student activated' : 'Student suspended');
-    } catch (e) {
-      showToast('error', e.message); setError('Failed to update student status: ' + e.message); setSuccess('');
-    }
-  };
-
-  const deleteStudentRemote = async (slug, username) => {
-    if (!window.confirm('Delete this student?')) return;
-    try {
-      const token = getAuthToken();
-      const res = await fetch(`${API_BASE_URL}/api/tenants/${slug}/students/${username}`, {
-        method: 'DELETE',
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-      if (!res.ok) {
-        let msg = 'Failed to delete student';
-        try { const e = await res.json(); msg = e.error || e.message || msg; } catch {}
-        throw new Error(msg);
-      }
-      await loadStudents(slug);
-      showToast('success', 'Student deleted');
-    } catch (e) {
-      showToast('error', e.message); setError('Failed to delete student: ' + e.message); setSuccess('');
-    }
-  };
-
-
-
-  const handleCreateInstitution = async (e) => {
+  // Add new institution
+  const handleAddInstitution = async (e) => {
     e.preventDefault();
-    
-    if (isSubmittingInstitution) return;
-
     try {
-      setIsSubmittingInstitution(true);
-      setError('');
-      setSuccess('');
-
-      const token = getAuthToken();
-
-      // Frontend validation & normalization
-      const allowedPlans = ['Basic', 'Premium', 'Enterprise'];
-      let normalizedPlan = (formData.plan || '').toString().trim();
-      const tl = normalizedPlan.toLowerCase();
-      if (tl === 'basic') normalizedPlan = 'Basic';
-      else if (tl === 'premium') normalizedPlan = 'Premium';
-      else if (tl === 'enterprise') normalizedPlan = 'Enterprise';
-      if (!allowedPlans.includes(normalizedPlan)) normalizedPlan = 'Basic';
-
-      const trimmedName = (formData.name || '').trim();
-      const trimmedAddress = (formData.address || '').trim();
-      const da = formData.default_admin || {};
-      const defaultAdmin = {
-        fullName: (da.fullName || '').trim(),
-        email: (da.email || '').trim(),
-        username: (da.username || '').trim(),
-        phone: (da.phone || '').trim(),
-        password: (da.password || '')
-      };
-
-      if (!trimmedName || !defaultAdmin.email || !defaultAdmin.username || !defaultAdmin.fullName) {
-        setError('Please fill all required fields: Institution name, Admin full name, email, and username.');
-        setIsSubmittingInstitution(false);
+      const token = await getAuthToken();
+      if (!token) {
+        setError('No valid authentication token available');
         return;
       }
-      if (!defaultAdmin.password || defaultAdmin.password.length < 6) {
-        setError('Admin password must be at least 6 characters.');
-        setIsSubmittingInstitution(false);
-        return;
-      }
-      
-      const institutionData = {
-        name: trimmedName,
-        address: trimmedAddress,
-        plan: normalizedPlan,
-        timezone: formData.timezone || 'UTC',
-        default_admin: defaultAdmin,
-        contact_email: defaultAdmin.email,
-        contact_phone: defaultAdmin.phone || ''
-      };
-      
-      const response = await fetch(`${API_BASE_URL}/api/tenants`, {
+
+      const response = await fetch('https://cbt-rew7.onrender.com/api/tenants', {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
         },
-        body: JSON.stringify(institutionData)
+        body: JSON.stringify(formData)
       });
 
       if (!response.ok) {
-        let msg = 'Failed to create institution';
-        try {
-          const errorData = await response.json();
-          msg = errorData.error || errorData.message || msg;
-        } catch {}
-        throw new Error(msg);
+        throw new Error(`HTTP error! status: ${response.status}`);
       }
 
-      // Prefer reloading list from server to avoid local desync
-      const result = await loadInstitutions();
-      if (result.data) {
-        setInstitutions(result.data);
-      }
-      setShowCreateForm(false);
+      const newInstitution = await response.json();
+      setInstitutions([...institutions, newInstitution]);
+      setShowAddForm(false);
       setFormData({
         name: '',
-        address: '',
-        plan: 'Basic',
-        timezone: 'UTC',
-        default_admin: { fullName: '', email: '', username: '', phone: '', password: '' }
+        slug: '',
+        subscriptionPlan: 'Basic',
+        primaryAdmin: '',
+        adminUsername: '',
+        adminPassword: '',
+        address: ''
       });
-      setActiveTab('manage');
-      setSuccess('Institution created successfully');
-      setError('');
+      setError(null);
     } catch (error) {
-      setError('Failed to create institution: ' + error.message);
-      setSuccess('');
-    } finally {
-      setIsSubmittingInstitution(false);
+      console.error('Error adding institution:', error);
+      setError('Failed to add institution. Please try again.');
     }
   };
 
-  const toggleInstitutionStatus = async (slug, currentStatus) => {
+  // Manage admins for an institution
+  const handleManageAdmins = async (e) => {
+    e.preventDefault();
     try {
-      const token = getAuthToken();
-      
-      const response = await fetch(`${API_BASE_URL}/api/tenants/${slug}/toggle-status`, {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({ suspended: !currentStatus })
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to update institution status');
+      const token = await getAuthToken();
+      if (!token) {
+        setError('No valid authentication token available');
+        return;
       }
 
-      // Update local state
-      setInstitutions(institutions.map(inst => 
-        inst.slug === slug ? { ...inst, suspended: !currentStatus } : inst
-      ));
-         } catch (error) {
-       setError('Failed to update institution status: ' + error.message);
-       setSuccess(''); // Clear any previous success message
-     }
-  };
-
-
-
-
-
-  const loadUserCount = async (slug) => {
-    try {
-      console.log(`🔍 Starting loadUserCount for: ${slug}`);
-      const token = getAuthToken();
-      console.log(`🔑 Token present: ${!!token}`);
-      
-      const response = await fetch(`${API_BASE_URL}/api/tenants/${slug}/users`, {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
-
-      console.log(`📡 Response status: ${response.status}`);
-      console.log(`📡 Response ok: ${response.ok}`);
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        console.log(`❌ Error response:`, errorData);
-        throw new Error(errorData.error || 'Failed to fetch tenant users');
-      }
-
-      const result = await response.json();
-      console.log(`🔍 Users in tenant ${slug}:`, result);
-      
-      // Update the user count display
-      let userCountElement = document.getElementById(`user-count-${slug}`);
-      console.log(`🎯 User count element found: ${!!userCountElement}`);
-      
-      // If element not found, try again after a short delay
-      if (!userCountElement) {
-        console.log(`⏳ Element not found, retrying after 200ms...`);
-        await new Promise(resolve => setTimeout(resolve, 200));
-        userCountElement = document.getElementById(`user-count-${slug}`);
-        console.log(`🎯 User count element found after retry: ${!!userCountElement}`);
-      }
-      
-      if (userCountElement) {
-        userCountElement.textContent = `${result.users.length} users`;
-        userCountElement.className = 'text-blue-600 font-medium';
-        console.log(`✅ Updated user count display for ${slug}: ${result.users.length} users`);
-      } else {
-        console.log(`❌ User count element still not found for ${slug} after retry`);
-        // Try to find any element with similar ID pattern
-        const allElements = document.querySelectorAll('[id*="user-count"]');
-        console.log(`🔍 Found ${allElements.length} elements with user-count in ID:`, 
-          Array.from(allElements).map(el => el.id));
-      }
-      
-      return result.users.length;
-      
+      // Here you would implement the logic to manage admins
+      // For now, we'll just close the form
+      setShowManageAdminsForm(false);
+      setSelectedInstitution(null);
+      setError(null);
     } catch (error) {
-      console.error(`❌ Failed to load user count for ${slug}:`, error);
-      const userCountElement = document.getElementById(`user-count-${slug}`);
-      if (userCountElement) {
-        userCountElement.textContent = 'Error loading';
-        userCountElement.className = 'text-red-600 font-medium';
-      }
-      return 0;
+      console.error('Error managing admins:', error);
+      setError('Failed to manage admins. Please try again.');
     }
   };
 
-  // Removed unused checkTenantUsers helper (not used in UI)
+  // Manage students for an institution
+  const handleManageStudents = async (e) => {
+    e.preventDefault();
+    try {
+      const token = await getAuthToken();
+      if (!token) {
+        setError('No valid authentication token available');
+        return;
+      }
 
-
-
-
-
-
-
-  const resetAdminPassword = async (slug, adminUsername) => {
-    console.log('🔍 Attempting to reset password for:', { slug, adminUsername });
-    
-    if (!adminUsername) {
-      setError('No admin username found for this institution');
-      return;
+      // Here you would implement the logic to manage students
+      // For now, we'll just close the form
+      setShowManageStudentsForm(false);
+      setSelectedInstitution(null);
+      setError(null);
+    } catch (error) {
+      console.error('Error managing students:', error);
+      setError('Failed to manage students. Please try again.');
     }
+  };
 
-    const newPassword = prompt(`Enter new password for admin '${adminUsername}' (minimum 6 characters):`);
-    if (!newPassword) return;
-
-    if (newPassword.length < 6) {
-      setError('Password must be at least 6 characters long');
+  // Delete institution
+  const handleDeleteInstitution = async (institutionId) => {
+    if (!window.confirm('Are you sure you want to delete this institution?')) {
       return;
     }
 
     try {
-      const token = getAuthToken();
-      
-      const response = await fetch(`${API_BASE_URL}/api/tenants/${slug}/reset-admin-password`, {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({
-          newPassword,
-          adminUsername
-        })
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to reset admin password');
+      const token = await getAuthToken();
+      if (!token) {
+        setError('No valid authentication token available');
+        return;
       }
 
-      await response.json();
-      setSuccess(`Admin password reset successfully. New password: ${newPassword}`);
-      setError('');
-    } catch (error) {
-      setError('Failed to reset admin password: ' + error.message);
-      setSuccess('');
-    }
-  };
-
-  const deleteInstitution = async (slug) => {
-    if (!window.confirm('⚠️ HARD DELETE WARNING: This will permanently delete this institution and ALL its data (users, exams, results, etc.) from the database. This action cannot be undone. Are you absolutely sure?')) {
-      return;
-    }
-
-    try {
-      const token = getAuthToken();
-      
-      const response = await fetch(`${API_BASE_URL}/api/tenants/${slug}?hard=true&force=true`, {
+      const response = await fetch(`https://cbt-rew7.onrender.com/api/tenants/${institutionId}`, {
         method: 'DELETE',
         headers: {
-          'Authorization': `Bearer ${token}`
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
         }
       });
 
       if (!response.ok) {
-        throw new Error('Failed to delete institution');
+        throw new Error(`HTTP error! status: ${response.status}`);
       }
 
-             setInstitutions(institutions.filter(inst => inst.slug !== slug));
-       setSuccess('Institution permanently deleted from database');
-       setError(''); // Clear any previous error message
-     } catch (error) {
-       setError('Failed to delete institution: ' + error.message);
-       setSuccess(''); // Clear any previous success message
-     }
+      setInstitutions(institutions.filter(inst => inst._id !== institutionId));
+      setError(null);
+    } catch (error) {
+      console.error('Error deleting institution:', error);
+      setError('Failed to delete institution. Please try again.');
+    }
   };
 
+  // Update institution
+  const handleUpdateInstitution = async (e) => {
+    e.preventDefault();
+    try {
+      const token = await getAuthToken();
+      if (!token) {
+        setError('No valid authentication token available');
+        return;
+      }
 
+      const response = await fetch(`https://cbt-rew7.onrender.com/api/tenants/${selectedInstitution._id}`, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(formData)
+      });
 
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const updatedInstitution = await response.json();
+      setInstitutions(institutions.map(inst => 
+        inst._id === selectedInstitution._id ? updatedInstitution : inst
+      ));
+      setShowAddForm(false);
+      setSelectedInstitution(null);
+      setFormData({
+        name: '',
+        slug: '',
+        subscriptionPlan: 'Basic',
+        primaryAdmin: '',
+        adminUsername: '',
+        adminPassword: '',
+        address: ''
+      });
+      setError(null);
+    } catch (error) {
+      console.error('Error updating institution:', error);
+      setError('Failed to update institution. Please try again.');
+    }
+  };
+
+  // Edit institution
+  const handleEdit = (institution) => {
+    setSelectedInstitution(institution);
+    setFormData({
+      name: institution.name,
+      slug: institution.slug,
+      subscriptionPlan: institution.subscriptionPlan || 'Basic',
+      primaryAdmin: institution.primaryAdmin || '',
+      adminUsername: institution.adminUsername || '',
+      adminPassword: '',
+      address: institution.address || ''
+    });
+    setShowAddForm(true);
+  };
+
+  // Handle form input changes
+  const handleInputChange = (e) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({
+      ...prev,
+      [name]: value
+    }));
+  };
+
+  // Load institutions on component mount
+  useEffect(() => {
+    if (isAuthenticated()) {
+      loadInstitutions();
+    }
+  }, []);
+
+  // Check authentication on every render
   if (!isAuthenticated()) {
-    return null; // This should be handled by the parent component
-  }
-
-  if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-indigo-600 to-purple-700 flex items-center justify-center">
-        <div className="text-center text-white">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white mx-auto mb-4"></div>
-          <p>Loading Multi-Tenant Admin Platform...</p>
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="max-w-md w-full space-y-8">
+          <div>
+            <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
+              Access Denied
+            </h2>
+            <p className="mt-2 text-center text-sm text-gray-600">
+              You are not authenticated. Please log in to continue.
+            </p>
+          </div>
+          <div className="mt-8 space-y-6">
+            <button
+              onClick={() => window.location.href = '/multi-tenant-admin-login'}
+              className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+            >
+              Go to Login
+            </button>
+          </div>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 flex">
-      {/* Left Sidebar */}
-      <div className="w-64 bg-white shadow-lg">
-        {/* Logo */}
-        <div className="p-6 border-b border-gray-200">
-          <div className="flex items-center space-x-3">
-            <div className="w-10 h-10 bg-indigo-600 rounded-lg flex items-center justify-center">
-              <span className="text-white text-xl font-bold">🏫</span>
-            </div>
+    <div className="min-h-screen bg-gray-50">
+      {/* Header */}
+      <div className="bg-white shadow">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex justify-between items-center py-6">
             <div>
-              <h1 className="text-lg font-bold text-gray-900">CBT Platform</h1>
-              <p className="text-xs text-gray-500">Multi-Tenant Admin</p>
+              <h1 className="text-3xl font-bold text-gray-900">Multi-Tenant Admin Dashboard</h1>
+              <p className="text-gray-600">Manage all institutions and their settings</p>
+            </div>
+            <div className="flex items-center space-x-4">
+              <button
+                onClick={() => setShowAddForm(true)}
+                className="bg-indigo-600 text-white px-4 py-2 rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+              >
+                Add Institution
+              </button>
+              <button
+                onClick={handleLogout}
+                className="bg-red-600 text-white px-4 py-2 rounded-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
+              >
+                Logout
+              </button>
             </div>
           </div>
-        </div>
-
-        {/* Navigation */}
-        <nav className="p-4 space-y-2">
-          <button
-            onClick={() => setActiveTab('dashboard')}
-            className={`w-full flex items-center space-x-3 px-4 py-3 rounded-lg text-left transition-colors ${
-              activeTab === 'dashboard'
-                ? 'bg-indigo-50 text-indigo-700 border border-indigo-200'
-                : 'text-gray-700 hover:bg-gray-50'
-            }`}
-          >
-            <span className="text-lg">📊</span>
-            <span className="font-medium">Dashboard</span>
-          </button>
-          
-          <button
-            onClick={() => setActiveTab('create')}
-            className={`w-full flex items-center space-x-3 px-4 py-3 rounded-lg text-left transition-colors ${
-              activeTab === 'create'
-                ? 'bg-indigo-50 text-indigo-700 border border-indigo-200'
-                : 'text-gray-700 hover:bg-gray-50'
-            }`}
-          >
-            <span className="text-lg">➕</span>
-            <span className="font-medium">Create Institution</span>
-          </button>
-          
-          <button
-            onClick={() => setActiveTab('manage')}
-            className={`w-full flex items-center space-x-3 px-4 py-3 rounded-lg text-left transition-colors ${
-              activeTab === 'manage'
-                ? 'bg-indigo-50 text-indigo-700 border border-indigo-200'
-                : 'text-gray-700 hover:bg-gray-50'
-            }`}
-          >
-            <span className="text-lg">🏢</span>
-            <span className="font-medium">Manage Institutions</span>
-          </button>
-        </nav>
-
-        {/* Logout */}
-        <div className="absolute bottom-0 w-64 p-4 border-t border-gray-200">
-          <button
-            onClick={handleLogout}
-            className="w-full flex items-center space-x-3 px-4 py-3 rounded-lg text-left text-red-600 hover:bg-red-50 transition-colors"
-          >
-            <span className="text-lg">🚪</span>
-            <span className="font-medium">Logout</span>
-          </button>
         </div>
       </div>
 
       {/* Main Content */}
-      <div className="flex-1 overflow-auto">
-        {/* Top Header */}
-        <div className="bg-white shadow-sm border-b border-gray-200 px-8 py-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <h2 className="text-2xl font-bold text-gray-900">
-                {activeTab === 'dashboard' && 'Dashboard'}
-                {activeTab === 'create' && 'Create Institution'}
-                {activeTab === 'manage' && 'Manage Institutions'}
-              </h2>
-              <p className="text-gray-600 mt-1">
-                {activeTab === 'dashboard' && 'Overview of your CBT platform'}
-                {activeTab === 'create' && 'Add a new institution to your platform'}
-                {activeTab === 'manage' && 'Manage existing institutions and users'}
-              </p>
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Error Display */}
+        {error && (
+          <div className="mb-6 bg-red-50 border border-red-200 rounded-md p-4">
+            <div className="flex">
+              <div className="flex-shrink-0">
+                <svg className="h-5 w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                </svg>
+              </div>
+              <div className="ml-3">
+                <h3 className="text-sm font-medium text-red-800">Error</h3>
+                <div className="mt-2 text-sm text-red-700">{error}</div>
+              </div>
             </div>
-            
-
           </div>
-        </div>
+        )}
 
-        {/* Content Area */}
-        <div className="p-8">
-          {error && (
-            <div className="mb-6 p-4 bg-red-50 border border-red-200 text-red-700 rounded-lg">
-              {error}
+        {/* Loading State */}
+        {loading && (
+          <div className="text-center py-12">
+            <div className="inline-flex items-center px-4 py-2 font-semibold leading-6 text-sm shadow rounded-md text-white bg-indigo-500 hover:bg-indigo-400 transition ease-in-out duration-150 cursor-not-allowed">
+              <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+              </svg>
+              Loading institutions...
             </div>
-          )}
-          
-          {success && (
-            <div className="mb-6 p-4 bg-green-50 border border-green-200 text-green-700 rounded-lg">
-              {success}
-            </div>
-          )}
+          </div>
+        )}
 
-          {/* Dashboard Tab */}
-          {activeTab === 'dashboard' && (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              <div className="bg-gradient-to-br from-blue-500 to-blue-600 text-white p-6 rounded-xl">
-                <div className="text-3xl mb-2">🏢</div>
-                <h3 className="text-xl font-semibold mb-2">Total Institutions</h3>
-                <p className="text-3xl font-bold">{institutions.length}</p>
-              </div>
-              
-              <div className="bg-gradient-to-br from-green-500 to-green-600 text-white p-6 rounded-xl">
-                <div className="text-3xl mb-2">✅</div>
-                <h3 className="text-xl font-semibold mb-2">Active Institutions</h3>
-                <p className="text-3xl font-bold">
-                  {institutions.filter(inst => !inst.suspended).length}
-                </p>
-              </div>
-              
-              <div className="bg-gradient-to-br from-yellow-500 to-yellow-600 text-white p-6 rounded-xl">
-                <div className="text-3xl mb-2">📅</div>
-                <h3 className="text-xl font-semibold mb-2">Created This Month</h3>
-                <p className="text-3xl font-bold">
-                  {institutions.filter(inst => {
-                    const created = new Date(inst.createdAt);
-                    const now = new Date();
-                    return created.getMonth() === now.getMonth() && 
-                           created.getFullYear() === now.getFullYear();
-                  }).length}
-                </p>
-              </div>
+        {/* Institutions List */}
+        {!loading && institutions.length === 0 && (
+          <div className="text-center py-12">
+            <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+            </svg>
+            <h3 className="mt-2 text-sm font-medium text-gray-900">No institutions</h3>
+            <p className="mt-1 text-sm text-gray-500">Get started by creating a new institution.</p>
+            <div className="mt-6">
+              <button
+                onClick={() => setShowAddForm(true)}
+                className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+              >
+                <svg className="-ml-1 mr-2 h-5 w-5" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd" />
+                </svg>
+                Add Institution
+              </button>
             </div>
-          )}
+          </div>
+        )}
 
-          {/* Create Institution Tab */}
-          {activeTab === 'create' && (
-            <div className="max-w-2xl mx-auto">
-              <h2 className="text-2xl font-bold text-gray-800 mb-6">Create New Institution</h2>
-              
-              <form onSubmit={handleCreateInstitution} className="space-y-6">
-                {/* Institution Details */}
-                <div className="bg-gray-50 p-6 rounded-lg">
-                  <h3 className="text-lg font-semibold text-gray-800 mb-4">Institution Details</h3>
-                  
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Institution Name *
-                      </label>
-                      <input
-                        type="text"
-                        required
-                        value={formData.name}
-                        onChange={(e) => setFormData({...formData, name: e.target.value})}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                        placeholder="Enter institution name"
-                      />
-                    </div>
-                    
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Address
-                      </label>
-                      <input
-                        type="text"
-                        value={formData.address}
-                        onChange={(e) => setFormData({...formData, address: e.target.value})}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                        placeholder="Enter institution address"
-                      />
-                    </div>
-                    
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Subscription Plan
-                      </label>
-                      <select
-                        value={formData.plan}
-                        onChange={(e) => setFormData({...formData, plan: e.target.value})}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                      >
-                        <option value="Basic">Basic</option>
-                        <option value="Premium">Premium</option>
-                        <option value="Enterprise">Enterprise</option>
-                      </select>
-                    </div>
-                    
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Timezone
-                      </label>
-                      <select
-                        value={formData.timezone}
-                        onChange={(e) => setFormData({...formData, timezone: e.target.value})}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                      >
-                        <option value="UTC">UTC</option>
-                        <option value="America/New_York">Eastern Time</option>
-                        <option value="America/Chicago">Central Time</option>
-                        <option value="America/Denver">Mountain Time</option>
-                        <option value="America/Los_Angeles">Pacific Time</option>
-                      </select>
-                    </div>
+        {/* Institutions Grid */}
+        {!loading && institutions.length > 0 && (
+          <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
+            {institutions.map((institution) => (
+              <div key={institution._id} className="bg-white rounded-lg shadow-md overflow-hidden">
+                {/* Institution Header */}
+                <div className="px-6 py-4 border-b border-gray-200">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-lg font-semibold text-gray-900">{institution.name}</h3>
+                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                      institution.status === 'Active' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                    }`}>
+                      {institution.status || 'Active'}
+                    </span>
                   </div>
                 </div>
 
-                {/* Default Admin Details */}
-                <div className="bg-gray-50 p-6 rounded-lg">
-                  <h3 className="text-lg font-semibold text-gray-800 mb-4">Default Administrator (Institution Login)</h3>
-                  <p className="text-sm text-gray-600 mb-4">
-                    These credentials will be used to access the institution's CBT platform.
-                  </p>
-                  
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* Institution Info */}
+                <div className="px-6 py-4">
+                  <div className="grid grid-cols-2 gap-4 text-sm">
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Full Name *
-                      </label>
-                      <input
-                        type="text"
-                        required
-                        value={formData.default_admin.fullName}
-                        onChange={(e) => setFormData({
-                          ...formData, 
-                          default_admin: {...formData.default_admin, fullName: e.target.value}
-                        })}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                        placeholder="Enter full name"
-                      />
+                      <span className="font-medium text-gray-600">ID:</span>
+                      <span className="ml-2 text-gray-900 font-mono">{institution.slug}</span>
                     </div>
-                    
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Email *
-                      </label>
-                      <input
-                        type="email"
-                        required
-                        value={formData.default_admin.email}
-                        onChange={(e) => setFormData({
-                          ...formData, 
-                          default_admin: {...formData.default_admin, email: e.target.value}
-                        })}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                        placeholder="Enter email address"
-                      />
+                      <span className="font-medium text-gray-600">Plan:</span>
+                      <span className="ml-2 text-gray-900">{institution.subscriptionPlan || 'Basic'}</span>
                     </div>
-                    
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Username *
-                      </label>
-                      <input
-                        type="text"
-                        required
-                        value={formData.default_admin.username}
-                        onChange={(e) => setFormData({
-                          ...formData, 
-                          default_admin: {...formData.default_admin, username: e.target.value}
-                        })}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                        placeholder="Enter username for institution login"
-                      />
+                      <span className="font-medium text-gray-600">Admin:</span>
+                      <span className="ml-2 text-gray-900">{institution.primaryAdmin || 'N/A'}</span>
                     </div>
-                    
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Phone
-                      </label>
-                      <input
-                        type="tel"
-                        value={formData.default_admin.phone}
-                        onChange={(e) => setFormData({
-                          ...formData, 
-                          default_admin: {...formData.default_admin, phone: e.target.value}
-                        })}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                        placeholder="Enter phone number"
-                      />
+                      <span className="font-medium text-gray-600">Users:</span>
+                      <span className="ml-2 text-gray-900">{institution.totalUsers || 0} users</span>
                     </div>
-                    
-                    <div className="md:col-span-2">
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Password *
-                      </label>
-                      <div className="relative">
-                        <input
-                          type={showPassword ? "text" : "password"}
-                          required
-                          value={formData.default_admin.password}
-                          onChange={(e) => setFormData({
-                            ...formData, 
-                            default_admin: {...formData.default_admin, password: e.target.value}
-                          })}
-                          className="w-full px-3 py-2 pr-10 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                          placeholder="Enter password for institution login (min 6 characters)"
-                          minLength={6}
-                        />
-                        <button
-                          type="button"
-                          onClick={() => setShowPassword(!showPassword)}
-                          className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600"
-                        >
-                          {showPassword ? (
-                            <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.878 9.878L3 3m6.878 6.878L21 21" />
-                            </svg>
-                          ) : (
-                            <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                            </svg>
-                          )}
-                        </button>
+                    <div className="col-span-2">
+                      <span className="font-medium text-gray-600">Created:</span>
+                      <span className="ml-2 text-gray-900">
+                        {new Date(institution.createdAt).toLocaleDateString()}
+                      </span>
+                    </div>
+                    {institution.address && (
+                      <div className="col-span-2">
+                        <span className="font-medium text-gray-600">Address:</span>
+                        <span className="ml-2 text-gray-900">{institution.address}</span>
                       </div>
-                    </div>
+                    )}
                   </div>
                 </div>
 
-                <div className="flex justify-end space-x-4">
+                {/* Action Buttons */}
+                <div className="px-6 py-4 bg-gray-50 border-t border-gray-200">
+                  <div className="flex flex-wrap gap-2">
+                    <button
+                      onClick={() => handleEdit(institution)}
+                      className="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-xs font-medium rounded text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                    >
+                      <svg className="-ml-1 mr-1 h-4 w-4" fill="currentColor" viewBox="0 0 20 20">
+                        <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
+                      </svg>
+                      Edit
+                    </button>
+                    <button
+                      onClick={() => {
+                        setSelectedInstitution(institution);
+                        setShowManageAdminsForm(true);
+                      }}
+                      className="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-xs font-medium rounded text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                    >
+                      <svg className="-ml-1 mr-1 h-4 w-4" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-6-3a2 2 0 11-4 0 2 2 0 014 0zm-2 4a5 5 0 00-4.546 2.916A5.986 5.986 0 0010 16a5.986 5.986 0 004.546-2.084A5 5 0 0010 11z" clipRule="evenodd" />
+                      </svg>
+                      Manage Admins
+                    </button>
+                    <button
+                      onClick={() => {
+                        setSelectedInstitution(institution);
+                        setShowManageStudentsForm(true);
+                      }}
+                      className="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-xs font-medium rounded text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                    >
+                      <svg className="-ml-1 mr-1 h-4 w-4" fill="currentColor" viewBox="0 0 20 20">
+                        <path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                      Manage Students
+                    </button>
+                    <button
+                      onClick={() => handleDeleteInstitution(institution._id)}
+                      className="inline-flex items-center px-3 py-2 border border-red-300 shadow-sm text-xs font-medium rounded text-red-700 bg-white hover:bg-red-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
+                    >
+                      <svg className="-ml-1 mr-1 h-4 w-4" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 000-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V7a1 1 0 00-1-1z" clipRule="evenodd" />
+                      </svg>
+                      Delete
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Add/Edit Institution Modal */}
+      {showAddForm && (
+        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+          <div className="relative top-20 mx-auto p-5 border w-11/12 md:w-3/4 lg:w-1/2 shadow-lg rounded-md bg-white">
+            <div className="mt-3">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-medium text-gray-900">
+                  {selectedInstitution ? 'Edit Institution' : 'Add New Institution'}
+                </h3>
+                <button
+                  onClick={() => {
+                    setShowAddForm(false);
+                    setSelectedInstitution(null);
+                    setFormData({
+                      name: '',
+                      slug: '',
+                      subscriptionPlan: 'Basic',
+                      primaryAdmin: '',
+                      adminUsername: '',
+                      adminPassword: '',
+                      address: ''
+                    });
+                  }}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+
+              <form onSubmit={selectedInstitution ? handleUpdateInstitution : handleAddInstitution} className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700">Institution Name</label>
+                    <input
+                      type="text"
+                      name="name"
+                      value={formData.name}
+                      onChange={handleInputChange}
+                      required
+                      className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                      placeholder="Enter institution name"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700">Institution Slug</label>
+                    <input
+                      type="text"
+                      name="slug"
+                      value={formData.slug}
+                      onChange={handleInputChange}
+                      required
+                      className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                      placeholder="Enter institution slug"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700">Subscription Plan</label>
+                    <select
+                      name="subscriptionPlan"
+                      value={formData.subscriptionPlan}
+                      onChange={handleInputChange}
+                      className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 text-gray-900 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                    >
+                      <option value="Basic">Basic</option>
+                      <option value="Premium">Premium</option>
+                      <option value="Enterprise">Enterprise</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700">Primary Admin Name</label>
+                    <input
+                      type="text"
+                      name="primaryAdmin"
+                      value={formData.primaryAdmin}
+                      onChange={handleInputChange}
+                      className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                      placeholder="Enter primary admin name"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700">Admin Username</label>
+                    <input
+                      type="text"
+                      name="adminUsername"
+                      value={formData.adminUsername}
+                      onChange={handleInputChange}
+                      className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                      placeholder="Enter admin username"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700">Admin Password</label>
+                    <input
+                      type="password"
+                      name="adminPassword"
+                      value={formData.adminPassword}
+                      onChange={handleInputChange}
+                      className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                      placeholder="Enter admin password"
+                    />
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Address</label>
+                  <textarea
+                    name="address"
+                    value={formData.address}
+                    onChange={handleInputChange}
+                    rows="3"
+                    className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                    placeholder="Enter institution address"
+                  />
+                </div>
+                <div className="flex justify-end space-x-3 pt-4">
                   <button
                     type="button"
-                    onClick={() => setActiveTab('dashboard')}
-                    className="px-6 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50"
+                    onClick={() => {
+                      setShowAddForm(false);
+                      setSelectedInstitution(null);
+                      setFormData({
+                        name: '',
+                        slug: '',
+                        subscriptionPlan: 'Basic',
+                        primaryAdmin: '',
+                        adminUsername: '',
+                        adminPassword: '',
+                        address: ''
+                      });
+                    }}
+                    className="bg-gray-300 text-gray-700 px-4 py-2 rounded-md hover:bg-gray-400 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500"
                   >
                     Cancel
                   </button>
                   <button
                     type="submit"
-                    disabled={isSubmittingInstitution}
-                    className={`px-6 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 ${isSubmittingInstitution ? 'opacity-60 cursor-not-allowed' : ''}`}
+                    className="bg-indigo-600 text-white px-4 py-2 rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
                   >
-                    {isSubmittingInstitution ? 'Creating...' : 'Create Institution'}
+                    {selectedInstitution ? 'Update Institution' : 'Add Institution'}
                   </button>
                 </div>
               </form>
             </div>
-          )}
+          </div>
+        </div>
+      )}
 
-          {/* Manage Institutions Tab */}
-          {activeTab === 'manage' && (
-            <div>
-              <h2 className="text-2xl font-bold text-gray-800 mb-6">Manage Institutions</h2>
-              
-              {institutions.length === 0 ? (
-                <div className="text-center py-16">
-                  <div className="w-24 h-24 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-6">
-                    <span className="text-4xl">🏢</span>
-                  </div>
-                  <h3 className="text-2xl font-semibold text-gray-700 mb-3">No Institutions Found</h3>
-                  <p className="text-gray-500 mb-6 max-w-md mx-auto">You haven't created any institutions yet. Start by creating your first institution to manage CBT platforms.</p>
+      {/* Manage Admins Modal */}
+      {showManageAdminsForm && selectedInstitution && (
+        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+          <div className="relative top-20 mx-auto p-5 border w-11/12 md:w-3/4 lg:w-1/2 shadow-lg rounded-md bg-white">
+            <div className="mt-3">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-medium text-gray-900">
+                  Manage Admins - {selectedInstitution.name}
+                </h3>
+                <button
+                  onClick={() => {
+                    setShowManageAdminsForm(false);
+                    setSelectedInstitution(null);
+                  }}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+
+              <div className="space-y-4">
+                <p className="text-gray-600">
+                  Admin management functionality will be implemented here.
+                </p>
+                <div className="flex justify-end">
                   <button
-                    onClick={() => setActiveTab('create')}
-                    className="px-8 py-3 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors font-medium shadow-sm hover:shadow-md"
+                    onClick={() => {
+                      setShowManageAdminsForm(false);
+                      setSelectedInstitution(null);
+                    }}
+                    className="bg-gray-300 text-gray-700 px-4 py-2 rounded-md hover:bg-gray-400 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500"
                   >
-                    ➕ Create Your First Institution
-                  </button>
-                </div>
-              ) : (
-                <div className="grid gap-6">
-                  {institutions.map((institution) => (
-                    <div key={institution.slug} data-slug={institution.slug} className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm hover:shadow-md transition-all duration-200">
-                      <div className="flex justify-between items-start mb-6">
-                        <div className="flex-1">
-                                                     <div className="mb-2">
-                             <h3 className="text-xl font-semibold text-gray-800">
-                               {institution.name}
-                             </h3>
-                           </div>
-                           
-                           {/* Institution Info Grid - Clean, Legible Layout */}
-                           <div className="space-y-6 mb-6">
-                             {/* Row 1: Basic Info - 4 columns */}
-                             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                               <div className="bg-gray-50 p-6 rounded-lg">
-                                 <div className="text-sm font-medium text-gray-600 mb-2">Institution ID</div>
-                                 <div className="text-base font-mono text-gray-900 bg-white px-4 py-3 rounded border font-medium break-all">{institution.slug}</div>
-                               </div>
-                               
-                               <div className="bg-gray-50 p-6 rounded-lg">
-                                 <div className="text-sm font-medium text-gray-600 mb-2">Subscription Plan</div>
-                                 <div className={`inline-flex px-4 py-2 rounded-full text-sm font-medium ${
-                                   institution.plan === 'Premium' ? 'bg-purple-100 text-purple-800' :
-                                   institution.plan === 'Enterprise' ? 'bg-blue-100 text-blue-800' :
-                                   'bg-green-100 text-green-800'
-                                 }`}>{institution.plan}</div>
-                               </div>
-                               
-                               <div className="bg-gray-50 p-6 rounded-lg">
-                                 <div className="text-sm font-medium text-gray-600 mb-2">Status</div>
-                                 <div className={`inline-flex px-4 py-2 rounded-full text-sm font-medium ${
-                                   institution.suspended 
-                                     ? 'bg-red-100 text-red-800' 
-                                     : 'bg-green-100 text-green-800'
-                                 }`}>
-                                   {institution.suspended ? 'Suspended' : 'Active'}
-                                 </div>
-                               </div>
-                               
-                               <div className="bg-gray-50 p-6 rounded-lg">
-                                 <div className="text-sm font-medium text-gray-600 mb-2">Created Date</div>
-                                 <div className="text-base text-gray-900 font-medium">{new Date(institution.createdAt).toLocaleDateString('en-US', { 
-                                   year: 'numeric', 
-                                   month: 'long', 
-                                   day: 'numeric' 
-                                 })}</div>
-                               </div>
-                             </div>
-                             
-                             {/* Row 2: Admin Info - 3 columns */}
-                             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                               <div className="bg-gray-50 p-6 rounded-lg">
-                                 <div className="text-sm font-medium text-gray-600 mb-2">Primary Admin</div>
-                                 <div className="text-base font-medium text-gray-900">{institution.default_admin?.fullName || 'Not set'}</div>
-                               </div>
-                               
-                               <div className="bg-gray-50 p-6 rounded-lg">
-                                 <div className="text-sm font-medium text-gray-600 mb-2">Admin Username</div>
-                                 <div className="text-base font-mono text-gray-900 bg-white px-4 py-3 rounded border">{institution.default_admin?.username || 'Not set'}</div>
-                               </div>
-                               
-                               <div className="bg-gray-50 p-6 rounded-lg">
-                                 <div className="text-sm font-medium text-gray-600 mb-2">Total Users</div>
-                                 <div className="text-base font-medium text-gray-900">
-                                   <span id={`user-count-${institution.slug}`} className="text-blue-600 font-semibold">
-                                     Loading...
-                                   </span>
-                                   <button
-                                     onClick={() => loadUserCount(institution.slug)}
-                                     className="ml-3 text-sm text-gray-500 hover:text-gray-700 underline"
-                                     title="Refresh user count"
-                                   >
-                                     🔄
-                                   </button>
-                                 </div>
-                               </div>
-                             </div>
-                             
-                             {/* Row 3: Address - 1 column (full width) */}
-                             <div className="grid grid-cols-1 gap-6">
-                               <div className="bg-gray-50 p-6 rounded-lg">
-                                 <div className="text-sm font-medium text-gray-600 mb-2">Address</div>
-                                 <div className="text-base text-gray-900">{institution.address || 'No address provided'}</div>
-                               </div>
-                             </div>
-                           </div>
-                        </div>
-                        
-                        {/* Action Buttons - Organized by Function */}
-                        <div className="space-y-3">
-                          {/* Primary Actions Row */}
-                          <div className="flex flex-wrap gap-3">
-                            <button
-                              onClick={() => toggleInstitutionStatus(institution.slug, institution.suspended)}
-                              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                                institution.suspended
-                                  ? 'bg-green-600 text-white hover:bg-green-700'
-                                  : 'bg-yellow-600 text-white hover:bg-yellow-700'
-                              }`}
-                            >
-                              {institution.suspended ? '🟢 Activate' : '🟡 Suspend'}
-                            </button>
-                            
-                            <button
-                              onClick={() => openAdminsModal(institution.slug)}
-                              className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 text-sm font-medium transition-colors"
-                              title="Manage admins for this institution"
-                            >
-                              👥 Manage Admins
-                            </button>
-                            
-                            <button
-                              onClick={() => openStudentsModal(institution.slug)}
-                              className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 text-sm font-medium transition-colors"
-                              title="Manage students for this institution"
-                            >
-                              🎓 Manage Students
-                            </button>
-                          </div>
-                          
-                          {/* Secondary Actions Row */}
-                          <div className="flex flex-wrap gap-3">
-                            <button
-                              onClick={() => resetAdminPassword(institution.slug, institution.default_admin?.username)}
-                              className="px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 text-sm font-medium transition-colors"
-                              title="Reset admin password"
-                            >
-                              🔑 Reset Password
-                            </button>
-                            
-                            <button
-                              onClick={() => {
-                                if (window.confirm(`Are you sure you want to delete "${institution.name}"? This action cannot be undone.`)) {
-                                  deleteInstitution(institution.slug);
-                                }
-                              }}
-                              className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 text-sm font-medium transition-colors"
-                              title="Delete this institution"
-                            >
-                              🗑️ Delete
-                            </button>
-                          </div>
-                        </div>
-                      </div>
-                      
-                      {/* Institution Access Section */}
-                      <div className="mt-6 pt-4 border-t border-gray-200">
-                        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-                          <div className="flex items-center space-x-3">
-                            <a
-                              href={`https://cbtexam.netlify.app/?slug=${institution.slug}`}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="inline-flex items-center space-x-2 px-4 py-2 bg-indigo-50 text-indigo-700 rounded-lg hover:bg-indigo-100 transition-colors text-sm font-medium border border-indigo-200"
-                            >
-                              <span>🔗</span>
-                              <span>Open Institution Platform</span>
-                            </a>
-                          </div>
-                          
-                          <div className="flex items-center space-x-2 text-sm text-gray-600">
-                            <span className="bg-gray-100 px-3 py-1 rounded-full">
-                              👤 Login: <span className="font-mono font-medium">{institution.default_admin?.username || 'Not set'}</span>
-                            </span>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
-        </div>
-      </div>
-
-      {adminsModalSlug && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-xl p-6 w-full max-w-2xl mx-4">
-            {toast.message && (
-              <div className={`mb-3 p-2 rounded text-sm ${toast.type==='error' ? 'bg-red-50 text-red-700' : 'bg-green-50 text-green-700'}`}>{toast.message}</div>
-            )}
-            <div className="flex justify-between items-center mb-4">
-              <h3 className="text-lg font-bold">Manage Admins</h3>
-              <button onClick={() => setAdminsModalSlug(null)} className="text-gray-500 hover:text-gray-700 text-xl">×</button>
-            </div>
-            <div className="mb-4 flex flex-col md:flex-row md:items-center md:justify-between gap-2">
-              <div className="text-sm text-gray-600">Tenant: <span className="font-medium">{adminsModalSlug}</span></div>
-              <div className="flex gap-2 items-center">
-                <input
-                  value={adminsFilter}
-                  onChange={(e) => setAdminsFilter(e.target.value)}
-                  placeholder="Search username/email"
-                  className="px-3 py-2 border border-gray-300 rounded-md text-sm"
-                />
-                <button onClick={() => setShowAdminForm(true)} className="px-3 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 text-sm">+ Create Admin</button>
-              </div>
-            </div>
-            {showAdminForm && (
-              <div className="mb-6 border rounded-lg p-8 bg-gray-50">
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-3">Full Name *</label>
-                    <input
-                      type="text"
-                      value={adminFormData.fullName}
-                      onChange={(e) => setAdminFormData({ ...adminFormData, fullName: e.target.value })}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                      placeholder="Enter full name"
-                      required
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-3">Email *</label>
-                    <input
-                      type="email"
-                      value={adminFormData.email}
-                      onChange={(e) => setAdminFormData({ ...adminFormData, email: e.target.value })}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                      placeholder="Enter email"
-                      required
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-3">Username *</label>
-                    <input
-                      type="text"
-                      value={adminFormData.username}
-                      onChange={(e) => setAdminFormData({ ...adminFormData, username: e.target.value })}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                      placeholder="Enter username"
-                      required
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-3">Password *</label>
-                    <input
-                      type="password"
-                      value={adminFormData.password}
-                      onChange={(e) => setAdminFormData({ ...adminFormData, password: e.target.value })}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                      placeholder="Min 6 characters"
-                      required
-                    />
-                  </div>
-                </div>
-                {adminFormError && (
-                  <div className="mt-3 p-2 rounded bg-red-50 border border-red-200 text-red-700 text-sm">{adminFormError}</div>
-                )}
-                <div className="mt-4 flex justify-end gap-2">
-                  <button onClick={() => { setShowAdminForm(false); setAdminFormError(''); }} className="px-4 py-2 border border-gray-300 rounded-md hover:bg-gray-50">Cancel</button>
-                  <button onClick={async () => { await submitCreateAdmin(); showToast('success', 'Admin created'); }} disabled={adminFormLoading} className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 disabled:opacity-50">
-                    {adminFormLoading ? 'Creating...' : 'Create Admin'}
+                    Close
                   </button>
                 </div>
               </div>
-            )}
-            <div className="border rounded-lg overflow-hidden">
-              <table className="min-w-full table-fixed">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-24">Username</th>
-                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-32">Full Name</th>
-                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-40">Email</th>
-                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-20">Role</th>
-                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-24">Status</th>
-                    <th className="px-4 py-2 w-32"></th>
-                  </tr>
-                </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
-                  {adminsLoading && (
-                    <tr><td colSpan={6} className="px-4 py-4 text-center text-gray-500">Loading...</td></tr>
-                  )}
-                  {!adminsLoading && admins.filter(a => {
-                    const q = adminsFilter.toLowerCase().trim();
-                    if (!q) return true;
-                    return (
-                      (a.username || '').toLowerCase().includes(q) ||
-                      (a.email || '').toLowerCase().includes(q)
-                    );
-                  }).length === 0 && (
-                    <tr><td colSpan={6} className="px-4 py-4 text-center text-gray-500">No admins found</td></tr>
-                  )}
-                  {admins.filter(a => {
-                    const q = adminsFilter.toLowerCase().trim();
-                    if (!q) return true;
-                    return (
-                      (a.username || '').toLowerCase().includes(q) ||
-                      (a.email || '').toLowerCase().includes(q)
-                    );
-                  }).map(a => (
-                    <tr key={a.username}>
-                      <td className="px-4 py-2 text-sm font-medium text-gray-900">{a.username}</td>
-                      <td className="px-4 py-2 text-sm text-gray-700">{a.fullName}</td>
-                      <td className="px-4 py-2 text-sm text-gray-700">{a.email}</td>
-                      <td className="px-4 py-2 text-sm text-gray-700">{a.role || 'admin'}</td>
-                      <td className="px-4 py-2 text-sm">
-                        <span className={`px-2 py-1 rounded-full text-xs ${a.is_active ? 'bg-emerald-100 text-emerald-700' : 'bg-orange-100 text-orange-700'}`}>{a.is_active ? 'Active' : 'Suspended'}</span>
-                      </td>
-                      <td className="px-4 py-2 text-sm text-right">
-                        {a.is_active ? (
-                          <button onClick={async () => { await setAdminStatus(adminsModalSlug, a.username, false); showToast('success', 'Admin suspended'); }} className="px-3 py-1 rounded-lg bg-orange-600 text-white hover:bg-orange-700 mr-2">Suspend</button>
-                        ) : (
-                          <button onClick={async () => { await setAdminStatus(adminsModalSlug, a.username, true); showToast('success', 'Admin activated'); }} className="px-3 py-1 rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 mr-2">Activate</button>
-                        )}
-                        <button
-                          onClick={async () => { await deleteAdmin(adminsModalSlug, a.username); showToast('success', 'Admin deleted'); }}
-                          className={`px-3 py-1 rounded-lg text-white ${a.is_default_admin ? 'bg-gray-300 cursor-not-allowed' : 'bg-red-600 hover:bg-red-700'}`}
-                          title={a.is_default_admin ? 'Cannot delete default admin' : 'Delete admin'}
-                          disabled={!!a.is_default_admin}
-                        >
-                          Delete
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
             </div>
           </div>
         </div>
       )}
-      {studentsModalSlug && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-xl p-6 w-full max-w-2xl mx-4">
-            {toast.message && (
-              <div className={`mb-3 p-2 rounded text-sm ${toast.type==='error' ? 'bg-red-50 text-red-700' : 'bg-green-50 text-green-700'}`}>{toast.message}</div>
-            )}
-            <div className="flex justify-between items-center mb-4">
-              <h3 className="text-lg font-bold">Manage Students</h3>
-              <button onClick={() => setStudentsModalSlug(null)} className="text-gray-500 hover:text-gray-700 text-xl">×</button>
-            </div>
-            <div className="mb-4 flex justify-between items-center">
-              <div className="text-sm text-gray-600">Tenant: <span className="font-medium">{studentsModalSlug}</span></div>
-              <input
-                value={studentsFilter}
-                onChange={(e) => setStudentsFilter(e.target.value)}
-                placeholder="Search username/email"
-                className="px-3 py-2 border border-gray-300 rounded-md text-sm"
-              />
-            </div>
-            <div className="border rounded-lg overflow-hidden">
-              <table className="min-w-full">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Username</th>
-                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Full Name</th>
-                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email</th>
-                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                    <th className="px-4 py-2"></th>
-                  </tr>
-                </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
-                  {studentsLoading && (
-                    <tr><td colSpan={5} className="px-4 py-4 text-center text-gray-500">Loading...</td></tr>
-                  )}
-                  {!studentsLoading && students.filter(s => {
-                    const q = studentsFilter.toLowerCase().trim();
-                    if (!q) return true;
-                    return (
-                      (s.username || '').toLowerCase().includes(q) ||
-                      (s.email || '').toLowerCase().includes(q)
-                    );
-                  }).length === 0 && (
-                    <tr><td colSpan={5} className="px-4 py-4 text-center text-gray-500">No students found</td></tr>
-                  )}
-                  {students.filter(s => {
-                    const q = studentsFilter.toLowerCase().trim();
-                    if (!q) return true;
-                    return (
-                      (s.username || '').toLowerCase().includes(q) ||
-                      (s.email || '').toLowerCase().includes(q)
-                    );
-                  }).map(s => (
-                    <tr key={s.username}>
-                      <td className="px-4 py-2 text-sm font-medium text-gray-900">{s.username}</td>
-                      <td className="px-4 py-2 text-sm text-gray-700">{s.fullName}</td>
-                      <td className="px-4 py-2 text-sm text-gray-700">{s.email}</td>
-                      <td className="px-4 py-2 text-sm">
-                        <span className={`px-2 py-1 rounded-full text-xs ${s.is_active ? 'bg-emerald-100 text-emerald-700' : 'bg-orange-100 text-orange-700'}`}>{s.is_active ? 'Active' : 'Suspended'}</span>
-                      </td>
-                      <td className="px-4 py-2 text-sm text-right">
-                        {s.is_active ? (
-                          <button onClick={() => setStudentStatusRemote(studentsModalSlug, s.username, false)} className="px-3 py-1 rounded-lg bg-orange-600 text-white hover:bg-orange-700 mr-2">Suspend</button>
-                        ) : (
-                          <button onClick={() => setStudentStatusRemote(studentsModalSlug, s.username, true)} className="px-3 py-1 rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 mr-2">Activate</button>
-                        )}
-                        <button onClick={() => deleteStudentRemote(studentsModalSlug, s.username)} className="px-3 py-1 rounded-lg bg-red-600 text-white hover:bg-red-700">Delete</button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+
+      {/* Manage Students Modal */}
+      {showManageStudentsForm && selectedInstitution && (
+        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+          <div className="relative top-20 mx-auto p-5 border w-11/12 md:w-3/4 lg:w-1/2 shadow-lg rounded-md bg-white">
+            <div className="mt-3">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-medium text-gray-900">
+                  Manage Students - {selectedInstitution.name}
+                </h3>
+                <button
+                  onClick={() => {
+                    setShowManageStudentsForm(false);
+                    setSelectedInstitution(null);
+                  }}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+
+              <div className="space-y-4">
+                <p className="text-gray-600">
+                  Student management functionality will be implemented here.
+                </p>
+                <div className="flex justify-end">
+                  <button
+                    onClick={() => {
+                      setShowManageStudentsForm(false);
+                      setSelectedInstitution(null);
+                    }}
+                    className="bg-gray-300 text-gray-700 px-4 py-2 rounded-md hover:bg-gray-400 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500"
+                  >
+                    Close
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
         </div>
       )}
-      
-
     </div>
   );
 };
