@@ -1593,6 +1593,188 @@ app.get('/api/tenants/:slug/users', cors(), authenticateMultiTenantAdmin, async 
   }
 });
 
+// ===== ADMIN MANAGEMENT ENDPOINTS =====
+
+// Get all admins for a tenant
+app.get('/api/tenants/:slug/admins', cors(), authenticateMultiTenantAdmin, async (req, res) => {
+  try {
+    const { slug } = req.params;
+    
+    const tenant = await Tenant.findOne({ slug, deleted_at: null });
+    if (!tenant) {
+      return res.status(404).json({ error: 'Tenant not found' });
+    }
+    
+    const admins = await User.find({ 
+      tenant_id: tenant._id,
+      role: { $in: ['super_admin', 'admin', 'tenant_admin'] }
+    }).select('-password');
+    
+    res.json(admins.map(admin => ({
+      username: admin.username,
+      email: admin.email,
+      fullName: admin.fullName,
+      role: admin.role,
+      is_active: admin.is_active,
+      is_default_admin: admin.is_default_admin,
+      created_at: admin.created_at
+    })));
+  } catch (err) {
+    console.error('Error fetching tenant admins:', err);
+    res.status(500).json({ error: 'Failed to fetch tenant admins' });
+  }
+});
+
+// Create new admin for a tenant
+app.post('/api/tenants/:slug/admins', cors(), authenticateMultiTenantAdmin, async (req, res) => {
+  try {
+    const { slug } = req.params;
+    const { username, email, fullName, password, role = 'admin' } = req.body;
+    
+    if (!username || !email || !fullName || !password) {
+      return res.status(400).json({ error: 'Missing required fields' });
+    }
+    
+    if (password.length < 6) {
+      return res.status(400).json({ error: 'Password must be at least 6 characters' });
+    }
+    
+    const tenant = await Tenant.findOne({ slug, deleted_at: null });
+    if (!tenant) {
+      return res.status(404).json({ error: 'Tenant not found' });
+    }
+    
+    // Check if username already exists in this tenant
+    const existingUser = await User.findOne({ 
+      tenant_id: tenant._id,
+      username: { $regex: new RegExp(`^${username}$`, 'i') }
+    });
+    
+    if (existingUser) {
+      return res.status(400).json({ error: 'Username already exists in this institution' });
+    }
+    
+    // Check if email already exists in this tenant
+    const existingEmail = await User.findOne({ 
+      tenant_id: tenant._id,
+      email: { $regex: new RegExp(`^${email}$`, 'i') }
+    });
+    
+    if (existingEmail) {
+      return res.status(400).json({ error: 'Email already exists in this institution' });
+    }
+    
+    // Create new admin user
+    const newAdmin = new User({
+      tenant_id: tenant._id,
+      username: username,
+      email: email,
+      fullName: fullName,
+      password: password,
+      role: role,
+      is_active: true,
+      is_default_admin: false
+    });
+    
+    await newAdmin.save();
+    
+    const { password: _, ...adminData } = newAdmin.toObject();
+    res.status(201).json({
+      message: 'Admin created successfully',
+      admin: adminData
+    });
+  } catch (err) {
+    console.error('Error creating admin:', err);
+    res.status(500).json({ error: 'Failed to create admin' });
+  }
+});
+
+// Update admin status (suspend/activate)
+app.patch('/api/tenants/:slug/admins/:username/status', cors(), authenticateMultiTenantAdmin, async (req, res) => {
+  try {
+    const { slug, username } = req.params;
+    const { is_active } = req.body;
+    
+    if (typeof is_active !== 'boolean') {
+      return res.status(400).json({ error: 'is_active must be a boolean' });
+    }
+    
+    const tenant = await Tenant.findOne({ slug, deleted_at: null });
+    if (!tenant) {
+      return res.status(404).json({ error: 'Tenant not found' });
+    }
+    
+    const admin = await User.findOne({ 
+      tenant_id: tenant._id,
+      username: { $regex: new RegExp(`^${username}$`, 'i') },
+      role: { $in: ['super_admin', 'admin', 'tenant_admin'] }
+    });
+    
+    if (!admin) {
+      return res.status(404).json({ error: 'Admin not found' });
+    }
+    
+    // Prevent suspending default admin
+    if (admin.is_default_admin && !is_active) {
+      return res.status(400).json({ error: 'Cannot suspend default admin' });
+    }
+    
+    admin.is_active = is_active;
+    await admin.save();
+    
+    res.json({
+      message: `Admin ${is_active ? 'activated' : 'suspended'} successfully`,
+      admin: {
+        username: admin.username,
+        is_active: admin.is_active
+      }
+    });
+  } catch (err) {
+    console.error('Error updating admin status:', err);
+    res.status(500).json({ error: 'Failed to update admin status' });
+  }
+});
+
+// Delete admin from tenant
+app.delete('/api/tenants/:slug/admins/:username', cors(), authenticateMultiTenantAdmin, async (req, res) => {
+  try {
+    const { slug, username } = req.params;
+    
+    const tenant = await Tenant.findOne({ slug, deleted_at: null });
+    if (!tenant) {
+      return res.status(404).json({ error: 'Tenant not found' });
+    }
+    
+    const admin = await User.findOne({ 
+      tenant_id: tenant._id,
+      username: { $regex: new RegExp(`^${username}$`, 'i') },
+      role: { $in: ['super_admin', 'admin', 'tenant_admin'] }
+    });
+    
+    if (!admin) {
+      return res.status(404).json({ error: 'Admin not found' });
+    }
+    
+    // Prevent deleting default admin
+    if (admin.is_default_admin) {
+      return res.status(400).json({ error: 'Cannot delete default admin' });
+    }
+    
+    await User.findByIdAndDelete(admin._id);
+    
+    res.json({
+      message: 'Admin deleted successfully',
+      deletedAdmin: {
+        username: admin.username,
+        fullName: admin.fullName
+      }
+    });
+  } catch (err) {
+    console.error('Error deleting admin:', err);
+    res.status(500).json({ error: 'Failed to delete admin' });
+  }
+});
+
 // Reset institution admin password endpoint
 app.patch('/api/tenants/:slug/reset-admin-password', cors(), authenticateMultiTenantAdmin, async (req, res) => {
   try {
