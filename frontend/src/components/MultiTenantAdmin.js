@@ -68,6 +68,7 @@ const MultiTenantAdmin = () => {
       }
 
       const data = await response.json();
+      console.log('🏢 Loaded Institutions Data:', data);
       setInstitutions(data);
       setError(null);
     } catch (error) {
@@ -254,21 +255,57 @@ const MultiTenantAdmin = () => {
         return;
       }
 
+      const requestBody = {
+        newPassword: passwordResetData.newPassword,
+        adminUsername: selectedInstitution.adminUsername
+      };
+
+      // Debug: Check if adminUsername exists
+      if (!selectedInstitution.adminUsername) {
+        console.warn('⚠️ Warning: adminUsername is undefined or empty');
+        console.log('Selected Institution:', selectedInstitution);
+      }
+
+      console.log('🔐 Password Reset Request:', {
+        url: `https://cbt-rew7.onrender.com/api/tenants/${selectedInstitution.slug}/reset-admin-password`,
+        method: 'PATCH',
+        body: requestBody,
+        institution: selectedInstitution.name,
+        slug: selectedInstitution.slug,
+        adminUsername: selectedInstitution.adminUsername
+      });
+
       const response = await fetch(`https://cbt-rew7.onrender.com/api/tenants/${selectedInstitution.slug}/reset-admin-password`, {
         method: 'PATCH',
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify({
-          newPassword: passwordResetData.newPassword,
-          adminUsername: selectedInstitution.adminUsername
-        })
+        body: JSON.stringify(requestBody)
       });
 
+      console.log('📡 Response Status:', response.status);
+      console.log('📡 Response Headers:', Object.fromEntries(response.headers.entries()));
+
       if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
+        const errorText = await response.text();
+        console.error('❌ Error Response Body:', errorText);
+        
+        let errorMessage = `HTTP error! status: ${response.status}`;
+        try {
+          const errorJson = JSON.parse(errorText);
+          if (errorJson.error) {
+            errorMessage = errorJson.error;
+          }
+        } catch (parseError) {
+          console.log('Could not parse error response as JSON');
+        }
+        
+        throw new Error(errorMessage);
       }
+
+      const responseData = await response.json();
+      console.log('✅ Success Response:', responseData);
 
       alert('Admin password has been successfully reset!');
       setShowPasswordReset(false);
@@ -276,7 +313,7 @@ const MultiTenantAdmin = () => {
       setError(null);
     } catch (error) {
       console.error('Error resetting password:', error);
-      setError('Failed to reset password. Please try again.');
+      setError(`Failed to reset password: ${error.message}`);
     }
   };
 
@@ -905,29 +942,31 @@ const MultiTenantAdmin = () => {
                  <div className="space-y-4">
                    <div>
                      <label className="block text-sm font-medium text-gray-700">New Password</label>
-                     <input
-                       type="password"
-                       name="newPassword"
-                       value={passwordResetData.newPassword}
-                       onChange={handlePasswordResetChange}
-                       required
-                       minLength="6"
-                       className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-yellow-500 focus:border-yellow-500"
-                       placeholder="Enter new password (min 6 characters)"
-                     />
+                                           <input
+                        type="password"
+                        name="newPassword"
+                        value={passwordResetData.newPassword}
+                        onChange={handlePasswordResetChange}
+                        required
+                        minLength="6"
+                        autoComplete="new-password"
+                        className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-yellow-500 focus:border-yellow-500"
+                        placeholder="Enter new password (min 6 characters)"
+                      />
                    </div>
                    <div>
                      <label className="block text-sm font-medium text-gray-700">Confirm New Password</label>
-                     <input
-                       type="password"
-                       name="confirmPassword"
-                       value={passwordResetData.confirmPassword}
-                       onChange={handlePasswordResetChange}
-                       required
-                       minLength="6"
-                       className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-yellow-500 focus:border-yellow-500"
-                       placeholder="Confirm new password"
-                     />
+                                           <input
+                        type="password"
+                        name="confirmPassword"
+                        value={passwordResetData.confirmPassword}
+                        onChange={handlePasswordResetChange}
+                        required
+                        minLength="6"
+                        autoComplete="new-password"
+                        className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-yellow-500 focus:border-yellow-500"
+                        placeholder="Confirm new password"
+                      />
                    </div>
                  </div>
 
