@@ -49,14 +49,7 @@ const MultiTenantAdmin = () => {
     return localStorage.getItem('multi_tenant_admin_token');
   };
 
-  const canManageAdmins = () => {
-    try {
-      const u = JSON.parse(localStorage.getItem('multi_tenant_admin_user'));
-      return u && (u.role === 'super_admin' || u.role === 'managed_admin');
-    } catch {
-      return false;
-    }
-  };
+  // Note: role checks are handled server-side for security
 
   // Check if user is authenticated
   const isAuthenticated = useCallback(() => {
@@ -528,34 +521,7 @@ const MultiTenantAdmin = () => {
     }
   };
 
-  const checkTenantUsers = async (slug) => {
-    try {
-      const token = getAuthToken();
-      
-      const response = await fetch(`${API_BASE_URL}/api/tenants/${slug}/users`, {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to fetch tenant users');
-      }
-
-      const result = await response.json();
-      console.log('🔍 Users in tenant:', result);
-      
-      // Show the results in an alert for now
-      const userList = result.users.map(u => `${u.username} (${u.role})`).join('\n');
-      alert(`Users in ${result.tenant.name}:\n\n${userList || 'No users found'}`);
-      
-    } catch (error) {
-      console.error('Failed to check tenant users:', error);
-      alert('Failed to check tenant users: ' + error.message);
-    }
-  };
+  // Removed unused checkTenantUsers helper (not used in UI)
 
 
 
