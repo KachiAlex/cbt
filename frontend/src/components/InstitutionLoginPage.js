@@ -38,6 +38,7 @@ const InstitutionLoginPage = () => {
       }
       
       const data = await response.json();
+      console.log('🏫 Institution data loaded:', data);
       setInstitutionData(data);
       
       // Store institution data in localStorage for use throughout the CBT system

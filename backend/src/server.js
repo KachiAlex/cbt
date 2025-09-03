@@ -616,8 +616,8 @@ app.get('/api/users', async (req, res, next) => {
  	try {
  		const { username, password, tenant_slug } = req.body;
  		
- 		if (!username || !password) {
- 			return res.status(400).json({ error: 'Username and password are required' });
+ 		if (!username || !password || !tenant_slug) {
+ 			return res.status(400).json({ error: 'Username, password, and institution are required' });
  		}
  		
  		// Find tenant by slug
@@ -1307,6 +1307,7 @@ app.get('/api/tenant/:slug/profile', cors(), async (req, res) => {
     }
     
     res.json({
+      slug: tenant.slug,
       name: tenant.name,
       logo_url: tenant.logo_url,
       address: tenant.address,
