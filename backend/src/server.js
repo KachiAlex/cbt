@@ -82,6 +82,20 @@ app.get('/health', (req, res) => {
 	});
 });
 
+// Test endpoint to verify new code is running
+app.get('/api/debug/test', cors(), (req, res) => {
+  res.json({ 
+    message: '✅ New backend code is running!',
+    timestamp: new Date().toISOString(),
+    features: [
+      'Role migration endpoint (/api/debug/fix-roles)',
+      'Enhanced user debugging',
+      'Better error handling',
+      'Database status endpoint'
+    ]
+  });
+});
+
 // Database connection check endpoint
 app.get('/api/debug/db-status', cors(), async (req, res) => {
   try {
@@ -128,10 +142,10 @@ app.get('/api/debug/db-status', cors(), async (req, res) => {
 app.get('/api', (req, res) => {
 	res.json({ 
 		message: 'CBT Backend API is running',
-		version: '2.0.12-FINAL', // Added student registration endpoint and improved institution page
+		version: '2.0.13-DEBUG', // Added comprehensive debugging and role migration
 		database: process.env.DB_TYPE || 'mongodb',
 		multi_tenant: true,
-		deployment: 'final-version-' + Date.now(),
+		deployment: 'debug-version-' + Date.now(),
 		endpoints: {
 			health: '/health',
 			landing_page: '/',
@@ -1463,11 +1477,58 @@ app.post('/api/debug/fix-roles', cors(), authenticateMultiTenantAdmin, async (re
 // Debug endpoint to check all users in the system
 app.get('/api/debug/users', cors(), authenticateMultiTenantAdmin, async (req, res) => {
   try {
-    const allUsers = await User.find({}).select('-password');
-    const tenants = await Tenant.find({ deleted_at: null });
+    console.log('🔍 Debug: Starting comprehensive user check...');
+    
+    // Check database connection
+    const dbStatus = mongoose.connection.readyState;
+    const dbName = mongoose.connection.name;
+    const dbHost = mongoose.connection.host;
+    console.log('🔍 Debug: Database connection state:', dbStatus);
+    console.log('🔍 Debug: Database name:', dbName);
+    console.log('🔍 Debug: Database host:', dbHost);
+    
+    // Get all collections
+    let collections = [];
+    try {
+      collections = await mongoose.connection.db.listCollections().toArray();
+      console.log('🔍 Debug: Available collections:', collections.map(c => c.name));
+    } catch (colError) {
+      console.log('🔍 Debug: Could not list collections:', colError.message);
+    }
+    
+    // Try to find users with different approaches
+    let allUsers = [];
+    let userCount = 0;
+    
+    try {
+      allUsers = await User.find({}).select('-password');
+      userCount = allUsers.length;
+      console.log('🔍 Debug: Found users with User.find():', userCount);
+    } catch (userError) {
+      console.log('🔍 Debug: User.find() failed:', userError.message);
+    }
+    
+    // Try direct collection access
+    let directUsers = [];
+    try {
+      const userCollection = mongoose.connection.db.collection('users');
+      directUsers = await userCollection.find({}).toArray();
+      console.log('🔍 Debug: Direct collection access found:', directUsers.length, 'users');
+    } catch (directError) {
+      console.log('🔍 Debug: Direct collection access failed:', directError.message);
+    }
+    
+    // Check tenants
+    let tenants = [];
+    try {
+      tenants = await Tenant.find({ deleted_at: null });
+      console.log('🔍 Debug: Found tenants:', tenants.length);
+    } catch (tenantError) {
+      console.log('🔍 Debug: Tenant.find() failed:', tenantError.message);
+    }
     
     res.json({
-      totalUsers: allUsers.length,
+      totalUsers: userCount,
       users: allUsers.map(u => ({
         _id: u._id,
         username: u.username,
@@ -1481,11 +1542,24 @@ app.get('/api/debug/users', cors(), authenticateMultiTenantAdmin, async (req, re
         _id: t._id,
         name: t.name,
         slug: t.slug
-      }))
+      })),
+      debug: {
+        dbConnection: dbStatus,
+        dbName: dbName,
+        dbHost: dbHost,
+        collections: collections.map(c => c.name),
+        directUserCount: directUsers.length,
+        userFindSuccess: userCount > 0 || allUsers.length > 0,
+        tenantFindSuccess: tenants.length > 0
+      }
     });
   } catch (err) {
-    console.error('Error fetching all users:', err);
-    res.status(500).json({ error: 'Failed to fetch all users' });
+    console.error('Error in comprehensive user check:', err);
+    res.status(500).json({ 
+      error: 'Failed to fetch all users',
+      details: err.message,
+      stack: err.stack
+    });
   }
 });
 
