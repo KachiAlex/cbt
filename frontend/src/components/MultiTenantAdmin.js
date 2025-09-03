@@ -994,13 +994,13 @@ const MultiTenantAdmin = () => {
                     <div key={institution.slug} data-slug={institution.slug} className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm hover:shadow-md transition-all duration-200">
                       <div className="flex justify-between items-start mb-6">
                         <div className="flex-1">
-                          <div className="mb-2">
-                            <h3 className="text-xl font-semibold text-gray-800">
-                              {institution.name}
-                            </h3>
-                          </div>
-                          
-                                                     {/* Institution Info Grid - Clean, Legible Layout */}
+                                                     <div className="mb-2">
+                             <h3 className="text-xl font-semibold text-gray-800">
+                               {institution.name}
+                             </h3>
+                           </div>
+                           
+                           {/* Institution Info Grid - Clean, Legible Layout */}
                            <div className="space-y-6 mb-6">
                              {/* Row 1: Basic Info - 4 columns */}
                              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
