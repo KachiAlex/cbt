@@ -998,47 +998,25 @@ const MultiTenantAdmin = () => {
                           <h3 className="text-xl font-semibold text-gray-800 mb-2">
                             {institution.name}
                           </h3>
-                          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 text-sm text-gray-600">
-                            <div className="flex items-center space-x-2">
-                              <span className="font-medium text-gray-700">🏷️ Slug:</span>
-                              <span className="bg-gray-100 px-2 py-1 rounded text-xs font-mono">{institution.slug}</span>
-                            </div>
-                            <div className="flex items-center space-x-2">
-                              <span className="font-medium text-gray-700">📦 Plan:</span>
-                              <span className={`px-2 py-1 rounded text-xs font-medium ${
-                                institution.plan === 'Premium' ? 'bg-purple-100 text-purple-800' :
-                                institution.plan === 'Enterprise' ? 'bg-blue-100 text-blue-800' :
-                                'bg-green-100 text-green-800'
-                              }`}>
-                                {institution.plan}
-                              </span>
-                            </div>
-                            <div className="flex items-center space-x-2">
-                              <span className="font-medium text-gray-700">📊 Status:</span>
-                              <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm text-gray-600 mb-4">
+                            <div><strong>Slug:</strong> {institution.slug}</div>
+                            <div><strong>Plan:</strong> {institution.plan}</div>
+                            <div><strong>Status:</strong> 
+                              <span className={`ml-1 px-2 py-1 rounded-full text-xs ${
                                 institution.suspended 
                                   ? 'bg-red-100 text-red-800' 
                                   : 'bg-green-100 text-green-800'
                               }`}>
-                                {institution.suspended ? '⏸️ Suspended' : '✅ Active'}
+                                {institution.suspended ? 'Suspended' : 'Active'}
                               </span>
                             </div>
-                            <div className="flex items-center space-x-2">
-                              <span className="font-medium text-gray-700">👤 Admin:</span>
-                              <span className="text-gray-800">{institution.default_admin?.fullName || 'Not set'}</span>
-                            </div>
-                            <div className="flex items-center space-x-2">
-                              <span className="font-medium text-gray-700">🔑 Username:</span>
-                              <span className="bg-gray-100 px-2 py-1 rounded text-xs font-mono">{institution.default_admin?.username || 'Not set'}</span>
-                            </div>
-                            <div className="flex items-center space-x-2">
-                              <span className="font-medium text-gray-700">📅 Created:</span>
-                              <span className="text-gray-800">{new Date(institution.createdAt).toLocaleDateString()}</span>
-                            </div>
+                            <div><strong>Admin:</strong> {institution.default_admin?.fullName}</div>
+                            <div><strong>Username:</strong> {institution.default_admin?.username}</div>
+                            <div><strong>Created:</strong> {new Date(institution.createdAt).toLocaleDateString()}</div>
                           </div>
                         </div>
                         
-                                                 <div className="flex flex-wrap gap-2">
+                        <div className="flex flex-wrap gap-2">
                           <button
                             onClick={() => toggleInstitutionStatus(institution.slug, institution.suspended)}
                             className={`px-4 py-2 rounded-md text-sm ${
@@ -1115,42 +1093,18 @@ const MultiTenantAdmin = () => {
                         </div>
                       </div>
                       
-                      <div className="mt-4 pt-4 border-t border-gray-200 bg-gray-50 p-4 rounded-lg">
-                        <div className="flex items-center justify-between">
-                          <div className="flex-1">
-                            <h4 className="text-sm font-medium text-gray-700 mb-2">🔗 Institution Access</h4>
-                            <div className="space-y-2">
-                              <div className="flex items-center space-x-2">
-                                <span className="text-xs text-gray-500">URL:</span>
-                                <a
-                                  href={`https://cbtexam.netlify.app/?slug=${institution.slug}`}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="text-indigo-600 hover:text-indigo-800 text-sm font-medium break-all"
-                                >
-                                  https://cbtexam.netlify.app/?slug={institution.slug}
-                                </a>
-                              </div>
-                              <div className="flex items-center space-x-2">
-                                <span className="text-xs text-gray-500">Login:</span>
-                                <span className="text-sm font-mono bg-white px-2 py-1 rounded border">
-                                  {institution.default_admin?.username || 'Not set'}
-                                </span>
-                                <span className="text-xs text-gray-400">/ [password]</span>
-                              </div>
-                            </div>
-                          </div>
-                          <button
-                            onClick={() => {
-                              navigator.clipboard.writeText(`https://cbtexam.netlify.app/?slug=${institution.slug}`);
-                              showToast('success', 'URL copied to clipboard!');
-                            }}
-                            className="px-3 py-1 bg-gray-200 hover:bg-gray-300 text-gray-700 rounded text-xs"
-                            title="Copy URL to clipboard"
-                          >
-                            📋 Copy
-                          </button>
-                        </div>
+                      <div className="mt-4 pt-4 border-t border-gray-200">
+                        <a
+                          href={`https://cbtexam.netlify.app/?slug=${institution.slug}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-indigo-600 hover:text-indigo-800 text-sm font-medium"
+                        >
+                          🔗 View Institution: https://cbtexam.netlify.app/?slug={institution.slug}
+                        </a>
+                        <p className="text-xs text-gray-500 mt-1">
+                          Login: {institution.default_admin?.username} / [password]
+                        </p>
                       </div>
                     </div>
                   ))}
