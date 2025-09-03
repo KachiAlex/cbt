@@ -985,10 +985,7 @@ const MultiTenantAdmin = () => {
                     <div key={institution.slug} data-slug={institution.slug} className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm hover:shadow-md transition-all duration-200">
                       <div className="flex justify-between items-start mb-6">
                         <div className="flex-1">
-                          <div className="flex items-center space-x-3 mb-2">
-                            <div className="w-10 h-10 bg-indigo-100 rounded-lg flex items-center justify-center">
-                              <span className="text-indigo-600 text-xl">🏢</span>
-                            </div>
+                          <div className="mb-2">
                             <h3 className="text-xl font-semibold text-gray-800">
                               {institution.name}
                             </h3>
