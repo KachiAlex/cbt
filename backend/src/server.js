@@ -1174,6 +1174,81 @@ app.post('/api/tenants', cors(), authenticateMultiTenantAdmin, async (req, res) 
   }
 });
 
+// Update tenant information endpoint
+app.put('/api/tenants/:id', cors(), authenticateMultiTenantAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { name, slug, address, contact_phone, plan, timezone } = req.body;
+
+    // Validate required fields
+    if (!name || !slug) {
+      return res.status(400).json({ error: 'Missing required fields: name and slug' });
+    }
+
+    // Find the tenant
+    const tenant = await Tenant.findById(id);
+    if (!tenant) {
+      return res.status(404).json({ error: 'Tenant not found' });
+    }
+
+    // Check if slug is being changed and ensure it's unique
+    if (slug !== tenant.slug) {
+      const existingTenant = await Tenant.findOne({ slug, _id: { $ne: id } });
+      if (existingTenant) {
+        return res.status(400).json({ error: 'Slug already exists' });
+      }
+    }
+
+    // Validate plan enum
+    const allowedPlans = ['Basic', 'Premium', 'Enterprise'];
+    let normalizedPlan = plan;
+    if (typeof normalizedPlan === 'string') {
+      const trimmed = normalizedPlan.trim().toLowerCase();
+      if (trimmed === 'basic') normalizedPlan = 'Basic';
+      else if (trimmed === 'premium') normalizedPlan = 'Premium';
+      else if (trimmed === 'enterprise') normalizedPlan = 'Enterprise';
+    }
+    if (!normalizedPlan || !allowedPlans.includes(normalizedPlan)) {
+      normalizedPlan = 'Basic';
+    }
+
+    // Update tenant fields
+    tenant.name = name;
+    tenant.slug = slug;
+    tenant.address = address || '';
+    tenant.contact_phone = contact_phone || '';
+    tenant.plan = normalizedPlan;
+    tenant.timezone = timezone || 'UTC';
+    tenant.updated_at = new Date();
+
+    await tenant.save();
+
+    res.json({
+      message: 'Tenant updated successfully',
+      tenant: {
+        id: tenant._id,
+        name: tenant.name,
+        slug: tenant.slug,
+        address: tenant.address,
+        contact_email: tenant.contact_email,
+        contact_phone: tenant.contact_phone,
+        plan: tenant.plan,
+        timezone: tenant.timezone,
+        suspended: tenant.suspended,
+        default_admin: {
+          username: tenant.default_admin.username,
+          email: tenant.default_admin.email,
+          fullName: tenant.default_admin.fullName,
+          phone: tenant.default_admin.phone
+        }
+      }
+    });
+  } catch (err) {
+    console.error('Error updating tenant:', err);
+    res.status(500).json({ error: 'Failed to update tenant' });
+  }
+});
+
 // Get all tenants endpoint
 app.get('/api/tenants', cors(), authenticateMultiTenantAdmin, async (req, res) => {
   try {

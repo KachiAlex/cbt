@@ -159,12 +159,43 @@ const MultiTenantAdmin = () => {
   // Update institution
   const handleUpdateInstitution = async (e) => {
     e.preventDefault();
+    
     try {
+      // Validate form data
+      if (!formData.name || !formData.slug) {
+        setError('Institution name and slug are required');
+        return;
+      }
+
       const token = await getAuthToken();
       if (!token) {
         setError('No valid authentication token available');
         return;
       }
+
+      // Check if we have a valid institution ID
+      if (!selectedInstitution || !selectedInstitution._id) {
+        setError('No institution selected for editing');
+        return;
+      }
+
+      // Map frontend fields to backend fields
+      const updateData = {
+        name: formData.name,
+        slug: formData.slug,
+        address: formData.address,
+        plan: formData.subscriptionPlan,
+        timezone: 'UTC' // Default timezone
+      };
+
+      console.log('✏️ Edit Institution Request:', {
+        url: `https://cbt-rew7.onrender.com/api/tenants/${selectedInstitution._id}`,
+        method: 'PUT',
+        institutionId: selectedInstitution._id,
+        formData: formData,
+        updateData: updateData,
+        selectedInstitution: selectedInstitution
+      });
 
       const response = await fetch(`https://cbt-rew7.onrender.com/api/tenants/${selectedInstitution._id}`, {
         method: 'PUT',
@@ -172,17 +203,44 @@ const MultiTenantAdmin = () => {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify(formData)
+        body: JSON.stringify(updateData)
       });
 
+      console.log('📡 Edit Response Status:', response.status);
+      console.log('📡 Edit Response Headers:', Object.fromEntries(response.headers.entries()));
+
       if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
+        const errorText = await response.text();
+        console.error('❌ Edit Error Response Body:', errorText);
+        
+        let errorMessage = `HTTP error! status: ${response.status}`;
+        try {
+          const errorJson = JSON.parse(errorText);
+          if (errorJson.error) {
+            errorMessage = errorJson.error;
+          }
+        } catch (parseError) {
+          console.log('Could not parse edit error response as JSON');
+        }
+        
+        throw new Error(errorMessage);
       }
 
-      const updatedInstitution = await response.json();
+      const responseData = await response.json();
+      console.log('✅ Edit Success Response:', responseData);
+
+      // Update the institutions list with the updated data
       setInstitutions(institutions.map(inst => 
-        inst._id === selectedInstitution._id ? updatedInstitution : inst
+        inst._id === selectedInstitution._id ? {
+          ...inst,
+          name: responseData.tenant.name,
+          slug: responseData.tenant.slug,
+          address: responseData.tenant.address,
+          subscriptionPlan: responseData.tenant.plan
+        } : inst
       ));
+
+      alert('✅ Institution updated successfully!');
       setShowAddForm(false);
       setSelectedInstitution(null);
       setFormData({
@@ -197,7 +255,7 @@ const MultiTenantAdmin = () => {
       setError(null);
     } catch (error) {
       console.error('Error updating institution:', error);
-      setError('Failed to update institution. Please try again.');
+      setError(`Failed to update institution: ${error.message}`);
     }
   };
 
@@ -496,15 +554,16 @@ const MultiTenantAdmin = () => {
                        </svg>
                        View Institution
                      </button>
-                     <button
-                       onClick={() => handleEdit(institution)}
-                       className="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-xs font-medium rounded text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
-                     >
-                       <svg className="-ml-1 mr-1 h-4 w-4" fill="currentColor" viewBox="0 0 20 20">
-                         <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
-                       </svg>
-                       Edit
-                     </button>
+                                           <button
+                        onClick={() => handleEdit(institution)}
+                        className="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-xs font-medium rounded text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                        title="Edit institution details"
+                      >
+                        <svg className="-ml-1 mr-1 h-4 w-4" fill="currentColor" viewBox="0 0 20 20">
+                          <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
+                        </svg>
+                        Edit
+                      </button>
                     <button
                       onClick={() => {
                         setSelectedInstitution(institution);
