@@ -1091,6 +1091,14 @@ const MultiTenantAdmin = () => {
                             >
                               👥 Manage Admins
                             </button>
+                            
+                            <button
+                              onClick={() => openStudentsModal(institution.slug)}
+                              className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 text-sm font-medium transition-colors"
+                              title="Manage students for this institution"
+                            >
+                              🎓 Manage Students
+                            </button>
                           </div>
                           
                           {/* Secondary Actions Row */}
@@ -1172,10 +1180,10 @@ const MultiTenantAdmin = () => {
               </div>
             </div>
             {showAdminForm && (
-              <div className="mb-4 border rounded-lg p-4 bg-gray-50">
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
+              <div className="mb-6 border rounded-lg p-6 bg-gray-50">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Full Name *</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Full Name *</label>
                     <input
                       type="text"
                       value={adminFormData.fullName}
@@ -1186,7 +1194,7 @@ const MultiTenantAdmin = () => {
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Email *</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Email *</label>
                     <input
                       type="email"
                       value={adminFormData.email}
@@ -1197,7 +1205,7 @@ const MultiTenantAdmin = () => {
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Username *</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Username *</label>
                     <input
                       type="text"
                       value={adminFormData.username}
@@ -1208,7 +1216,7 @@ const MultiTenantAdmin = () => {
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Password *</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Password *</label>
                     <input
                       type="password"
                       value={adminFormData.password}
