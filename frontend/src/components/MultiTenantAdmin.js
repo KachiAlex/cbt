@@ -401,7 +401,38 @@ const MultiTenantAdmin = () => {
      }
   };
 
+  const checkTenantUsers = async (slug) => {
+    try {
+      const token = getAuthToken();
+      
+      const response = await fetch(`${API_BASE_URL}/api/tenants/${slug}/users`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to fetch tenant users');
+      }
+
+      const result = await response.json();
+      console.log('🔍 Users in tenant:', result);
+      
+      // Show the results in an alert for now
+      const userList = result.users.map(u => `${u.username} (${u.role})`).join('\n');
+      alert(`Users in ${result.tenant.name}:\n\n${userList || 'No users found'}`);
+      
+    } catch (error) {
+      console.error('Failed to check tenant users:', error);
+      alert('Failed to check tenant users: ' + error.message);
+    }
+  };
+
   const resetAdminPassword = async (slug, adminUsername) => {
+    console.log('🔍 Attempting to reset password for:', { slug, adminUsername });
+    
     if (!adminUsername) {
       setError('No admin username found for this institution');
       return;
@@ -872,13 +903,23 @@ const MultiTenantAdmin = () => {
                            </button>
                            {canManageAdmins() && (
                              <>
-                               <button
-                                 onClick={() => resetAdminPassword(institution.slug, institution.default_admin?.username)}
-                                 className="px-4 py-2 bg-orange-600 text-white rounded-md hover:bg-orange-700 text-sm"
-                                 title="Reset admin password"
-                               >
-                                 Reset Admin Password
-                               </button>
+                                                        <button
+                           onClick={() => {
+                             console.log('🔍 Full institution data:', institution);
+                             checkTenantUsers(institution.slug);
+                           }}
+                           className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 text-sm mr-2"
+                           title="Check users in this institution"
+                         >
+                           Check Users
+                         </button>
+                         <button
+                           onClick={() => resetAdminPassword(institution.slug, institution.default_admin?.username)}
+                           className="px-4 py-2 bg-orange-600 text-white rounded-md hover:bg-orange-700 text-sm"
+                           title="Reset admin password"
+                         >
+                           Reset Admin Password
+                         </button>
                                <button
                                  onClick={() => deleteInstitution(institution.slug)}
                                  className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 text-sm"

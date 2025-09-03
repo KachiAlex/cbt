@@ -1291,6 +1291,33 @@ app.patch('/api/tenants/:slug/logo', cors(), authenticateMultiTenantAdmin, async
   }
 });
 
+// Debug endpoint to check users in a tenant
+app.get('/api/tenants/:slug/users', cors(), authenticateMultiTenantAdmin, async (req, res) => {
+  try {
+    const { slug } = req.params;
+    
+    const tenant = await Tenant.findOne({ slug, deleted_at: null });
+    if (!tenant) {
+      return res.status(404).json({ error: 'Tenant not found' });
+    }
+    
+    const users = await User.find({ tenant_id: tenant._id });
+    res.json({
+      tenant: { slug: tenant.slug, name: tenant.name, _id: tenant._id },
+      users: users.map(u => ({
+        username: u.username,
+        email: u.email,
+        role: u.role,
+        fullName: u.fullName,
+        tenant_id: u.tenant_id
+      }))
+    });
+  } catch (err) {
+    console.error('Error fetching tenant users:', err);
+    res.status(500).json({ error: 'Failed to fetch tenant users' });
+  }
+});
+
 // Reset institution admin password endpoint
 app.patch('/api/tenants/:slug/reset-admin-password', cors(), authenticateMultiTenantAdmin, async (req, res) => {
   try {
@@ -1312,6 +1339,15 @@ app.patch('/api/tenants/:slug/reset-admin-password', cors(), authenticateMultiTe
     }
 
     // Find the admin user in this tenant
+    console.log('🔍 Searching for admin user:');
+    console.log('  - Tenant ID:', tenant._id);
+    console.log('  - Admin Username:', adminUsername);
+    console.log('  - Tenant Slug:', slug);
+    
+    // First, let's see what users exist in this tenant
+    const allUsersInTenant = await User.find({ tenant_id: tenant._id });
+    console.log('  - All users in tenant:', allUsersInTenant.map(u => ({ username: u.username, role: u.role, email: u.email })));
+    
     const adminUser = await User.findOne({ 
       tenant_id: tenant._id,
       username: { $regex: new RegExp(`^${adminUsername}$`, 'i') },
@@ -1319,6 +1355,17 @@ app.patch('/api/tenants/:slug/reset-admin-password', cors(), authenticateMultiTe
     });
 
     if (!adminUser) {
+      console.log('❌ Admin user not found. Search criteria:');
+      console.log('  - tenant_id:', tenant._id);
+      console.log('  - username regex:', new RegExp(`^${adminUsername}$`, 'i'));
+      console.log('  - roles:', ['admin', 'super_admin', 'managed_admin']);
+      
+      // Let's also check if there are any users with similar usernames
+      const similarUsers = await User.find({ 
+        username: { $regex: adminUsername, i: true }
+      });
+      console.log('  - Users with similar usernames:', similarUsers.map(u => ({ username: u.username, role: u.role, tenant_id: u.tenant_id })));
+      
       return res.status(404).json({ error: 'Admin user not found in this institution' });
     }
 
