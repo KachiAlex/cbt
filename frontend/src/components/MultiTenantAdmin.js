@@ -462,71 +462,9 @@ const MultiTenantAdmin = () => {
      }
   };
 
-  const fixUsersWithoutTenant = async () => {
-    if (!window.confirm('This will attempt to fix users that are missing tenant_id. Continue?')) {
-      return;
-    }
-    
-    try {
-      const token = getAuthToken();
-      
-      const response = await fetch(`${API_BASE_URL}/api/debug/fix-users`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to fix users');
-      }
 
-      const result = await response.json();
-      console.log('🔧 Fix users result:', result);
-      
-      alert(`Fix completed!\n\n${result.message}\n\nFixed: ${result.fixedCount}/${result.totalUsersWithoutTenant} users`);
-      
-      // Refresh the page to see the changes
-      window.location.reload();
-      
-    } catch (error) {
-      console.error('Failed to fix users:', error);
-      alert('Failed to fix users: ' + error.message);
-    }
-  };
 
-  const checkAllUsers = async () => {
-    try {
-      const token = getAuthToken();
-      
-      const response = await fetch(`${API_BASE_URL}/api/debug/users`, {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to fetch all users');
-      }
-
-      const result = await response.json();
-      console.log('🔍 All users in system:', result);
-      
-      // Show the results in an alert for now
-      const userList = result.users.map(u => 
-        `${u.username} (${u.role}) - Tenant: ${u.tenant_id ? 'Yes' : 'No'}`
-      ).join('\n');
-      
-      alert(`Total Users: ${result.totalUsers}\n\nUsers:\n${userList || 'No users found'}`);
-      
-    } catch (error) {
-      console.error('Failed to check all users:', error);
-      alert('Failed to check all users: ' + error.message);
-    }
-  };
 
   const loadUserCount = async (slug) => {
     try {
@@ -619,110 +557,11 @@ const MultiTenantAdmin = () => {
     }
   };
 
-  const checkDatabaseStatus = async () => {
-    try {
-      const token = getAuthToken();
-      
-      const response = await fetch(`${API_BASE_URL}/api/debug/db-status`, {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to check database status');
-      }
 
-      const result = await response.json();
-      console.log('🗄️ Database status:', result);
-      
-      if (result.connection === 'connected') {
-        alert(`✅ Database Status:\n\nConnection: ${result.connection}\nUsers: ${result.userCount}\nTenants: ${result.tenantCount}\nCollections: ${result.collections.join(', ')}`);
-      } else {
-        alert(`❌ Database Status:\n\nConnection: ${result.connection}\nReady State: ${result.readyState || 'unknown'}`);
-      }
-      
-    } catch (error) {
-      console.error('Failed to check database status:', error);
-      alert('Failed to check database status: ' + error.message);
-    }
-  };
 
-  const fixUserRoles = async () => {
-    try {
-      const token = getAuthToken();
-      
-      const response = await fetch(`${API_BASE_URL}/api/debug/fix-roles`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
-      });
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to fix user roles');
-      }
 
-      const result = await response.json();
-      console.log('🔧 Role fix result:', result);
-      
-      alert(`✅ Role Fix Result:\n\n${result.message}\nModified: ${result.modifiedCount}\nTotal Matched: ${result.totalMatched}`);
-      
-    } catch (error) {
-      console.error('Failed to fix user roles:', error);
-      alert('Failed to fix user roles: ' + error.message);
-    }
-  };
-
-  const createTestUsers = async (slug) => {
-    if (!window.confirm('This will create test users for this institution. Continue?')) {
-      return;
-    }
-    
-    try {
-      console.log(`🧪 Creating test users for: ${slug}`);
-      const token = getAuthToken();
-      
-      // Create a test student
-      const studentData = {
-        username: 'teststudent',
-        email: 'teststudent@test.com',
-        fullName: 'Test Student',
-        password: 'test123',
-        role: 'student'
-      };
-      
-      const studentResponse = await fetch(`${API_BASE_URL}/api/tenants/${slug}/students`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify(studentData)
-      });
-      
-      if (!studentResponse.ok) {
-        const errorData = await studentResponse.json();
-        throw new Error(errorData.error || 'Failed to create test student');
-      }
-      
-      console.log('✅ Test student created');
-      
-      // Refresh the user count
-      await loadUserCount(slug);
-      
-      setSuccess('Test users created successfully');
-      setError('');
-    } catch (error) {
-      console.error('Failed to create test users:', error);
-      setError('Failed to create test users: ' + error.message);
-      setSuccess('');
-    }
-  };
 
   const resetAdminPassword = async (slug, adminUsername) => {
     console.log('🔍 Attempting to reset password for:', { slug, adminUsername });
@@ -815,94 +654,108 @@ const MultiTenantAdmin = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-indigo-600 to-purple-700">
-      <div className="max-w-7xl mx-auto p-6">
-        {/* Header */}
-        <div className="bg-white rounded-t-2xl shadow-xl p-8">
-          <div className="flex justify-between items-center">
-            <div className="text-center flex-1">
-              <h1 className="text-4xl font-bold text-gray-800 mb-4">
-                🏫 Multi-Tenant CBT Admin Platform
-              </h1>
-              <p className="text-xl text-gray-600">
-                Manage multiple institutions and their CBT systems
-              </p>
-              <p className="text-sm text-gray-500 mt-2">
-                MongoDB Atlas • Real-time updates • Secure management
-              </p>
+    <div className="min-h-screen bg-gray-50 flex">
+      {/* Left Sidebar */}
+      <div className="w-64 bg-white shadow-lg">
+        {/* Logo */}
+        <div className="p-6 border-b border-gray-200">
+          <div className="flex items-center space-x-3">
+            <div className="w-10 h-10 bg-indigo-600 rounded-lg flex items-center justify-center">
+              <span className="text-white text-xl font-bold">🏫</span>
             </div>
-            <div className="ml-4">
-              <button
-                onClick={handleLogout}
-                className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700"
-              >
-                Logout
-              </button>
+            <div>
+              <h1 className="text-lg font-bold text-gray-900">CBT Platform</h1>
+              <p className="text-xs text-gray-500">Multi-Tenant Admin</p>
             </div>
           </div>
         </div>
 
         {/* Navigation */}
-        <div className="bg-white border-b border-gray-200 px-8">
-          <nav className="flex space-x-8">
-            <button
-              onClick={() => setActiveTab('dashboard')}
-              className={`py-4 px-2 border-b-2 font-medium text-sm ${
-                activeTab === 'dashboard'
-                  ? 'border-indigo-500 text-indigo-600'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-              }`}
-            >
-              📊 Dashboard
-            </button>
-            <button
-              onClick={checkAllUsers}
-              className="py-4 px-2 border-b-2 font-medium text-sm border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
-            >
-              🔍 Debug Users
-            </button>
-            <button
-              onClick={fixUsersWithoutTenant}
-              className="py-4 px-2 border-b-2 font-medium text-sm border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
-            >
-              🔧 Fix Users
-            </button>
-            <button
-              onClick={() => setActiveTab('create')}
-              className={`py-4 px-2 border-b-2 font-medium text-sm ${
-                activeTab === 'create'
-                  ? 'border-indigo-500 text-indigo-600'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-              }`}
-            >
-              ➕ Create Institution
-            </button>
-            <button
-              onClick={() => setActiveTab('manage')}
-              className={`py-4 px-2 border-b-2 font-medium text-sm ${
-                activeTab === 'manage'
-                  ? 'border-indigo-500 text-indigo-600'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-              }`}
-            >
-              🏢 Manage Institutions
-            </button>
-          </nav>
+        <nav className="p-4 space-y-2">
+          <button
+            onClick={() => setActiveTab('dashboard')}
+            className={`w-full flex items-center space-x-3 px-4 py-3 rounded-lg text-left transition-colors ${
+              activeTab === 'dashboard'
+                ? 'bg-indigo-50 text-indigo-700 border border-indigo-200'
+                : 'text-gray-700 hover:bg-gray-50'
+            }`}
+          >
+            <span className="text-lg">📊</span>
+            <span className="font-medium">Dashboard</span>
+          </button>
+          
+          <button
+            onClick={() => setActiveTab('create')}
+            className={`w-full flex items-center space-x-3 px-4 py-3 rounded-lg text-left transition-colors ${
+              activeTab === 'create'
+                ? 'bg-indigo-50 text-indigo-700 border border-indigo-200'
+                : 'text-gray-700 hover:bg-gray-50'
+            }`}
+          >
+            <span className="text-lg">➕</span>
+            <span className="font-medium">Create Institution</span>
+          </button>
+          
+          <button
+            onClick={() => setActiveTab('manage')}
+            className={`w-full flex items-center space-x-3 px-4 py-3 rounded-lg text-left transition-colors ${
+              activeTab === 'manage'
+                ? 'bg-indigo-50 text-indigo-700 border border-indigo-200'
+                : 'text-gray-700 hover:bg-gray-50'
+            }`}
+          >
+            <span className="text-lg">🏢</span>
+            <span className="font-medium">Manage Institutions</span>
+          </button>
+        </nav>
+
+        {/* Logout */}
+        <div className="absolute bottom-0 w-64 p-4 border-t border-gray-200">
+          <button
+            onClick={handleLogout}
+            className="w-full flex items-center space-x-3 px-4 py-3 rounded-lg text-left text-red-600 hover:bg-red-50 transition-colors"
+          >
+            <span className="text-lg">🚪</span>
+            <span className="font-medium">Logout</span>
+          </button>
+        </div>
+      </div>
+
+      {/* Main Content */}
+      <div className="flex-1 overflow-auto">
+        {/* Top Header */}
+        <div className="bg-white shadow-sm border-b border-gray-200 px-8 py-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="text-2xl font-bold text-gray-900">
+                {activeTab === 'dashboard' && 'Dashboard'}
+                {activeTab === 'create' && 'Create Institution'}
+                {activeTab === 'manage' && 'Manage Institutions'}
+              </h2>
+              <p className="text-gray-600 mt-1">
+                {activeTab === 'dashboard' && 'Overview of your CBT platform'}
+                {activeTab === 'create' && 'Add a new institution to your platform'}
+                {activeTab === 'manage' && 'Manage existing institutions and users'}
+              </p>
+            </div>
+            
+
+          </div>
         </div>
 
-        {/* Content */}
-        <div className="bg-white rounded-b-2xl shadow-xl p-8">
-                     {error && (
-             <div className="mb-6 p-4 bg-red-50 border border-red-200 text-red-700 rounded-lg">
-               {error}
-             </div>
-           )}
-           
-           {success && (
-             <div className="mb-6 p-4 bg-green-50 border border-green-200 text-green-700 rounded-lg">
-               {success}
-             </div>
-           )}
+        {/* Content Area */}
+        <div className="p-8">
+          {error && (
+            <div className="mb-6 p-4 bg-red-50 border border-red-200 text-red-700 rounded-lg">
+              {error}
+            </div>
+          )}
+          
+          {success && (
+            <div className="mb-6 p-4 bg-green-50 border border-green-200 text-green-700 rounded-lg">
+              {success}
+            </div>
+          )}
 
           {/* Dashboard Tab */}
           {activeTab === 'dashboard' && (
@@ -1161,70 +1014,77 @@ const MultiTenantAdmin = () => {
               ) : (
                 <div className="grid gap-6">
                   {institutions.map((institution) => (
-                    <div key={institution.slug} data-slug={institution.slug} className="border border-gray-200 rounded-lg p-6">
+                    <div key={institution.slug} data-slug={institution.slug} className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm hover:shadow-md transition-shadow">
                       <div className="flex justify-between items-start">
                         <div className="flex-1">
-                          <h3 className="text-xl font-semibold text-gray-800 mb-2">
+                          <h3 className="text-xl font-semibold text-gray-800 mb-4">
                             {institution.name}
                           </h3>
-                                                     <div className="grid grid-cols-1 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-x-16 gap-y-4 text-sm text-gray-600 mb-6">
-                             <div className="flex items-center space-x-3">
-                               <span className="font-semibold min-w-[100px] text-gray-700">Slug:</span>
-                               <span className="text-gray-800 font-mono bg-gray-50 px-2 py-1 rounded text-xs">{institution.slug}</span>
-                             </div>
-                             <div className="flex items-center space-x-3">
-                               <span className="font-semibold min-w-[100px] text-gray-700">Plan:</span>
-                               <span className={`px-3 py-1 rounded-full text-xs font-medium ${
-                                 institution.plan === 'Premium' ? 'bg-purple-100 text-purple-800' :
-                                 institution.plan === 'Enterprise' ? 'bg-blue-100 text-blue-800' :
-                                 'bg-green-100 text-green-800'
-                               }`}>{institution.plan}</span>
-                             </div>
-                             <div className="flex items-center space-x-3">
-                               <span className="font-semibold min-w-[100px] text-gray-700">Status:</span>
-                               <span className={`px-3 py-1 rounded-full text-xs font-medium ${
-                                 institution.suspended 
-                                   ? 'bg-red-100 text-red-800' 
-                                   : 'bg-green-100 text-green-800'
-                               }`}>
-                                 {institution.suspended ? 'Suspended' : 'Active'}
-                               </span>
-                             </div>
-                             <div className="flex items-center space-x-3">
-                               <span className="font-semibold min-w-[100px] text-gray-700">Admin:</span>
-                               <span className="text-gray-800 font-medium">{institution.default_admin?.fullName}</span>
-                             </div>
-                             <div className="flex items-center space-x-3">
-                               <span className="font-semibold min-w-[100px] text-gray-700">Username:</span>
-                               <span className="text-gray-800 font-mono bg-gray-50 px-2 py-1 rounded text-xs">{institution.default_admin?.username}</span>
-                             </div>
-                                                          <div className="flex items-center space-x-3">
-                               <span className="font-semibold min-w-[100px] text-gray-800">Users:</span>
-                               <span className="text-gray-800">
-                                 {console.log(`🎨 Rendering user count for: ${institution.slug}`)}
-                                 <span id={`user-count-${institution.slug}`} className="text-blue-600 font-medium">
-                                   Loading...
-                                 </span>
-                                 <button
-                                   onClick={() => loadUserCount(institution.slug)}
-                                   className="ml-2 text-xs text-gray-500 hover:text-gray-700 underline"
-                                   title="Refresh user count"
-                                 >
-                                   🔄
-                                 </button>
-                               </span>
-                             </div>
-                             <div className="flex items-center space-x-3">
-                               <span className="font-semibold min-w-[100px] text-gray-700">Created:</span>
-                               <span className="text-gray-800">{new Date(institution.createdAt).toLocaleDateString()}</span>
-                             </div>
-                           </div>
+                          
+                          {/* Institution Info Grid */}
+                          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6 mb-6">
+                            <div className="bg-gray-50 p-4 rounded-lg">
+                              <div className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">Slug</div>
+                              <div className="text-sm font-mono text-gray-900 bg-white px-2 py-1 rounded border">{institution.slug}</div>
+                            </div>
+                            
+                            <div className="bg-gray-50 p-4 rounded-lg">
+                              <div className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">Plan</div>
+                              <div className={`inline-flex px-3 py-1 rounded-full text-xs font-medium ${
+                                institution.plan === 'Premium' ? 'bg-purple-100 text-purple-800' :
+                                institution.plan === 'Enterprise' ? 'bg-blue-100 text-blue-800' :
+                                'bg-green-100 text-green-800'
+                              }`}>{institution.plan}</div>
+                            </div>
+                            
+                            <div className="bg-gray-50 p-4 rounded-lg">
+                              <div className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">Status</div>
+                              <div className={`inline-flex px-3 py-1 rounded-full text-xs font-medium ${
+                                institution.suspended 
+                                  ? 'bg-red-100 text-red-800' 
+                                  : 'bg-green-100 text-green-800'
+                              }`}>
+                                {institution.suspended ? 'Suspended' : 'Active'}
+                              </div>
+                            </div>
+                            
+                            <div className="bg-gray-50 p-4 rounded-lg">
+                              <div className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">Admin</div>
+                              <div className="text-sm font-medium text-gray-900">{institution.default_admin?.fullName}</div>
+                            </div>
+                            
+                            <div className="bg-gray-50 p-4 rounded-lg">
+                              <div className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">Username</div>
+                              <div className="text-sm font-mono text-gray-900 bg-white px-2 py-1 rounded border">{institution.default_admin?.username}</div>
+                            </div>
+                            
+                            <div className="bg-gray-50 p-4 rounded-lg">
+                              <div className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">Users</div>
+                              <div className="text-sm font-medium text-gray-900">
+                                <span id={`user-count-${institution.slug}`} className="text-blue-600">
+                                  Loading...
+                                </span>
+                                <button
+                                  onClick={() => loadUserCount(institution.slug)}
+                                  className="ml-2 text-xs text-gray-500 hover:text-gray-700 underline"
+                                  title="Refresh user count"
+                                >
+                                  🔄
+                                </button>
+                              </div>
+                            </div>
+                            
+                            <div className="bg-gray-50 p-4 rounded-lg">
+                              <div className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">Created</div>
+                              <div className="text-sm text-gray-900">{new Date(institution.createdAt).toLocaleDateString()}</div>
+                            </div>
+                          </div>
                         </div>
                         
-                        <div className="flex flex-wrap gap-2">
+                        <div className="flex flex-wrap gap-3">
                           <button
                             onClick={() => toggleInstitutionStatus(institution.slug, institution.suspended)}
-                            className={`px-4 py-2 rounded-md text-sm ${
+                            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
                               institution.suspended
                                 ? 'bg-green-600 text-white hover:bg-green-700'
                                 : 'bg-yellow-600 text-white hover:bg-yellow-700'
@@ -1233,100 +1093,20 @@ const MultiTenantAdmin = () => {
                             {institution.suspended ? 'Activate' : 'Suspend'}
                           </button>
                           
-                                                     <button
-                             onClick={() => {
-                               console.log('🔍 Full institution data:', institution);
-                               checkTenantUsers(institution.slug);
-                             }}
-                             className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 text-sm"
-                             title="Check users in this institution"
-                           >
-                             Check Users
-                           </button>
-                           
-                           <button
-                             onClick={() => {
-                               console.log(`🧪 Manual test: Loading user count for ${institution.slug}`);
-                               loadUserCount(institution.slug);
-                             }}
-                             className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 text-sm"
-                             title="Test user count loading"
-                           >
-                             Test Count
-                           </button>
-                           
-                           <button
-                             onClick={() => {
-                               console.log(`🔍 Checking DOM for ${institution.slug}`);
-                               const element = document.getElementById(`user-count-${institution.slug}`);
-                               console.log(`Element found: ${!!element}`);
-                               if (element) {
-                                 console.log('Element HTML:', element.outerHTML);
-                               } else {
-                                 console.log('Element not found. All elements with user-count:');
-                                 const allElements = document.querySelectorAll('[id*="user-count"]');
-                                 console.log(Array.from(allElements).map(el => el.id));
-                                 
-                                 // Debug: Check the entire institution card HTML
-                                 const cardElement = document.querySelector(`[data-slug="${institution.slug}"]`) || 
-                                                   document.querySelector(`[key="${institution.slug}"]`) ||
-                                                   document.querySelector('.border.border-gray-200.rounded-lg.p-6');
-                                 if (cardElement) {
-                                   console.log('Institution card HTML:', cardElement.outerHTML);
-                                 } else {
-                                   console.log('Institution card not found');
-                                 }
-                               }
-                             }}
-                             className="px-4 py-2 bg-yellow-600 text-white rounded-md hover:bg-yellow-700 text-sm"
-                             title="Check DOM element"
-                           >
-                             Check DOM
-                           </button>
-                          
                           <button
                             onClick={() => resetAdminPassword(institution.slug, institution.default_admin?.username)}
-                            className="px-4 py-2 bg-orange-600 text-white rounded-md hover:bg-orange-700 text-sm"
+                            className="px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 text-sm font-medium transition-colors"
                             title="Reset admin password"
                           >
-                            Reset Admin Password
+                            Reset Password
                           </button>
                           
-                                                     <button
-                             onClick={checkDatabaseStatus}
-                             className="px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 text-sm"
-                             title="Check database connection and status"
-                           >
-                             🗄️ DB Status
-                           </button>
-                           
-                           <button
-                             onClick={() => createTestUsers(institution.slug)}
-                             className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 text-sm"
-                             title="Create test users for this institution"
-                           >
-                             🧪 Create Test Users
-                           </button>
-                           
-                           <button
-                             onClick={() => {
-                               console.log(`🧪 Testing component rendering for: ${institution.slug}`);
-                               console.log('Institution data:', institution);
-                               console.log('Current institutions state:', institutions);
-                               console.log('Component should be rendering user count display');
-                             }}
-                             className="px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 text-sm"
-                             title="Test component rendering"
-                           >
-                             🧪 Test Render
-                           </button>
-                          
                           <button
-                            onClick={fixUserRoles}
-                            className="px-4 py-2 bg-yellow-600 text-white rounded-md hover:bg-yellow-700 text-sm"
-                            title="Fix user role mismatch (admin -> super_admin)"
+                            onClick={() => checkTenantUsers(institution.slug)}
+                            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm font-medium transition-colors"
+                            title="Check users in this institution"
                           >
-                            🔧 Fix Roles
+                            View Users
                           </button>
                           
                           {canManageAdmins() && (
@@ -1360,17 +1140,22 @@ const MultiTenantAdmin = () => {
                       </div>
                       
                       <div className="mt-4 pt-4 border-t border-gray-200">
-                        <a
-                          href={`https://cbtexam.netlify.app/?slug=${institution.slug}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-indigo-600 hover:text-indigo-800 text-sm font-medium"
-                        >
-                          🔗 View Institution: https://cbtexam.netlify.app/?slug={institution.slug}
-                        </a>
-                        <p className="text-xs text-gray-500 mt-1">
-                          Login: {institution.default_admin?.username} / [password]
-                        </p>
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center space-x-3">
+                            <a
+                              href={`https://cbtexam.netlify.app/?slug=${institution.slug}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center space-x-2 px-3 py-2 bg-indigo-50 text-indigo-700 rounded-lg hover:bg-indigo-100 transition-colors text-sm font-medium"
+                            >
+                              <span>🔗</span>
+                              <span>View Institution</span>
+                            </a>
+                            <span className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded">
+                              Login: {institution.default_admin?.username}
+                            </span>
+                          </div>
+                        </div>
                       </div>
                     </div>
                   ))}
