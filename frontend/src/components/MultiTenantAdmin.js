@@ -1000,159 +1000,179 @@ const MultiTenantAdmin = () => {
               <h2 className="text-2xl font-bold text-gray-800 mb-6">Manage Institutions</h2>
               
               {institutions.length === 0 ? (
-                <div className="text-center py-12">
-                  <div className="text-6xl mb-4">🏢</div>
-                  <h3 className="text-xl font-semibold text-gray-600 mb-2">No Institutions Found</h3>
-                  <p className="text-gray-500 mb-4">Create your first institution to get started.</p>
+                <div className="text-center py-16">
+                  <div className="w-24 h-24 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-6">
+                    <span className="text-4xl">🏢</span>
+                  </div>
+                  <h3 className="text-2xl font-semibold text-gray-700 mb-3">No Institutions Found</h3>
+                  <p className="text-gray-500 mb-6 max-w-md mx-auto">You haven't created any institutions yet. Start by creating your first institution to manage CBT platforms.</p>
                   <button
                     onClick={() => setActiveTab('create')}
-                    className="px-6 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700"
+                    className="px-8 py-3 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors font-medium shadow-sm hover:shadow-md"
                   >
-                    Create Institution
+                    ➕ Create Your First Institution
                   </button>
                 </div>
               ) : (
                 <div className="grid gap-6">
                   {institutions.map((institution) => (
-                    <div key={institution.slug} data-slug={institution.slug} className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm hover:shadow-md transition-shadow">
-                      <div className="flex justify-between items-start">
+                    <div key={institution.slug} data-slug={institution.slug} className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm hover:shadow-md transition-all duration-200">
+                      <div className="flex justify-between items-start mb-6">
                         <div className="flex-1">
-                          <h3 className="text-xl font-semibold text-gray-800 mb-4">
-                            {institution.name}
-                          </h3>
+                          <div className="flex items-center space-x-3 mb-2">
+                            <div className="w-10 h-10 bg-indigo-100 rounded-lg flex items-center justify-center">
+                              <span className="text-indigo-600 text-xl">🏢</span>
+                            </div>
+                            <h3 className="text-xl font-semibold text-gray-800">
+                              {institution.name}
+                            </h3>
+                          </div>
                           
-                          {/* Institution Info Grid */}
-                          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6 mb-6">
-                            <div className="bg-gray-50 p-4 rounded-lg">
-                              <div className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">Slug</div>
-                              <div className="text-sm font-mono text-gray-900 bg-white px-2 py-1 rounded border">{institution.slug}</div>
-                            </div>
-                            
-                            <div className="bg-gray-50 p-4 rounded-lg">
-                              <div className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">Plan</div>
-                              <div className={`inline-flex px-3 py-1 rounded-full text-xs font-medium ${
-                                institution.plan === 'Premium' ? 'bg-purple-100 text-purple-800' :
-                                institution.plan === 'Enterprise' ? 'bg-blue-100 text-blue-800' :
-                                'bg-green-100 text-green-800'
-                              }`}>{institution.plan}</div>
-                            </div>
-                            
-                            <div className="bg-gray-50 p-4 rounded-lg">
-                              <div className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">Status</div>
-                              <div className={`inline-flex px-3 py-1 rounded-full text-xs font-medium ${
-                                institution.suspended 
-                                  ? 'bg-red-100 text-red-800' 
-                                  : 'bg-green-100 text-green-800'
-                              }`}>
-                                {institution.suspended ? 'Suspended' : 'Active'}
+                          {/* Institution Info Grid - Organized in Logical Sections */}
+                          <div className="space-y-6 mb-6">
+                            {/* Basic Info Row */}
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                              <div className="bg-gray-50 p-4 rounded-lg">
+                                <div className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-2">Institution ID</div>
+                                <div className="text-sm font-mono text-gray-900 bg-white px-3 py-2 rounded border font-medium">{institution.slug}</div>
+                              </div>
+                              
+                              <div className="bg-gray-50 p-4 rounded-lg">
+                                <div className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-2">Subscription Plan</div>
+                                <div className={`inline-flex px-3 py-1 rounded-full text-xs font-medium ${
+                                  institution.plan === 'Premium' ? 'bg-purple-100 text-purple-800' :
+                                  institution.plan === 'Enterprise' ? 'bg-blue-100 text-blue-800' :
+                                  'bg-green-100 text-green-800'
+                                }`}>{institution.plan}</div>
+                              </div>
+                              
+                              <div className="bg-gray-50 p-4 rounded-lg">
+                                <div className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-2">Status</div>
+                                <div className={`inline-flex px-3 py-1 rounded-full text-xs font-medium ${
+                                  institution.suspended 
+                                    ? 'bg-red-100 text-red-800' 
+                                    : 'bg-green-100 text-green-800'
+                                }`}>
+                                  {institution.suspended ? 'Suspended' : 'Active'}
+                                </div>
                               </div>
                             </div>
                             
-                            <div className="bg-gray-50 p-4 rounded-lg">
-                              <div className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">Admin</div>
-                              <div className="text-sm font-medium text-gray-900">{institution.default_admin?.fullName}</div>
-                            </div>
-                            
-                            <div className="bg-gray-50 p-4 rounded-lg">
-                              <div className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">Username</div>
-                              <div className="text-sm font-mono text-gray-900 bg-white px-2 py-1 rounded border">{institution.default_admin?.username}</div>
-                            </div>
-                            
-                            <div className="bg-gray-50 p-4 rounded-lg">
-                              <div className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">Users</div>
-                              <div className="text-sm font-medium text-gray-900">
-                                <span id={`user-count-${institution.slug}`} className="text-blue-600">
-                                  Loading...
-                                </span>
-                                <button
-                                  onClick={() => loadUserCount(institution.slug)}
-                                  className="ml-2 text-xs text-gray-500 hover:text-gray-700 underline"
-                                  title="Refresh user count"
-                                >
-                                  🔄
-                                </button>
+                            {/* Admin Info Row */}
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                              <div className="bg-gray-50 p-4 rounded-lg">
+                                <div className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-2">Primary Admin</div>
+                                <div className="text-sm font-medium text-gray-900">{institution.default_admin?.fullName || 'Not set'}</div>
+                              </div>
+                              
+                              <div className="bg-gray-50 p-4 rounded-lg">
+                                <div className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-2">Admin Username</div>
+                                <div className="text-sm font-mono text-gray-900 bg-white px-3 py-2 rounded border">{institution.default_admin?.username || 'Not set'}</div>
+                              </div>
+                              
+                              <div className="bg-gray-50 p-4 rounded-lg">
+                                <div className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-2">Total Users</div>
+                                <div className="text-sm font-medium text-gray-900">
+                                  <span id={`user-count-${institution.slug}`} className="text-blue-600 font-semibold">
+                                    Loading...
+                                  </span>
+                                  <button
+                                    onClick={() => loadUserCount(institution.slug)}
+                                    className="ml-2 text-xs text-gray-500 hover:text-gray-700 underline"
+                                    title="Refresh user count"
+                                  >
+                                    🔄
+                                  </button>
+                                </div>
                               </div>
                             </div>
                             
-                            <div className="bg-gray-50 p-4 rounded-lg">
-                              <div className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">Created</div>
-                              <div className="text-sm text-gray-900">{new Date(institution.createdAt).toLocaleDateString()}</div>
+                            {/* Metadata Row */}
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                              <div className="bg-gray-50 p-4 rounded-lg">
+                                <div className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-2">Created Date</div>
+                                <div className="text-sm text-gray-900 font-medium">{new Date(institution.createdAt).toLocaleDateString('en-US', { 
+                                  year: 'numeric', 
+                                  month: 'long', 
+                                  day: 'numeric' 
+                                })}</div>
+                              </div>
+                              
+                              <div className="bg-gray-50 p-4 rounded-lg">
+                                <div className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-2">Address</div>
+                                <div className="text-sm text-gray-900">{institution.address || 'No address provided'}</div>
+                              </div>
                             </div>
                           </div>
                         </div>
                         
-                        <div className="flex flex-wrap gap-3">
-                          <button
-                            onClick={() => toggleInstitutionStatus(institution.slug, institution.suspended)}
-                            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                              institution.suspended
-                                ? 'bg-green-600 text-white hover:bg-green-700'
-                                : 'bg-yellow-600 text-white hover:bg-yellow-700'
-                            }`}
-                          >
-                            {institution.suspended ? 'Activate' : 'Suspend'}
-                          </button>
+                        {/* Action Buttons - Organized by Function */}
+                        <div className="space-y-3">
+                          {/* Primary Actions Row */}
+                          <div className="flex flex-wrap gap-3">
+                            <button
+                              onClick={() => toggleInstitutionStatus(institution.slug, institution.suspended)}
+                              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                                institution.suspended
+                                  ? 'bg-green-600 text-white hover:bg-green-700'
+                                  : 'bg-yellow-600 text-white hover:bg-yellow-700'
+                              }`}
+                            >
+                              {institution.suspended ? '🟢 Activate' : '🟡 Suspend'}
+                            </button>
+                            
+                            <button
+                              onClick={() => openAdminsModal(institution.slug)}
+                              className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 text-sm font-medium transition-colors"
+                              title="Manage admins for this institution"
+                            >
+                              👥 Manage Admins
+                            </button>
+                          </div>
                           
-                          <button
-                            onClick={() => resetAdminPassword(institution.slug, institution.default_admin?.username)}
-                            className="px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 text-sm font-medium transition-colors"
-                            title="Reset admin password"
-                          >
-                            Reset Password
-                          </button>
-                          
-                          <button
-                            onClick={() => checkTenantUsers(institution.slug)}
-                            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm font-medium transition-colors"
-                            title="Check users in this institution"
-                          >
-                            View Users
-                          </button>
-                          
-                          {canManageAdmins() && (
-                            <>
-                              <button
-                                onClick={() => openAdminsModal(institution.slug)}
-                                className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 text-sm"
-                                title="Manage admins for this institution"
-                              >
-                                Manage Admins
-                              </button>
-                              
-                              <button
-                                onClick={() => openStudentsModal(institution.slug)}
-                                className="px-4 py-2 bg-teal-600 text-white rounded-md hover:bg-teal-700 text-sm"
-                                title="Manage students for this institution"
-                              >
-                                Manage Students
-                              </button>
-                              
-                              <button
-                                onClick={() => deleteInstitution(institution.slug)}
-                                className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 text-sm"
-                                title="Delete this institution"
-                              >
-                                Delete
-                              </button>
-                            </>
-                          )}
+                          {/* Secondary Actions Row */}
+                          <div className="flex flex-wrap gap-3">
+                            <button
+                              onClick={() => resetAdminPassword(institution.slug, institution.default_admin?.username)}
+                              className="px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 text-sm font-medium transition-colors"
+                              title="Reset admin password"
+                            >
+                              🔑 Reset Password
+                            </button>
+                            
+                            <button
+                              onClick={() => {
+                                if (window.confirm(`Are you sure you want to delete "${institution.name}"? This action cannot be undone.`)) {
+                                  deleteInstitution(institution.slug);
+                                }
+                              }}
+                              className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 text-sm font-medium transition-colors"
+                              title="Delete this institution"
+                            >
+                              🗑️ Delete
+                            </button>
+                          </div>
                         </div>
                       </div>
                       
-                      <div className="mt-4 pt-4 border-t border-gray-200">
-                        <div className="flex items-center justify-between">
+                      {/* Institution Access Section */}
+                      <div className="mt-6 pt-4 border-t border-gray-200">
+                        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                           <div className="flex items-center space-x-3">
                             <a
                               href={`https://cbtexam.netlify.app/?slug=${institution.slug}`}
                               target="_blank"
                               rel="noopener noreferrer"
-                              className="inline-flex items-center space-x-2 px-3 py-2 bg-indigo-50 text-indigo-700 rounded-lg hover:bg-indigo-100 transition-colors text-sm font-medium"
+                              className="inline-flex items-center space-x-2 px-4 py-2 bg-indigo-50 text-indigo-700 rounded-lg hover:bg-indigo-100 transition-colors text-sm font-medium border border-indigo-200"
                             >
                               <span>🔗</span>
-                              <span>View Institution</span>
+                              <span>Open Institution Platform</span>
                             </a>
-                            <span className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded">
-                              Login: {institution.default_admin?.username}
+                          </div>
+                          
+                          <div className="flex items-center space-x-2 text-sm text-gray-600">
+                            <span className="bg-gray-100 px-3 py-1 rounded-full">
+                              👤 Login: <span className="font-mono font-medium">{institution.default_admin?.username || 'Not set'}</span>
                             </span>
                           </div>
                         </div>
