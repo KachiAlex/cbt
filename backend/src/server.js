@@ -1610,15 +1610,17 @@ app.get('/api/tenants/:slug/admins', cors(), authenticateMultiTenantAdmin, async
       role: { $in: ['super_admin', 'admin', 'tenant_admin'] }
     }).select('-password');
     
-    res.json(admins.map(admin => ({
-      username: admin.username,
-      email: admin.email,
-      fullName: admin.fullName,
-      role: admin.role,
-      is_active: admin.is_active,
-      is_default_admin: admin.is_default_admin,
-      created_at: admin.created_at
-    })));
+    res.json({
+      admins: admins.map(admin => ({
+        username: admin.username,
+        email: admin.email,
+        fullName: admin.fullName,
+        role: admin.role,
+        is_active: admin.is_active,
+        is_default_admin: admin.is_default_admin,
+        created_at: admin.created_at
+      }))
+    });
   } catch (err) {
     console.error('Error fetching tenant admins:', err);
     res.status(500).json({ error: 'Failed to fetch tenant admins' });
