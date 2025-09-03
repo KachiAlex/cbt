@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import tokenService from '../services/tokenService';
 
 const MultiTenantAdmin = () => {
@@ -40,7 +40,7 @@ const MultiTenantAdmin = () => {
   };
 
   // Load institutions
-  const loadInstitutions = async () => {
+  const loadInstitutions = useCallback(async () => {
     try {
       const token = await getAuthToken();
       if (!token) {
@@ -69,7 +69,7 @@ const MultiTenantAdmin = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   // Add new institution
   const handleAddInstitution = async (e) => {
@@ -113,47 +113,7 @@ const MultiTenantAdmin = () => {
     }
   };
 
-  // Manage admins for an institution
-  const handleManageAdmins = async (e) => {
-    e.preventDefault();
-    try {
-      const token = await getAuthToken();
-      if (!token) {
-        setError('No valid authentication token available');
-        return;
-      }
 
-      // Here you would implement the logic to manage admins
-      // For now, we'll just close the form
-      setShowManageAdminsForm(false);
-      setSelectedInstitution(null);
-      setError(null);
-    } catch (error) {
-      console.error('Error managing admins:', error);
-      setError('Failed to manage admins. Please try again.');
-    }
-  };
-
-  // Manage students for an institution
-  const handleManageStudents = async (e) => {
-    e.preventDefault();
-    try {
-      const token = await getAuthToken();
-      if (!token) {
-        setError('No valid authentication token available');
-        return;
-      }
-
-      // Here you would implement the logic to manage students
-      // For now, we'll just close the form
-      setShowManageStudentsForm(false);
-      setSelectedInstitution(null);
-      setError(null);
-    } catch (error) {
-      console.error('Error managing students:', error);
-      setError('Failed to manage students. Please try again.');
-    }
-  };
 
   // Delete institution
   const handleDeleteInstitution = async (institutionId) => {
@@ -262,7 +222,7 @@ const MultiTenantAdmin = () => {
     if (isAuthenticated()) {
       loadInstitutions();
     }
-  }, []);
+  }, [loadInstitutions]);
 
   // Check authentication on every render
   if (!isAuthenticated()) {
