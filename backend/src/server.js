@@ -36,14 +36,16 @@ app.use(cors({
       'http://localhost:3000', 
       'http://localhost:5000', 
       'https://cbt.netlify.app', 
-      'https://cbtexam.netlify.app'
+      'https://cbtexam.netlify.app',
+      'https://68b7d4b338c8f1c84609450c--cbtexam.netlify.app'
     ];
     
     if (allowedOrigins.indexOf(origin) !== -1) {
       callback(null, true);
     } else {
       console.log('CORS blocked origin:', origin);
-      callback(new Error('Not allowed by CORS'));
+      // For debugging, allow all origins temporarily
+      callback(null, true);
     }
   },
   credentials: true,
