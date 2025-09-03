@@ -300,7 +300,7 @@ app.get('/institution/:slug', async (req, res) => {
                             </form>
                         </div>
                         
-                        <div id="errorMessage" class="hidden mt-4 p-3 bg-red-100 border border-red-400 text-red-700 rounded"></div>
+                                                 <div id="errorMessage" class="hidden mt-4 p-4 bg-red-50 border border-red-200 text-red-800 rounded-lg text-center font-medium"></div>
                     </div>
                 </div>
             </div>
@@ -309,101 +309,132 @@ app.get('/institution/:slug', async (req, res) => {
                 const institutionSlug = '${tenant.slug}';
                 const institutionName = '${tenant.name}';
                 
-                function showAdminLogin() {
-                    document.getElementById('adminLoginForm').classList.remove('hidden');
-                    document.getElementById('studentLoginForm').classList.add('hidden');
-                    document.getElementById('errorMessage').classList.add('hidden');
-                }
+                                 function showAdminLogin() {
+                     document.getElementById('adminLoginForm').classList.remove('hidden');
+                     document.getElementById('studentLoginForm').classList.add('hidden');
+                     document.getElementById('errorMessage').classList.add('hidden');
+                     
+                     // Clear form fields when switching
+                     document.getElementById('adminUsername').value = '';
+                     document.getElementById('adminPassword').value = '';
+                 }
+                 
+                 function showStudentLogin() {
+                     document.getElementById('studentLoginForm').classList.remove('hidden');
+                     document.getElementById('adminLoginForm').classList.add('hidden');
+                     document.getElementById('errorMessage').classList.add('hidden');
+                     
+                     // Clear form fields when switching
+                     document.getElementById('studentId').value = '';
+                     document.getElementById('studentPassword').value = '';
+                 }
+                 
+                 function hideForms() {
+                     document.getElementById('adminLoginForm').classList.add('hidden');
+                     document.getElementById('studentLoginForm').classList.add('hidden');
+                     document.getElementById('errorMessage').classList.add('hidden');
+                     
+                     // Clear all form fields
+                     document.getElementById('adminUsername').value = '';
+                     document.getElementById('adminPassword').value = '';
+                     document.getElementById('studentId').value = '';
+                     document.getElementById('studentPassword').value = '';
+                 }
                 
-                function showStudentLogin() {
-                    document.getElementById('studentLoginForm').classList.remove('hidden');
-                    document.getElementById('adminLoginForm').classList.add('hidden');
-                    document.getElementById('errorMessage').classList.add('hidden');
-                }
-                
-                function hideForms() {
-                    document.getElementById('adminLoginForm').classList.add('hidden');
-                    document.getElementById('studentLoginForm').classList.add('hidden');
-                    document.getElementById('errorMessage').classList.add('hidden');
-                }
-                
-                async function handleAdminLogin(event) {
-                    event.preventDefault();
-                    
-                    const username = document.getElementById('adminUsername').value;
-                    const password = document.getElementById('adminPassword').value;
-                    
-                    try {
-                        const response = await fetch('/api/auth/login', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({
-                                username,
-                                password,
-                                tenant_slug: institutionSlug,
-                                user_type: 'admin'
-                            })
-                        });
-                        
-                        const data = await response.json();
-                        
-                        if (response.ok) {
-                            // Store user data
-                            localStorage.setItem('user', JSON.stringify(data));
-                            localStorage.setItem('tenant', JSON.stringify(data.tenant));
-                            localStorage.setItem('userType', 'admin');
-                            
-                                                         // Redirect to frontend admin dashboard
+                                 async function handleAdminLogin(event) {
+                     event.preventDefault();
+                     
+                     const username = document.getElementById('adminUsername').value;
+                     const password = document.getElementById('adminPassword').value;
+                     
+                     try {
+                         const response = await fetch('/api/auth/login', {
+                             method: 'POST',
+                             headers: { 'Content-Type': 'application/json' },
+                             body: JSON.stringify({
+                                 username,
+                                 password,
+                                 tenant_slug: institutionSlug,
+                                 user_type: 'admin'
+                             })
+                         });
+                         
+                         const data = await response.json();
+                         
+                         if (response.ok) {
+                             // Store user data
+                             localStorage.setItem('user', JSON.stringify(data.user));
+                             localStorage.setItem('tenant', JSON.stringify(data.tenant));
+                             localStorage.setItem('userType', 'admin');
+                             
+                             // Redirect to frontend admin dashboard
                              window.location.href = 'https://cbt.netlify.app/admin-dashboard';
-                        } else {
-                            showError(data.error || 'Login failed');
-                        }
-                    } catch (error) {
-                        showError('Network error. Please try again.');
-                    }
-                }
+                         } else {
+                             // Show specific error message from backend
+                             const errorMessage = data.error || data.message || 'Login failed. Please try again.';
+                             showError(errorMessage);
+                         }
+                     } catch (error) {
+                         console.error('Login error:', error);
+                         showError('Network error. Please try again.');
+                     }
+                 }
                 
-                async function handleStudentLogin(event) {
-                    event.preventDefault();
-                    
-                    const studentId = document.getElementById('studentId').value;
-                    const password = document.getElementById('studentPassword').value;
-                    
-                    try {
-                        const response = await fetch('/api/auth/login', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({
-                                username: studentId,
-                                password,
-                                tenant_slug: institutionSlug,
-                                user_type: 'student'
-                            })
-                        });
-                        
-                        const data = await response.json();
-                        
-                        if (response.ok) {
-                            // Store user data
-                            localStorage.setItem('user', JSON.stringify(data));
-                            localStorage.setItem('tenant', JSON.stringify(data.tenant));
-                            localStorage.setItem('userType', 'student');
-                            
-                                                         // Redirect to frontend student dashboard
+                                 async function handleStudentLogin(event) {
+                     event.preventDefault();
+                     
+                     const studentId = document.getElementById('studentId').value;
+                     const password = document.getElementById('studentPassword').value;
+                     
+                     try {
+                         const response = await fetch('/api/auth/login', {
+                             method: 'POST',
+                             headers: { 'Content-Type': 'application/json' },
+                             body: JSON.stringify({
+                                 username: studentId,
+                                 password,
+                                 tenant_slug: institutionSlug,
+                                 user_type: 'student'
+                             })
+                         });
+                         
+                         const data = await response.json();
+                         
+                         if (response.ok) {
+                             // Store user data
+                             localStorage.setItem('user', JSON.stringify(data.user));
+                             localStorage.setItem('tenant', JSON.stringify(data.tenant));
+                             localStorage.setItem('userType', 'student');
+                             
+                             // Redirect to frontend student dashboard
                              window.location.href = 'https://cbt.netlify.app/student-dashboard';
-                        } else {
-                            showError(data.error || 'Login failed');
-                        }
-                    } catch (error) {
-                        showError('Network error. Please try again.');
-                    }
-                }
+                         } else {
+                             // Show specific error message from backend
+                             const errorMessage = data.error || data.message || 'Login failed. Please try again.';
+                             showError(errorMessage);
+                         }
+                     } catch (error) {
+                         console.error('Login error:', error);
+                         showError('Network error. Please try again.');
+                     }
+                 }
                 
-                function showError(message) {
-                    const errorDiv = document.getElementById('errorMessage');
-                    errorDiv.textContent = message;
-                    errorDiv.classList.remove('hidden');
-                }
+                                 function showError(message) {
+                     const errorDiv = document.getElementById('errorMessage');
+                     errorDiv.textContent = message;
+                     errorDiv.classList.remove('hidden');
+                     
+                     // Auto-hide error after 5 seconds
+                     setTimeout(() => {
+                         errorDiv.classList.add('hidden');
+                     }, 5000);
+                     
+                     // Clear any previous form data
+                     document.getElementById('adminUsername').value = '';
+                     document.getElementById('adminPassword').value = '';
+                     document.getElementById('studentId').value = '';
+                     document.getElementById('studentPassword').value = '';
+                 }
             </script>
         </body>
         </html>
@@ -670,63 +701,7 @@ app.get('/api/users', async (req, res, next) => {
 	} catch (err) { next(err); }
 });
 
- // Multi-tenant authentication endpoint
- app.post('/api/auth/login', async (req, res, next) => {
- 	try {
- 		const { username, password, tenant_slug } = req.body;
- 		
- 		if (!username || !password || !tenant_slug) {
- 			return res.status(400).json({ error: 'Username, password, and institution are required' });
- 		}
- 		
- 		// Find tenant by slug
- 		const tenant = await Tenant.findOne({ 
- 			slug: tenant_slug,
- 			deleted_at: null,
- 			suspended: false
- 		});
- 		
- 		if (!tenant) {
- 			return res.status(401).json({ error: 'Invalid tenant or tenant is suspended' });
- 		}
- 		
- 		// Find user by username within tenant (case-insensitive)
- 		const user = await User.findOne({ 
- 			tenant_id: tenant._id,
- 			username: { $regex: new RegExp(`^${username}$`, 'i') },
- 			is_active: true
- 		});
- 		
- 		if (!user) {
- 			return res.status(401).json({ error: 'Invalid credentials' });
- 		}
- 		
- 		// Check password
- 		const isPasswordValid = await user.comparePassword(password);
- 		if (!isPasswordValid) {
- 			return res.status(401).json({ error: 'Invalid credentials' });
- 		}
- 		
- 		// Update last login
- 		user.last_login = new Date();
- 		await user.save();
- 		
- 		// Return user data with tenant info
- 		const { password: _, ...userData } = user.toObject();
- 		res.json({
- 			success: true,
- 			user: userData,
- 			tenant: {
- 				id: tenant._id,
- 				name: tenant.name,
- 				slug: tenant.slug,
- 				logo_url: tenant.logo_url,
- 				plan: tenant.plan
- 			}
- 		});
- 		
- 	} catch (err) { next(err); }
- });
+ // Multi-tenant authentication endpoint (consolidated with the main login endpoint above)
 
 // Initialize admin user endpoint - only creates the default admin if no admin exists
 app.post('/api/init-admin', async (req, res, next) => {

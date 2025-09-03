@@ -998,11 +998,18 @@ const MultiTenantAdmin = () => {
                           <h3 className="text-xl font-semibold text-gray-800 mb-2">
                             {institution.name}
                           </h3>
-                          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm text-gray-600 mb-4">
-                            <div><strong>Slug:</strong> {institution.slug}</div>
-                            <div><strong>Plan:</strong> {institution.plan}</div>
-                            <div><strong>Status:</strong> 
-                              <span className={`ml-1 px-2 py-1 rounded-full text-xs ${
+                          <div className="space-y-2 text-sm text-gray-600 mb-4">
+                            <div className="flex items-center space-x-2">
+                              <span className="font-semibold min-w-[60px]">Slug:</span>
+                              <span className="text-gray-800">{institution.slug}</span>
+                            </div>
+                            <div className="flex items-center space-x-2">
+                              <span className="font-semibold min-w-[60px]">Plan:</span>
+                              <span className="text-gray-800">{institution.plan}</span>
+                            </div>
+                            <div className="flex items-center space-x-2">
+                              <span className="font-semibold min-w-[60px]">Status:</span>
+                              <span className={`px-2 py-1 rounded-full text-xs ${
                                 institution.suspended 
                                   ? 'bg-red-100 text-red-800' 
                                   : 'bg-green-100 text-green-800'
@@ -1010,9 +1017,18 @@ const MultiTenantAdmin = () => {
                                 {institution.suspended ? 'Suspended' : 'Active'}
                               </span>
                             </div>
-                            <div><strong>Admin:</strong> {institution.default_admin?.fullName}</div>
-                            <div><strong>Username:</strong> {institution.default_admin?.username}</div>
-                            <div><strong>Created:</strong> {new Date(institution.createdAt).toLocaleDateString()}</div>
+                            <div className="flex items-center space-x-2">
+                              <span className="font-semibold min-w-[60px]">Admin:</span>
+                              <span className="text-gray-800">{institution.default_admin?.fullName}</span>
+                            </div>
+                            <div className="flex items-center space-x-2">
+                              <span className="font-semibold min-w-[60px]">Username:</span>
+                              <span className="text-gray-800">{institution.default_admin?.username}</span>
+                            </div>
+                            <div className="flex items-center space-x-2">
+                              <span className="font-semibold min-w-[60px]">Created:</span>
+                              <span className="text-gray-800">{new Date(institution.createdAt).toLocaleDateString()}</span>
+                            </div>
                           </div>
                         </div>
                         
@@ -1197,15 +1213,15 @@ const MultiTenantAdmin = () => {
               </div>
             )}
             <div className="border rounded-lg overflow-hidden">
-              <table className="min-w-full">
+              <table className="min-w-full table-fixed">
                 <thead className="bg-gray-50">
                   <tr>
-                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Username</th>
-                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Full Name</th>
-                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email</th>
-                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Role</th>
-                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                    <th className="px-4 py-2"></th>
+                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-24">Username</th>
+                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-32">Full Name</th>
+                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-40">Email</th>
+                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-20">Role</th>
+                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-24">Status</th>
+                    <th className="px-4 py-2 w-32"></th>
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
