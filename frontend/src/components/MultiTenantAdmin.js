@@ -90,32 +90,52 @@ const MultiTenantAdmin = () => {
         if (response.status === 401) {
           // Token expired or invalid
           console.log('❌ Token expired or invalid');
-          handleLogout();
-          return;
+          return { error: 'unauthorized' };
         }
         throw new Error('Failed to load institutions from MongoDB');
       }
       
       const data = await response.json();
       console.log('📊 Loaded institutions:', data);
-      setInstitutions(data);
-      
-      // Load user counts for all institutions
-      if (data.length > 0) {
-        console.log('🔍 Loading user counts for all institutions...');
-        data.forEach(institution => {
-          loadUserCount(institution.slug);
-        });
-      }
+      return { data };
     } catch (error) {
       console.error('❌ Error loading institutions:', error);
-      setError('Failed to load institutions: ' + error.message);
-      // Fallback to empty array
-      setInstitutions([]);
+      return { error: error.message };
     } finally {
       setLoading(false);
     }
   }, []);
+
+  // Effect to handle institution loading and logout if needed
+  useEffect(() => {
+    const loadData = async () => {
+      const result = await loadInstitutions();
+      if (result.error === 'unauthorized') {
+        handleLogout();
+        return;
+      }
+      if (result.data) {
+        setInstitutions(result.data);
+      } else if (result.error) {
+        setError('Failed to load institutions: ' + result.error);
+        setInstitutions([]);
+      }
+    };
+    
+    if (isAuthenticated()) {
+      loadData();
+    }
+  }, [loadInstitutions, isAuthenticated]);
+
+  // Separate effect to load user counts after institutions are loaded
+  useEffect(() => {
+    if (institutions.length > 0) {
+      console.log('🔍 Loading user counts for all institutions...');
+      institutions.forEach(institution => {
+        loadUserCount(institution.slug);
+      });
+    }
+  }, [institutions]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const loadAdmins = async (slug) => {
     try {
@@ -284,11 +304,7 @@ const MultiTenantAdmin = () => {
     }
   };
 
-  useEffect(() => {
-    if (isAuthenticated()) {
-      loadInstitutions();
-    }
-  }, [isAuthenticated, loadInstitutions]);
+
 
   const handleCreateInstitution = async (e) => {
     e.preventDefault();
@@ -362,7 +378,10 @@ const MultiTenantAdmin = () => {
       }
 
       // Prefer reloading list from server to avoid local desync
-      await loadInstitutions();
+      const result = await loadInstitutions();
+      if (result.data) {
+        setInstitutions(result.data);
+      }
       setShowCreateForm(false);
       setFormData({
         name: '',
