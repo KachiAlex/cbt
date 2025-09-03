@@ -153,10 +153,14 @@ const MultiTenantAdmin = () => {
     if (institutions.length > 0) {
       console.log('🔍 Loading user counts for all institutions...');
       console.log('📊 Institutions to process:', institutions.map(i => i.slug));
-      institutions.forEach(institution => {
-        console.log(`🔄 Loading user count for: ${institution.slug}`);
-        loadUserCount(institution.slug);
-      });
+      
+      // Add a small delay to ensure DOM elements are rendered
+      setTimeout(() => {
+        institutions.forEach(institution => {
+          console.log(`🔄 Loading user count for: ${institution.slug}`);
+          loadUserCount(institution.slug);
+        });
+      }, 100);
     }
   }, [institutions]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -543,14 +547,27 @@ const MultiTenantAdmin = () => {
       console.log(`🔍 Users in tenant ${slug}:`, result);
       
       // Update the user count display
-      const userCountElement = document.getElementById(`user-count-${slug}`);
+      let userCountElement = document.getElementById(`user-count-${slug}`);
       console.log(`🎯 User count element found: ${!!userCountElement}`);
+      
+      // If element not found, try again after a short delay
+      if (!userCountElement) {
+        console.log(`⏳ Element not found, retrying after 200ms...`);
+        await new Promise(resolve => setTimeout(resolve, 200));
+        userCountElement = document.getElementById(`user-count-${slug}`);
+        console.log(`🎯 User count element found after retry: ${!!userCountElement}`);
+      }
+      
       if (userCountElement) {
         userCountElement.textContent = `${result.users.length} users`;
         userCountElement.className = 'text-blue-600 font-medium';
         console.log(`✅ Updated user count display for ${slug}: ${result.users.length} users`);
       } else {
-        console.log(`❌ User count element not found for ${slug}`);
+        console.log(`❌ User count element still not found for ${slug} after retry`);
+        // Try to find any element with similar ID pattern
+        const allElements = document.querySelectorAll('[id*="user-count"]');
+        console.log(`🔍 Found ${allElements.length} elements with user-count in ID:`, 
+          Array.from(allElements).map(el => el.id));
       }
       
       return result.users.length;
@@ -651,6 +668,52 @@ const MultiTenantAdmin = () => {
     } catch (error) {
       console.error('Failed to fix user roles:', error);
       alert('Failed to fix user roles: ' + error.message);
+    }
+  };
+
+  const createTestUsers = async (slug) => {
+    if (!window.confirm('This will create test users for this institution. Continue?')) {
+      return;
+    }
+    
+    try {
+      console.log(`🧪 Creating test users for: ${slug}`);
+      const token = getAuthToken();
+      
+      // Create a test student
+      const studentData = {
+        username: 'teststudent',
+        email: 'teststudent@test.com',
+        fullName: 'Test Student',
+        password: 'test123',
+        role: 'student'
+      };
+      
+      const studentResponse = await fetch(`${API_BASE_URL}/api/tenants/${slug}/students`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify(studentData)
+      });
+      
+      if (!studentResponse.ok) {
+        const errorData = await studentResponse.json();
+        throw new Error(errorData.error || 'Failed to create test student');
+      }
+      
+      console.log('✅ Test student created');
+      
+      // Refresh the user count
+      await loadUserCount(slug);
+      
+      setSuccess('Test users created successfully');
+      setError('');
+    } catch (error) {
+      console.error('Failed to create test users:', error);
+      setError('Failed to create test users: ' + error.message);
+      setSuccess('');
     }
   };
 
@@ -1192,13 +1255,21 @@ const MultiTenantAdmin = () => {
                             Reset Admin Password
                           </button>
                           
-                          <button
-                            onClick={checkDatabaseStatus}
-                            className="px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 text-sm"
-                            title="Check database connection and status"
-                          >
-                            🗄️ DB Status
-                          </button>
+                                                     <button
+                             onClick={checkDatabaseStatus}
+                             className="px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 text-sm"
+                             title="Check database connection and status"
+                           >
+                             🗄️ DB Status
+                           </button>
+                           
+                           <button
+                             onClick={() => createTestUsers(institution.slug)}
+                             className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 text-sm"
+                             title="Create test users for this institution"
+                           >
+                             🧪 Create Test Users
+                           </button>
                           
                           <button
                             onClick={fixUserRoles}
