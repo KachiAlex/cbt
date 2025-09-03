@@ -107,7 +107,7 @@ userSchema.virtual('displayName').get(function() {
   return this.fullName || this.username;
 });
 
-// Pre-save middleware
+// Timestamp middleware (combined with password hashing)
 userSchema.pre('save', function(next) {
   this.updated_at = new Date();
   next();
