@@ -401,6 +401,49 @@ const MultiTenantAdmin = () => {
      }
   };
 
+  const resetAdminPassword = async (slug, adminUsername) => {
+    if (!adminUsername) {
+      setError('No admin username found for this institution');
+      return;
+    }
+
+    const newPassword = prompt(`Enter new password for admin '${adminUsername}' (minimum 6 characters):`);
+    if (!newPassword) return;
+
+    if (newPassword.length < 6) {
+      setError('Password must be at least 6 characters long');
+      return;
+    }
+
+    try {
+      const token = getAuthToken();
+      
+      const response = await fetch(`${API_BASE_URL}/api/tenants/${slug}/reset-admin-password`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          newPassword,
+          adminUsername
+        })
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to reset admin password');
+      }
+
+      await response.json();
+      setSuccess(`Admin password reset successfully. New password: ${newPassword}`);
+      setError('');
+    } catch (error) {
+      setError('Failed to reset admin password: ' + error.message);
+      setSuccess('');
+    }
+  };
+
   const deleteInstitution = async (slug) => {
     if (!window.confirm('⚠️ HARD DELETE WARNING: This will permanently delete this institution and ALL its data (users, exams, results, etc.) from the database. This action cannot be undone. Are you absolutely sure?')) {
       return;
@@ -816,26 +859,35 @@ const MultiTenantAdmin = () => {
                           </div>
                         </div>
                         
-                        <div className="flex space-x-2">
-                          <button
-                            onClick={() => toggleInstitutionStatus(institution.slug, institution.suspended)}
-                            className={`px-4 py-2 rounded-md text-sm ${
-                              institution.suspended
-                                ? 'bg-green-600 text-white hover:bg-green-700'
-                                : 'bg-yellow-600 text-white hover:bg-yellow-700'
-                            }`}
-                          >
-                            {institution.suspended ? 'Activate' : 'Suspend'}
-                          </button>
-                          {canManageAdmins() && (
-                            <button
-                              onClick={() => deleteInstitution(institution.slug)}
-                              className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 text-sm"
-                            >
-                              Delete
-                            </button>
-                          )}
-                        </div>
+                                                 <div className="flex space-x-2">
+                           <button
+                             onClick={() => toggleInstitutionStatus(institution.slug, institution.suspended)}
+                             className={`px-4 py-2 rounded-md text-sm ${
+                               institution.suspended
+                                 ? 'bg-green-600 text-white hover:bg-green-700'
+                                 : 'bg-yellow-600 text-white hover:bg-yellow-700'
+                             }`}
+                           >
+                             {institution.suspended ? 'Activate' : 'Suspend'}
+                           </button>
+                           {canManageAdmins() && (
+                             <>
+                               <button
+                                 onClick={() => resetAdminPassword(institution.slug, institution.default_admin?.username)}
+                                 className="px-4 py-2 bg-orange-600 text-white rounded-md hover:bg-orange-700 text-sm"
+                                 title="Reset admin password"
+                               >
+                                 Reset Admin Password
+                               </button>
+                               <button
+                                 onClick={() => deleteInstitution(institution.slug)}
+                                 className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 text-sm"
+                               >
+                                 Delete
+                               </button>
+                             </>
+                           )}
+                         </div>
                       </div>
                       
                       <div className="mt-4 pt-4 border-t border-gray-200">

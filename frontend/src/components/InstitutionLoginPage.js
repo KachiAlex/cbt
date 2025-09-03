@@ -107,7 +107,12 @@ const InstitutionLoginPage = () => {
       }
     } catch (error) {
       console.error('Login error:', error);
-      setError("Login failed. Please try again.");
+      // Show the specific error message from the backend
+      if (error.message && error.message !== 'Invalid credentials') {
+        setError(error.message);
+      } else {
+        setError("Login failed. Please try again.");
+      }
     }
   };
 

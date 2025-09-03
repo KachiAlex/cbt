@@ -1291,6 +1291,55 @@ app.patch('/api/tenants/:slug/logo', cors(), authenticateMultiTenantAdmin, async
   }
 });
 
+// Reset institution admin password endpoint
+app.patch('/api/tenants/:slug/reset-admin-password', cors(), authenticateMultiTenantAdmin, async (req, res) => {
+  try {
+    const { slug } = req.params;
+    const { newPassword, adminUsername } = req.body;
+
+    if (!newPassword || !adminUsername) {
+      return res.status(400).json({ error: 'newPassword and adminUsername are required' });
+    }
+
+    if (newPassword.length < 6) {
+      return res.status(400).json({ error: 'Password must be at least 6 characters long' });
+    }
+
+    // Find the tenant
+    const tenant = await Tenant.findOne({ slug, deleted_at: null });
+    if (!tenant) {
+      return res.status(404).json({ error: 'Tenant not found' });
+    }
+
+    // Find the admin user in this tenant
+    const adminUser = await User.findOne({ 
+      tenant_id: tenant._id,
+      username: { $regex: new RegExp(`^${adminUsername}$`, 'i') },
+      role: { $in: ['admin', 'super_admin', 'managed_admin'] }
+    });
+
+    if (!adminUser) {
+      return res.status(404).json({ error: 'Admin user not found in this institution' });
+    }
+
+    // Update the password
+    adminUser.password = newPassword;
+    await adminUser.save();
+
+    res.json({ 
+      message: 'Admin password reset successfully',
+      user: {
+        username: adminUser.username,
+        role: adminUser.role,
+        fullName: adminUser.fullName
+      }
+    });
+  } catch (err) {
+    console.error('Error resetting admin password:', err);
+    res.status(500).json({ error: 'Failed to reset admin password' });
+  }
+});
+
 // Get tenant profile endpoint
 app.get('/api/tenant/:slug/profile', cors(), async (req, res) => {
   try {
