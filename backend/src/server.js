@@ -1249,15 +1249,73 @@ app.put('/api/tenants/:id', cors(), authenticateMultiTenantAdmin, async (req, re
   }
 });
 
+// Get detailed tenant information by ID (for frontend compatibility)
+app.get('/api/tenants/:id/detail', cors(), authenticateMultiTenantAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    const tenant = await Tenant.findById(id).lean();
+    if (!tenant) {
+      return res.status(404).json({ error: 'Tenant not found' });
+    }
+    
+    // Get admin users for this tenant
+    const admins = await User.find({ 
+      tenant_id: tenant._id,
+      role: { $in: ['super_admin', 'admin', 'tenant_admin'] }
+    }).select('-password').lean();
+    
+    // Transform the data to match frontend expectations
+    const transformedTenant = {
+      _id: tenant._id,
+      name: tenant.name,
+      slug: tenant.slug,
+      contact_email: tenant.contact_email,
+      subscriptionPlan: tenant.plan || 'Basic',
+      suspended: tenant.suspended,
+      createdAt: tenant.createdAt,
+      address: tenant.address || '',
+      // Map admin fields to frontend expectations
+      primaryAdmin: tenant.default_admin?.fullName || tenant.default_admin?.username || '',
+      adminUsername: tenant.default_admin?.username || '',
+      // Include all admin users
+      admins: admins,
+      default_admin: tenant.default_admin
+    };
+    
+    res.json(transformedTenant);
+  } catch (error) {
+    console.error('Error fetching tenant detail:', error);
+    res.status(500).json({ error: 'Failed to fetch tenant detail' });
+  }
+});
+
 // Get all tenants endpoint
 app.get('/api/tenants', cors(), authenticateMultiTenantAdmin, async (req, res) => {
   try {
     const tenants = await Tenant.find({ deleted_at: null })
-      .select('name slug contact_email plan suspended createdAt default_admin')
+      .select('name slug contact_email plan suspended createdAt default_admin address')
       .sort({ createdAt: -1 })
       .lean();
     
-    res.json(tenants);
+    // Transform the data to match frontend expectations
+    const transformedTenants = tenants.map(tenant => ({
+      _id: tenant._id,
+      name: tenant.name,
+      slug: tenant.slug,
+      contact_email: tenant.contact_email,
+      subscriptionPlan: tenant.plan || 'Basic',
+      suspended: tenant.suspended,
+      createdAt: tenant.createdAt,
+      address: tenant.address || '',
+      // Map admin fields to frontend expectations
+      primaryAdmin: tenant.default_admin?.fullName || tenant.default_admin?.username || '',
+      adminUsername: tenant.default_admin?.username || '',
+      // Note: adminPassword is never returned for security
+      default_admin: tenant.default_admin
+    }));
+    
+    res.json(transformedTenants);
   } catch (error) {
     console.error('Error fetching tenants:', error);
     res.status(500).json({ error: 'Failed to fetch tenants' });
@@ -1384,6 +1442,130 @@ app.delete('/api/tenants/:slug', cors(), authenticateMultiTenantAdmin, async (re
     
   } catch (error) {
     console.error('Error deleting tenant:', error);
+    res.status(500).json({ error: 'Failed to delete tenant: ' + error.message });
+  }
+});
+
+// Delete tenant by ID endpoint (for frontend compatibility)
+app.delete('/api/tenants/:id', cors(), authenticateMultiTenantAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { hard, force } = req.query;
+    console.log(`Attempting to delete tenant with ID: ${id}, hard: ${hard}, force: ${force}`);
+    
+    // Find the tenant by ID
+    let tenant = await Tenant.findById(id);
+    if (!tenant) {
+      console.log(`Tenant not found with ID: ${id}`);
+      return res.status(404).json({ error: 'Tenant not found' });
+    }
+    
+    console.log(`Found tenant: ${tenant.name} (ID: ${tenant._id}, Slug: ${tenant.slug})`);
+    
+    // Check if this is a hard delete
+    if (hard === 'true' && force === 'true') {
+      console.log(`Performing HARD DELETE for tenant: ${tenant.name}`);
+      
+      // Hard delete all users associated with this tenant
+      try {
+        const userDeleteResult = await User.deleteMany({ tenant_id: tenant._id });
+        console.log(`Hard deleted ${userDeleteResult.deletedCount} users`);
+      } catch (userError) {
+        console.log(`Warning: Could not delete users: ${userError.message}`);
+      }
+      
+      // Hard delete all exams associated with this tenant
+      try {
+        const examDeleteResult = await Exam.deleteMany({ tenant_id: tenant._id });
+        console.log(`Hard deleted ${examDeleteResult.deletedCount} exams`);
+      } catch (examError) {
+        console.log(`Warning: Could not delete exams: ${examError.message}`);
+      }
+      
+      // Hard delete all questions associated with this tenant
+      try {
+        const questionDeleteResult = await Question.deleteMany({ tenant_id: tenant._id });
+        console.log(`Hard deleted ${questionDeleteResult.deletedCount} questions`);
+      } catch (questionError) {
+        console.log(`Warning: Could not delete questions: ${questionError.message}`);
+      }
+      
+      // Hard delete all results associated with this tenant
+      try {
+        const resultDeleteResult = await Result.deleteMany({ tenant_id: tenant._id });
+        console.log(`Hard deleted ${resultDeleteResult.deletedCount} results`);
+      } catch (resultError) {
+        console.log(`Warning: Could not delete results: ${resultError.message}`);
+      }
+      
+      // Hard delete the tenant itself
+      try {
+        await Tenant.findByIdAndDelete(tenant._id);
+        console.log(`Successfully hard-deleted tenant: ${tenant.name}`);
+      } catch (tenantError) {
+        console.log(`Error hard-deleting tenant: ${tenantError.message}`);
+        throw tenantError;
+      }
+      
+      res.json({
+        message: 'Tenant and all associated data permanently deleted from database',
+        tenant: {
+          id: tenant._id,
+          name: tenant.name,
+          slug: tenant.slug
+        }
+      });
+      
+    } else {
+      // Soft delete (default behavior)
+      console.log(`Performing SOFT DELETE for tenant: ${tenant.name}`);
+      
+      // Try to soft delete all users associated with this tenant
+      try {
+        const userUpdateResult = await User.updateMany(
+          { tenant_id: tenant._id },
+          { 
+            is_active: false,
+            updatedAt: new Date()
+          }
+        );
+        console.log(`Updated ${userUpdateResult.modifiedCount} users`);
+      } catch (userError) {
+        console.log(`Warning: Could not update users: ${userError.message}`);
+      }
+    
+      // Soft delete the tenant by setting deleted_at timestamp
+      try {
+        tenant.deleted_at = new Date();
+        await tenant.save();
+        console.log(`Successfully soft-deleted tenant: ${tenant.name}`);
+      } catch (saveError) {
+        console.log(`Error saving tenant: ${saveError.message}`);
+        // Try alternative approach - direct database update
+        try {
+          await Tenant.updateOne(
+            { _id: tenant._id },
+            { deleted_at: new Date() }
+          );
+          console.log(`Successfully updated tenant via direct update`);
+        } catch (updateError) {
+          console.log(`Error updating tenant: ${updateError.message}`);
+          throw updateError;
+        }
+      }
+    
+      res.json({
+        message: 'Tenant soft-deleted successfully',
+        tenant: {
+          id: tenant._id,
+          name: tenant.name,
+          slug: tenant.slug
+        }
+      });
+    }
+    
+  } catch (error) {
+    console.error('Error deleting tenant by ID:', error);
     res.status(500).json({ error: 'Failed to delete tenant: ' + error.message });
   }
 });
