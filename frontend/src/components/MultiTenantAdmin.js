@@ -991,82 +991,76 @@ const MultiTenantAdmin = () => {
                             </h3>
                           </div>
                           
-                          {/* Institution Info Grid - Organized in Logical Sections */}
-                          <div className="space-y-6 mb-6">
-                            {/* Basic Info Row */}
-                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                              <div className="bg-gray-50 p-4 rounded-lg">
-                                <div className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-2">Institution ID</div>
-                                <div className="text-sm font-mono text-gray-900 bg-white px-3 py-2 rounded border font-medium">{institution.slug}</div>
-                              </div>
-                              
-                              <div className="bg-gray-50 p-4 rounded-lg">
-                                <div className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-2">Subscription Plan</div>
-                                <div className={`inline-flex px-3 py-1 rounded-full text-xs font-medium ${
-                                  institution.plan === 'Premium' ? 'bg-purple-100 text-purple-800' :
-                                  institution.plan === 'Enterprise' ? 'bg-blue-100 text-blue-800' :
-                                  'bg-green-100 text-green-800'
-                                }`}>{institution.plan}</div>
-                              </div>
-                              
-                              <div className="bg-gray-50 p-4 rounded-lg">
-                                <div className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-2">Status</div>
-                                <div className={`inline-flex px-3 py-1 rounded-full text-xs font-medium ${
-                                  institution.suspended 
-                                    ? 'bg-red-100 text-red-800' 
-                                    : 'bg-green-100 text-green-800'
-                                }`}>
-                                  {institution.suspended ? 'Suspended' : 'Active'}
-                                </div>
-                              </div>
-                            </div>
-                            
-                            {/* Admin Info Row */}
-                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                              <div className="bg-gray-50 p-4 rounded-lg">
-                                <div className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-2">Primary Admin</div>
-                                <div className="text-sm font-medium text-gray-900">{institution.default_admin?.fullName || 'Not set'}</div>
-                              </div>
-                              
-                              <div className="bg-gray-50 p-4 rounded-lg">
-                                <div className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-2">Admin Username</div>
-                                <div className="text-sm font-mono text-gray-900 bg-white px-3 py-2 rounded border">{institution.default_admin?.username || 'Not set'}</div>
-                              </div>
-                              
-                              <div className="bg-gray-50 p-4 rounded-lg">
-                                <div className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-2">Total Users</div>
-                                <div className="text-sm font-medium text-gray-900">
-                                  <span id={`user-count-${institution.slug}`} className="text-blue-600 font-semibold">
-                                    Loading...
-                                  </span>
-                                  <button
-                                    onClick={() => loadUserCount(institution.slug)}
-                                    className="ml-2 text-xs text-gray-500 hover:text-gray-700 underline"
-                                    title="Refresh user count"
-                                  >
-                                    🔄
-                                  </button>
-                                </div>
-                              </div>
-                            </div>
-                            
-                            {/* Metadata Row */}
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                              <div className="bg-gray-50 p-4 rounded-lg">
-                                <div className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-2">Created Date</div>
-                                <div className="text-sm text-gray-900 font-medium">{new Date(institution.createdAt).toLocaleDateString('en-US', { 
-                                  year: 'numeric', 
-                                  month: 'long', 
-                                  day: 'numeric' 
-                                })}</div>
-                              </div>
-                              
-                              <div className="bg-gray-50 p-4 rounded-lg">
-                                <div className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-2">Address</div>
-                                <div className="text-sm text-gray-900">{institution.address || 'No address provided'}</div>
-                              </div>
-                            </div>
-                          </div>
+                                                     {/* Institution Info Grid - Expanded Horizontally by 500% */}
+                           <div className="space-y-8 mb-8">
+                             {/* Single Row with All Info - Much More Spacious */}
+                             <div className="grid grid-cols-1 lg:grid-cols-6 xl:grid-cols-8 gap-6">
+                               <div className="bg-gray-50 p-6 rounded-xl min-w-0">
+                                 <div className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-3">Institution ID</div>
+                                 <div className="text-sm font-mono text-gray-900 bg-white px-4 py-3 rounded-lg border font-medium break-all">{institution.slug}</div>
+                               </div>
+                               
+                               <div className="bg-gray-50 p-6 rounded-xl min-w-0">
+                                 <div className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-3">Subscription Plan</div>
+                                 <div className={`inline-flex px-4 py-2 rounded-full text-sm font-medium ${
+                                   institution.plan === 'Premium' ? 'bg-purple-100 text-purple-800' :
+                                   institution.plan === 'Enterprise' ? 'bg-blue-100 text-blue-800' :
+                                   'bg-green-100 text-green-800'
+                                 }`}>{institution.plan}</div>
+                               </div>
+                               
+                               <div className="bg-gray-50 p-6 rounded-xl min-w-0">
+                                 <div className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-3">Status</div>
+                                 <div className={`inline-flex px-4 py-2 rounded-full text-sm font-medium ${
+                                   institution.suspended 
+                                     ? 'bg-red-100 text-red-800' 
+                                     : 'bg-green-100 text-green-800'
+                                 }`}>
+                                   {institution.suspended ? 'Suspended' : 'Active'}
+                                 </div>
+                               </div>
+                               
+                               <div className="bg-gray-50 p-6 rounded-xl min-w-0">
+                                 <div className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-3">Primary Admin</div>
+                                 <div className="text-sm font-medium text-gray-900 break-words">{institution.default_admin?.fullName || 'Not set'}</div>
+                               </div>
+                               
+                               <div className="bg-gray-50 p-6 rounded-xl min-w-0">
+                                 <div className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-3">Admin Username</div>
+                                 <div className="text-sm font-mono text-gray-900 bg-white px-4 py-3 rounded-lg border break-all">{institution.default_admin?.username || 'Not set'}</div>
+                               </div>
+                               
+                               <div className="bg-gray-50 p-6 rounded-xl min-w-0">
+                                 <div className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-3">Total Users</div>
+                                 <div className="text-sm font-medium text-gray-900">
+                                   <span id={`user-count-${institution.slug}`} className="text-blue-600 font-semibold">
+                                     Loading...
+                                   </span>
+                                   <button
+                                     onClick={() => loadUserCount(institution.slug)}
+                                     className="ml-3 text-xs text-gray-500 hover:text-gray-700 underline"
+                                     title="Refresh user count"
+                                   >
+                                     🔄
+                                   </button>
+                                 </div>
+                               </div>
+                               
+                               <div className="bg-gray-50 p-6 rounded-xl min-w-0">
+                                 <div className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-3">Created Date</div>
+                                 <div className="text-sm text-gray-900 font-medium break-words">{new Date(institution.createdAt).toLocaleDateString('en-US', { 
+                                   year: 'numeric', 
+                                   month: 'long', 
+                                   day: 'numeric' 
+                                 })}</div>
+                               </div>
+                               
+                               <div className="bg-gray-50 p-6 rounded-xl min-w-0 lg:col-span-2 xl:col-span-1">
+                                 <div className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-3">Address</div>
+                                 <div className="text-sm text-gray-900 break-words">{institution.address || 'No address provided'}</div>
+                               </div>
+                             </div>
+                           </div>
                         </div>
                         
                         {/* Action Buttons - Organized by Function */}
