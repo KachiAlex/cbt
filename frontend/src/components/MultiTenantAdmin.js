@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 
 const MultiTenantAdmin = () => {
-  const [activeTab, setActiveTab] = useState('dashboard');
+  const [activeTab, setActiveTab] = useState('manage');
   const [institutions, setInstitutions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -1161,7 +1161,7 @@ const MultiTenantAdmin = () => {
               ) : (
                 <div className="grid gap-6">
                   {institutions.map((institution) => (
-                    <div key={institution.slug} className="border border-gray-200 rounded-lg p-6">
+                    <div key={institution.slug} data-slug={institution.slug} className="border border-gray-200 rounded-lg p-6">
                       <div className="flex justify-between items-start">
                         <div className="flex-1">
                           <h3 className="text-xl font-semibold text-gray-800 mb-2">
@@ -1198,9 +1198,10 @@ const MultiTenantAdmin = () => {
                                <span className="font-semibold min-w-[80px] text-gray-700">Username:</span>
                                <span className="text-gray-800 font-mono bg-gray-50 px-2 py-1 rounded text-xs">{institution.default_admin?.username}</span>
                              </div>
-                             <div className="flex items-center space-x-3">
-                               <span className="font-semibold min-w-[80px] text-gray-700">Users:</span>
+                                                          <div className="flex items-center space-x-3">
+                               <span className="font-semibold min-w-[80px] text-gray-800">Users:</span>
                                <span className="text-gray-800">
+                                 {console.log(`🎨 Rendering user count for: ${institution.slug}`)}
                                  <span id={`user-count-${institution.slug}`} className="text-blue-600 font-medium">
                                    Loading...
                                  </span>
@@ -1265,6 +1266,16 @@ const MultiTenantAdmin = () => {
                                  console.log('Element not found. All elements with user-count:');
                                  const allElements = document.querySelectorAll('[id*="user-count"]');
                                  console.log(Array.from(allElements).map(el => el.id));
+                                 
+                                 // Debug: Check the entire institution card HTML
+                                 const cardElement = document.querySelector(`[data-slug="${institution.slug}"]`) || 
+                                                   document.querySelector(`[key="${institution.slug}"]`) ||
+                                                   document.querySelector('.border.border-gray-200.rounded-lg.p-6');
+                                 if (cardElement) {
+                                   console.log('Institution card HTML:', cardElement.outerHTML);
+                                 } else {
+                                   console.log('Institution card not found');
+                                 }
                                }
                              }}
                              className="px-4 py-2 bg-yellow-600 text-white rounded-md hover:bg-yellow-700 text-sm"
@@ -1295,6 +1306,19 @@ const MultiTenantAdmin = () => {
                              title="Create test users for this institution"
                            >
                              🧪 Create Test Users
+                           </button>
+                           
+                           <button
+                             onClick={() => {
+                               console.log(`🧪 Testing component rendering for: ${institution.slug}`);
+                               console.log('Institution data:', institution);
+                               console.log('Current institutions state:', institutions);
+                               console.log('Component should be rendering user count display');
+                             }}
+                             className="px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 text-sm"
+                             title="Test component rendering"
+                           >
+                             🧪 Test Render
                            </button>
                           
                           <button

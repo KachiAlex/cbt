@@ -845,23 +845,32 @@ function SettingsTab({ onBackToExams, institution, user }) {
 
   const updateLogo = async (logoUrl) => {
     try {
-      const response = await fetch(`${process.env.REACT_APP_API_URL || 'https://cbt-rew7.onrender.com'}/api/tenants/${institution.slug}/logo`, {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('cbt_token')}`
-        },
-        body: JSON.stringify({ logo: logoUrl })
-      });
+          const response = await fetch(`${process.env.REACT_APP_API_URL || 'https://cbt-rew7.onrender.com'}/api/tenants/${institution.slug}/logo/update`, {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ logo_url: logoUrl })
+    });
       
       if (response.ok) {
+        const data = await response.json();
         setToast({ message: 'Logo updated successfully', type: 'success' });
         setLogoModalOpen(false);
         setSelectedLogoFile(null);
         setLogoUrlInput('');
+        
+        // Update the institution logo in the UI without reloading
+        if (data.tenant && data.tenant.logo_url) {
+          console.log('Logo updated successfully:', data.tenant.logo_url);
+        }
+        
+        // Optionally refresh the page to show the new logo
+        setTimeout(() => window.location.reload(), 1000);
       } else {
         const errorData = await response.json();
-        setToast({ message: `Failed to update logo: ${errorData.message || 'Unknown error'}`, type: 'error' });
+        console.error('Logo update failed:', errorData);
+        setToast({ message: `Failed to update logo: ${errorData.error || errorData.message || 'Unknown error'}`, type: 'error' });
       }
     } catch (error) {
       setToast({ message: `Failed to update logo: ${error.message}`, type: 'error' });
@@ -976,6 +985,7 @@ function SettingsTab({ onBackToExams, institution, user }) {
                       src={URL.createObjectURL(selectedLogoFile)}
                       alt="Logo preview"
                       className="w-16 h-16 object-contain border rounded"
+                      crossOrigin="anonymous"
                     />
                     <button
                       onClick={() => {
@@ -1028,6 +1038,19 @@ function SettingsTab({ onBackToExams, institution, user }) {
                 <button
                   onClick={() => {
                     if (selectedLogoFile) {
+                      // Validate file type
+                      const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
+                      if (!allowedTypes.includes(selectedLogoFile.type)) {
+                        showToast('Please select a valid image file (JPEG, PNG, GIF, or WebP)', 'error');
+                        return;
+                      }
+                      
+                      // Validate file size (max 5MB)
+                      if (selectedLogoFile.size > 5 * 1024 * 1024) {
+                        showToast('File size must be less than 5MB', 'error');
+                        return;
+                      }
+                      
                       // Convert file to data URL for now
                       // In a production environment, you'd upload to a cloud storage service first
                       const reader = new FileReader();
@@ -1041,11 +1064,24 @@ function SettingsTab({ onBackToExams, institution, user }) {
                     } else {
                       // Use URL input if no file selected
                       const url = logoUrlInput.trim();
-                      if (url && /^https?:\/\//i.test(url)) {
-                        updateLogo(url);
-                      } else {
+                      if (!url) {
                         showToast('Please select a file or enter a valid URL', 'error');
+                        return;
                       }
+                      
+                      if (!/^https?:\/\//i.test(url)) {
+                        showToast('Please enter a valid URL starting with http:// or https://', 'error');
+                        return;
+                      }
+                      
+                      // Validate URL format
+                      const urlPattern = /^https?:\/\/.+\.(jpg|jpeg|png|gif|webp|svg)(\?.*)?$/i;
+                      if (!urlPattern.test(url)) {
+                        showToast('Please enter a valid image URL (JPG, PNG, GIF, WebP, or SVG)', 'error');
+                        return;
+                      }
+                      
+                      updateLogo(url);
                     }
                   }}
                   className="flex-1 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700"

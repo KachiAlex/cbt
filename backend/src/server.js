@@ -1347,7 +1347,7 @@ app.patch('/api/tenants/:slug/toggle-status', cors(), authenticateMultiTenantAdm
   }
 });
 
-// Update tenant logo URL
+// Update tenant logo URL (Multi-tenant admin only)
 app.patch('/api/tenants/:slug/logo', cors(), authenticateMultiTenantAdmin, async (req, res) => {
   try {
     const { slug } = req.params;
@@ -1366,6 +1366,44 @@ app.patch('/api/tenants/:slug/logo', cors(), authenticateMultiTenantAdmin, async
     await tenant.save();
 
     res.json({ message: 'Logo updated', tenant: { slug: tenant.slug, logo_url: tenant.logo_url } });
+  } catch (err) {
+    console.error('Error updating logo:', err);
+    res.status(500).json({ error: 'Failed to update logo' });
+  }
+});
+
+// Update tenant logo URL (Institution users)
+app.patch('/api/tenants/:slug/logo/update', cors(), async (req, res) => {
+  try {
+    const { slug } = req.params;
+    const { logo_url } = req.body;
+
+    if (!logo_url || typeof logo_url !== 'string' || logo_url.trim().length === 0) {
+      return res.status(400).json({ error: 'logo_url is required' });
+    }
+
+    const tenant = await Tenant.findOne({ slug, deleted_at: null });
+    if (!tenant) {
+      return res.status(404).json({ error: 'Tenant not found' });
+    }
+
+    // Validate logo URL format
+    const urlPattern = /^https?:\/\/.+\.(jpg|jpeg|png|gif|webp|svg)(\?.*)?$/i;
+    if (!urlPattern.test(logo_url)) {
+      return res.status(400).json({ error: 'Invalid logo URL format. Must be a valid image URL.' });
+    }
+
+    tenant.logo_url = logo_url.trim();
+    await tenant.save();
+
+    res.json({ 
+      message: 'Logo updated successfully', 
+      tenant: { 
+        slug: tenant.slug, 
+        logo_url: tenant.logo_url,
+        name: tenant.name
+      } 
+    });
   } catch (err) {
     console.error('Error updating logo:', err);
     res.status(500).json({ error: 'Failed to update logo' });
