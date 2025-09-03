@@ -1180,48 +1180,48 @@ const MultiTenantAdmin = () => {
               </div>
             </div>
             {showAdminForm && (
-              <div className="mb-6 border rounded-lg p-6 bg-gray-50">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="mb-6 border rounded-lg p-8 bg-gray-50">
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Full Name *</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-3">Full Name *</label>
                     <input
                       type="text"
                       value={adminFormData.fullName}
                       onChange={(e) => setAdminFormData({ ...adminFormData, fullName: e.target.value })}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
                       placeholder="Enter full name"
                       required
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Email *</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-3">Email *</label>
                     <input
                       type="email"
                       value={adminFormData.email}
                       onChange={(e) => setAdminFormData({ ...adminFormData, email: e.target.value })}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
                       placeholder="Enter email"
                       required
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Username *</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-3">Username *</label>
                     <input
                       type="text"
                       value={adminFormData.username}
                       onChange={(e) => setAdminFormData({ ...adminFormData, username: e.target.value })}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
                       placeholder="Enter username"
                       required
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Password *</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-3">Password *</label>
                     <input
                       type="password"
                       value={adminFormData.password}
                       onChange={(e) => setAdminFormData({ ...adminFormData, password: e.target.value })}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
                       placeholder="Min 6 characters"
                       required
                     />
