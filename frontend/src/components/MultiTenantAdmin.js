@@ -991,17 +991,17 @@ const MultiTenantAdmin = () => {
                             </h3>
                           </div>
                           
-                                                     {/* Institution Info Grid - Expanded Horizontally by 500% */}
-                           <div className="space-y-8 mb-8">
-                             {/* Single Row with All Info - Much More Spacious */}
-                             <div className="grid grid-cols-1 lg:grid-cols-6 xl:grid-cols-8 gap-6">
-                               <div className="bg-gray-50 p-6 rounded-xl min-w-0">
-                                 <div className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-3">Institution ID</div>
-                                 <div className="text-sm font-mono text-gray-900 bg-white px-4 py-3 rounded-lg border font-medium break-all">{institution.slug}</div>
+                                                     {/* Institution Info Grid - Clean, Legible Layout */}
+                           <div className="space-y-6 mb-6">
+                             {/* Row 1: Basic Info - 4 columns */}
+                             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                               <div className="bg-gray-50 p-6 rounded-lg">
+                                 <div className="text-sm font-medium text-gray-600 mb-2">Institution ID</div>
+                                 <div className="text-base font-mono text-gray-900 bg-white px-4 py-3 rounded border font-medium break-all">{institution.slug}</div>
                                </div>
                                
-                               <div className="bg-gray-50 p-6 rounded-xl min-w-0">
-                                 <div className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-3">Subscription Plan</div>
+                               <div className="bg-gray-50 p-6 rounded-lg">
+                                 <div className="text-sm font-medium text-gray-600 mb-2">Subscription Plan</div>
                                  <div className={`inline-flex px-4 py-2 rounded-full text-sm font-medium ${
                                    institution.plan === 'Premium' ? 'bg-purple-100 text-purple-800' :
                                    institution.plan === 'Enterprise' ? 'bg-blue-100 text-blue-800' :
@@ -1009,8 +1009,8 @@ const MultiTenantAdmin = () => {
                                  }`}>{institution.plan}</div>
                                </div>
                                
-                               <div className="bg-gray-50 p-6 rounded-xl min-w-0">
-                                 <div className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-3">Status</div>
+                               <div className="bg-gray-50 p-6 rounded-lg">
+                                 <div className="text-sm font-medium text-gray-600 mb-2">Status</div>
                                  <div className={`inline-flex px-4 py-2 rounded-full text-sm font-medium ${
                                    institution.suspended 
                                      ? 'bg-red-100 text-red-800' 
@@ -1020,44 +1020,50 @@ const MultiTenantAdmin = () => {
                                  </div>
                                </div>
                                
-                               <div className="bg-gray-50 p-6 rounded-xl min-w-0">
-                                 <div className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-3">Primary Admin</div>
-                                 <div className="text-sm font-medium text-gray-900 break-words">{institution.default_admin?.fullName || 'Not set'}</div>
+                               <div className="bg-gray-50 p-6 rounded-lg">
+                                 <div className="text-sm font-medium text-gray-600 mb-2">Created Date</div>
+                                 <div className="text-base text-gray-900 font-medium">{new Date(institution.createdAt).toLocaleDateString('en-US', { 
+                                   year: 'numeric', 
+                                   month: 'long', 
+                                   day: 'numeric' 
+                                 })}</div>
+                               </div>
+                             </div>
+                             
+                             {/* Row 2: Admin Info - 3 columns */}
+                             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                               <div className="bg-gray-50 p-6 rounded-lg">
+                                 <div className="text-sm font-medium text-gray-600 mb-2">Primary Admin</div>
+                                 <div className="text-base font-medium text-gray-900">{institution.default_admin?.fullName || 'Not set'}</div>
                                </div>
                                
-                               <div className="bg-gray-50 p-6 rounded-xl min-w-0">
-                                 <div className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-3">Admin Username</div>
-                                 <div className="text-sm font-mono text-gray-900 bg-white px-4 py-3 rounded-lg border break-all">{institution.default_admin?.username || 'Not set'}</div>
+                               <div className="bg-gray-50 p-6 rounded-lg">
+                                 <div className="text-sm font-medium text-gray-600 mb-2">Admin Username</div>
+                                 <div className="text-base font-mono text-gray-900 bg-white px-4 py-3 rounded border">{institution.default_admin?.username || 'Not set'}</div>
                                </div>
                                
-                               <div className="bg-gray-50 p-6 rounded-xl min-w-0">
-                                 <div className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-3">Total Users</div>
-                                 <div className="text-sm font-medium text-gray-900">
+                               <div className="bg-gray-50 p-6 rounded-lg">
+                                 <div className="text-sm font-medium text-gray-600 mb-2">Total Users</div>
+                                 <div className="text-base font-medium text-gray-900">
                                    <span id={`user-count-${institution.slug}`} className="text-blue-600 font-semibold">
                                      Loading...
                                    </span>
                                    <button
                                      onClick={() => loadUserCount(institution.slug)}
-                                     className="ml-3 text-xs text-gray-500 hover:text-gray-700 underline"
+                                     className="ml-3 text-sm text-gray-500 hover:text-gray-700 underline"
                                      title="Refresh user count"
                                    >
                                      🔄
                                    </button>
                                  </div>
                                </div>
-                               
-                               <div className="bg-gray-50 p-6 rounded-xl min-w-0">
-                                 <div className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-3">Created Date</div>
-                                 <div className="text-sm text-gray-900 font-medium break-words">{new Date(institution.createdAt).toLocaleDateString('en-US', { 
-                                   year: 'numeric', 
-                                   month: 'long', 
-                                   day: 'numeric' 
-                                 })}</div>
-                               </div>
-                               
-                               <div className="bg-gray-50 p-6 rounded-xl min-w-0 lg:col-span-2 xl:col-span-1">
-                                 <div className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-3">Address</div>
-                                 <div className="text-sm text-gray-900 break-words">{institution.address || 'No address provided'}</div>
+                             </div>
+                             
+                             {/* Row 3: Address - 1 column (full width) */}
+                             <div className="grid grid-cols-1 gap-6">
+                               <div className="bg-gray-50 p-6 rounded-lg">
+                                 <div className="text-sm font-medium text-gray-600 mb-2">Address</div>
+                                 <div className="text-base text-gray-900">{institution.address || 'No address provided'}</div>
                                </div>
                              </div>
                            </div>
