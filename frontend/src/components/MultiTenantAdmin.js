@@ -7,7 +7,7 @@ const MultiTenantAdmin = () => {
   const [error, setError] = useState(null);
   const [showAddForm, setShowAddForm] = useState(false);
   const [showManageAdminsForm, setShowManageAdminsForm] = useState(false);
-  const [showManageStudentsForm, setShowManageStudentsForm] = useState(false);
+
   const [selectedInstitution, setSelectedInstitution] = useState(null);
   const [formData, setFormData] = useState({
     name: '',
@@ -407,18 +407,7 @@ const MultiTenantAdmin = () => {
                       </svg>
                       Manage Admins
                     </button>
-                    <button
-                      onClick={() => {
-                        setSelectedInstitution(institution);
-                        setShowManageStudentsForm(true);
-                      }}
-                      className="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-xs font-medium rounded text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
-                    >
-                      <svg className="-ml-1 mr-1 h-4 w-4" fill="currentColor" viewBox="0 0 20 20">
-                        <path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                      </svg>
-                      Manage Students
-                    </button>
+                    
                     <button
                       onClick={() => handleDeleteInstitution(institution._id)}
                       className="inline-flex items-center px-3 py-2 border border-red-300 shadow-sm text-xs font-medium rounded text-red-700 bg-white hover:bg-red-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
@@ -627,48 +616,7 @@ const MultiTenantAdmin = () => {
         </div>
       )}
 
-      {/* Manage Students Modal */}
-      {showManageStudentsForm && selectedInstitution && (
-        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
-          <div className="relative top-20 mx-auto p-5 border w-11/12 md:w-3/4 lg:w-1/2 shadow-lg rounded-md bg-white">
-            <div className="mt-3">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-medium text-gray-900">
-                  Manage Students - {selectedInstitution.name}
-                </h3>
-                <button
-                  onClick={() => {
-                    setShowManageStudentsForm(false);
-                    setSelectedInstitution(null);
-                  }}
-                  className="text-gray-400 hover:text-gray-600"
-                >
-                  <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L6 6l12 12" />
-                  </svg>
-                </button>
-              </div>
 
-              <div className="space-y-4">
-                <p className="text-gray-600">
-                  Student management functionality will be implemented here.
-                </p>
-                <div className="flex justify-end">
-                  <button
-                    onClick={() => {
-                      setShowManageStudentsForm(false);
-                      setSelectedInstitution(null);
-                    }}
-                    className="bg-gray-300 text-gray-700 px-4 py-2 rounded-md hover:bg-gray-400 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500"
-                  >
-                    Close
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 };
