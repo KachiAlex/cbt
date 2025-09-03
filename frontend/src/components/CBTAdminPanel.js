@@ -842,16 +842,12 @@ function SettingsTab({ onBackToExams, institution, user }) {
   // refined logo upload state
   const [logoUrl, setLogoUrl] = useState('');
   const [logoError, setLogoError] = useState('');
-  const [logoLoading, setLogoLoading] = useState(false);
   const [adminsModalOpen, setAdminsModalOpen] = useState(false);
   const [studentsModalOpen, setStudentsModalOpen] = useState(false);
   const [toast, setToast] = useState({ message: '', type: 'success' });
 
   const updateLogo = async (logoUrl) => {
     try {
-      setLogoLoading(true);
-      setLogoError('');
-
       // Validate the logo URL format
       if (!logoUrl) {
         throw new Error('Logo URL is required');
@@ -884,7 +880,7 @@ function SettingsTab({ onBackToExams, institution, user }) {
       const result = await response.json();
       
       if (result.success) {
-        toast.success('Logo updated successfully!');
+        showToast('Logo updated successfully!', 'success');
         // Clear the form
         setSelectedLogoFile(null);
         setLogoUrl('');
@@ -896,71 +892,8 @@ function SettingsTab({ onBackToExams, institution, user }) {
     } catch (error) {
       console.error('Logo update failed:', error);
       setLogoError(error.message);
-      toast.error(`Logo update failed: ${error.message}`);
-    } finally {
-      setLogoLoading(false);
+      showToast(`Logo update failed: ${error.message}`, 'error');
     }
-  };
-
-  const handleFileSelect = (event) => {
-    const file = event.target.files[0];
-    if (!file) return;
-
-    // Validate file type
-    const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
-    if (!allowedTypes.includes(file.type)) {
-      toast.error('Please select a valid image file (JPEG, PNG, GIF, or WebP)');
-      return;
-    }
-
-    // Validate file size (5MB limit)
-    if (file.size > 5 * 1024 * 1024) {
-      toast.error('File size must be less than 5MB');
-      return;
-    }
-
-    setSelectedLogoFile(file);
-    setLogoError('');
-
-    // Create data URL for preview
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      const dataUrl = e.target.result;
-      setLogoUrl(dataUrl);
-      // The preview will automatically update since logoUrl is used in the img src
-    };
-    reader.readAsDataURL(file);
-  };
-
-  const handleUrlInput = (event) => {
-    const url = event.target.value;
-    setLogoUrl(url);
-    setSelectedLogoFile(null);
-    setLogoError('');
-
-    // Validate URL format if it's not empty
-    if (url && !url.startsWith('data:image/')) {
-      const urlPattern = /^https?:\/\/.+\.(jpg|jpeg|png|gif|webp)$/i;
-      if (!urlPattern.test(url)) {
-        setLogoError('Please enter a valid image URL ending with .jpg, .jpeg, .png, .gif, or .webp');
-      } else {
-        setLogoError('');
-      }
-    }
-  };
-
-  const handleLogoSubmit = async () => {
-    if (!logoUrl) {
-      setLogoError('Please select a file or enter a URL');
-      return;
-    }
-
-    if (logoError) {
-      toast.error('Please fix the errors before submitting');
-      return;
-    }
-
-    await updateLogo(logoUrl);
   };
 
   const showToast = (message, type = 'success') => {
@@ -1054,8 +987,31 @@ function SettingsTab({ onBackToExams, institution, user }) {
                   onChange={(e) => {
                     const file = e.target.files[0];
                     if (file) {
+                      // Validate file type
+                      const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
+                      if (!allowedTypes.includes(file.type)) {
+                        showToast('Please select a valid image file (JPEG, PNG, GIF, or WebP)', 'error');
+                        return;
+                      }
+                      
+                      // Validate file size (max 5MB)
+                      if (file.size > 5 * 1024 * 1024) {
+                        showToast('File size must be less than 5MB', 'error');
+                        return;
+                      }
+                      
                       setSelectedLogoFile(file);
                       setLogoUrlInput(''); // Clear URL input when file is selected
+                      
+                      // Create data URL for preview
+                      const reader = new FileReader();
+                      reader.onload = function(e) {
+                        setLogoUrl(e.target.result);
+                      };
+                      reader.onerror = function() {
+                        showToast('Failed to read the selected file', 'error');
+                      };
+                      reader.readAsDataURL(file);
                     }
                   }}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100"
@@ -1105,14 +1061,29 @@ function SettingsTab({ onBackToExams, institution, user }) {
                   onChange={(e) => {
                     const url = e.target.value;
                     setLogoUrlInput(url);
-                    if (url.trim() && /^https?:\/\//i.test(url.trim())) {
-                      // If valid URL is entered, clear the file selection
-                      setSelectedLogoFile(null);
+                    setSelectedLogoFile(null);
+                    setLogoError('');
+
+                    // Validate URL format if it's not empty
+                    if (url && !url.startsWith('data:image/')) {
+                      const urlPattern = /^https?:\/\/.+\.(jpg|jpeg|png|gif|webp)$/i;
+                      if (!urlPattern.test(url)) {
+                        setLogoError('Please enter a valid image URL ending with .jpg, .jpeg, .png, .gif, or .webp');
+                      } else {
+                        setLogoError('');
+                      }
                     }
                   }}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
                 />
               </div>
+
+              {/* Error Display */}
+              {logoError && (
+                <div className="text-red-600 text-sm bg-red-50 p-3 rounded-lg border border-red-200">
+                  {logoError}
+                </div>
+              )}
 
               {/* Action Buttons */}
               <div className="flex gap-2 pt-4">
