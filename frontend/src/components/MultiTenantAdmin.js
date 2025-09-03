@@ -1000,27 +1000,27 @@ const MultiTenantAdmin = () => {
                             </h3>
                           </div>
                           
-                                                     {/* Institution Info Grid - HORIZONTAL SPREAD Layout */}
+                                                     {/* Institution Info Grid - TRUE HORIZONTAL SPREAD Layout */}
                            <div className="mb-6">
-                             {/* Single Row: All Info Spread Horizontally */}
-                             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 xl:grid-cols-8 gap-4">
-                               <div className="bg-gray-50 p-4 rounded-lg">
-                                 <div className="text-xs font-medium text-gray-600 mb-1">Institution ID</div>
+                             {/* Single Row: All Info Spread Horizontally with Proper Spacing */}
+                             <div className="flex flex-wrap gap-3">
+                               <div className="flex-1 min-w-[200px] bg-gray-50 p-4 rounded-lg border border-gray-200">
+                                 <div className="text-sm font-medium text-gray-600 mb-2">Institution ID</div>
                                  <div className="text-sm font-mono text-gray-900 bg-white px-3 py-2 rounded border font-medium break-all">{institution.slug}</div>
                                </div>
                                
-                               <div className="bg-gray-50 p-4 rounded-lg">
-                                 <div className="text-xs font-medium text-gray-600 mb-1">Subscription Plan</div>
-                                 <div className={`inline-flex px-3 py-1 rounded-full text-xs font-medium ${
+                               <div className="flex-1 min-w-[180px] bg-gray-50 p-4 rounded-lg border border-gray-200">
+                                 <div className="text-sm font-medium text-gray-600 mb-2">Subscription Plan</div>
+                                 <div className={`inline-flex px-3 py-1 rounded-full text-sm font-medium ${
                                    institution.plan === 'Premium' ? 'bg-purple-100 text-purple-800' :
                                    institution.plan === 'Enterprise' ? 'bg-blue-100 text-blue-800' :
                                    'bg-green-100 text-green-800'
                                  }`}>{institution.plan}</div>
                                </div>
                                
-                               <div className="bg-gray-50 p-4 rounded-lg">
-                                 <div className="text-xs font-medium text-gray-600 mb-1">Status</div>
-                                 <div className={`inline-flex px-3 py-1 rounded-full text-xs font-medium ${
+                               <div className="flex-1 min-w-[150px] bg-gray-50 p-4 rounded-lg border border-gray-200">
+                                 <div className="text-sm font-medium text-gray-600 mb-2">Status</div>
+                                 <div className={`inline-flex px-3 py-1 rounded-full text-sm font-medium ${
                                    institution.suspended 
                                      ? 'bg-red-100 text-red-800' 
                                      : 'bg-green-100 text-green-800'
@@ -1029,8 +1029,8 @@ const MultiTenantAdmin = () => {
                                  </div>
                                </div>
                                
-                               <div className="bg-gray-50 p-4 rounded-lg">
-                                 <div className="text-xs font-medium text-gray-600 mb-1">Created Date</div>
+                               <div className="flex-1 min-w-[180px] bg-gray-50 p-4 rounded-lg border border-gray-200">
+                                 <div className="text-sm font-medium text-gray-600 mb-2">Created Date</div>
                                  <div className="text-sm text-gray-900 font-medium">{new Date(institution.createdAt).toLocaleDateString('en-US', { 
                                    year: 'numeric', 
                                    month: 'long', 
@@ -1038,18 +1038,18 @@ const MultiTenantAdmin = () => {
                                  })}</div>
                                </div>
                                
-                               <div className="bg-gray-50 p-4 rounded-lg">
-                                 <div className="text-xs font-medium text-gray-600 mb-1">Primary Admin</div>
-                                 <div className="text-sm font-medium text-gray-900">{institution.default_admin?.fullName || 'Not set'}</div>
+                               <div className="flex-1 min-w-[180px] bg-gray-50 p-4 rounded-lg border border-gray-200">
+                                 <div className="text-sm font-medium text-gray-600 mb-2">Primary Admin</div>
+                                 <div className="text-sm text-gray-900">{institution.default_admin?.fullName || 'Not set'}</div>
                                </div>
                                
-                               <div className="bg-gray-50 p-4 rounded-lg">
-                                 <div className="text-xs font-medium text-gray-600 mb-1">Admin Username</div>
+                               <div className="flex-1 min-w-[180px] bg-gray-50 p-4 rounded-lg border border-gray-200">
+                                 <div className="text-sm font-medium text-gray-600 mb-2">Admin Username</div>
                                  <div className="text-sm font-mono text-gray-900 bg-white px-3 py-2 rounded border">{institution.default_admin?.username || 'Not set'}</div>
                                </div>
                                
-                               <div className="bg-gray-50 p-4 rounded-lg">
-                                 <div className="text-xs font-medium text-gray-600 mb-1">Total Users</div>
+                               <div className="flex-1 min-w-[180px] bg-gray-50 p-4 rounded-lg border border-gray-200">
+                                 <div className="text-sm font-medium text-gray-600 mb-2">Total Users</div>
                                  <div className="text-sm font-medium text-gray-900">
                                    <span id={`user-count-${institution.slug}`} className="text-blue-600 font-semibold">
                                      Loading...
@@ -1064,8 +1064,8 @@ const MultiTenantAdmin = () => {
                                  </div>
                                </div>
                                
-                               <div className="bg-gray-50 p-4 rounded-lg">
-                                 <div className="text-xs font-medium text-gray-600 mb-1">Address</div>
+                               <div className="flex-1 min-w-[200px] bg-gray-50 p-4 rounded-lg border border-gray-200">
+                                 <div className="text-sm font-medium text-gray-600 mb-2">Address</div>
                                  <div className="text-sm text-gray-900">{institution.address || 'No address provided'}</div>
                                </div>
                              </div>
