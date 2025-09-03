@@ -7,6 +7,8 @@ const MultiTenantAdmin = () => {
   const [error, setError] = useState(null);
   const [showAddForm, setShowAddForm] = useState(false);
   const [showManageAdminsForm, setShowManageAdminsForm] = useState(false);
+  const [showAdminDetails, setShowAdminDetails] = useState(false);
+  const [showPasswordReset, setShowPasswordReset] = useState(false);
 
   const [selectedInstitution, setSelectedInstitution] = useState(null);
   const [formData, setFormData] = useState({
@@ -17,6 +19,11 @@ const MultiTenantAdmin = () => {
     adminUsername: '',
     adminPassword: '',
     address: ''
+  });
+
+  const [passwordResetData, setPasswordResetData] = useState({
+    newPassword: '',
+    confirmPassword: ''
   });
 
   // Check authentication status
@@ -215,6 +222,62 @@ const MultiTenantAdmin = () => {
       ...prev,
       [name]: value
     }));
+  };
+
+  // Handle password reset input changes
+  const handlePasswordResetChange = (e) => {
+    const { name, value } = e.target;
+    setPasswordResetData(prev => ({
+      ...prev,
+      [name]: value
+    }));
+  };
+
+  // Handle password reset
+  const handlePasswordReset = async (e) => {
+    e.preventDefault();
+    
+    if (passwordResetData.newPassword !== passwordResetData.confirmPassword) {
+      alert('Passwords do not match!');
+      return;
+    }
+
+    if (passwordResetData.newPassword.length < 6) {
+      alert('Password must be at least 6 characters long!');
+      return;
+    }
+
+    try {
+      const token = await getAuthToken();
+      if (!token) {
+        setError('No valid authentication token available');
+        return;
+      }
+
+      const response = await fetch(`https://cbt-rew7.onrender.com/api/tenants/${selectedInstitution.slug}/reset-admin-password`, {
+        method: 'PATCH',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          newPassword: passwordResetData.newPassword,
+          adminUsername: selectedInstitution.adminUsername
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      alert('Admin password has been successfully reset!');
+      setShowPasswordReset(false);
+      setPasswordResetData({ newPassword: '', confirmPassword: '' });
+      setError(null);
+    } catch (error) {
+      console.error('Error resetting password:', error);
+      setError('Failed to reset password. Please try again.');
+    }
   };
 
   // Load institutions on component mount
@@ -631,35 +694,31 @@ const MultiTenantAdmin = () => {
                  <div className="space-y-3">
                    <h4 className="text-sm font-medium text-gray-700">Admin Management Actions</h4>
                    
-                   {/* View Admin Details Button */}
-                   <button
-                     onClick={() => {
-                       // This would open a detailed admin view modal
-                       alert('View Admin Details functionality will be implemented here');
-                     }}
-                     className="w-full inline-flex items-center justify-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
-                   >
-                     <svg className="-ml-1 mr-2 h-4 w-4" fill="currentColor" viewBox="0 0 20 20">
-                       <path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd" />
-                     </svg>
-                     View Admin Details
-                   </button>
+                                       {/* View Admin Details Button */}
+                    <button
+                      onClick={() => {
+                        setShowAdminDetails(true);
+                      }}
+                      className="w-full inline-flex items-center justify-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                    >
+                      <svg className="-ml-1 mr-2 h-4 w-4" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd" />
+                      </svg>
+                      View Admin Details
+                    </button>
 
-                   {/* Reset Admin Password Button */}
-                   <button
-                     onClick={() => {
-                       if (window.confirm('Are you sure you want to reset the admin password? This will generate a new temporary password.')) {
-                         // This would implement password reset functionality
-                         alert('Password reset functionality will be implemented here. A new temporary password would be generated and sent to the admin.');
-                       }
-                     }}
-                     className="w-full inline-flex items-center justify-center px-4 py-2 border border-yellow-300 shadow-sm text-sm font-medium rounded-md text-yellow-700 bg-white hover:bg-yellow-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-yellow-500"
-                   >
-                     <svg className="-ml-1 mr-2 h-4 w-4" fill="currentColor" viewBox="0 0 20 20">
-                       <path fillRule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clipRule="evenodd" />
-                     </svg>
-                     Reset Admin Password
-                   </button>
+                                       {/* Reset Admin Password Button */}
+                    <button
+                      onClick={() => {
+                        setShowPasswordReset(true);
+                      }}
+                      className="w-full inline-flex items-center justify-center px-4 py-2 border border-yellow-300 shadow-sm text-sm font-medium rounded-md text-yellow-700 bg-white hover:bg-yellow-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-yellow-500"
+                    >
+                      <svg className="-ml-1 mr-2 h-4 w-4" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clipRule="evenodd" />
+                      </svg>
+                      Reset Admin Password
+                    </button>
 
                    {/* Add New Admin Button */}
                    <button
@@ -692,11 +751,224 @@ const MultiTenantAdmin = () => {
             </div>
           </div>
         </div>
-      )}
+             )}
+
+       {/* Admin Details Modal */}
+       {showAdminDetails && selectedInstitution && (
+         <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+           <div className="relative top-20 mx-auto p-5 border w-11/12 md:w-3/4 lg:w-1/2 shadow-lg rounded-md bg-white">
+             <div className="mt-3">
+               <div className="flex items-center justify-between mb-4">
+                 <h3 className="text-lg font-medium text-gray-900">
+                   Admin Details - {selectedInstitution.name}
+                 </h3>
+                 <button
+                   onClick={() => {
+                     setShowAdminDetails(false);
+                   }}
+                   className="text-gray-400 hover:text-gray-600"
+                 >
+                   <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                   </svg>
+                 </button>
+               </div>
+
+               <div className="space-y-6">
+                 {/* Admin Information */}
+                 <div className="bg-gray-50 p-6 rounded-lg">
+                   <h4 className="text-lg font-medium text-gray-900 mb-4">Administrator Information</h4>
+                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                     <div>
+                       <span className="block text-sm font-medium text-gray-600">Full Name</span>
+                       <span className="block text-lg text-gray-900 mt-1">
+                         {selectedInstitution.primaryAdmin || 'Not Set'}
+                       </span>
+                     </div>
+                     <div>
+                       <span className="block text-sm font-medium text-gray-600">Username</span>
+                       <span className="block text-lg text-gray-900 font-mono mt-1">
+                         {selectedInstitution.adminUsername || 'Not Set'}
+                       </span>
+                     </div>
+                     <div>
+                       <span className="block text-sm font-medium text-gray-600">Email</span>
+                       <span className="block text-lg text-gray-900 mt-1">
+                         {selectedInstitution.adminEmail || 'Not Set'}
+                       </span>
+                     </div>
+                     <div>
+                       <span className="block text-sm font-medium text-gray-600">Phone</span>
+                       <span className="block text-lg text-gray-900 mt-1">
+                         {selectedInstitution.adminPhone || 'Not Set'}
+                       </span>
+                     </div>
+                     <div>
+                       <span className="block text-sm font-medium text-gray-600">Role</span>
+                       <span className="block text-lg text-gray-900 mt-1">
+                         Primary Administrator
+                       </span>
+                     </div>
+                     <div>
+                       <span className="block text-sm font-medium text-gray-600">Status</span>
+                       <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-green-100 text-green-800 mt-1">
+                         Active
+                       </span>
+                     </div>
+                   </div>
+                 </div>
+
+                 {/* Institution Context */}
+                 <div className="bg-blue-50 p-6 rounded-lg">
+                   <h4 className="text-lg font-medium text-blue-900 mb-4">Institution Context</h4>
+                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                     <div>
+                       <span className="block text-sm font-medium text-blue-600">Institution</span>
+                       <span className="block text-lg text-blue-900 mt-1">
+                         {selectedInstitution.name}
+                       </span>
+                     </div>
+                     <div>
+                       <span className="block text-sm font-medium text-blue-600">Subscription Plan</span>
+                       <span className="block text-lg text-blue-900 mt-1">
+                         {selectedInstitution.subscriptionPlan || 'Basic'}
+                       </span>
+                     </div>
+                     <div>
+                       <span className="block text-sm font-medium text-blue-600">Total Users</span>
+                       <span className="block text-lg text-blue-900 mt-1">
+                         {selectedInstitution.totalUsers || 0} users
+                       </span>
+                     </div>
+                     <div>
+                       <span className="block text-sm font-medium text-blue-600">Created Date</span>
+                       <span className="block text-lg text-blue-900 mt-1">
+                         {new Date(selectedInstitution.createdAt).toLocaleDateString()}
+                       </span>
+                     </div>
+                   </div>
+                 </div>
+
+                 {/* Close Button */}
+                 <div className="flex justify-end pt-4 border-t border-gray-200">
+                   <button
+                     onClick={() => {
+                       setShowAdminDetails(false);
+                     }}
+                     className="bg-gray-300 text-gray-700 px-4 py-2 rounded-md hover:bg-gray-400 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500"
+                   >
+                     Close
+                   </button>
+                 </div>
+               </div>
+             </div>
+           </div>
+         </div>
+       )}
+
+       {/* Password Reset Modal */}
+       {showPasswordReset && selectedInstitution && (
+         <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+           <div className="relative top-20 mx-auto p-5 border w-11/12 md:w-3/4 lg:w-1/2 shadow-lg rounded-md bg-white">
+             <div className="mt-3">
+               <div className="flex items-center justify-between mb-4">
+                 <h3 className="text-lg font-medium text-gray-900">
+                   Reset Admin Password - {selectedInstitution.name}
+                 </h3>
+                 <button
+                   onClick={() => {
+                     setShowPasswordReset(false);
+                     setPasswordResetData({ newPassword: '', confirmPassword: '' });
+                   }}
+                   className="text-gray-400 hover:text-gray-600"
+                 >
+                   <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                   </svg>
+                 </button>
+               </div>
+
+               <form onSubmit={handlePasswordReset} className="space-y-6">
+                 {/* Admin Info */}
+                 <div className="bg-yellow-50 p-4 rounded-lg border border-yellow-200">
+                   <div className="flex items-center">
+                     <svg className="h-5 w-5 text-yellow-400 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                       <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                     </svg>
+                     <span className="text-sm text-yellow-800">
+                       You are about to reset the password for <strong>{selectedInstitution.primaryAdmin || selectedInstitution.adminUsername}</strong>
+                     </span>
+                   </div>
+                 </div>
+
+                 {/* Password Fields */}
+                 <div className="space-y-4">
+                   <div>
+                     <label className="block text-sm font-medium text-gray-700">New Password</label>
+                     <input
+                       type="password"
+                       name="newPassword"
+                       value={passwordResetData.newPassword}
+                       onChange={handlePasswordResetChange}
+                       required
+                       minLength="6"
+                       className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-yellow-500 focus:border-yellow-500"
+                       placeholder="Enter new password (min 6 characters)"
+                     />
+                   </div>
+                   <div>
+                     <label className="block text-sm font-medium text-gray-700">Confirm New Password</label>
+                     <input
+                       type="password"
+                       name="confirmPassword"
+                       value={passwordResetData.confirmPassword}
+                       onChange={handlePasswordResetChange}
+                       required
+                       minLength="6"
+                       className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-yellow-500 focus:border-yellow-500"
+                       placeholder="Confirm new password"
+                     />
+                   </div>
+                 </div>
+
+                 {/* Password Requirements */}
+                 <div className="bg-gray-50 p-4 rounded-lg">
+                   <h4 className="text-sm font-medium text-gray-700 mb-2">Password Requirements:</h4>
+                   <ul className="text-sm text-gray-600 space-y-1">
+                     <li>• Minimum 6 characters long</li>
+                     <li>• Passwords must match exactly</li>
+                     <li>• The new password will be immediately active</li>
+                   </ul>
+                 </div>
+
+                 {/* Action Buttons */}
+                 <div className="flex justify-end space-x-3 pt-4 border-t border-gray-200">
+                   <button
+                     type="button"
+                     onClick={() => {
+                       setShowPasswordReset(false);
+                       setPasswordResetData({ newPassword: '', confirmPassword: '' });
+                     }}
+                     className="bg-gray-300 text-gray-700 px-4 py-2 rounded-md hover:bg-gray-400 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500"
+                   >
+                     Cancel
+                   </button>
+                   <button
+                     type="submit"
+                     className="bg-yellow-600 text-white px-4 py-2 rounded-md hover:bg-yellow-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-yellow-500"
+                   >
+                     Reset Password
+                   </button>
+                 </div>
+               </form>
+             </div>
+           </div>
+         </div>
+       )}
 
 
-    </div>
-  );
-};
+     </div>
+   );
+ };
 
 export default MultiTenantAdmin; 
