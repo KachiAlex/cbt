@@ -839,42 +839,128 @@ function SettingsTab({ onBackToExams, institution, user }) {
   const [logoModalOpen, setLogoModalOpen] = useState(false);
   const [selectedLogoFile, setSelectedLogoFile] = useState(null);
   const [logoUrlInput, setLogoUrlInput] = useState('');
+  // refined logo upload state
+  const [logoUrl, setLogoUrl] = useState('');
+  const [logoError, setLogoError] = useState('');
+  const [logoLoading, setLogoLoading] = useState(false);
   const [adminsModalOpen, setAdminsModalOpen] = useState(false);
   const [studentsModalOpen, setStudentsModalOpen] = useState(false);
   const [toast, setToast] = useState({ message: '', type: 'success' });
 
   const updateLogo = async (logoUrl) => {
     try {
-          const response = await fetch(`${process.env.REACT_APP_API_URL || 'https://cbt-rew7.onrender.com'}/api/tenants/${institution.slug}/logo/update`, {
-      method: 'PATCH',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({ logo_url: logoUrl })
-    });
+      setLogoLoading(true);
+      setLogoError('');
+
+      // Validate the logo URL format
+      if (!logoUrl) {
+        throw new Error('Logo URL is required');
+      }
+
+      // Check if it's a data URL or valid image URL
+      const isDataUrl = logoUrl.startsWith('data:image/');
+      const isValidUrl = /^https?:\/\/.+\.(jpg|jpeg|png|gif|webp)$/i.test(logoUrl);
       
-      if (response.ok) {
-        const data = await response.json();
-        setToast({ message: 'Logo updated successfully', type: 'success' });
-        setLogoModalOpen(false);
-        setSelectedLogoFile(null);
-        setLogoUrlInput('');
-        
-        // Update the institution logo in the UI without reloading
-        if (data.tenant && data.tenant.logo_url) {
-          console.log('Logo updated successfully:', data.tenant.logo_url);
-        }
-        
-        // Optionally refresh the page to show the new logo
-        setTimeout(() => window.location.reload(), 1000);
-      } else {
+      if (!isDataUrl && !isValidUrl) {
+        throw new Error('Invalid logo format. Must be a valid image URL or uploaded image.');
+      }
+
+      const response = await fetch(`${process.env.REACT_APP_API_URL || 'https://cbt-rew7.onrender.com'}/api/tenants/${institution.slug}/logo/update`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('multi_tenant_admin_token')}`
+        },
+        body: JSON.stringify({ 
+          logo_url: logoUrl 
+        })
+      });
+
+      if (!response.ok) {
         const errorData = await response.json();
-        console.error('Logo update failed:', errorData);
-        setToast({ message: `Failed to update logo: ${errorData.error || errorData.message || 'Unknown error'}`, type: 'error' });
+        throw new Error(errorData.error || `HTTP ${response.status}: ${response.statusText}`);
+      }
+
+      const result = await response.json();
+      
+      if (result.success) {
+        toast.success('Logo updated successfully!');
+        // Clear the form
+        setSelectedLogoFile(null);
+        setLogoUrl('');
+        setLogoUrlInput('');
+        setLogoModalOpen(false);
+      } else {
+        throw new Error(result.error || 'Failed to update logo');
       }
     } catch (error) {
-      setToast({ message: `Failed to update logo: ${error.message}`, type: 'error' });
+      console.error('Logo update failed:', error);
+      setLogoError(error.message);
+      toast.error(`Logo update failed: ${error.message}`);
+    } finally {
+      setLogoLoading(false);
     }
+  };
+
+  const handleFileSelect = (event) => {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    // Validate file type
+    const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
+    if (!allowedTypes.includes(file.type)) {
+      toast.error('Please select a valid image file (JPEG, PNG, GIF, or WebP)');
+      return;
+    }
+
+    // Validate file size (5MB limit)
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error('File size must be less than 5MB');
+      return;
+    }
+
+    setSelectedLogoFile(file);
+    setLogoError('');
+
+    // Create data URL for preview
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const dataUrl = e.target.result;
+      setLogoUrl(dataUrl);
+      // The preview will automatically update since logoUrl is used in the img src
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleUrlInput = (event) => {
+    const url = event.target.value;
+    setLogoUrl(url);
+    setSelectedLogoFile(null);
+    setLogoError('');
+
+    // Validate URL format if it's not empty
+    if (url && !url.startsWith('data:image/')) {
+      const urlPattern = /^https?:\/\/.+\.(jpg|jpeg|png|gif|webp)$/i;
+      if (!urlPattern.test(url)) {
+        setLogoError('Please enter a valid image URL ending with .jpg, .jpeg, .png, .gif, or .webp');
+      } else {
+        setLogoError('');
+      }
+    }
+  };
+
+  const handleLogoSubmit = async () => {
+    if (!logoUrl) {
+      setLogoError('Please select a file or enter a URL');
+      return;
+    }
+
+    if (logoError) {
+      toast.error('Please fix the errors before submitting');
+      return;
+    }
+
+    await updateLogo(logoUrl);
   };
 
   const showToast = (message, type = 'success') => {
@@ -977,26 +1063,31 @@ function SettingsTab({ onBackToExams, institution, user }) {
               </div>
 
               {/* File Preview */}
-              {selectedLogoFile && (
+              {(selectedLogoFile || logoUrl || logoUrlInput) && (
                 <div className="p-3 bg-gray-50 rounded-lg">
-                  <p className="text-sm text-gray-600 mb-2">Selected file: {selectedLogoFile.name}</p>
+                  {selectedLogoFile && (
+                    <p className="text-sm text-gray-600 mb-2">Selected file: {selectedLogoFile.name}</p>
+                  )}
                   <div className="flex items-center gap-2">
                     <img
-                      src={URL.createObjectURL(selectedLogoFile)}
+                      src={logoUrl || logoUrlInput}
                       alt="Logo preview"
                       className="w-16 h-16 object-contain border rounded"
                       crossOrigin="anonymous"
                     />
-                    <button
-                      onClick={() => {
-                        setSelectedLogoFile(null);
-                        const fileInput = document.querySelector('input[type="file"]');
-                        if (fileInput) fileInput.value = '';
-                      }}
-                      className="text-sm text-red-600 hover:text-red-800"
-                    >
-                      Remove file
-                    </button>
+                    {selectedLogoFile && (
+                      <button
+                        onClick={() => {
+                          setSelectedLogoFile(null);
+                          setLogoUrl('');
+                          const fileInput = document.querySelector('input[type="file"]');
+                          if (fileInput) fileInput.value = '';
+                        }}
+                        className="text-sm text-red-600 hover:text-red-800"
+                      >
+                        Remove file
+                      </button>
+                    )}
                   </div>
                 </div>
               )}
