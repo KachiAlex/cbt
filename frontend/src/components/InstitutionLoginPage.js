@@ -23,7 +23,7 @@ const InstitutionLoginPage = () => {
       // Get institution slug from URL
       const urlParams = new URLSearchParams(window.location.search);
       const slug = urlParams.get('slug');
-      
+
       if (!slug) {
         setError("No institution specified");
         setLoading(false);
@@ -32,11 +32,11 @@ const InstitutionLoginPage = () => {
 
       // Load institution data from MongoDB API
       const response = await fetch(`https://cbt-rew7.onrender.com/api/tenant/${slug}/profile`);
-      
+
       if (!response.ok) {
         throw new Error('Institution not found or suspended');
       }
-      
+
       const data = await response.json();
       console.log('🏫 Institution data loaded:', data);
       console.log('🔍 Slug field:', data.slug);
@@ -101,7 +101,7 @@ const InstitutionLoginPage = () => {
         console.log('❌ Role mismatch:', { expectedRole: role, actualRole: user?.role, user });
         if (!user) {
           setError(`Authentication failed. Please check your username and password.`);
-        } else {
+      } else {
           setError(`Invalid ${role} credentials. User role is '${user.role}', but '${role}' is required.`);
         }
       }
@@ -133,7 +133,7 @@ const InstitutionLoginPage = () => {
   useEffect(() => {
     const handleKeyPress = (e) => {
       if (!user && e.ctrlKey && e.altKey && e.key === 'A') {
-        e.preventDefault();
+    e.preventDefault();
         setShowAdminLogin(true);
       }
     };
@@ -187,7 +187,7 @@ const InstitutionLoginPage = () => {
   // If user is logged in, show appropriate CBT interface
   if (user) {
     if (view === "admin-panel") {
-      return (
+  return (
         <div className="min-h-screen bg-gray-50">
           <CBTHeader 
             user={user} 
@@ -199,8 +199,8 @@ const InstitutionLoginPage = () => {
             user={user} 
             institution={institutionData}
             onLogout={handleLogout}
-          />
-        </div>
+              />
+            </div>
       );
     }
 
@@ -218,7 +218,7 @@ const InstitutionLoginPage = () => {
             institution={institutionData}
             onLogout={handleLogout}
           />
-        </div>
+              </div>
       );
     }
   }
@@ -275,7 +275,7 @@ const InstitutionLoginPage = () => {
           )}
         </div>
       </main>
-    </div>
+              </div>
   );
 };
 
@@ -296,32 +296,32 @@ function AdminLoginForm({ onLogin }) {
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
-      <div>
+                  <div>
         <label className="block text-sm font-medium text-gray-700 mb-1">Username</label>
-        <input
-          type="text"
+                    <input
+                      type="text"
           value={username}
           onChange={(e) => setUsername(e.target.value)}
           className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
           placeholder="Enter admin username"
-          required
-        />
-      </div>
-      
-      <div>
+                      required
+                    />
+                  </div>
+                  
+                  <div>
         <label className="block text-sm font-medium text-gray-700 mb-1">Password</label>
-        <input
+                      <input
           type="password"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
           className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
           placeholder="Enter admin password"
-          required
+                        required
         />
-      </div>
-      
-      <button
-        type="submit"
+                  </div>
+
+                    <button 
+                      type="submit" 
         disabled={isLoading}
         className="w-full py-2 px-4 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium disabled:opacity-50"
       >
@@ -368,14 +368,14 @@ function StudentPortalForm({ onLogin, onRegister }) {
           className={`flex-1 py-2 text-sm font-medium ${mode === "login" ? "text-emerald-600 border-b-2 border-emerald-600" : "text-gray-500"}`}
         >
           Login
-        </button>
-        <button 
+                    </button>
+                    <button 
           onClick={() => {setMode("register"); setFormData({...formData, password: "", confirmPassword: ""});}} 
           className={`flex-1 py-2 text-sm font-medium ${mode === "register" ? "text-emerald-600 border-b-2 border-emerald-600" : "text-gray-500"}`}
-        >
+                    >
           Register
-        </button>
-      </div>
+                    </button>
+                  </div>
 
       <form onSubmit={handleSubmit} className="space-y-4">
         {mode === "register" && (
@@ -405,30 +405,30 @@ function StudentPortalForm({ onLogin, onRegister }) {
           </>
         )}
         
-        <div>
+                  <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">Username</label>
-          <input
-            type="text"
+                    <input
+                      type="text"
             value={formData.username}
             onChange={(e) => setFormData({...formData, username: e.target.value})}
             className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
             placeholder={mode === "login" ? "Enter your username" : "Choose a username"}
-            required
-          />
-        </div>
-        
-        <div>
+                      required
+                    />
+                  </div>
+                  
+                  <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">Password</label>
-          <input
+                      <input
             type="password"
             value={formData.password}
             onChange={(e) => setFormData({...formData, password: e.target.value})}
             className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
             placeholder={mode === "login" ? "Enter your password" : "Choose a password"}
-            required
+                        required
           />
-        </div>
-        
+                  </div>
+
         {mode === "register" && (
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Confirm Password</label>
@@ -443,8 +443,8 @@ function StudentPortalForm({ onLogin, onRegister }) {
           </div>
         )}
         
-        <button
-          type="submit"
+                    <button 
+                      type="submit" 
           disabled={isLoading}
           className={`w-full py-2 px-4 rounded-lg font-medium disabled:opacity-50 ${
             mode === "login" 
@@ -453,8 +453,8 @@ function StudentPortalForm({ onLogin, onRegister }) {
           }`}
         >
           {isLoading ? "Processing..." : (mode === "login" ? "Login as Student" : "Register as Student")}
-        </button>
-      </form>
+                    </button>
+                </form>
     </div>
   );
 }

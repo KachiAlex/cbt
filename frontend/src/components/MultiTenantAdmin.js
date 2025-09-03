@@ -496,6 +496,65 @@ const MultiTenantAdmin = () => {
     }
   };
 
+  const checkDatabaseStatus = async () => {
+    try {
+      const token = getAuthToken();
+      
+      const response = await fetch(`${API_BASE_URL}/api/debug/db-status`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to check database status');
+      }
+
+      const result = await response.json();
+      console.log('🗄️ Database status:', result);
+      
+      if (result.connection === 'connected') {
+        alert(`✅ Database Status:\n\nConnection: ${result.connection}\nUsers: ${result.userCount}\nTenants: ${result.tenantCount}\nCollections: ${result.collections.join(', ')}`);
+      } else {
+        alert(`❌ Database Status:\n\nConnection: ${result.connection}\nReady State: ${result.readyState || 'unknown'}`);
+      }
+      
+    } catch (error) {
+      console.error('Failed to check database status:', error);
+      alert('Failed to check database status: ' + error.message);
+    }
+  };
+
+  const fixUserRoles = async () => {
+    try {
+      const token = getAuthToken();
+      
+      const response = await fetch(`${API_BASE_URL}/api/debug/fix-roles`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to fix user roles');
+      }
+
+      const result = await response.json();
+      console.log('🔧 Role fix result:', result);
+      
+      alert(`✅ Role Fix Result:\n\n${result.message}\nModified: ${result.modifiedCount}\nTotal Matched: ${result.totalMatched}`);
+      
+    } catch (error) {
+      console.error('Failed to fix user roles:', error);
+      alert('Failed to fix user roles: ' + error.message);
+    }
+  };
+
   const resetAdminPassword = async (slug, adminUsername) => {
     console.log('🔍 Attempting to reset password for:', { slug, adminUsername });
     
@@ -998,6 +1057,20 @@ const MultiTenantAdmin = () => {
                          >
                            Reset Admin Password
                          </button>
+                                 <button
+          onClick={checkDatabaseStatus}
+          className="px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 text-sm ml-2"
+          title="Check database connection and status"
+        >
+          🗄️ DB Status
+        </button>
+        <button
+          onClick={fixUserRoles}
+          className="px-4 py-2 bg-yellow-600 text-white rounded-md hover:bg-yellow-700 text-sm ml-2"
+          title="Fix user role mismatch (admin -> super_admin)"
+        >
+          🔧 Fix Roles
+        </button>
                                <button
                                  onClick={() => deleteInstitution(institution.slug)}
                                  className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 text-sm"

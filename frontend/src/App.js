@@ -481,7 +481,7 @@ function AdminPanel({ user, tenant, onCBTView }) {
   const [activeTab, setActiveTab] = useState("dashboard");
 
   return (
-    <div className="space-y-6">
+        <div className="space-y-6">
       {/* Welcome Section */}
       <div className="bg-gradient-to-r from-blue-600 to-blue-700 rounded-lg p-6 text-white">
         <h1 className="text-2xl font-bold mb-2">Admin Dashboard</h1>
@@ -491,7 +491,7 @@ function AdminPanel({ user, tenant, onCBTView }) {
         <p className="text-sm opacity-75 mt-1">
           Institution: {tenant?.name || 'Unknown Institution'}
         </p>
-      </div>
+            </div>
 
       {/* Quick Stats */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -501,13 +501,13 @@ function AdminPanel({ user, tenant, onCBTView }) {
               <svg className="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
               </svg>
-            </div>
+              </div>
             <div className="ml-4">
               <p className="text-sm font-medium text-gray-600">Active Exams</p>
               <p className="text-2xl font-semibold text-gray-900">1</p>
-            </div>
-          </div>
-        </div>
+                        </div>
+                      </div>
+                      </div>
 
         <div className="bg-white rounded-lg shadow p-6">
           <div className="flex items-center">
@@ -515,12 +515,12 @@ function AdminPanel({ user, tenant, onCBTView }) {
               <svg className="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0z" />
               </svg>
-            </div>
+                      </div>
             <div className="ml-4">
               <p className="text-sm font-medium text-gray-600">Total Students</p>
               <p className="text-2xl font-semibold text-gray-900">0</p>
-            </div>
-          </div>
+                    </div>
+                </div>
         </div>
 
         <div className="bg-white rounded-lg shadow p-6">
@@ -529,20 +529,20 @@ function AdminPanel({ user, tenant, onCBTView }) {
               <svg className="w-6 h-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
               </svg>
-            </div>
+          </div>
             <div className="ml-4">
               <p className="text-sm font-medium text-gray-600">Exam Results</p>
               <p className="text-2xl font-semibold text-gray-900">0</p>
+              </div>
             </div>
-          </div>
-        </div>
-      </div>
+                    </div>
+                  </div>
 
       {/* Tab Navigation */}
       <div className="bg-white rounded-lg shadow">
         <div className="border-b border-gray-200">
           <nav className="-mb-px flex space-x-8 px-6">
-            <button
+                  <button
               onClick={() => setActiveTab('dashboard')}
               className={`py-4 px-1 border-b-2 font-medium text-sm ${
                 activeTab === 'dashboard'
@@ -551,8 +551,8 @@ function AdminPanel({ user, tenant, onCBTView }) {
               }`}
             >
               Dashboard
-            </button>
-            <button
+                  </button>
+                  <button 
               onClick={() => setActiveTab('cbt')}
               className={`py-4 px-1 border-b-2 font-medium text-sm ${
                 activeTab === 'cbt'
@@ -561,8 +561,8 @@ function AdminPanel({ user, tenant, onCBTView }) {
               }`}
             >
               CBT Management
-            </button>
-            <button
+                  </button>
+                  <button 
               onClick={() => setActiveTab('users')}
               className={`py-4 px-1 border-b-2 font-medium text-sm ${
                 activeTab === 'users'
@@ -571,8 +571,8 @@ function AdminPanel({ user, tenant, onCBTView }) {
               }`}
             >
               User Management
-            </button>
-            <button
+                  </button>
+                  <button
               onClick={() => setActiveTab('settings')}
               className={`py-4 px-1 border-b-2 font-medium text-sm ${
                 activeTab === 'settings'
@@ -581,9 +581,9 @@ function AdminPanel({ user, tenant, onCBTView }) {
               }`}
             >
               Settings
-            </button>
+                  </button>
           </nav>
-        </div>
+                </div>
 
         <div className="p-6">
           {activeTab === 'dashboard' && (
@@ -591,7 +591,7 @@ function AdminPanel({ user, tenant, onCBTView }) {
               <h3 className="text-lg font-medium text-gray-900">Quick Actions</h3>
               
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <button
+                  <button
                   onClick={onCBTView}
                   className="flex items-center justify-center p-6 border-2 border-dashed border-gray-300 rounded-lg hover:border-blue-400 hover:bg-blue-50 transition-colors"
                 >
@@ -600,11 +600,11 @@ function AdminPanel({ user, tenant, onCBTView }) {
                     <div className="font-medium text-lg">Manage CBT Exams</div>
                     <div className="text-sm text-gray-500 mt-1">
                       Upload questions, manage exams, view results
-                    </div>
-                  </div>
+                </div>
+              </div>
                 </button>
 
-                <button
+            <button 
                   onClick={() => setActiveTab('users')}
                   className="flex items-center justify-center p-6 border-2 border-dashed border-gray-300 rounded-lg hover:border-green-400 hover:bg-green-50 transition-colors"
                 >
@@ -613,10 +613,10 @@ function AdminPanel({ user, tenant, onCBTView }) {
                     <div className="font-medium text-lg">Manage Users</div>
                     <div className="text-sm text-gray-500 mt-1">
                       Add students, manage permissions
-                    </div>
-                  </div>
-                </button>
+          </div>
               </div>
+              </button>
+            </div>
 
               <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
                 <h4 className="font-medium text-blue-900 mb-2">Getting Started</h4>
@@ -627,20 +627,20 @@ function AdminPanel({ user, tenant, onCBTView }) {
                   <li>• Export results to Excel or Word for analysis</li>
                 </ul>
               </div>
-            </div>
-          )}
+        </div>
+      )}
 
           {activeTab === 'cbt' && (
-            <div className="space-y-6">
+        <div className="space-y-6">
               <h3 className="text-lg font-medium text-gray-900">CBT Management</h3>
               <p className="text-gray-600">Click the button below to access the full CBT management system.</p>
-              <button
+            <button 
                 onClick={onCBTView}
                 className="px-6 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 font-semibold"
-              >
+            >
                 Open CBT Management
-              </button>
-            </div>
+            </button>
+          </div>
           )}
 
           {activeTab === 'users' && (
@@ -657,21 +657,21 @@ function AdminPanel({ user, tenant, onCBTView }) {
                   <li>• Manage student permissions</li>
                   <li>• View student exam history</li>
                 </ul>
-              </div>
             </div>
-          )}
+        </div>
+      )}
 
           {activeTab === 'settings' && (
-            <div className="space-y-6">
+        <div className="space-y-6">
               <h3 className="text-lg font-medium text-gray-900">Institution Settings</h3>
               
               <div className="bg-gray-50 rounded-lg p-4">
                 <p className="text-gray-600">
                   Institution settings and configuration options will be available here.
                 </p>
-              </div>
             </div>
-          )}
+        </div>
+      )}
         </div>
       </div>
     </div>
@@ -692,8 +692,8 @@ function StudentPanel({ user, tenant, onExamView }) {
         <p className="text-sm opacity-75 mt-1">
           Institution: {tenant?.name || 'Unknown Institution'}
         </p>
-      </div>
-
+          </div>
+          
       {/* Quick Stats */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <div className="bg-white rounded-lg shadow p-6">
@@ -702,43 +702,43 @@ function StudentPanel({ user, tenant, onExamView }) {
               <svg className="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
               </svg>
-            </div>
+          </div>
             <div className="ml-4">
               <p className="text-sm font-medium text-gray-600">Active Exams</p>
               <p className="text-2xl font-semibold text-gray-900">1</p>
             </div>
+            </div>
           </div>
-        </div>
-
+          
         <div className="bg-white rounded-lg shadow p-6">
           <div className="flex items-center">
             <div className="p-2 bg-green-100 rounded-lg">
               <svg className="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0z" />
               </svg>
-            </div>
+          </div>
             <div className="ml-4">
               <p className="text-sm font-medium text-gray-600">Total Students</p>
               <p className="text-2xl font-semibold text-gray-900">0</p>
-            </div>
+      </div>
+    </div>
           </div>
-        </div>
-
+          
         <div className="bg-white rounded-lg shadow p-6">
           <div className="flex items-center">
             <div className="p-2 bg-purple-100 rounded-lg">
               <svg className="w-6 h-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
               </svg>
-            </div>
+          </div>
             <div className="ml-4">
               <p className="text-sm font-medium text-gray-600">Exam Results</p>
               <p className="text-2xl font-semibold text-gray-900">0</p>
             </div>
           </div>
-        </div>
-      </div>
-
+            </div>
+          </div>
+          
       {/* Tab Navigation */}
       <div className="bg-white rounded-lg shadow">
         <div className="border-b border-gray-200">
@@ -763,7 +763,7 @@ function StudentPanel({ user, tenant, onExamView }) {
             >
               Exams
             </button>
-            <button
+          <button
               onClick={() => setActiveTab('results')}
               className={`py-4 px-1 border-b-2 font-medium text-sm ${
                 activeTab === 'results'
@@ -772,8 +772,8 @@ function StudentPanel({ user, tenant, onExamView }) {
               }`}
             >
               Results
-            </button>
-            <button
+          </button>
+              <button
               onClick={() => setActiveTab('settings')}
               className={`py-4 px-1 border-b-2 font-medium text-sm ${
                 activeTab === 'settings'
@@ -782,17 +782,17 @@ function StudentPanel({ user, tenant, onExamView }) {
               }`}
             >
               Settings
-            </button>
+              </button>
           </nav>
-        </div>
-
+          </div>
+          
         <div className="p-6">
           {activeTab === 'dashboard' && (
             <div className="space-y-6">
               <h3 className="text-lg font-medium text-gray-900">Quick Actions</h3>
               
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <button
+              <button
                   onClick={() => setActiveTab('exams')}
                   className="flex items-center justify-center p-6 border-2 border-dashed border-gray-300 rounded-lg hover:border-blue-400 hover:bg-blue-50 transition-colors"
                 >
@@ -801,11 +801,11 @@ function StudentPanel({ user, tenant, onExamView }) {
                     <div className="font-medium text-lg">Take Exams</div>
                     <div className="text-sm text-gray-500 mt-1">
                       Available exams to take
-                    </div>
-                  </div>
+            </div>
+          </div>
                 </button>
-
-                <button
+          
+            <button
                   onClick={() => setActiveTab('results')}
                   className="flex items-center justify-center p-6 border-2 border-dashed border-gray-300 rounded-lg hover:border-green-400 hover:bg-green-50 transition-colors"
                 >
@@ -816,8 +816,8 @@ function StudentPanel({ user, tenant, onExamView }) {
                       Your exam history
                     </div>
                   </div>
-                </button>
-              </div>
+            </button>
+          </div>
 
               <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
                 <h4 className="font-medium text-blue-900 mb-2">Getting Started</h4>
@@ -827,8 +827,8 @@ function StudentPanel({ user, tenant, onExamView }) {
                   <li>• Answer questions and submit your exam.</li>
                   <li>• View your exam results in the "Results" tab.</li>
                 </ul>
-              </div>
-            </div>
+      </div>
+    </div>
           )}
 
           {activeTab === 'exams' && (
@@ -839,8 +839,8 @@ function StudentPanel({ user, tenant, onExamView }) {
                 <p className="text-gray-600">
                   No exams available at this time. Please check back later.
                 </p>
-              </div>
-            </div>
+        </div>
+      </div>
           )}
 
           {activeTab === 'results' && (
@@ -851,9 +851,9 @@ function StudentPanel({ user, tenant, onExamView }) {
                 <p className="text-gray-600">
                   Your exam history will be displayed here.
                 </p>
-              </div>
-            </div>
-          )}
+        </div>
+        </div>
+      )}
 
           {activeTab === 'settings' && (
             <div className="space-y-6">
@@ -863,9 +863,9 @@ function StudentPanel({ user, tenant, onExamView }) {
                 <p className="text-gray-600">
                   Student settings and preferences will be available here.
                 </p>
-              </div>
-            </div>
-          )}
+          </div>
+        </div>
+      )}
         </div>
       </div>
     </div>
@@ -994,7 +994,7 @@ function App() {
       localStorage.setItem('institution_data', JSON.stringify(data));
       localStorage.setItem('institution_slug', slug);
       
-    } catch (error) {
+      } catch (error) {
       console.error('Failed to load institution data:', error);
       // If institution not found, show error or redirect
       console.error('Institution not found or suspended');
@@ -1065,18 +1065,18 @@ function App() {
       <div className="min-h-screen bg-gray-50">
         <div className="bg-white border-b">
           <div className="max-w-5xl mx-auto p-4">
-            <button
+                <button
               onClick={handleBackToMain}
               className="flex items-center gap-2 text-blue-600 hover:text-blue-800 mb-4"
-            >
+                >
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
               </svg>
               Back to Main Dashboard
-            </button>
+                </button>
             <CBTExam user={user} tenant={institutionData} />
+              </div>
           </div>
-        </div>
       </div>
     );
   }
@@ -1091,7 +1091,7 @@ function App() {
     );
   }
 
-  return (
+    return (
     <div className="min-h-screen bg-gray-50 text-gray-800">
       <Header user={user} onLogout={onLogout} onLogoClick={handleLogoClick} institutionData={institutionData} />
       <main className="max-w-5xl mx-auto w-full px-3 sm:px-8 py-4 sm:py-8">
@@ -1129,15 +1129,15 @@ function App() {
                   <div className="mt-8 p-4 bg-red-50 border border-red-200 rounded-lg">
                     <div className="text-center">
                       <p className="text-red-700 font-semibold mb-2">🔐 Admin Access</p>
-                      <button 
+              <button 
                         onClick={() => setView("admin-login")}
                         className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
-                      >
+              >
                         Access Admin Panel
-                      </button>
-                    </div>
-                  </div>
-                )}
+              </button>
+          </div>
+        </div>
+      )}
                 {view === "admin-login" && (
                   <AdminLogin 
                     onLogin={(u)=>{setUser(u); localStorage.setItem("cbt_logged_in_user", JSON.stringify(u)); setView("home");}}
@@ -1157,7 +1157,7 @@ function App() {
             <span className="opacity-30 hover:opacity-100 transition-opacity cursor-help" title="Admin Access: Click logo or press Ctrl+Alt+A">
               🔐
             </span>
-          </div>
+    </div>
         )}
       </footer>
     </div>
@@ -1180,8 +1180,8 @@ async function saveUsers(users) {
     return await dataService.saveUsers(users);
   } catch (error) {
     console.error('Error saving users:', error);
-    return false;
-  }
+        return false;
+      }
 }
 
 async function authenticateUser(username, password) {
@@ -1219,8 +1219,8 @@ async function authenticateUser(username, password) {
       console.log('❌ Authentication failed - user not found or wrong password');
       console.log('🔍 Searched for:', username.toLowerCase());
       console.log('🔍 Available users:', users.map(u => u.username.toLowerCase()));
-      return null;
-    }
+    return null;
+  }
   } catch (error) {
     console.error('❌ Authentication error:', error);
     return null;

@@ -82,6 +82,48 @@ app.get('/health', (req, res) => {
 	});
 });
 
+// Database connection check endpoint
+app.get('/api/debug/db-status', cors(), async (req, res) => {
+  try {
+    const dbStatus = {
+      connection: 'unknown',
+      collections: [],
+      userCount: 0,
+      tenantCount: 0,
+      timestamp: new Date().toISOString()
+    };
+    
+    // Check database connection
+    if (mongoose.connection.readyState === 1) {
+      dbStatus.connection = 'connected';
+      
+      // Get collection names
+      const collections = await mongoose.connection.db.listCollections().toArray();
+      dbStatus.collections = collections.map(c => c.name);
+      
+      // Get document counts
+      try {
+        dbStatus.userCount = await User.countDocuments({});
+        dbStatus.tenantCount = await Tenant.countDocuments({});
+      } catch (countError) {
+        dbStatus.userCount = 'error: ' + countError.message;
+        dbStatus.tenantCount = 'error: ' + countError.message;
+      }
+    } else {
+      dbStatus.connection = 'disconnected';
+      dbStatus.readyState = mongoose.connection.readyState;
+    }
+    
+    res.json(dbStatus);
+  } catch (error) {
+    res.status(500).json({ 
+      error: 'Database status check failed: ' + error.message,
+      connection: mongoose.connection.readyState,
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+
 // API info
 app.get('/api', (req, res) => {
 	res.json({ 
@@ -1040,7 +1082,7 @@ app.post('/api/tenants', cors(), authenticateMultiTenantAdmin, async (req, res) 
       fullName: default_admin.fullName,
       phone: default_admin.phone || '',
       password: default_admin.password,
-      role: 'admin',
+      role: 'super_admin',
       is_default_admin: true,
       is_active: true
     });
@@ -1051,15 +1093,43 @@ app.post('/api/tenants', cors(), authenticateMultiTenantAdmin, async (req, res) 
       role: defaultAdminUser.role
     });
     
-    await defaultAdminUser.save();
-    
-    console.log('🔍 User saved successfully. User ID:', defaultAdminUser._id);
-    console.log('🔍 User after save:', {
-      _id: defaultAdminUser._id,
-      tenant_id: defaultAdminUser.tenant_id,
-      username: defaultAdminUser.username,
-      role: defaultAdminUser.role
-    });
+    // Add explicit error handling for user save
+    try {
+      const savedUser = await defaultAdminUser.save();
+      console.log('🔍 User save result:', savedUser);
+      
+      if (!savedUser._id) {
+        throw new Error('User save failed - no _id returned');
+      }
+      
+      console.log('🔍 User saved successfully. User ID:', savedUser._id);
+      console.log('🔍 User after save:', {
+        _id: savedUser._id,
+        tenant_id: savedUser.tenant_id,
+        username: savedUser.username,
+        role: savedUser.role
+      });
+      
+      // Verify user was actually saved to database
+      const verifyUser = await User.findById(savedUser._id);
+      if (!verifyUser) {
+        throw new Error('User verification failed - user not found in database after save');
+      }
+      console.log('🔍 User verification successful:', verifyUser._id);
+      
+    } catch (userError) {
+      console.error('❌ Error creating default admin user:', userError);
+      console.error('❌ User creation failed. Rolling back tenant creation...');
+      
+      // Rollback tenant creation
+      await Tenant.findByIdAndDelete(tenant._id);
+      console.log('❌ Tenant rolled back due to user creation failure');
+      
+      return res.status(500).json({ 
+        error: 'Failed to create default admin user: ' + userError.message,
+        details: userError.stack
+      });
+    }
     
     res.status(201).json({
       message: '✅ Tenant created successfully in MongoDB Atlas',
@@ -1364,6 +1434,29 @@ app.post('/api/debug/fix-users', cors(), authenticateMultiTenantAdmin, async (re
   } catch (err) {
     console.error('Error fixing users:', err);
     res.status(500).json({ error: 'Failed to fix users' });
+  }
+});
+
+// Migration endpoint to fix role mismatch (admin -> super_admin)
+app.post('/api/debug/fix-roles', cors(), authenticateMultiTenantAdmin, async (req, res) => {
+  try {
+    // Find all users with role 'admin' and update them to 'super_admin'
+    const result = await User.updateMany(
+      { role: 'admin' },
+      { role: 'super_admin' }
+    );
+    
+    console.log('🔧 Role migration result:', result);
+    
+    res.json({
+      message: `Updated ${result.modifiedCount} users from 'admin' to 'super_admin'`,
+      modifiedCount: result.modifiedCount,
+      totalMatched: result.matchedCount
+    });
+    
+  } catch (err) {
+    console.error('Error fixing user roles:', err);
+    res.status(500).json({ error: 'Failed to fix user roles' });
   }
 });
 
