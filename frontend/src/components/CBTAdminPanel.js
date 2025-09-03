@@ -964,7 +964,10 @@ function SettingsTab({ onBackToExams, institution, user }) {
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-xl p-6 w-full max-w-md mx-4">
             <div className="flex justify-between items-center mb-4">
-              <h3 className="text-lg font-bold">Update Institution Logo</h3>
+              <div>
+                <h3 className="text-lg font-bold">Update Institution Logo</h3>
+                <p className="text-sm text-gray-600 mt-1">Upload an image file or provide a URL</p>
+              </div>
               <button
                 onClick={() => {
                   setLogoModalOpen(false);
@@ -978,9 +981,12 @@ function SettingsTab({ onBackToExams, institution, user }) {
             </div>
 
             <div className="space-y-4">
-              {/* File Upload Section */}
+              {/* File Upload Section - Primary Method */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Upload Logo File</label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <span className="text-indigo-600 font-semibold">📁 Upload Logo File</span>
+                  <span className="text-xs text-gray-500 ml-2">(Recommended)</span>
+                </label>
                 <input
                   type="file"
                   accept="image/*"
@@ -1014,8 +1020,9 @@ function SettingsTab({ onBackToExams, institution, user }) {
                       reader.readAsDataURL(file);
                     }
                   }}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100"
+                  className="w-full px-3 py-2 border-2 border-dashed border-indigo-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100 hover:border-indigo-400 transition-colors"
                 />
+                <p className="text-xs text-gray-500 mt-1">Supported formats: JPEG, PNG, GIF, WebP (Max 5MB)</p>
               </div>
 
               {/* File Preview */}
@@ -1048,12 +1055,21 @@ function SettingsTab({ onBackToExams, institution, user }) {
                 </div>
               )}
 
-              {/* Divider */}
-              <div className="text-center text-sm text-gray-500">- OR -</div>
+              {/* Divider - Less prominent */}
+              <div className="text-center">
+                <div className="inline-flex items-center text-xs text-gray-400">
+                  <div className="flex-1 h-px bg-gray-300"></div>
+                  <span className="px-3">or use URL</span>
+                  <div className="flex-1 h-px bg-gray-300"></div>
+                </div>
+              </div>
 
-              {/* URL Input Section */}
+              {/* URL Input Section - Secondary Method */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Or Enter Logo URL</label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <span className="text-gray-600">🔗 Logo URL</span>
+                  <span className="text-xs text-gray-500 ml-2">(Alternative)</span>
+                </label>
                 <input
                   type="text"
                   value={logoUrlInput}
@@ -1074,7 +1090,7 @@ function SettingsTab({ onBackToExams, institution, user }) {
                       }
                     }
                   }}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 bg-gray-50"
                 />
               </div>
 

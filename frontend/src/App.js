@@ -35,7 +35,6 @@ function Header({user, onLogout, onLogoClick}){
         <div className="flex items-center gap-3">
           {user ? (
             <>
-              <span className="text-sm">Logged in as <b>{user.fullName || user.username}</b> ({user.role})</span>
               <button onClick={onLogout} className="px-3 py-1.5 rounded-xl bg-gray-800 text-white text-sm hover:bg-black">Logout</button>
             </>
           ) : null}
