@@ -1028,6 +1028,11 @@ app.post('/api/tenants', cors(), authenticateMultiTenantAdmin, async (req, res) 
     await tenant.save();
     
     // Create default admin user
+    console.log('🔍 Creating default admin user:');
+    console.log('  - Tenant ID:', tenant._id);
+    console.log('  - Username:', default_admin.username);
+    console.log('  - Email:', default_admin.email);
+    
     const defaultAdminUser = new User({
       tenant_id: tenant._id,
       username: default_admin.username,
@@ -1040,7 +1045,21 @@ app.post('/api/tenants', cors(), authenticateMultiTenantAdmin, async (req, res) 
       is_active: true
     });
     
+    console.log('🔍 User object before save:', {
+      tenant_id: defaultAdminUser.tenant_id,
+      username: defaultAdminUser.username,
+      role: defaultAdminUser.role
+    });
+    
     await defaultAdminUser.save();
+    
+    console.log('🔍 User saved successfully. User ID:', defaultAdminUser._id);
+    console.log('🔍 User after save:', {
+      _id: defaultAdminUser._id,
+      tenant_id: defaultAdminUser.tenant_id,
+      username: defaultAdminUser.username,
+      role: defaultAdminUser.role
+    });
     
     res.status(201).json({
       message: '✅ Tenant created successfully in MongoDB Atlas',
@@ -1288,6 +1307,92 @@ app.patch('/api/tenants/:slug/logo', cors(), authenticateMultiTenantAdmin, async
   } catch (err) {
     console.error('Error updating logo:', err);
     res.status(500).json({ error: 'Failed to update logo' });
+  }
+});
+
+// Fix users without tenant_id (migration endpoint)
+app.post('/api/debug/fix-users', cors(), authenticateMultiTenantAdmin, async (req, res) => {
+  try {
+    // Find all users without tenant_id
+    const usersWithoutTenant = await User.find({ tenant_id: { $exists: false } });
+    console.log('🔍 Found users without tenant_id:', usersWithoutTenant.length);
+    
+    // Find all tenants
+    const tenants = await Tenant.find({ deleted_at: null });
+    console.log('🔍 Found tenants:', tenants.length);
+    
+    let fixedCount = 0;
+    
+    for (const user of usersWithoutTenant) {
+      // Try to find a tenant by matching email domain or username
+      let targetTenant = null;
+      
+      // First, try to find by email domain
+      if (user.email) {
+        const emailDomain = user.email.split('@')[1];
+        targetTenant = tenants.find(t => 
+          t.contact_email && t.contact_email.split('@')[1] === emailDomain
+        );
+      }
+      
+      // If no match by email, try to find by username pattern
+      if (!targetTenant && user.username) {
+        // Look for tenants that might match this user
+        targetTenant = tenants.find(t => 
+          t.name.toLowerCase().includes(user.username.toLowerCase()) ||
+          user.username.toLowerCase().includes(t.name.toLowerCase())
+        );
+      }
+      
+      if (targetTenant) {
+        console.log(`🔧 Fixing user ${user.username} -> tenant ${targetTenant.name}`);
+        user.tenant_id = targetTenant._id;
+        await user.save();
+        fixedCount++;
+      } else {
+        console.log(`⚠️ Could not determine tenant for user ${user.username}`);
+      }
+    }
+    
+    res.json({
+      message: `Fixed ${fixedCount} users`,
+      totalUsersWithoutTenant: usersWithoutTenant.length,
+      fixedCount,
+      tenants: tenants.map(t => ({ name: t.name, slug: t.slug }))
+    });
+    
+  } catch (err) {
+    console.error('Error fixing users:', err);
+    res.status(500).json({ error: 'Failed to fix users' });
+  }
+});
+
+// Debug endpoint to check all users in the system
+app.get('/api/debug/users', cors(), authenticateMultiTenantAdmin, async (req, res) => {
+  try {
+    const allUsers = await User.find({}).select('-password');
+    const tenants = await Tenant.find({ deleted_at: null });
+    
+    res.json({
+      totalUsers: allUsers.length,
+      users: allUsers.map(u => ({
+        _id: u._id,
+        username: u.username,
+        email: u.email,
+        role: u.role,
+        fullName: u.fullName,
+        tenant_id: u.tenant_id,
+        is_default_admin: u.is_default_admin
+      })),
+      tenants: tenants.map(t => ({
+        _id: t._id,
+        name: t.name,
+        slug: t.slug
+      }))
+    });
+  } catch (err) {
+    console.error('Error fetching all users:', err);
+    res.status(500).json({ error: 'Failed to fetch all users' });
   }
 });
 

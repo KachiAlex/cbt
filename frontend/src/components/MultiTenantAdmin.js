@@ -401,6 +401,72 @@ const MultiTenantAdmin = () => {
      }
   };
 
+  const fixUsersWithoutTenant = async () => {
+    if (!window.confirm('This will attempt to fix users that are missing tenant_id. Continue?')) {
+      return;
+    }
+    
+    try {
+      const token = getAuthToken();
+      
+      const response = await fetch(`${API_BASE_URL}/api/debug/fix-users`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to fix users');
+      }
+
+      const result = await response.json();
+      console.log('🔧 Fix users result:', result);
+      
+      alert(`Fix completed!\n\n${result.message}\n\nFixed: ${result.fixedCount}/${result.totalUsersWithoutTenant} users`);
+      
+      // Refresh the page to see the changes
+      window.location.reload();
+      
+    } catch (error) {
+      console.error('Failed to fix users:', error);
+      alert('Failed to fix users: ' + error.message);
+    }
+  };
+
+  const checkAllUsers = async () => {
+    try {
+      const token = getAuthToken();
+      
+      const response = await fetch(`${API_BASE_URL}/api/debug/users`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to fetch all users');
+      }
+
+      const result = await response.json();
+      console.log('🔍 All users in system:', result);
+      
+      // Show the results in an alert for now
+      const userList = result.users.map(u => 
+        `${u.username} (${u.role}) - Tenant: ${u.tenant_id ? 'Yes' : 'No'}`
+      ).join('\n');
+      
+      alert(`Total Users: ${result.totalUsers}\n\nUsers:\n${userList || 'No users found'}`);
+      
+    } catch (error) {
+      console.error('Failed to check all users:', error);
+      alert('Failed to check all users: ' + error.message);
+    }
+  };
+
   const checkTenantUsers = async (slug) => {
     try {
       const token = getAuthToken();
@@ -560,6 +626,18 @@ const MultiTenantAdmin = () => {
               }`}
             >
               📊 Dashboard
+            </button>
+            <button
+              onClick={checkAllUsers}
+              className="py-4 px-2 border-b-2 font-medium text-sm border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+            >
+              🔍 Debug Users
+            </button>
+            <button
+              onClick={fixUsersWithoutTenant}
+              className="py-4 px-2 border-b-2 font-medium text-sm border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+            >
+              🔧 Fix Users
             </button>
             <button
               onClick={() => setActiveTab('create')}
