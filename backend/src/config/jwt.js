@@ -2,11 +2,17 @@ const jwt = require('jsonwebtoken');
 
 // JWT Configuration
 const JWT_SECRET = process.env.JWT_SECRET || 'fallback_secret_key_change_in_production';
-const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '24h';
+const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '30d'; // Extended to 30 days
+const JWT_REFRESH_EXPIRES_IN = process.env.JWT_REFRESH_EXPIRES_IN || '90d'; // Refresh token valid for 90 days
 
 // Generate JWT token
 const generateToken = (payload) => {
   return jwt.sign(payload, JWT_SECRET, { expiresIn: JWT_EXPIRES_IN });
+};
+
+// Generate refresh token
+const generateRefreshToken = (payload) => {
+  return jwt.sign(payload, JWT_SECRET, { expiresIn: JWT_REFRESH_EXPIRES_IN });
 };
 
 // Verify JWT token
@@ -39,7 +45,9 @@ const authenticateToken = (req, res, next) => {
 module.exports = {
   JWT_SECRET,
   JWT_EXPIRES_IN,
+  JWT_REFRESH_EXPIRES_IN,
   generateToken,
+  generateRefreshToken,
   verifyToken,
   authenticateToken
 }; 

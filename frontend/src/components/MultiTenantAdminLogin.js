@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import tokenService from '../services/tokenService';
 
 const MultiTenantAdminLogin = ({ onLogin }) => {
   const [credentials, setCredentials] = useState({
@@ -30,9 +31,8 @@ const MultiTenantAdminLogin = ({ onLogin }) => {
 
       const data = await response.json();
       
-      // Store authentication token
-      localStorage.setItem('multi_tenant_admin_token', data.token);
-      localStorage.setItem('multi_tenant_admin_user', JSON.stringify(data.user));
+      // Store authentication tokens using token service
+      tokenService.storeTokens(data.token, data.refreshToken, data.user, data.expiresIn);
       
       // Call the onLogin callback
       onLogin(data);

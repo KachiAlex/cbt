@@ -1,4 +1,5 @@
 // Authentication middleware for multi-tenant admin platform
+const { generateToken, generateRefreshToken, verifyToken } = require('../config/jwt');
 
 // Super admin credentials
 const SUPER_ADMIN = {
@@ -6,22 +7,26 @@ const SUPER_ADMIN = {
   password: 'superadmin123'
 };
 
-// Simple authentication middleware for multi-tenant admin
+// JWT authentication middleware for multi-tenant admin
 const authenticateMultiTenantAdmin = (req, res, next) => {
-  const authHeader = req.headers.authorization;
-  
-  if (!authHeader || !authHeader.startsWith('Bearer ')) {
-    return res.status(401).json({ error: 'Authentication required' });
-  }
-  
-  const token = authHeader.substring(7); // Remove 'Bearer ' prefix
-  
-  // For now, we'll use a simple token validation
-  // In production, you should use JWT tokens
-  if (token === 'superadmin-token') {
+  try {
+    const authHeader = req.headers.authorization;
+    
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return res.status(401).json({ error: 'Authentication required' });
+    }
+    
+    const token = authHeader.substring(7); // Remove 'Bearer ' prefix
+    
+    // Verify JWT token
+    const decoded = verifyToken(token);
+    req.user = decoded;
     next();
-  } else {
-    res.status(401).json({ error: 'Invalid authentication token' });
+  } catch (error) {
+    if (error.name === 'TokenExpiredError') {
+      return res.status(401).json({ error: 'Token expired', code: 'TOKEN_EXPIRED' });
+    }
+    return res.status(401).json({ error: 'Invalid authentication token' });
   }
 };
 
@@ -36,10 +41,21 @@ const loginMultiTenantAdmin = async (req, res) => {
     
     // Check credentials
     if (username === SUPER_ADMIN.username && password === SUPER_ADMIN.password) {
-      // In production, you should hash passwords and use JWT tokens
+      // Generate JWT tokens
+      const userPayload = {
+        username: SUPER_ADMIN.username,
+        role: 'super_admin',
+        type: 'multi_tenant_admin'
+      };
+      
+      const accessToken = generateToken(userPayload);
+      const refreshToken = generateRefreshToken(userPayload);
+      
       res.json({
         message: 'Login successful',
-        token: 'superadmin-token',
+        token: accessToken,
+        refreshToken: refreshToken,
+        expiresIn: 30 * 24 * 60 * 60 * 1000, // 30 days in milliseconds
         user: {
           username: SUPER_ADMIN.username,
           role: 'super_admin'

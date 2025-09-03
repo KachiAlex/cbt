@@ -977,6 +977,36 @@ app.options('/api/multi-tenant-admin/login', cors());
 // Login endpoint for multi-tenant admin
 app.post('/api/multi-tenant-admin/login', cors(), loginMultiTenantAdmin);
 
+// Token refresh endpoint for multi-tenant admin
+app.post('/api/multi-tenant-admin/refresh', cors(), async (req, res) => {
+  try {
+    const { refreshToken } = req.body;
+    
+    if (!refreshToken) {
+      return res.status(400).json({ error: 'Refresh token is required' });
+    }
+    
+    // Verify refresh token
+    const { verifyToken, generateToken } = require('./config/jwt');
+    const decoded = verifyToken(refreshToken);
+    
+    // Generate new access token
+    const newAccessToken = generateToken({
+      username: decoded.username,
+      role: decoded.role,
+      type: decoded.type
+    });
+    
+    res.json({
+      token: newAccessToken,
+      expiresIn: 30 * 24 * 60 * 60 * 1000 // 30 days in milliseconds
+    });
+  } catch (error) {
+    console.error('Token refresh error:', error);
+    res.status(401).json({ error: 'Invalid refresh token' });
+  }
+});
+
 // Protected routes - require authentication
 app.post('/api/tenants', cors(), authenticateMultiTenantAdmin, async (req, res) => {
   try {
