@@ -1,0 +1,571 @@
+{
+  "exportDate": "2025-09-03T07:31:26.862Z",
+  "source": "local_database",
+  "target": "mongodb_atlas",
+  "data": {
+    "tenants": [
+      {
+        "_id": "68b7e1450573398fcfb3cff1",
+        "name": "College of Nursing Sciences",
+        "slug": "college-of-nursing-sciences-2",
+        "address": "123 Nursing Avenue, Medical District",
+        "contact_email": "admin@collegeofnursing.edu",
+        "contact_phone": "+234-801-234-5678",
+        "plan": "Premium",
+        "timezone": "Africa/Lagos",
+        "logo_url": "",
+        "suspended": false,
+        "default_admin": {
+          "username": "nursingadmin",
+          "email": "admin@collegeofnursing.edu",
+          "fullName": "Nursing Administrator",
+          "phone": "+234-801-234-5678",
+          "password": "nursing123"
+        },
+        "settings": {
+          "max_students": 100,
+          "max_exams": 10,
+          "features": [
+            "basic_exams",
+            "basic_reports"
+          ]
+        },
+        "deleted_at": null,
+        "createdAt": "2025-09-03T06:33:41.910Z",
+        "updatedAt": "2025-09-03T06:41:54.716Z",
+        "__v": 0
+      }
+    ],
+    "users": [
+      {
+        "_id": "68b7e1450573398fcfb3cff5",
+        "tenant_id": "68b7e1450573398fcfb3cff1",
+        "username": "nursingadmin",
+        "email": "admin@collegeofnursing.edu",
+        "phone": "+234-801-234-5678",
+        "fullName": "Nursing Administrator",
+        "password": "$2a$12$eebgkwlK7UXPmTKUzbOL.egt2GLpoGjtSfVLl9.9ncPODJIEEOi0m",
+        "role": "super_admin",
+        "is_default_admin": true,
+        "must_change_password": false,
+        "is_active": true,
+        "created_at": "2025-09-03T06:33:41.963Z",
+        "updated_at": "2025-09-03T06:33:42.479Z",
+        "__v": 0
+      },
+      {
+        "_id": "68b7e1460573398fcfb3cff8",
+        "tenant_id": "68b7e1450573398fcfb3cff1",
+        "username": "dean",
+        "email": "dean@collegeofnursing.edu",
+        "phone": "+234-801-234-5679",
+        "fullName": "Dean of Nursing",
+        "password": "$2a$12$eCMdn7.uxJsEOV2cFDVyJOuF4hJ8IEkNRF5ZuVC4eo6JT0nOh1jnq",
+        "role": "admin",
+        "is_default_admin": false,
+        "must_change_password": false,
+        "is_active": true,
+        "created_at": "2025-09-03T06:33:42.498Z",
+        "updated_at": "2025-09-03T06:33:42.891Z",
+        "__v": 0
+      },
+      {
+        "_id": "68b7e1460573398fcfb3cffb",
+        "tenant_id": "68b7e1450573398fcfb3cff1",
+        "username": "headofdept",
+        "email": "hod@collegeofnursing.edu",
+        "phone": "+234-801-234-5680",
+        "fullName": "Head of Department",
+        "password": "$2a$12$vCIpy4VjfGB25Xl5Q6XyUeCNhwyAPDF14.CqD4MhtytVneKqwXXoK",
+        "role": "admin",
+        "is_default_admin": false,
+        "must_change_password": false,
+        "is_active": true,
+        "created_at": "2025-09-03T06:33:42.899Z",
+        "updated_at": "2025-09-03T06:33:43.323Z",
+        "__v": 0
+      },
+      {
+        "_id": "68b7e1470573398fcfb3cffe",
+        "tenant_id": "68b7e1450573398fcfb3cff1",
+        "username": "student001",
+        "email": "student001@collegeofnursing.edu",
+        "phone": "+234-801-234-5681",
+        "fullName": "Aisha Mohammed",
+        "password": "$2a$12$5.43vDLF8WribsW.erOuKuzCNhlI1kuUOj9Q49yN5q79a5wU5n2i.",
+        "role": "student",
+        "is_default_admin": false,
+        "must_change_password": false,
+        "is_active": true,
+        "created_at": "2025-09-03T06:33:43.328Z",
+        "updated_at": "2025-09-03T06:33:43.777Z",
+        "__v": 0
+      },
+      {
+        "_id": "68b7e1470573398fcfb3d001",
+        "tenant_id": "68b7e1450573398fcfb3cff1",
+        "username": "student002",
+        "email": "student002@collegeofnursing.edu",
+        "phone": "+234-801-234-5682",
+        "fullName": "Chioma Okonkwo",
+        "password": "$2a$12$Gr2MBAKqGJiAV9OLg9HQquC6cK9zvTuj.mKDXnjHMeTAZ0ISoTOdq",
+        "role": "student",
+        "is_default_admin": false,
+        "must_change_password": false,
+        "is_active": true,
+        "created_at": "2025-09-03T06:33:43.782Z",
+        "updated_at": "2025-09-03T06:33:44.206Z",
+        "__v": 0
+      },
+      {
+        "_id": "68b7e1480573398fcfb3d004",
+        "tenant_id": "68b7e1450573398fcfb3cff1",
+        "username": "student003",
+        "email": "student003@collegeofnursing.edu",
+        "phone": "+234-801-234-5683",
+        "fullName": "Fatima Hassan",
+        "password": "$2a$12$0mNXyt65QtYZb1vdf/fUXeTpUTQjzWoIxzdoQxmonXGRze4P56l2W",
+        "role": "student",
+        "is_default_admin": false,
+        "must_change_password": false,
+        "is_active": true,
+        "created_at": "2025-09-03T06:33:44.210Z",
+        "updated_at": "2025-09-03T06:33:44.588Z",
+        "__v": 0
+      },
+      {
+        "_id": "68b7e1480573398fcfb3d007",
+        "tenant_id": "68b7e1450573398fcfb3cff1",
+        "username": "student004",
+        "email": "student004@collegeofnursing.edu",
+        "phone": "+234-801-234-5684",
+        "fullName": "Grace Eze",
+        "password": "$2a$12$CSS.3.QST7mtqbehPKvzYeg4bfFmJqsKTHXs06OnFyT5EiBRG0ZQm",
+        "role": "student",
+        "is_default_admin": false,
+        "must_change_password": false,
+        "is_active": true,
+        "created_at": "2025-09-03T06:33:44.592Z",
+        "updated_at": "2025-09-03T06:33:45.027Z",
+        "__v": 0
+      },
+      {
+        "_id": "68b7e1490573398fcfb3d00a",
+        "tenant_id": "68b7e1450573398fcfb3cff1",
+        "username": "student005",
+        "email": "student005@collegeofnursing.edu",
+        "phone": "+234-801-234-5685",
+        "fullName": "Hauwa Bello",
+        "password": "$2a$12$c.weboxk14S9A/qm5t.eC.aB3GAJB/725hS5Ud4R0gnMhWxUB7.Py",
+        "role": "student",
+        "is_default_admin": false,
+        "must_change_password": false,
+        "is_active": true,
+        "created_at": "2025-09-03T06:33:45.033Z",
+        "updated_at": "2025-09-03T06:33:45.652Z",
+        "__v": 0
+      }
+    ],
+    "exams": [
+      {
+        "_id": "68b7e1490573398fcfb3d00d",
+        "title": "Fundamentals of Nursing - Midterm",
+        "description": "Comprehensive assessment of nursing fundamentals including patient care, safety protocols, and basic procedures.",
+        "duration": 120,
+        "questions": [],
+        "total_questions": 50,
+        "passing_score": 70,
+        "start_date": "2025-09-15T09:00:00.000Z",
+        "end_date": "2025-09-15T11:00:00.000Z",
+        "is_active": true,
+        "instructions": "This exam covers chapters 1-5 of your Fundamentals of Nursing textbook. You have 2 hours to complete 50 multiple-choice questions. Passing score is 70%.",
+        "tenant_id": "68b7e1450573398fcfb3cff1",
+        "__v": 0
+      },
+      {
+        "_id": "68b7e1490573398fcfb3d010",
+        "title": "Anatomy & Physiology - Final Exam",
+        "description": "Final examination covering human anatomy and physiology with focus on nursing applications.",
+        "duration": 180,
+        "questions": [],
+        "total_questions": 75,
+        "passing_score": 75,
+        "start_date": "2025-09-20T14:00:00.000Z",
+        "end_date": "2025-09-20T17:00:00.000Z",
+        "is_active": true,
+        "instructions": "Comprehensive final exam covering all course material. 75 questions in 3 hours. Passing score is 75%.",
+        "tenant_id": "68b7e1450573398fcfb3cff1",
+        "__v": 0
+      },
+      {
+        "_id": "68b7e1490573398fcfb3d013",
+        "title": "Clinical Practice Assessment",
+        "description": "Practical assessment of clinical nursing skills and patient interaction.",
+        "duration": 90,
+        "questions": [],
+        "total_questions": 30,
+        "passing_score": 80,
+        "start_date": "2025-09-25T10:00:00.000Z",
+        "end_date": "2025-09-25T11:30:00.000Z",
+        "is_active": true,
+        "instructions": "Clinical practice assessment with scenario-based questions. 30 questions in 1.5 hours. Passing score is 80%.",
+        "tenant_id": "68b7e1450573398fcfb3cff1",
+        "__v": 0
+      }
+    ],
+    "questions": [
+      {
+        "_id": "68b7e1490573398fcfb3d016",
+        "options": [
+          "To keep hands soft and moisturized",
+          "To prevent the spread of infection",
+          "To make patients feel comfortable",
+          "To follow hospital policy"
+        ],
+        "question": "What is the primary purpose of hand hygiene in nursing practice?",
+        "correct_answer": 1,
+        "explanation": "Hand hygiene is the most effective way to prevent the spread of infection in healthcare settings.",
+        "category": "Infection Control",
+        "difficulty": "Easy",
+        "exam_id": null,
+        "tenant_id": "68b7e1450573398fcfb3cff1",
+        "__v": 0
+      },
+      {
+        "_id": "68b7e1490573398fcfb3d019",
+        "options": [
+          "Blood pressure",
+          "Temperature",
+          "Hair color",
+          "Respiratory rate"
+        ],
+        "question": "Which of the following is NOT a vital sign?",
+        "correct_answer": 2,
+        "explanation": "Hair color is not a vital sign. Vital signs include temperature, pulse, respiratory rate, and blood pressure.",
+        "category": "Vital Signs",
+        "difficulty": "Easy",
+        "exam_id": null,
+        "tenant_id": "68b7e1450573398fcfb3cff1",
+        "__v": 0
+      },
+      {
+        "_id": "68b7e1490573398fcfb3d01c",
+        "options": [
+          "Gloves, gown, mask, goggles",
+          "Gown, mask, goggles, gloves",
+          "Mask, gown, goggles, gloves",
+          "Goggles, mask, gown, gloves"
+        ],
+        "question": "What is the correct sequence for donning PPE (Personal Protective Equipment)?",
+        "correct_answer": 1,
+        "explanation": "The correct sequence is: gown first, then mask, goggles, and finally gloves.",
+        "category": "Infection Control",
+        "difficulty": "Medium",
+        "exam_id": null,
+        "tenant_id": "68b7e1450573398fcfb3cff1",
+        "__v": 0
+      },
+      {
+        "_id": "68b7e1490573398fcfb3d01f",
+        "options": [
+          "Hypothermia",
+          "Normal body temperature",
+          "Hyperthermia",
+          "Fever"
+        ],
+        "question": "A patient with a temperature of 39.2°C (102.6°F) is experiencing:",
+        "correct_answer": 3,
+        "explanation": "A temperature of 39.2°C (102.6°F) indicates fever, which is above the normal range of 36.5-37.5°C.",
+        "category": "Vital Signs",
+        "difficulty": "Medium",
+        "exam_id": null,
+        "tenant_id": "68b7e1450573398fcfb3cff1",
+        "__v": 0
+      },
+      {
+        "_id": "68b7e1490573398fcfb3d022",
+        "options": [
+          "Providing comfortable bedding",
+          "Implementing fall prevention protocols",
+          "Administering sedative medications",
+          "Restricting all patient movement"
+        ],
+        "question": "What is the most important nursing intervention for a patient at risk for falls?",
+        "correct_answer": 1,
+        "explanation": "Implementing fall prevention protocols is the most important intervention to ensure patient safety.",
+        "category": "Patient Safety",
+        "difficulty": "Medium",
+        "exam_id": null,
+        "tenant_id": "68b7e1450573398fcfb3cff1",
+        "__v": 0
+      },
+      {
+        "_id": "68b7e1490573398fcfb3d025",
+        "options": [
+          "Heart",
+          "Liver",
+          "Kidneys",
+          "Lungs"
+        ],
+        "question": "Which organ is responsible for filtering blood and removing waste products?",
+        "correct_answer": 2,
+        "explanation": "The kidneys are responsible for filtering blood and removing waste products through urine formation.",
+        "category": "Urinary System",
+        "difficulty": "Easy",
+        "exam_id": null,
+        "tenant_id": "68b7e1450573398fcfb3cff1",
+        "__v": 0
+      },
+      {
+        "_id": "68b7e1490573398fcfb3d028",
+        "options": [
+          "Skeletal muscle",
+          "Smooth muscle",
+          "Cardiac muscle",
+          "Striated muscle"
+        ],
+        "question": "What type of muscle tissue is found in the heart?",
+        "correct_answer": 2,
+        "explanation": "The heart contains cardiac muscle tissue, which is unique and found only in the heart.",
+        "category": "Cardiovascular System",
+        "difficulty": "Medium",
+        "exam_id": null,
+        "tenant_id": "68b7e1450573398fcfb3cff1",
+        "__v": 0
+      },
+      {
+        "_id": "68b7e1490573398fcfb3d02b",
+        "options": [
+          "Protection of vital organs",
+          "Production of blood cells",
+          "Digestion of food",
+          "Storage of minerals"
+        ],
+        "question": "Which of the following is NOT a function of the skeletal system?",
+        "correct_answer": 2,
+        "explanation": "Digestion of food is not a function of the skeletal system. That is the role of the digestive system.",
+        "category": "Skeletal System",
+        "difficulty": "Medium",
+        "exam_id": null,
+        "tenant_id": "68b7e1450573398fcfb3cff1",
+        "__v": 0
+      },
+      {
+        "_id": "68b7e1490573398fcfb3d02e",
+        "options": [
+          "Speak louder and faster",
+          "Use written communication and clear speech",
+          "Avoid eye contact to reduce anxiety",
+          "Use medical terminology extensively"
+        ],
+        "question": "When communicating with a patient who has hearing loss, the nurse should:",
+        "correct_answer": 1,
+        "explanation": "Using written communication and clear speech is the most effective way to communicate with hearing-impaired patients.",
+        "category": "Communication",
+        "difficulty": "Easy",
+        "exam_id": null,
+        "tenant_id": "68b7e1450573398fcfb3cff1",
+        "__v": 0
+      },
+      {
+        "_id": "68b7e1490573398fcfb3d031",
+        "options": [
+          "Administer anti-anxiety medication",
+          "Assess the patient's vital signs",
+          "Ask the patient what is causing their anxiety",
+          "Call the physician immediately"
+        ],
+        "question": "A patient appears anxious and restless. The nurse's first action should be to:",
+        "correct_answer": 2,
+        "explanation": "The nurse should first assess the patient's vital signs to ensure there are no physiological causes for the anxiety.",
+        "category": "Patient Assessment",
+        "difficulty": "Medium",
+        "exam_id": null,
+        "tenant_id": "68b7e1450573398fcfb3cff1",
+        "__v": 0
+      }
+    ],
+    "results": [
+      {
+        "_id": "68b7e1490573398fcfb3d036",
+        "score": 73,
+        "answers": [],
+        "questionOrder": [],
+        "student_id": "68b7e1470573398fcfb3cffe",
+        "exam_id": "68b7e1490573398fcfb3d00d",
+        "passed": true,
+        "completed_at": "2025-09-03T06:33:45.776Z",
+        "tenant_id": "68b7e1450573398fcfb3cff1",
+        "__v": 0
+      },
+      {
+        "_id": "68b7e1490573398fcfb3d039",
+        "score": 93,
+        "answers": [],
+        "questionOrder": [],
+        "student_id": "68b7e1470573398fcfb3cffe",
+        "exam_id": "68b7e1490573398fcfb3d010",
+        "passed": true,
+        "completed_at": "2025-09-03T06:33:45.783Z",
+        "tenant_id": "68b7e1450573398fcfb3cff1",
+        "__v": 0
+      },
+      {
+        "_id": "68b7e1490573398fcfb3d03c",
+        "score": 69,
+        "answers": [],
+        "questionOrder": [],
+        "student_id": "68b7e1470573398fcfb3cffe",
+        "exam_id": "68b7e1490573398fcfb3d013",
+        "passed": false,
+        "completed_at": "2025-09-03T06:33:45.789Z",
+        "tenant_id": "68b7e1450573398fcfb3cff1",
+        "__v": 0
+      },
+      {
+        "_id": "68b7e1490573398fcfb3d03f",
+        "score": 60,
+        "answers": [],
+        "questionOrder": [],
+        "student_id": "68b7e1470573398fcfb3d001",
+        "exam_id": "68b7e1490573398fcfb3d00d",
+        "passed": false,
+        "completed_at": "2025-09-03T06:33:45.792Z",
+        "tenant_id": "68b7e1450573398fcfb3cff1",
+        "__v": 0
+      },
+      {
+        "_id": "68b7e1490573398fcfb3d042",
+        "score": 82,
+        "answers": [],
+        "questionOrder": [],
+        "student_id": "68b7e1470573398fcfb3d001",
+        "exam_id": "68b7e1490573398fcfb3d010",
+        "passed": true,
+        "completed_at": "2025-09-03T06:33:45.796Z",
+        "tenant_id": "68b7e1450573398fcfb3cff1",
+        "__v": 0
+      },
+      {
+        "_id": "68b7e1490573398fcfb3d045",
+        "score": 69,
+        "answers": [],
+        "questionOrder": [],
+        "student_id": "68b7e1470573398fcfb3d001",
+        "exam_id": "68b7e1490573398fcfb3d013",
+        "passed": false,
+        "completed_at": "2025-09-03T06:33:45.800Z",
+        "tenant_id": "68b7e1450573398fcfb3cff1",
+        "__v": 0
+      },
+      {
+        "_id": "68b7e1490573398fcfb3d048",
+        "score": 60,
+        "answers": [],
+        "questionOrder": [],
+        "student_id": "68b7e1480573398fcfb3d004",
+        "exam_id": "68b7e1490573398fcfb3d00d",
+        "passed": false,
+        "completed_at": "2025-09-03T06:33:45.805Z",
+        "tenant_id": "68b7e1450573398fcfb3cff1",
+        "__v": 0
+      },
+      {
+        "_id": "68b7e1490573398fcfb3d04b",
+        "score": 92,
+        "answers": [],
+        "questionOrder": [],
+        "student_id": "68b7e1480573398fcfb3d004",
+        "exam_id": "68b7e1490573398fcfb3d010",
+        "passed": true,
+        "completed_at": "2025-09-03T06:33:45.809Z",
+        "tenant_id": "68b7e1450573398fcfb3cff1",
+        "__v": 0
+      },
+      {
+        "_id": "68b7e1490573398fcfb3d04e",
+        "score": 80,
+        "answers": [],
+        "questionOrder": [],
+        "student_id": "68b7e1480573398fcfb3d004",
+        "exam_id": "68b7e1490573398fcfb3d013",
+        "passed": true,
+        "completed_at": "2025-09-03T06:33:45.812Z",
+        "tenant_id": "68b7e1450573398fcfb3cff1",
+        "__v": 0
+      },
+      {
+        "_id": "68b7e1490573398fcfb3d051",
+        "score": 69,
+        "answers": [],
+        "questionOrder": [],
+        "student_id": "68b7e1480573398fcfb3d007",
+        "exam_id": "68b7e1490573398fcfb3d00d",
+        "passed": false,
+        "completed_at": "2025-09-03T06:33:45.816Z",
+        "tenant_id": "68b7e1450573398fcfb3cff1",
+        "__v": 0
+      },
+      {
+        "_id": "68b7e1490573398fcfb3d054",
+        "score": 90,
+        "answers": [],
+        "questionOrder": [],
+        "student_id": "68b7e1480573398fcfb3d007",
+        "exam_id": "68b7e1490573398fcfb3d010",
+        "passed": true,
+        "completed_at": "2025-09-03T06:33:45.821Z",
+        "tenant_id": "68b7e1450573398fcfb3cff1",
+        "__v": 0
+      },
+      {
+        "_id": "68b7e1490573398fcfb3d057",
+        "score": 60,
+        "answers": [],
+        "questionOrder": [],
+        "student_id": "68b7e1480573398fcfb3d007",
+        "exam_id": "68b7e1490573398fcfb3d013",
+        "passed": false,
+        "completed_at": "2025-09-03T06:33:45.826Z",
+        "tenant_id": "68b7e1450573398fcfb3cff1",
+        "__v": 0
+      },
+      {
+        "_id": "68b7e1490573398fcfb3d05a",
+        "score": 73,
+        "answers": [],
+        "questionOrder": [],
+        "student_id": "68b7e1490573398fcfb3d00a",
+        "exam_id": "68b7e1490573398fcfb3d00d",
+        "passed": true,
+        "completed_at": "2025-09-03T06:33:45.829Z",
+        "tenant_id": "68b7e1450573398fcfb3cff1",
+        "__v": 0
+      },
+      {
+        "_id": "68b7e1490573398fcfb3d05d",
+        "score": 61,
+        "answers": [],
+        "questionOrder": [],
+        "student_id": "68b7e1490573398fcfb3d00a",
+        "exam_id": "68b7e1490573398fcfb3d010",
+        "passed": false,
+        "completed_at": "2025-09-03T06:33:45.831Z",
+        "tenant_id": "68b7e1450573398fcfb3cff1",
+        "__v": 0
+      },
+      {
+        "_id": "68b7e1490573398fcfb3d060",
+        "score": 71,
+        "answers": [],
+        "questionOrder": [],
+        "student_id": "68b7e1490573398fcfb3d00a",
+        "exam_id": "68b7e1490573398fcfb3d013",
+        "passed": false,
+        "completed_at": "2025-09-03T06:33:45.837Z",
+        "tenant_id": "68b7e1450573398fcfb3cff1",
+        "__v": 0
+      }
+    ]
+  }
+}
