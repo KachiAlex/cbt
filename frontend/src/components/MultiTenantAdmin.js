@@ -127,11 +127,34 @@ const MultiTenantAdmin = () => {
     }
   }, [loadInstitutions, isAuthenticated]);
 
+  // Effect to handle institution loading and logout if needed
+  useEffect(() => {
+    const loadData = async () => {
+      const result = await loadInstitutions();
+      if (result.error === 'unauthorized') {
+        handleLogout();
+        return;
+      }
+      if (result.data) {
+        setInstitutions(result.data);
+      } else if (result.error) {
+        setError('Failed to load institutions: ' + result.error);
+        setInstitutions([]);
+      }
+    };
+    
+    if (isAuthenticated()) {
+      loadData();
+    }
+  }, [loadInstitutions, isAuthenticated]);
+
   // Separate effect to load user counts after institutions are loaded
   useEffect(() => {
     if (institutions.length > 0) {
       console.log('🔍 Loading user counts for all institutions...');
+      console.log('📊 Institutions to process:', institutions.map(i => i.slug));
       institutions.forEach(institution => {
+        console.log(`🔄 Loading user count for: ${institution.slug}`);
         loadUserCount(institution.slug);
       });
     }
@@ -496,7 +519,9 @@ const MultiTenantAdmin = () => {
 
   const loadUserCount = async (slug) => {
     try {
+      console.log(`🔍 Starting loadUserCount for: ${slug}`);
       const token = getAuthToken();
+      console.log(`🔑 Token present: ${!!token}`);
       
       const response = await fetch(`${API_BASE_URL}/api/tenants/${slug}/users`, {
         method: 'GET',
@@ -505,25 +530,33 @@ const MultiTenantAdmin = () => {
         }
       });
 
+      console.log(`📡 Response status: ${response.status}`);
+      console.log(`📡 Response ok: ${response.ok}`);
+
       if (!response.ok) {
         const errorData = await response.json();
+        console.log(`❌ Error response:`, errorData);
         throw new Error(errorData.error || 'Failed to fetch tenant users');
       }
 
       const result = await response.json();
-      console.log('🔍 Users in tenant:', result);
+      console.log(`🔍 Users in tenant ${slug}:`, result);
       
       // Update the user count display
       const userCountElement = document.getElementById(`user-count-${slug}`);
+      console.log(`🎯 User count element found: ${!!userCountElement}`);
       if (userCountElement) {
         userCountElement.textContent = `${result.users.length} users`;
         userCountElement.className = 'text-blue-600 font-medium';
+        console.log(`✅ Updated user count display for ${slug}: ${result.users.length} users`);
+      } else {
+        console.log(`❌ User count element not found for ${slug}`);
       }
       
       return result.users.length;
       
     } catch (error) {
-      console.error('Failed to load user count:', error);
+      console.error(`❌ Failed to load user count for ${slug}:`, error);
       const userCountElement = document.getElementById(`user-count-${slug}`);
       if (userCountElement) {
         userCountElement.textContent = 'Error loading';
@@ -1129,16 +1162,27 @@ const MultiTenantAdmin = () => {
                             {institution.suspended ? 'Activate' : 'Suspend'}
                           </button>
                           
-                          <button
-                            onClick={() => {
-                              console.log('🔍 Full institution data:', institution);
-                              checkTenantUsers(institution.slug);
-                            }}
-                            className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 text-sm"
-                            title="Check users in this institution"
-                          >
-                            Check Users
-                          </button>
+                                                     <button
+                             onClick={() => {
+                               console.log('🔍 Full institution data:', institution);
+                               checkTenantUsers(institution.slug);
+                             }}
+                             className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 text-sm"
+                             title="Check users in this institution"
+                           >
+                             Check Users
+                           </button>
+                           
+                           <button
+                             onClick={() => {
+                               console.log(`🧪 Manual test: Loading user count for ${institution.slug}`);
+                               loadUserCount(institution.slug);
+                             }}
+                             className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 text-sm"
+                             title="Test user count loading"
+                           >
+                             Test Count
+                           </button>
                           
                           <button
                             onClick={() => resetAdminPassword(institution.slug, institution.default_admin?.username)}
