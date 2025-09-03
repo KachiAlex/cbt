@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CORS Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .test-result { margin: 10px 0; padding: 10px; border-radius: 5px; }
+        .success { background-color: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+        .error { background-color: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+        button { padding: 10px 20px; margin: 5px; background: #007bff; color: white; border: none; border-radius: 5px; cursor: pointer; }
+        button:hover { background: #0056b3; }
+    </style>
+</head>
+<body>
+    <h1>CORS Test for CBT Backend</h1>
+    
+    <button onclick="testCors()">Test CORS</button>
+    <button onclick="testLogin()">Test Login Endpoint</button>
+    <button onclick="testHealth()">Test Health Endpoint</button>
+    
+    <div id="results"></div>
+    
+    <script>
+        const API_BASE = 'https://cbt-rew7.onrender.com';
+        
+        function addResult(message, isSuccess = true) {
+            const div = document.createElement('div');
+            div.className = `test-result ${isSuccess ? 'success' : 'error'}`;
+            div.textContent = `${new Date().toLocaleTimeString()}: ${message}`;
+            document.getElementById('results').appendChild(div);
+        }
+        
+        async function testCors() {
+            try {
+                addResult('Testing CORS endpoint...');
+                const response = await fetch(`${API_BASE}/api/cors-test`);
+                const data = await response.json();
+                addResult(`✅ CORS Test Success: ${data.message}`, true);
+            } catch (error) {
+                addResult(`❌ CORS Test Failed: ${error.message}`, false);
+            }
+        }
+        
+        async function testLogin() {
+            try {
+                addResult('Testing login endpoint...');
+                const response = await fetch(`${API_BASE}/api/multi-tenant-admin/login`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        username: 'test',
+                        password: 'test'
+                    })
+                });
+                
+                if (response.ok) {
+                    addResult('✅ Login endpoint accessible (CORS working)', true);
+                } else {
+                    const data = await response.json();
+                    addResult(`✅ Login endpoint accessible, but login failed: ${data.error}`, true);
+                }
+            } catch (error) {
+                addResult(`❌ Login endpoint failed: ${error.message}`, false);
+            }
+        }
+        
+        async function testHealth() {
+            try {
+                addResult('Testing health endpoint...');
+                const response = await fetch(`${API_BASE}/health`);
+                const data = await response.json();
+                addResult(`✅ Health endpoint working: ${data.status}`, true);
+            } catch (error) {
+                addResult(`❌ Health endpoint failed: ${error.message}`, false);
+            }
+        }
+    </script>
+</body>
+</html>
