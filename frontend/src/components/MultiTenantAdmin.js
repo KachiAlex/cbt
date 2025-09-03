@@ -1045,53 +1045,57 @@ const MultiTenantAdmin = () => {
                           <h3 className="text-xl font-semibold text-gray-800 mb-2">
                             {institution.name}
                           </h3>
-                          <div className="space-y-2 text-sm text-gray-600 mb-4">
-                            <div className="flex items-center space-x-2">
-                              <span className="font-semibold min-w-[60px]">Slug:</span>
-                              <span className="text-gray-800">{institution.slug}</span>
-                            </div>
-                            <div className="flex items-center space-x-2">
-                              <span className="font-semibold min-w-[60px]">Plan:</span>
-                              <span className="text-gray-800">{institution.plan}</span>
-                            </div>
-                            <div className="flex items-center space-x-2">
-                              <span className="font-semibold min-w-[60px]">Status:</span>
-                              <span className={`px-2 py-1 rounded-full text-xs ${
-                                institution.suspended 
-                                  ? 'bg-red-100 text-red-800' 
-                                  : 'bg-green-100 text-green-800'
-                              }`}>
-                                {institution.suspended ? 'Suspended' : 'Active'}
-                              </span>
-                            </div>
-                            <div className="flex items-center space-x-2">
-                              <span className="font-semibold min-w-[60px]">Admin:</span>
-                              <span className="text-gray-800">{institution.default_admin?.fullName}</span>
-                            </div>
-                            <div className="flex items-center space-x-2">
-                              <span className="font-semibold min-w-[60px]">Username:</span>
-                              <span className="text-gray-800">{institution.default_admin?.username}</span>
-                            </div>
-                            <div className="flex items-center space-x-2">
-                              <span className="font-semibold min-w-[60px]">Users:</span>
-                              <span className="text-gray-800">
-                                <span id={`user-count-${institution.slug}`} className="text-blue-600 font-medium">
-                                  Loading...
-                                </span>
-                                <button
-                                  onClick={() => loadUserCount(institution.slug)}
-                                  className="ml-2 text-xs text-gray-500 hover:text-gray-700 underline"
-                                  title="Refresh user count"
-                                >
-                                  🔄
-                                </button>
-                              </span>
-                            </div>
-                            <div className="flex items-center space-x-2">
-                              <span className="font-semibold min-w-[60px]">Created:</span>
-                              <span className="text-gray-800">{new Date(institution.createdAt).toLocaleDateString()}</span>
-                            </div>
-                          </div>
+                                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-3 text-sm text-gray-600 mb-6">
+                             <div className="flex items-center space-x-3">
+                               <span className="font-semibold min-w-[80px] text-gray-700">Slug:</span>
+                               <span className="text-gray-800 font-mono bg-gray-50 px-2 py-1 rounded text-xs">{institution.slug}</span>
+                             </div>
+                             <div className="flex items-center space-x-3">
+                               <span className="font-semibold min-w-[80px] text-gray-700">Plan:</span>
+                               <span className={`px-3 py-1 rounded-full text-xs font-medium ${
+                                 institution.plan === 'Premium' ? 'bg-purple-100 text-purple-800' :
+                                 institution.plan === 'Enterprise' ? 'bg-blue-100 text-blue-800' :
+                                 'bg-green-100 text-green-800'
+                               }`}>{institution.plan}</span>
+                             </div>
+                             <div className="flex items-center space-x-3">
+                               <span className="font-semibold min-w-[80px] text-gray-700">Status:</span>
+                               <span className={`px-3 py-1 rounded-full text-xs font-medium ${
+                                 institution.suspended 
+                                   ? 'bg-red-100 text-red-800' 
+                                   : 'bg-green-100 text-green-800'
+                               }`}>
+                                 {institution.suspended ? 'Suspended' : 'Active'}
+                               </span>
+                             </div>
+                             <div className="flex items-center space-x-3">
+                               <span className="font-semibold min-w-[80px] text-gray-700">Admin:</span>
+                               <span className="text-gray-800 font-medium">{institution.default_admin?.fullName}</span>
+                             </div>
+                             <div className="flex items-center space-x-3">
+                               <span className="font-semibold min-w-[80px] text-gray-700">Username:</span>
+                               <span className="text-gray-800 font-mono bg-gray-50 px-2 py-1 rounded text-xs">{institution.default_admin?.username}</span>
+                             </div>
+                             <div className="flex items-center space-x-3">
+                               <span className="font-semibold min-w-[80px] text-gray-700">Users:</span>
+                               <span className="text-gray-800">
+                                 <span id={`user-count-${institution.slug}`} className="text-blue-600 font-medium">
+                                   Loading...
+                                 </span>
+                                 <button
+                                   onClick={() => loadUserCount(institution.slug)}
+                                   className="ml-2 text-xs text-gray-500 hover:text-gray-700 underline"
+                                   title="Refresh user count"
+                                 >
+                                   🔄
+                                 </button>
+                               </span>
+                             </div>
+                             <div className="flex items-center space-x-3">
+                               <span className="font-semibold min-w-[80px] text-gray-700">Created:</span>
+                               <span className="text-gray-800">{new Date(institution.createdAt).toLocaleDateString()}</span>
+                             </div>
+                           </div>
                         </div>
                         
                         <div className="flex flex-wrap gap-2">

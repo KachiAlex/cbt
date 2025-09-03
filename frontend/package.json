@@ -25,7 +25,8 @@
     "build": "react-scripts build",
     "test": "react-scripts test",
     "eject": "react-scripts eject",
-    "postinstall": "echo 'Frontend dependencies installed successfully'"
+    "postinstall": "echo 'Frontend dependencies installed successfully'",
+    "build:netlify": "react-scripts build"
   },
   "eslintConfig": {
     "extends": [
@@ -46,7 +47,7 @@
     ]
   },
   "engines": {
-    "node": ">=18.0.0",
+    "node": "18.x",
     "npm": ">=8.0.0"
   }
 }

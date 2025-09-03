@@ -1,9 +1,9 @@
 [build]
   publish = "build"
-  command = "npm run build"
+  command = "npm run build:netlify"
 
 [build.environment]
-  NODE_VERSION = "18"
+  NODE_VERSION = "18.17.0"
 
 # Handle all routes through React app
 [[redirects]]
