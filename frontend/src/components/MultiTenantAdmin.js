@@ -99,6 +99,14 @@ const MultiTenantAdmin = () => {
       const data = await response.json();
       console.log('📊 Loaded institutions:', data);
       setInstitutions(data);
+      
+      // Load user counts for all institutions
+      if (data.length > 0) {
+        console.log('🔍 Loading user counts for all institutions...');
+        data.forEach(institution => {
+          loadUserCount(institution.slug);
+        });
+      }
     } catch (error) {
       console.error('❌ Error loading institutions:', error);
       setError('Failed to load institutions: ' + error.message);
@@ -464,6 +472,45 @@ const MultiTenantAdmin = () => {
     } catch (error) {
       console.error('Failed to check all users:', error);
       alert('Failed to check all users: ' + error.message);
+    }
+  };
+
+  const loadUserCount = async (slug) => {
+    try {
+      const token = getAuthToken();
+      
+      const response = await fetch(`${API_BASE_URL}/api/tenants/${slug}/users`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to fetch tenant users');
+      }
+
+      const result = await response.json();
+      console.log('🔍 Users in tenant:', result);
+      
+      // Update the user count display
+      const userCountElement = document.getElementById(`user-count-${slug}`);
+      if (userCountElement) {
+        userCountElement.textContent = `${result.users.length} users`;
+        userCountElement.className = 'text-blue-600 font-medium';
+      }
+      
+      return result.users.length;
+      
+    } catch (error) {
+      console.error('Failed to load user count:', error);
+      const userCountElement = document.getElementById(`user-count-${slug}`);
+      if (userCountElement) {
+        userCountElement.textContent = 'Error loading';
+        userCountElement.className = 'text-red-600 font-medium';
+      }
+      return 0;
     }
   };
 
@@ -1024,6 +1071,21 @@ const MultiTenantAdmin = () => {
                             <div className="flex items-center space-x-2">
                               <span className="font-semibold min-w-[60px]">Username:</span>
                               <span className="text-gray-800">{institution.default_admin?.username}</span>
+                            </div>
+                            <div className="flex items-center space-x-2">
+                              <span className="font-semibold min-w-[60px]">Users:</span>
+                              <span className="text-gray-800">
+                                <span id={`user-count-${institution.slug}`} className="text-blue-600 font-medium">
+                                  Loading...
+                                </span>
+                                <button
+                                  onClick={() => loadUserCount(institution.slug)}
+                                  className="ml-2 text-xs text-gray-500 hover:text-gray-700 underline"
+                                  title="Refresh user count"
+                                >
+                                  🔄
+                                </button>
+                              </span>
                             </div>
                             <div className="flex items-center space-x-2">
                               <span className="font-semibold min-w-[60px]">Created:</span>
