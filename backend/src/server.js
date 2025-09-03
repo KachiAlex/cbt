@@ -27,28 +27,9 @@ connectDB();
 // Middleware
 app.use(helmet());
 
-// CORS configuration
+// CORS configuration - Simplified for production
 app.use(cors({
-  origin: function (origin, callback) {
-    // Allow requests with no origin (like mobile apps or curl requests)
-    if (!origin) return callback(null, true);
-    
-    const allowedOrigins = [
-      'http://localhost:3000', 
-      'http://localhost:5000', 
-      'https://cbt.netlify.app', 
-      'https://cbtexam.netlify.app',
-      'https://68b7d4b338c8f1c84609450c--cbtexam.netlify.app'
-    ];
-    
-    if (allowedOrigins.indexOf(origin) !== -1) {
-      callback(null, true);
-    } else {
-      console.log('CORS blocked origin:', origin);
-      // For debugging, allow all origins temporarily
-      callback(null, true);
-    }
-  },
+  origin: true, // Allow all origins for now to fix CORS issues
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Origin', 'Accept'],
@@ -96,6 +77,15 @@ app.get('/api/debug/test', cors(), (req, res) => {
       'Better error handling',
       'Database status endpoint'
     ]
+  });
+});
+
+// CORS test endpoint
+app.get('/api/cors-test', cors(), (req, res) => {
+  res.json({ 
+    message: 'CORS is working!',
+    origin: req.headers.origin,
+    timestamp: new Date().toISOString()
   });
 });
 
@@ -171,9 +161,7 @@ app.get('/api', (req, res) => {
 
 // Multi-tenant admin authentication middleware (already imported above)
 
-// Multi-tenant admin login endpoint
-app.options('/api/multi-tenant-admin/login', cors());
-app.post('/api/multi-tenant-admin/login', cors(), loginMultiTenantAdmin);
+
 
 // Multi-tenant admin routes (moved to line 1018)
 
