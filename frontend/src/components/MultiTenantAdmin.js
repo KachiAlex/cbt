@@ -154,13 +154,20 @@ const MultiTenantAdmin = () => {
       console.log('🔍 Loading user counts for all institutions...');
       console.log('📊 Institutions to process:', institutions.map(i => i.slug));
       
-      // Add a small delay to ensure DOM elements are rendered
+      // Add a longer delay to ensure DOM elements are fully rendered
       setTimeout(() => {
+        console.log('🔍 DOM should be ready now, checking for elements...');
+        
+        // Debug: Check what elements exist
+        const allElements = document.querySelectorAll('[id*="user-count"]');
+        console.log(`🔍 Found ${allElements.length} elements with user-count in ID:`, 
+          Array.from(allElements).map(el => el.id));
+        
         institutions.forEach(institution => {
           console.log(`🔄 Loading user count for: ${institution.slug}`);
           loadUserCount(institution.slug);
         });
-      }, 100);
+      }, 500); // Increased delay to 500ms
     }
   }, [institutions]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -1245,6 +1252,25 @@ const MultiTenantAdmin = () => {
                              title="Test user count loading"
                            >
                              Test Count
+                           </button>
+                           
+                           <button
+                             onClick={() => {
+                               console.log(`🔍 Checking DOM for ${institution.slug}`);
+                               const element = document.getElementById(`user-count-${institution.slug}`);
+                               console.log(`Element found: ${!!element}`);
+                               if (element) {
+                                 console.log('Element HTML:', element.outerHTML);
+                               } else {
+                                 console.log('Element not found. All elements with user-count:');
+                                 const allElements = document.querySelectorAll('[id*="user-count"]');
+                                 console.log(Array.from(allElements).map(el => el.id));
+                               }
+                             }}
+                             className="px-4 py-2 bg-yellow-600 text-white rounded-md hover:bg-yellow-700 text-sm"
+                             title="Check DOM element"
+                           >
+                             Check DOM
                            </button>
                           
                           <button

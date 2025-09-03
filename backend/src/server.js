@@ -1821,6 +1821,173 @@ app.patch('/api/tenants/:slug/reset-admin-password', cors(), authenticateMultiTe
   }
 });
 
+// Get students for a tenant
+app.get('/api/tenants/:slug/students', cors(), authenticateMultiTenantAdmin, async (req, res) => {
+  try {
+    const { slug } = req.params;
+    
+    const tenant = await Tenant.findOne({ slug, deleted_at: null });
+    if (!tenant) {
+      return res.status(404).json({ error: 'Tenant not found' });
+    }
+    
+    const students = await User.find({ 
+      tenant_id: tenant._id,
+      role: 'student'
+    }).select('-password');
+    
+    res.json({
+      tenant: {
+        id: tenant._id,
+        name: tenant.name,
+        slug: tenant.slug
+      },
+      students: students
+    });
+  } catch (err) {
+    console.error('Error fetching students:', err);
+    res.status(500).json({ error: 'Failed to fetch students' });
+  }
+});
+
+// Create new student for a tenant
+app.post('/api/tenants/:slug/students', cors(), authenticateMultiTenantAdmin, async (req, res) => {
+  try {
+    const { slug } = req.params;
+    const { username, email, fullName, password, role = 'student' } = req.body;
+    
+    if (!username || !email || !fullName || !password) {
+      return res.status(400).json({ error: 'Missing required fields' });
+    }
+    
+    if (password.length < 6) {
+      return res.status(400).json({ error: 'Password must be at least 6 characters' });
+    }
+    
+    const tenant = await Tenant.findOne({ slug, deleted_at: null });
+    if (!tenant) {
+      return res.status(404).json({ error: 'Tenant not found' });
+    }
+    
+    // Check if username already exists in this tenant
+    const existingUser = await User.findOne({ 
+      tenant_id: tenant._id,
+      username: { $regex: new RegExp(`^${username}$`, 'i') }
+    });
+    
+    if (existingUser) {
+      return res.status(400).json({ error: 'Username already exists in this institution' });
+    }
+    
+    // Check if email already exists in this tenant
+    const existingEmail = await User.findOne({ 
+      tenant_id: tenant._id,
+      email: { $regex: new RegExp(`^${email}$`, 'i') }
+    });
+    
+    if (existingEmail) {
+      return res.status(400).json({ error: 'Email already exists in this institution' });
+    }
+    
+    // Create new student user
+    const newStudent = new User({
+      tenant_id: tenant._id,
+      username: username,
+      email: email,
+      fullName: fullName,
+      password: password,
+      role: role,
+      is_active: true
+    });
+    
+    await newStudent.save();
+    
+    const { password: _, ...studentData } = newStudent.toObject();
+    res.status(201).json({
+      message: 'Student created successfully',
+      student: studentData
+    });
+  } catch (err) {
+    console.error('Error creating student:', err);
+    res.status(500).json({ error: 'Failed to create student' });
+  }
+});
+
+// Update student status (suspend/activate)
+app.patch('/api/tenants/:slug/students/:username/status', cors(), authenticateMultiTenantAdmin, async (req, res) => {
+  try {
+    const { slug, username } = req.params;
+    const { is_active } = req.body;
+    
+    if (typeof is_active !== 'boolean') {
+      return res.status(400).json({ error: 'is_active must be a boolean' });
+    }
+    
+    const tenant = await Tenant.findOne({ slug, deleted_at: null });
+    if (!tenant) {
+      return res.status(404).json({ error: 'Tenant not found' });
+    }
+    
+    const student = await User.findOne({ 
+      tenant_id: tenant._id,
+      username: { $regex: new RegExp(`^${username}$`, 'i') },
+      role: 'student'
+    });
+    
+    if (!student) {
+      return res.status(404).json({ error: 'Student not found' });
+    }
+    
+    student.is_active = is_active;
+    await student.save();
+    
+    const { password: _, ...studentData } = student.toObject();
+    res.json({
+      message: 'Student status updated successfully',
+      student: studentData
+    });
+  } catch (err) {
+    console.error('Error updating student status:', err);
+    res.status(500).json({ error: 'Failed to update student status' });
+  }
+});
+
+// Delete student
+app.delete('/api/tenants/:slug/students/:username', cors(), authenticateMultiTenantAdmin, async (req, res) => {
+  try {
+    const { slug, username } = req.params;
+    
+    const tenant = await Tenant.findOne({ slug, deleted_at: null });
+    if (!tenant) {
+      return res.status(404).json({ error: 'Tenant not found' });
+    }
+    
+    const student = await User.findOne({ 
+      tenant_id: tenant._id,
+      username: { $regex: new RegExp(`^${username}$`, 'i') },
+      role: 'student'
+    });
+    
+    if (!student) {
+      return res.status(404).json({ error: 'Student not found' });
+    }
+    
+    await User.findByIdAndDelete(student._id);
+    
+    res.json({
+      message: 'Student deleted successfully',
+      student: {
+        username: student.username,
+        fullName: student.fullName,
+        email: student.email
+      }
+    });
+  } catch (err) {
+    console.error('Error deleting student:', err);
+    res.status(500).json({ error: 'Failed to delete student' });
+  }
+});
+
 // Get tenant profile endpoint
 app.get('/api/tenant/:slug/profile', cors(), async (req, res) => {
   try {
