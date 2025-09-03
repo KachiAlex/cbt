@@ -1167,13 +1167,13 @@ const MultiTenantAdmin = () => {
                           <h3 className="text-xl font-semibold text-gray-800 mb-2">
                             {institution.name}
                           </h3>
-                                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-3 text-sm text-gray-600 mb-6">
+                                                     <div className="grid grid-cols-1 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-x-16 gap-y-4 text-sm text-gray-600 mb-6">
                              <div className="flex items-center space-x-3">
-                               <span className="font-semibold min-w-[80px] text-gray-700">Slug:</span>
+                               <span className="font-semibold min-w-[100px] text-gray-700">Slug:</span>
                                <span className="text-gray-800 font-mono bg-gray-50 px-2 py-1 rounded text-xs">{institution.slug}</span>
                              </div>
                              <div className="flex items-center space-x-3">
-                               <span className="font-semibold min-w-[80px] text-gray-700">Plan:</span>
+                               <span className="font-semibold min-w-[100px] text-gray-700">Plan:</span>
                                <span className={`px-3 py-1 rounded-full text-xs font-medium ${
                                  institution.plan === 'Premium' ? 'bg-purple-100 text-purple-800' :
                                  institution.plan === 'Enterprise' ? 'bg-blue-100 text-blue-800' :
@@ -1181,7 +1181,7 @@ const MultiTenantAdmin = () => {
                                }`}>{institution.plan}</span>
                              </div>
                              <div className="flex items-center space-x-3">
-                               <span className="font-semibold min-w-[80px] text-gray-700">Status:</span>
+                               <span className="font-semibold min-w-[100px] text-gray-700">Status:</span>
                                <span className={`px-3 py-1 rounded-full text-xs font-medium ${
                                  institution.suspended 
                                    ? 'bg-red-100 text-red-800' 
@@ -1191,15 +1191,15 @@ const MultiTenantAdmin = () => {
                                </span>
                              </div>
                              <div className="flex items-center space-x-3">
-                               <span className="font-semibold min-w-[80px] text-gray-700">Admin:</span>
+                               <span className="font-semibold min-w-[100px] text-gray-700">Admin:</span>
                                <span className="text-gray-800 font-medium">{institution.default_admin?.fullName}</span>
                              </div>
                              <div className="flex items-center space-x-3">
-                               <span className="font-semibold min-w-[80px] text-gray-700">Username:</span>
+                               <span className="font-semibold min-w-[100px] text-gray-700">Username:</span>
                                <span className="text-gray-800 font-mono bg-gray-50 px-2 py-1 rounded text-xs">{institution.default_admin?.username}</span>
                              </div>
                                                           <div className="flex items-center space-x-3">
-                               <span className="font-semibold min-w-[80px] text-gray-800">Users:</span>
+                               <span className="font-semibold min-w-[100px] text-gray-800">Users:</span>
                                <span className="text-gray-800">
                                  {console.log(`🎨 Rendering user count for: ${institution.slug}`)}
                                  <span id={`user-count-${institution.slug}`} className="text-blue-600 font-medium">
@@ -1215,7 +1215,7 @@ const MultiTenantAdmin = () => {
                                </span>
                              </div>
                              <div className="flex items-center space-x-3">
-                               <span className="font-semibold min-w-[80px] text-gray-700">Created:</span>
+                               <span className="font-semibold min-w-[100px] text-gray-700">Created:</span>
                                <span className="text-gray-800">{new Date(institution.createdAt).toLocaleDateString()}</span>
                              </div>
                            </div>
@@ -1405,7 +1405,7 @@ const MultiTenantAdmin = () => {
             </div>
             {showAdminForm && (
               <div className="mb-4 border rounded-lg p-4 bg-gray-50">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Full Name *</label>
                     <input

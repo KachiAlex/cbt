@@ -910,9 +910,10 @@ function App() {
     
     if (slug) {
       console.log('🏫 Institution route detected:', slug);
-      // Load institution data and show dedicated institution login page
-      loadInstitutionData(slug);
+      // Set view immediately for better UX, load data in background
       setView("institution-login");
+      // Load institution data in background
+      loadInstitutionData(slug);
       return; // Exit early for institution routes
     } else {
       console.log('🏠 Regular route detected');
@@ -980,19 +981,36 @@ function App() {
   // Load institution data for institution-specific routes
   const loadInstitutionData = async (slug) => {
     try {
-      // Load institution data from MongoDB API
-      const response = await fetch(`https://cbt-rew7.onrender.com/api/tenant/${slug}/profile`);
+      // Load institution data from MongoDB API with timeout
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 8000); // 8 second timeout
       
-      if (!response.ok) {
-        throw new Error('Institution not found or suspended');
+      try {
+        const response = await fetch(`https://cbt-rew7.onrender.com/api/tenant/${slug}/profile`, {
+          signal: controller.signal
+        });
+        
+        clearTimeout(timeoutId);
+        
+        if (!response.ok) {
+          throw new Error('Institution not found or suspended');
+        }
+        
+        const data = await response.json();
+        setInstitutionData(data);
+        
+        // Store institution data in localStorage for use throughout the app
+        localStorage.setItem('institution_data', JSON.stringify(data));
+        localStorage.setItem('institution_slug', slug);
+        
+      } catch (fetchError) {
+        clearTimeout(timeoutId);
+        if (fetchError.name === 'AbortError') {
+          console.warn('Institution data fetch timed out, will retry from component');
+          return;
+        }
+        throw fetchError;
       }
-      
-      const data = await response.json();
-      setInstitutionData(data);
-      
-      // Store institution data in localStorage for use throughout the app
-      localStorage.setItem('institution_data', JSON.stringify(data));
-      localStorage.setItem('institution_slug', slug);
       
       } catch (error) {
       console.error('Failed to load institution data:', error);
@@ -1050,14 +1068,7 @@ function App() {
     setSelectedExam(null);
   };
 
-  // Simple direct check for institution route
-  const urlParams = new URLSearchParams(window.location.search);
-  const slug = urlParams.get('slug');
-  
-  if (slug) {
-    console.log('🏫 Direct slug detection:', slug);
-    return <InstitutionLoginPage />;
-  }
+  // Institution route is now handled in the main useEffect above
 
   // CBT System Views
   if (currentView === "cbt-admin") {

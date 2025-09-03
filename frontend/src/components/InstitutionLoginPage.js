@@ -20,7 +20,28 @@ const InstitutionLoginPage = () => {
 
   const loadInstitutionData = async () => {
     try {
-      // Get institution slug from URL
+      // First check if data is already loaded in localStorage by App.js
+      const savedInstitutionData = localStorage.getItem('institution_data');
+      const savedSlug = localStorage.getItem('institution_slug');
+      
+      if (savedInstitutionData && savedSlug) {
+        const data = JSON.parse(savedInstitutionData);
+        console.log('🏫 Institution data loaded from localStorage:', data);
+        setInstitutionData(data);
+        
+        // Check if user is already logged in
+        const savedUser = localStorage.getItem("cbt_logged_in_user");
+        if (savedUser) {
+          const userData = JSON.parse(savedUser);
+          setUser(userData);
+          setView(userData.role === "admin" ? "admin-panel" : "student-portal");
+        }
+        
+        setLoading(false);
+        return;
+      }
+
+      // Fallback: Get institution slug from URL and load data
       const urlParams = new URLSearchParams(window.location.search);
       const slug = urlParams.get('slug');
 
@@ -30,29 +51,44 @@ const InstitutionLoginPage = () => {
         return;
       }
 
-      // Load institution data from MongoDB API
-      const response = await fetch(`https://cbt-rew7.onrender.com/api/tenant/${slug}/profile`);
-
-      if (!response.ok) {
-        throw new Error('Institution not found or suspended');
-      }
-
-      const data = await response.json();
-      console.log('🏫 Institution data loaded:', data);
-      console.log('🔍 Slug field:', data.slug);
-      console.log('🔍 All fields:', Object.keys(data));
-      setInstitutionData(data);
+      // Load institution data from MongoDB API with timeout
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
       
-      // Store institution data in localStorage for use throughout the CBT system
-      localStorage.setItem('institution_data', JSON.stringify(data));
-      localStorage.setItem('institution_slug', slug);
-      
-      // Check if user is already logged in
-      const savedUser = localStorage.getItem("cbt_logged_in_user");
-      if (savedUser) {
-        const userData = JSON.parse(savedUser);
-        setUser(userData);
-        setView(userData.role === "admin" ? "admin-panel" : "student-portal");
+      try {
+        const response = await fetch(`https://cbt-rew7.onrender.com/api/tenant/${slug}/profile`, {
+          signal: controller.signal
+        });
+        
+        clearTimeout(timeoutId);
+        
+        if (!response.ok) {
+          throw new Error('Institution not found or suspended');
+        }
+
+        const data = await response.json();
+        console.log('🏫 Institution data loaded from API:', data);
+        console.log('🔍 Slug field:', data.slug);
+        console.log('🔍 All fields:', Object.keys(data));
+        setInstitutionData(data);
+        
+        // Store institution data in localStorage for use throughout the CBT system
+        localStorage.setItem('institution_data', JSON.stringify(data));
+        localStorage.setItem('institution_slug', slug);
+        
+        // Check if user is already logged in
+        const savedUser = localStorage.getItem("cbt_logged_in_user");
+        if (savedUser) {
+          const userData = JSON.parse(savedUser);
+          setUser(userData);
+          setView(userData.role === "admin" ? "admin-panel" : "student-portal");
+        }
+      } catch (fetchError) {
+        clearTimeout(timeoutId);
+        if (fetchError.name === 'AbortError') {
+          throw new Error('Request timed out. Please try again.');
+        }
+        throw fetchError;
       }
       
     } catch (error) {
