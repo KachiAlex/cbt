@@ -80,9 +80,32 @@ const MultiTenantAdmin = () => {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
 
-      const data = await response.json();
-      console.log('🏢 Loaded Institutions Data:', data);
-      setInstitutions(data);
+      const raw = await response.json();
+      console.log('🏢 Loaded Institutions Data:', raw);
+      // Normalize various backend shapes and enrich fields for UI
+      const list = Array.isArray(raw) ? raw : (Array.isArray(raw?.tenants) ? raw.tenants : []);
+      const normalized = list.map((t) => {
+        const defaultAdmin = t.default_admin || (Array.isArray(t.admins) ? t.admins.find(a => a.is_default_admin) : null) || {};
+        const totalUsers = (
+          t.totalUsers ??
+          t.userCount ??
+          (Array.isArray(t.users) ? t.users.length : undefined) ??
+          (Array.isArray(t.admins) ? t.admins.length : undefined) ??
+          (t.stats && typeof t.stats.totalUsers === 'number' ? t.stats.totalUsers : undefined) ??
+          0
+        );
+        return {
+          ...t,
+          _id: t._id || t.id,
+          subscriptionPlan: t.subscriptionPlan || t.plan || 'Basic',
+          createdAt: t.createdAt || t.created_at || t.createdOn,
+          primaryAdmin: t.primaryAdmin || defaultAdmin.fullName || defaultAdmin.name || '',
+          adminUsername: t.adminUsername || defaultAdmin.username || '',
+          adminEmail: t.adminEmail || defaultAdmin.email || '',
+          totalUsers
+        };
+      });
+      setInstitutions(normalized);
       setError(null);
     } catch (error) {
       console.error('Error loading institutions:', error);
@@ -148,7 +171,7 @@ const MultiTenantAdmin = () => {
            primaryAdmin: responseData.default_admin.fullName,
            adminUsername: responseData.default_admin.username,
            adminEmail: responseData.default_admin.email,
-           totalUsers: 0
+           totalUsers: 1
          };
          
          console.log('🏢 Processed New Institution:', newInstitution);
@@ -580,17 +603,23 @@ const MultiTenantAdmin = () => {
         return;
       }
 
-      const response = await fetch(`https://cbt-rew7.onrender.com/api/tenants/${selectedInstitution.slug}/admins/${username}/set-default`, {
+      const safeUsername = encodeURIComponent(username);
+      const response = await fetch(`https://cbt-rew7.onrender.com/api/tenants/${selectedInstitution.slug}/admins/${safeUsername}/set-default`, {
         method: 'PATCH',
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
-        }
+        },
+        body: JSON.stringify({ username })
       });
 
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
+        let message = `HTTP error! status: ${response.status}`;
+        try {
+          const errorData = await response.json();
+          if (errorData?.error) message = errorData.error;
+        } catch {}
+        throw new Error(message);
       }
 
       const responseData = await response.json();
