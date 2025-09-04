@@ -311,7 +311,7 @@ export const dataService = {
       const examQuestionsWithId = questions.map(q => ({
         ...q,
         examId: examId,
-        id: q.id || crypto.randomUUID?.() || Date.now().toString()
+        id: q.id || Date.now().toString(36) + Math.random().toString(36).substr(2)
       }));
       
       console.log('💾 Questions with examId added:', examQuestionsWithId.length);
@@ -391,17 +391,10 @@ export const dataService = {
       const exams = await dataService.loadExams();
       console.log('📋 Current exams:', exams);
       
-      // Generate a unique ID (fallback for crypto.randomUUID)
+      // Generate a unique ID (compatible with all browsers)
       const generateId = () => {
-        if (typeof crypto !== 'undefined' && crypto.randomUUID) {
-          return crypto.randomUUID();
-        }
-        // Fallback for older browsers
-        return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
-          const r = Math.random() * 16 | 0;
-          const v = c === 'x' ? r : ((r & 0x3) | 0x8);
-          return v.toString(16);
-        });
+        // Use timestamp + random for better compatibility across all environments
+        return Date.now().toString(36) + Math.random().toString(36).substr(2);
       };
       
       const newExam = {

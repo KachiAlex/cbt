@@ -5,6 +5,9 @@ import { Document, Packer, Paragraph, TextRun, Table, TableRow, TableCell } from
 import mammoth from 'mammoth';
 import dataService from '../services/dataService';
 
+// Helper function to generate unique IDs (compatible with older browsers)
+const generateId = () => Date.now().toString(36) + Math.random().toString(36).substr(2);
+
 // eslint-disable-next-line no-unused-vars
 const LS_KEYS = {
   EXAMS: "cbt_exams_v1",
@@ -119,13 +122,13 @@ const CBTAdminPanel = ({ user, institution, onLogout }) => {
     const initializeData = async () => {
       try {
         setLoading(true);
-        const [examsData, questionsData, resultsData] = await Promise.all([
+        const [examsData, resultsData] = await Promise.all([
           loadExams(),
-          loadQuestions(),
           loadResults()
         ]);
         setExams(examsData || []);
-        setQuestions(questionsData || []);
+        // Don't load general questions here - questions are exam-specific
+        setQuestions([]);
         setResults(resultsData || []);
       } catch (error) {
         console.error('Error loading data:', error);
@@ -135,7 +138,7 @@ const CBTAdminPanel = ({ user, institution, onLogout }) => {
     };
     
     initializeData();
-  }, [loadExams, loadQuestions, loadResults]);
+  }, [loadExams, loadResults]);
 
   // eslint-disable-next-line no-unused-vars
   const saveResults = async (resultsData) => {
@@ -251,7 +254,7 @@ const CBTAdminPanel = ({ user, institution, onLogout }) => {
   const handleCreateExam = async (examData) => {
     try {
       const newExam = {
-        id: crypto.randomUUID(),
+        id: generateId(),
         ...examData,
         createdAt: new Date().toISOString(),
         isActive: false,
@@ -335,6 +338,11 @@ const CBTAdminPanel = ({ user, institution, onLogout }) => {
             <div>
               <h2 className="text-2xl font-bold text-gray-800">CBT Admin Panel</h2>
               <p className="text-gray-600">Manage exams, questions, and student results</p>
+              {activeTab === "questions" && selectedExam && (
+                <div className="mt-2 text-sm text-blue-600 bg-blue-50 px-3 py-2 rounded-lg border border-blue-200">
+                  📝 Currently viewing questions for: <span className="font-semibold">{selectedExam.title}</span>
+                </div>
+              )}
             </div>
             <div className="text-sm text-gray-500">
               Logged in as: <span className="font-medium">{user.fullName || user.username}</span>
@@ -484,7 +492,11 @@ function ExamsTab({ exams, onCreateExam, onActivateExam, onDeleteExam, onSelectE
             const isOngoing = start && end && now >= start && now <= end;
             const isEnded = end && now > end;
             return (
-              <div key={exam.id} className="border rounded-xl p-4 bg-white">
+              <div key={exam.id} className={`border rounded-xl p-4 transition-all ${
+                selectedExam?.id === exam.id 
+                  ? 'bg-blue-50 border-blue-300 shadow-md' 
+                  : 'bg-white hover:shadow-sm'
+              }`}>
                 <div className="flex justify-between items-start">
                   <div className="flex-1">
                     <h4 className="font-semibold text-lg">{exam.title}</h4>
@@ -500,32 +512,53 @@ function ExamsTab({ exams, onCreateExam, onActivateExam, onDeleteExam, onSelectE
                       {isEnded && <span className="px-2 py-0.5 rounded-full bg-gray-200 text-gray-700">Ended</span>}
                     </div>
                   </div>
-                  {isAdmin && (
-                    <div className="flex gap-2">
-                      <button
-                        onClick={() => onActivateExam(exam.id)}
-                        className={`px-3 py-1 rounded-lg text-xs ${
-                          exam.isActive 
-                            ? "bg-orange-600 text-white hover:bg-orange-700" 
-                            : "bg-blue-600 text-white hover:bg-blue-700"
-                        }`}
-                      >
-                        {exam.isActive ? "Deactivate" : "Activate"}
-                      </button>
-                      <button
-                        onClick={() => onEditExam()}
-                        className="px-3 py-1 bg-blue-600 text-white rounded-lg text-xs hover:bg-blue-700"
-                      >
-                        Edit
-                      </button>
-                      <button
-                        onClick={() => onDeleteExam(exam.id)}
-                        className="px-3 py-1 bg-red-600 text-white rounded-lg text-xs hover:bg-red-700"
-                      >
-                        Delete
-                      </button>
-                    </div>
-                  )}
+                  <div className="flex gap-2">
+                    {/* View Questions Button - Available to all users */}
+                    <button
+                      onClick={() => {
+                        onSelectExam(exam);
+                        // Also switch to questions tab when viewing questions
+                        if (activeTab !== "questions") {
+                          setActiveTab("questions");
+                        }
+                      }}
+                      className={`px-3 py-1 rounded-lg text-xs ${
+                        selectedExam?.id === exam.id
+                          ? 'bg-blue-600 text-white'
+                          : 'bg-green-600 text-white hover:bg-green-700'
+                      }`}
+                    >
+                      {selectedExam?.id === exam.id ? '👁️ Viewing Questions' : '📝 View Questions'}
+                    </button>
+                    
+                    {/* Admin-only buttons */}
+                    {isAdmin && (
+                      <>
+                        <button
+                          onClick={() => onActivateExam(exam.id)}
+                          className={`px-3 py-1 rounded-lg text-xs ${
+                            exam.isActive 
+                              ? "bg-orange-600 text-white hover:bg-orange-700" 
+                              : "bg-blue-600 text-white hover:bg-blue-700"
+                          }`}
+                        >
+                          {exam.isActive ? "Deactivate" : "Activate"}
+                        </button>
+                        <button
+                          onClick={() => onEditExam()}
+                          className="px-3 py-1 bg-blue-600 text-white rounded-lg text-xs hover:bg-blue-700"
+                        >
+                          Edit
+                        </button>
+                        <button
+                          onClick={() => onDeleteExam(exam.id)}
+                          className="px-3 py-1 bg-red-600 text-white rounded-lg text-xs hover:bg-red-700"
+                        >
+                          Delete
+                        </button>
+                      </>
+                    )}
+                  </div>
                 </div>
               </div>
             );
@@ -542,30 +575,49 @@ function QuestionsTab({ selectedExam, questions, setQuestions, onFileUpload, imp
   if (!selectedExam) {
     return (
       <div className="text-center py-8 text-gray-500">
-        <p>{isAdmin ? 'Please select an exam from the Exam Management tab to manage its questions.' : 'Please select an exam to view its questions.'}</p>
+        <div className="text-6xl mb-4">📋</div>
+        <h3 className="text-xl font-semibold mb-2">No Exam Selected</h3>
+        <p className="text-gray-600 mb-4">
+          {isAdmin 
+            ? 'To manage questions, please select an exam from the Exam Management tab.'
+            : 'To view questions, please select an exam from the Exam Management tab.'
+          }
+        </p>
         <button
           onClick={onBackToExams}
-          className="mt-4 px-4 py-2 bg-gray-600 text-white rounded-xl hover:bg-gray-700"
+          className="px-6 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 font-medium"
         >
-          ← Back to Exams
+          ← Go to Exam Management
         </button>
+        <div className="mt-6 text-sm text-gray-500">
+          💡 Tip: Click the "📝 View Questions" button on any exam to see its questions
+        </div>
       </div>
     );
   }
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-start mb-4">
-        <div>
-          <h3 className="text-lg font-semibold">Questions for {selectedExam.title}</h3>
-          <p className="text-sm text-gray-600">{isAdmin ? 'Upload and manage exam questions' : 'Review exam questions'}</p>
+      {/* Exam Context Header */}
+      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+        <div className="flex justify-between items-start">
+          <div className="flex-1">
+            <h3 className="text-lg font-semibold text-blue-900">📝 Questions for: {selectedExam.title}</h3>
+            <p className="text-sm text-blue-700 mt-1">{selectedExam.description || 'No description provided'}</p>
+            <div className="flex flex-wrap gap-4 mt-2 text-xs text-blue-600">
+              <span>📊 Questions: {questions.length}</span>
+              <span>⏱️ Duration: {selectedExam.duration} minutes</span>
+              <span>📅 Created: {new Date(selectedExam.createdAt).toLocaleDateString()}</span>
+              {selectedExam.isActive && <span className="px-2 py-0.5 rounded-full bg-green-100 text-green-700">🟢 Active</span>}
+            </div>
+          </div>
+          <button
+            onClick={onBackToExams}
+            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm"
+          >
+            ← Back to Exams
+          </button>
         </div>
-        <button
-          onClick={onBackToExams}
-          className="px-4 py-2 bg-gray-600 text-white rounded-xl hover:bg-gray-700 text-sm"
-        >
-          ← Back to Exams
-        </button>
       </div>
 
       {isAdmin && (
@@ -626,24 +678,54 @@ function QuestionsTab({ selectedExam, questions, setQuestions, onFileUpload, imp
       )}
 
       <div className="bg-white rounded-xl border p-6">
-        <h4 className="font-semibold mb-4">Current Questions ({questions.length})</h4>
+        <div className="flex justify-between items-center mb-4">
+          <h4 className="font-semibold text-lg">📋 Exam Questions ({questions.length})</h4>
+          {questions.length > 0 && (
+            <div className="text-sm text-gray-500">
+              Total Points: {questions.length} | Time per question: ~{Math.ceil(selectedExam.duration / questions.length)} min
+            </div>
+          )}
+        </div>
+        
         {questions.length === 0 ? (
-          <p className="text-gray-500">{isAdmin ? 'No questions uploaded yet. Upload a file to get started.' : 'No questions available for this exam yet.'}</p>
+          <div className="text-center py-8 text-gray-500">
+            <div className="text-4xl mb-4">❓</div>
+            <p className="text-lg font-medium mb-2">No questions yet for this exam</p>
+            <p className="text-sm text-gray-600 mb-4">
+              {isAdmin 
+                ? 'Upload a question file to get started. Students will see these questions when they take the exam.'
+                : 'Questions will be available when the exam starts.'
+              }
+            </p>
+            {isAdmin && (
+              <div className="text-xs text-blue-600">
+                💡 Tip: Use the upload section above to add questions from Word or Excel files
+              </div>
+            )}
+          </div>
         ) : (
           <div className="space-y-4">
             {questions.map((q, i) => (
-              <div key={q.id} className="border rounded-lg p-4">
-                <div className="flex items-start gap-2 mb-3">
-                  <span className="text-sm font-bold bg-gray-100 px-2 py-1 rounded">{i + 1}</span>
-                  <p className="flex-1">{q.text}</p>
+              <div key={q.id} className="border rounded-lg p-4 hover:shadow-md transition-shadow">
+                <div className="flex items-start gap-3 mb-3">
+                  <span className="text-sm font-bold bg-blue-100 text-blue-700 px-3 py-1 rounded-full min-w-[2rem] text-center">
+                    {i + 1}
+                  </span>
+                  <p className="flex-1 text-gray-800 leading-relaxed">{q.text}</p>
                 </div>
-                <div className="grid sm:grid-cols-2 gap-2 ml-6">
+                <div className="grid sm:grid-cols-2 gap-3 ml-12">
                   {q.options.map((opt, oi) => (
-                    <div key={oi} className={`text-sm p-2 rounded ${
-                      oi === q.correctIndex ? 'bg-green-100 text-green-700' : 'bg-gray-50'
+                    <div key={oi} className={`text-sm p-3 rounded-lg border ${
+                      oi === q.correctIndex 
+                        ? 'bg-green-50 border-green-200 text-green-800' 
+                        : 'bg-gray-50 border-gray-200 text-gray-700'
                     }`}>
-                      {String.fromCharCode(65 + oi)}. {opt}
-                      {oi === q.correctIndex && <span className="ml-2 text-green-600">✓</span>}
+                      <span className="font-medium">{String.fromCharCode(65 + oi)}.</span> {opt}
+                      {oi === q.correctIndex && (
+                        <span className="ml-2 inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                          ✓ Correct Answer
+                        </span>
+                      )}
                     </div>
                   ))}
                 </div>
@@ -1556,7 +1638,7 @@ function createQuestionObject(questionText, options, correctAnswer) {
   if (sortedOptions.some(opt => !opt)) return null;
   
   return {
-    id: crypto.randomUUID(),
+    id: Date.now().toString(36) + Math.random().toString(36).substr(2),
     text: questionText.trim(),
     options: sortedOptions,
     correctIndex: answerIndex
@@ -1593,7 +1675,7 @@ async function parseQuestionsFromExcel(file) {
       if (answerIndex === undefined) continue;
       
       questions.push({
-        id: crypto.randomUUID(),
+        id: Date.now().toString(36) + Math.random().toString(36).substr(2),
         text: questionText,
         options: [optionA, optionB, optionC, optionD],
         correctIndex: answerIndex

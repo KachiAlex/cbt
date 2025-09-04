@@ -4,6 +4,9 @@ import { saveAs } from 'file-saver';
 import { Document, Packer, Paragraph, TextRun, Table, TableRow, TableCell } from 'docx';
 import mammoth from 'mammoth';
 
+// Helper function to generate unique IDs (compatible with older browsers)
+const generateId = () => Date.now().toString(36) + Math.random().toString(36).substr(2);
+
 // Types
 /** @typedef {{id:string, text:string, options:string[], correctIndex:number}} Question */
 /** @typedef {{username:string, score:number, total:number, percent:number, submittedAt:string, answers:number[], examTitle:string}} Result */
@@ -53,7 +56,7 @@ const CBTExam = ({ user, tenant }) => {
   // eslint-disable-next-line no-unused-vars
   const addBlankQuestion = () => {
     setQuestions(q => [...q, {
-      id: crypto.randomUUID(),
+      id: generateId(),
       text: "New question text",
       options: ["Option A", "Option B", "Option C", "Option D"],
       correctIndex: 0
@@ -252,7 +255,7 @@ function QuestionsEditor({ questions, setQuestions }) {
   };
   const removeQ = (i) => setQuestions(questions.filter((_, idx) => idx !== i));
   const add = () => setQuestions((qs) => [...qs, {
-    id: crypto.randomUUID(),
+    id: generateId(),
     text: "New question text",
     options: ["Option A", "Option B", "Option C", "Option D"],
     correctIndex: 0
@@ -390,7 +393,7 @@ function parseQuestionsFromMarkdown(md) {
     const [, , qText, A, B, C, D, ans] = m;
     const idx = { A: 0, B: 1, C: 2, D: 3 }[ans];
     out.push({
-      id: crypto.randomUUID(),
+      id: generateId(),
       text: qText.trim(),
       options: [A, B, C, D].map(s => s.trim()),
       correctIndex: idx,
