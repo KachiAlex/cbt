@@ -1208,54 +1208,36 @@ const MultiTenantAdmin = () => {
                    )}
                         </div>
                         
-                 {/* Admin Management Actions */}
-                 <div className="space-y-3">
+                 {/* Admin Management Actions (accessible within this modal) */}
+                 <div className="mt-6 space-y-3">
                    <h4 className="text-sm font-medium text-gray-700">Admin Management Actions</h4>
-                   
-                                       {/* View Admin Details Button */}
-                          <button
-                      onClick={() => {
-                        setShowManageAdminsForm(false);
-                        setShowAdminDetails(true);
-                      }}
-                      className="w-full inline-flex items-center justify-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
-                    >
-                      <svg className="-ml-1 mr-2 h-4 w-4" fill="currentColor" viewBox="0 0 20 20">
-                        <path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd" />
-                      </svg>
-                      View Admin Details
-                          </button>
-                          
-                                       {/* Reset Admin Password Button */}
-                          <button
-                      onClick={() => {
-                        setShowManageAdminsForm(false);
-                        setShowPasswordReset(true);
-                      }}
-                      className="w-full inline-flex items-center justify-center px-4 py-2 border border-yellow-300 shadow-sm text-sm font-medium rounded-md text-yellow-700 bg-white hover:bg-yellow-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-yellow-500"
-                    >
-                      <svg className="-ml-1 mr-2 h-4 w-4" fill="currentColor" viewBox="0 0 20 20">
-                        <path fillRule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clipRule="evenodd" />
-                      </svg>
-                      Reset Admin Password
-                          </button>
-                          
-                   {/* Add New Admin Button */}
-                          <button
+                   <button
                      onClick={() => {
-                       setShowManageAdminsForm(false);
+                       setShowAdminDetails(true);
+                     }}
+                     className="w-full inline-flex items-center justify-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                   >
+                     <span className="mr-2">👤</span> View Admin Details
+                   </button>
+                   <button
+                     onClick={() => {
+                       setShowPasswordReset(true);
+                     }}
+                     className="w-full inline-flex items-center justify-center px-4 py-2 border border-yellow-300 shadow-sm text-sm font-medium rounded-md text-yellow-700 bg-white hover:bg-yellow-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-yellow-500"
+                   >
+                     <span className="mr-2">🔒</span> Reset Admin Password
+                   </button>
+                   <button
+                     onClick={() => {
                        setShowAddAdminForm(true);
                        loadAdmins(selectedInstitution.slug);
                      }}
                      className="w-full inline-flex items-center justify-center px-4 py-2 border border-green-300 shadow-sm text-sm font-medium rounded-md text-green-700 bg-white hover:bg-green-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
                    >
-                     <svg className="-ml-1 mr-2 h-4 w-4" fill="currentColor" viewBox="0 0 20 20">
-                       <path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd" />
-                     </svg>
-                     Add New Admin
-                          </button>
+                     <span className="mr-2">➕</span> Add New Admin
+                   </button>
                  </div>
-                          
+
                  {/* Close Button */}
                  <div className="flex justify-end pt-4 border-t border-gray-200">
                           <button
