@@ -1,0 +1,47 @@
+[1mdiff --git a/frontend/src/components/CBTAdminPanel.js b/frontend/src/components/CBTAdminPanel.js[m
+[1mindex d0e7375..78a4d02 100644[m
+[1m--- a/frontend/src/components/CBTAdminPanel.js[m
+[1m+++ b/frontend/src/components/CBTAdminPanel.js[m
+[36m@@ -861,11 +861,17 @@[m [mfunction SettingsTab({ onBackToExams, institution, user }) {[m
+         throw new Error('Invalid logo format. Must be a valid image URL or uploaded image.');[m
+       }[m
+ [m
+[31m-              const response = await fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:5000'}/api/tenants/${institution.slug}/logo/update`, {[m
+[32m+[m[32m      // Use the correct endpoint for admin users[m
+[32m+[m[32m      const endpoint = isSuperAdmin[m[41m [m
+[32m+[m[32m        ? `/api/tenants/${institution.slug}/logo`[m
+[32m+[m[32m        : `/api/tenants/${institution.slug}/logo/update`;[m
+[32m+[m
+[32m+[m[32m      const response = await fetch(`https://cbt-rew7.onrender.com${endpoint}`, {[m
+         method: 'PATCH',[m
+         headers: {[m
+           'Content-Type': 'application/json',[m
+[31m-          'Authorization': `Bearer ${localStorage.getItem('multi_tenant_admin_token')}`[m
+[32m+[m[32m          // Only add Authorization for multi-tenant admin endpoint[m
+[32m+[m[32m          ...(isSuperAdmin && { 'Authorization': `Bearer ${localStorage.getItem('multi_tenant_admin_token')}` })[m
+         },[m
+         body: JSON.stringify({ [m
+           logo_url: logoUrl [m
+[36m@@ -879,16 +885,12 @@[m [mfunction SettingsTab({ onBackToExams, institution, user }) {[m
+ [m
+       const result = await response.json();[m
+       [m
+[31m-      if (result.success) {[m
+[31m-        showToast('Logo updated successfully!', 'success');[m
+[31m-        // Clear the form[m
+[31m-        setSelectedLogoFile(null);[m
+[31m-        setLogoUrl('');[m
+[31m-        setLogoUrlInput('');[m
+[31m-        setLogoModalOpen(false);[m
+[31m-      } else {[m
+[31m-        throw new Error(result.error || 'Failed to update logo');[m
+[31m-      }[m
+[32m+[m[32m      showToast('Logo updated successfully!', 'success');[m
+[32m+[m[32m      // Clear the form[m
+[32m+[m[32m      setSelectedLogoFile(null);[m
+[32m+[m[32m      setLogoUrl('');[m
+[32m+[m[32m      setLogoUrlInput('');[m
+[32m+[m[32m      setLogoModalOpen(false);[m
+     } catch (error) {[m
+       console.error('Logo update failed:', error);[m
+       setLogoError(error.message);[m
