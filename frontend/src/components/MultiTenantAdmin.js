@@ -9,6 +9,9 @@ const MultiTenantAdmin = () => {
   const [showManageAdminsForm, setShowManageAdminsForm] = useState(false);
   const [showAdminDetails, setShowAdminDetails] = useState(false);
   const [showPasswordReset, setShowPasswordReset] = useState(false);
+  const [showAddAdminForm, setShowAddAdminForm] = useState(false);
+  const [admins, setAdmins] = useState([]);
+  const [loadingAdmins, setLoadingAdmins] = useState(false);
 
   const [selectedInstitution, setSelectedInstitution] = useState(null);
   const [formData, setFormData] = useState({
@@ -20,6 +23,15 @@ const MultiTenantAdmin = () => {
     adminPassword: '',
     adminEmail: '',
     address: ''
+  });
+
+  const [addAdminData, setAddAdminData] = useState({
+    username: '',
+    email: '',
+    fullName: '',
+    password: '',
+    confirmPassword: '',
+    role: 'admin'
   });
 
   const [passwordResetData, setPasswordResetData] = useState({
@@ -453,6 +465,140 @@ const MultiTenantAdmin = () => {
     } catch (error) {
       console.error('Error resetting password:', error);
       setError(`Failed to reset password: ${error.message}`);
+    }
+  };
+
+  // Load admins for a specific institution
+  const loadAdmins = async (institutionSlug) => {
+    try {
+      setLoadingAdmins(true);
+      const token = await getAuthToken();
+      if (!token) {
+        setError('No valid authentication token available');
+        return;
+      }
+
+      const response = await fetch(`https://cbt-rew7.onrender.com/api/tenants/${institutionSlug}/admins`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const data = await response.json();
+      setAdmins(data.admins || []);
+      setError(null);
+    } catch (error) {
+      console.error('Error loading admins:', error);
+      setError('Failed to load admins. Please try again.');
+    } finally {
+      setLoadingAdmins(false);
+    }
+  };
+
+  // Add new admin to an institution
+  const handleAddAdmin = async (e) => {
+    e.preventDefault();
+    
+    if (addAdminData.password !== addAdminData.confirmPassword) {
+      setError('Passwords do not match');
+      return;
+    }
+
+    if (addAdminData.password.length < 6) {
+      setError('Password must be at least 6 characters long');
+      return;
+    }
+
+    try {
+      const token = await getAuthToken();
+      if (!token) {
+        setError('No valid authentication token available');
+        return;
+      }
+
+      const response = await fetch(`https://cbt-rew7.onrender.com/api/tenants/${selectedInstitution.slug}/admins`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          username: addAdminData.username,
+          email: addAdminData.email,
+          fullName: addAdminData.fullName,
+          password: addAdminData.password,
+          role: addAdminData.role
+        })
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
+      }
+
+      const responseData = await response.json();
+      console.log('✅ Admin created successfully:', responseData);
+      
+      // Reload admins list
+      await loadAdmins(selectedInstitution.slug);
+      
+      // Reset form
+      setAddAdminData({
+        username: '',
+        email: '',
+        fullName: '',
+        password: '',
+        confirmPassword: '',
+        role: 'admin'
+      });
+      
+      setShowAddAdminForm(false);
+      setError(null);
+      alert('Admin created successfully!');
+    } catch (error) {
+      console.error('Error creating admin:', error);
+      setError(`Failed to create admin: ${error.message}`);
+    }
+  };
+
+  // Set default admin for an institution
+  const handleSetDefaultAdmin = async (username) => {
+    try {
+      const token = await getAuthToken();
+      if (!token) {
+        setError('No valid authentication token available');
+        return;
+      }
+
+      const response = await fetch(`https://cbt-rew7.onrender.com/api/tenants/${selectedInstitution.slug}/admins/${username}/set-default`, {
+        method: 'PATCH',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
+      }
+
+      const responseData = await response.json();
+      console.log('✅ Default admin set successfully:', responseData);
+      
+      // Reload admins list
+      await loadAdmins(selectedInstitution.slug);
+      
+      setError(null);
+      alert('Default admin set successfully!');
+    } catch (error) {
+      console.error('Error setting default admin:', error);
+      setError(`Failed to set default admin: ${error.message}`);
     }
   };
 
@@ -921,6 +1067,72 @@ const MultiTenantAdmin = () => {
                    </div>
                  </div>
 
+                 {/* Current Admins List */}
+                 <div className="bg-white p-4 rounded-lg border">
+                   <div className="flex justify-between items-center mb-3">
+                     <h4 className="text-sm font-medium text-gray-700">All Institution Admins</h4>
+                     <button
+                       onClick={() => loadAdmins(selectedInstitution.slug)}
+                       className="text-xs text-indigo-600 hover:text-indigo-800"
+                     >
+                       🔄 Refresh
+                     </button>
+                   </div>
+                   
+                   {loadingAdmins ? (
+                     <div className="text-center py-4">
+                       <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-indigo-600 mx-auto mb-2"></div>
+                       <p className="text-xs text-gray-600">Loading admins...</p>
+                     </div>
+                   ) : (
+                     <div className="space-y-3">
+                       {admins.length === 0 ? (
+                         <p className="text-sm text-gray-500 text-center py-2">No additional admins found.</p>
+                       ) : (
+                         admins.map((admin, index) => (
+                           <div key={index} className="border rounded p-3 bg-gray-50">
+                             <div className="flex justify-between items-start">
+                               <div className="flex-1">
+                                 <h5 className="text-sm font-medium text-gray-900">{admin.fullName}</h5>
+                                 <p className="text-xs text-gray-600">@{admin.username}</p>
+                                 <p className="text-xs text-gray-500">{admin.email}</p>
+                                 <div className="flex items-center gap-2 mt-1">
+                                   <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
+                                     admin.role === 'super_admin' ? 'bg-purple-100 text-purple-800' :
+                                     admin.role === 'admin' ? 'bg-blue-100 text-blue-800' :
+                                     'bg-green-100 text-green-800'
+                                   }`}>
+                                     {admin.role.replace('_', ' ').toUpperCase()}
+                                   </span>
+                                   {admin.is_default_admin && (
+                                     <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
+                                       DEFAULT
+                                     </span>
+                                   )}
+                                 </div>
+                               </div>
+                               <div className="flex flex-col gap-1">
+                                 {!admin.is_default_admin && (
+                                   <button
+                                     onClick={() => handleSetDefaultAdmin(admin.username)}
+                                     className="px-2 py-1 bg-yellow-600 text-white rounded text-xs hover:bg-yellow-700"
+                                     title="Set as default admin"
+                                   >
+                                     Set Default
+                                   </button>
+                                 )}
+                                 <span className="text-xs text-gray-500">
+                                   {admin.is_default_admin ? 'Default Admin' : 'Regular Admin'}
+                                 </span>
+                               </div>
+                             </div>
+                           </div>
+                         ))
+                       )}
+                     </div>
+                   )}
+                 </div>
+
                  {/* Admin Management Actions */}
                  <div className="space-y-3">
                    <h4 className="text-sm font-medium text-gray-700">Admin Management Actions</h4>
@@ -954,8 +1166,8 @@ const MultiTenantAdmin = () => {
                    {/* Add New Admin Button */}
                    <button
                      onClick={() => {
-                       // This would open a form to add new admins
-                       alert('Add New Admin functionality will be implemented here');
+                       setShowAddAdminForm(true);
+                       loadAdmins(selectedInstitution.slug);
                      }}
                      className="w-full inline-flex items-center justify-center px-4 py-2 border border-green-300 shadow-sm text-sm font-medium rounded-md text-green-700 bg-white hover:bg-green-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
                    >
@@ -1207,6 +1419,262 @@ const MultiTenantAdmin = () => {
          </div>
        )}
 
+      {/* Add New Admin Modal */}
+      {showAddAdminForm && selectedInstitution && (
+        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+          <div className="relative top-20 mx-auto p-5 border w-11/12 md:w-3/4 lg:w-1/2 shadow-lg rounded-md bg-white">
+            <div className="mt-3">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-medium text-gray-900">
+                  Add New Admin - {selectedInstitution.name}
+                </h3>
+                <button
+                  onClick={() => {
+                    setShowAddAdminForm(false);
+                    setAddAdminData({
+                      username: '',
+                      email: '',
+                      fullName: '',
+                      password: '',
+                      confirmPassword: '',
+                      role: 'admin'
+                    });
+                  }}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+
+              <form onSubmit={handleAddAdmin} className="space-y-6">
+                {/* Admin Information */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700">Username *</label>
+                    <input
+                      type="text"
+                      name="username"
+                      value={addAdminData.username}
+                      onChange={(e) => setAddAdminData({...addAdminData, username: e.target.value})}
+                      required
+                      autoComplete="username"
+                      className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                      placeholder="Enter admin username"
+                    />
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700">Email *</label>
+                    <input
+                      type="email"
+                      name="email"
+                      value={addAdminData.email}
+                      onChange={(e) => setAddAdminData({...addAdminData, email: e.target.value})}
+                      required
+                      autoComplete="email"
+                      className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                      placeholder="Enter admin email"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Full Name *</label>
+                  <input
+                    type="text"
+                    name="fullName"
+                    value={addAdminData.fullName}
+                    onChange={(e) => setAddAdminData({...addAdminData, fullName: e.target.value})}
+                    required
+                    autoComplete="name"
+                    className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                    placeholder="Enter admin full name"
+                  />
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700">Password *</label>
+                    <input
+                      type="password"
+                      name="password"
+                      value={addAdminData.password}
+                      onChange={(e) => setAddAdminData({...addAdminData, password: e.target.value})}
+                      required
+                      minLength="6"
+                      autoComplete="new-password"
+                      className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                      placeholder="Enter password (min 6 characters)"
+                    />
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700">Confirm Password *</label>
+                    <input
+                      type="password"
+                      name="confirmPassword"
+                      value={addAdminData.confirmPassword}
+                      onChange={(e) => setAddAdminData({...addAdminData, confirmPassword: e.target.value})}
+                      required
+                      minLength="6"
+                      autoComplete="new-password"
+                      className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                      placeholder="Confirm password"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Role</label>
+                  <select
+                    name="role"
+                    value={addAdminData.role}
+                    onChange={(e) => setAddAdminData({...addAdminData, role: e.target.value})}
+                    className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 text-gray-900 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                  >
+                    <option value="admin">Admin</option>
+                    <option value="tenant_admin">Tenant Admin</option>
+                    <option value="super_admin">Super Admin</option>
+                  </select>
+                </div>
+
+                {/* Password Requirements */}
+                <div className="bg-gray-50 p-4 rounded-lg">
+                  <h4 className="text-sm font-medium text-gray-700 mb-2">Password Requirements:</h4>
+                  <ul className="text-sm text-gray-600 space-y-1">
+                    <li>• Minimum 6 characters long</li>
+                    <li>• Passwords must match exactly</li>
+                    <li>• Admin will be created immediately</li>
+                  </ul>
+                </div>
+
+                {/* Action Buttons */}
+                <div className="flex justify-end space-x-3 pt-4 border-t border-gray-200">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowAddAdminForm(false);
+                      setAddAdminData({
+                        username: '',
+                        email: '',
+                        fullName: '',
+                        password: '',
+                        confirmPassword: '',
+                        role: 'admin'
+                      });
+                    }}
+                    className="bg-gray-300 text-gray-700 px-4 py-2 rounded-md hover:bg-gray-400 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className="bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
+                  >
+                    Create Admin
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      )}
+
+
+      {showManageAdminsForm && selectedInstitution && (
+        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+          <div className="relative top-20 mx-auto p-5 border w-11/12 md:w-3/4 lg:w-1/2 shadow-lg rounded-md bg-white">
+            <div className="mt-3">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-medium text-gray-900">
+                  Current Admins - {selectedInstitution.name}
+                </h3>
+                <button
+                  onClick={() => {
+                    setShowManageAdminsForm(false);
+                    setSelectedInstitution(null);
+                  }}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+
+              {loadingAdmins ? (
+                <div className="text-center py-8">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600 mx-auto mb-4"></div>
+                  <p className="text-gray-600">Loading admins...</p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {admins.length === 0 ? (
+                    <div className="text-center py-8 text-gray-500">
+                      <p>No admins found for this institution.</p>
+                    </div>
+                  ) : (
+                    admins.map((admin, index) => (
+                      <div key={index} className="border rounded-lg p-4 bg-gray-50">
+                        <div className="flex justify-between items-start">
+                          <div className="flex-1">
+                            <h4 className="font-semibold text-gray-900">{admin.fullName}</h4>
+                            <p className="text-sm text-gray-600">@{admin.username}</p>
+                            <p className="text-sm text-gray-500">{admin.email}</p>
+                            <div className="flex items-center gap-2 mt-2">
+                              <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                                admin.role === 'super_admin' ? 'bg-purple-100 text-purple-800' :
+                                admin.role === 'admin' ? 'bg-blue-100 text-blue-800' :
+                                'bg-green-100 text-green-800'
+                              }`}>
+                                {admin.role.replace('_', ' ').toUpperCase()}
+                              </span>
+                              {admin.is_default_admin && (
+                                <span className="px-2 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
+                                  DEFAULT ADMIN
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                          <div className="flex flex-col gap-2">
+                            {!admin.is_default_admin && (
+                              <button
+                                onClick={() => handleSetDefaultAdmin(admin.username)}
+                                className="px-3 py-1 bg-yellow-600 text-white rounded-lg text-xs hover:bg-yellow-700"
+                                title="Set as default admin"
+                              >
+                                Set as Default
+                              </button>
+                            )}
+                            <span className="text-xs text-gray-500">
+                              {admin.is_default_admin ? 'Default Admin' : 'Regular Admin'}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              )}
+
+              {/* Close Button */}
+              <div className="flex justify-end pt-4 border-t border-gray-200">
+                <button
+                  onClick={() => {
+                    setShowManageAdminsForm(false);
+                    setSelectedInstitution(null);
+                  }}
+                  className="bg-gray-300 text-gray-700 px-4 py-2 rounded-md hover:bg-gray-400 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500"
+                >
+                  Close
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
      </div>
    );
