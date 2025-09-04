@@ -384,6 +384,7 @@ const CBTAdminPanel = ({ user, institution, onLogout }) => {
             selectedExam={selectedExam}
             onEditExam={() => setShowEditExam(true)}
             user={user}
+            onViewQuestions={() => setActiveTab("questions")}
           />
         )}
 
@@ -455,7 +456,7 @@ const CBTAdminPanel = ({ user, institution, onLogout }) => {
 };
 
 // Helper Components
-function ExamsTab({ exams, onCreateExam, onActivateExam, onDeleteExam, onSelectExam, selectedExam, onEditExam, user }) {
+function ExamsTab({ exams, onCreateExam, onActivateExam, onDeleteExam, onSelectExam, selectedExam, onEditExam, user, onViewQuestions }) {
   const isAdmin = user.role === 'admin' || user.role === 'super_admin' || user.role === 'managed_admin';
   
   return (
@@ -517,10 +518,7 @@ function ExamsTab({ exams, onCreateExam, onActivateExam, onDeleteExam, onSelectE
                     <button
                       onClick={() => {
                         onSelectExam(exam);
-                        // Also switch to questions tab when viewing questions
-                        if (activeTab !== "questions") {
-                          setActiveTab("questions");
-                        }
+                        if (onViewQuestions) onViewQuestions();
                       }}
                       className={`px-3 py-1 rounded-lg text-xs ${
                         selectedExam?.id === exam.id
