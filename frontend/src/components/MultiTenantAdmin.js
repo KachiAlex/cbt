@@ -138,13 +138,13 @@ const MultiTenantAdmin = () => {
        // Extract the actual tenant data from the response
        if (responseData.tenant && responseData.default_admin) {
          const newInstitution = {
-           _id: responseData.tenant._id,
+           _id: responseData.tenant.id, // Backend returns 'id' not '_id'
            name: responseData.tenant.name,
            slug: responseData.tenant.slug,
-           address: responseData.tenant.address,
-           subscriptionPlan: responseData.tenant.plan,
+           address: responseData.tenant.address || 'No address provided',
+           subscriptionPlan: responseData.tenant.plan, // Backend returns 'plan'
            status: 'Active',
-           createdAt: responseData.tenant.createdAt || new Date(),
+           createdAt: responseData.tenant.created_at, // Backend returns 'created_at'
            primaryAdmin: responseData.default_admin.fullName,
            adminUsername: responseData.default_admin.username,
            adminEmail: responseData.default_admin.email,
