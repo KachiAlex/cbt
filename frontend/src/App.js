@@ -985,7 +985,7 @@ function App() {
       const timeoutId = setTimeout(() => controller.abort(), 8000); // 8 second timeout
       
       try {
-        const response = await fetch(`http://localhost:5000/api/tenant/${slug}/profile`, {
+        const response = await fetch(`https://cbt-rew7.onrender.com/api/tenant/${slug}/profile`, {
           signal: controller.signal
         });
         
