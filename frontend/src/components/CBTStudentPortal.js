@@ -74,7 +74,7 @@ const CBTStudentPortal = ({ user, institution, onLogout }) => {
     return () => {
       if (interval) clearInterval(interval);
     };
-  }, [isTimerRunning, timeRemaining]);
+  }, [isTimerRunning, timeRemaining, handleSubmitExam]);
 
   // Format time remaining as MM:SS
   const formatTime = (seconds) => {
