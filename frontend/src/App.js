@@ -903,7 +903,20 @@ function App() {
     }
     
     // Check if this is an institution-specific route
-    const slug = urlParams.get('slug');
+    let slug = urlParams.get('slug');
+    
+    // If no slug in query params, check if pathname contains an institution slug
+    if (!slug && window.location.pathname !== '/' && window.location.pathname !== '/admin') {
+      const pathParts = window.location.pathname.split('/').filter(part => part);
+      if (pathParts.length > 0) {
+        // Check if the first path part looks like an institution slug
+        const potentialSlug = pathParts[0];
+        if (potentialSlug.includes('-') || potentialSlug.length > 5) {
+          slug = potentialSlug;
+          console.log('🏫 Institution route detected from pathname:', slug);
+        }
+      }
+    }
     
     console.log('🔍 Checking URL parameters:', { slug, search: window.location.search, href: window.location.href });
     
