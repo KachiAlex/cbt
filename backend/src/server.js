@@ -2275,6 +2275,63 @@ app.delete('/api/tenants/:slug/admins/:username', cors(), authenticateMultiTenan
   }
 });
 
+// Set default admin for a tenant
+app.patch('/api/tenants/:slug/admins/:username/set-default', cors(), authenticateMultiTenantAdmin, async (req, res) => {
+  try {
+    const { slug, username } = req.params;
+    
+    const tenant = await Tenant.findOne({ slug, deleted_at: null });
+    if (!tenant) {
+      return res.status(404).json({ error: 'Tenant not found' });
+    }
+    
+    const admin = await User.findOne({ 
+      tenant_id: tenant._id,
+      username: { $regex: new RegExp(`^${username}$`, 'i') },
+      role: { $in: ['super_admin', 'admin', 'tenant_admin'] }
+    });
+    
+    if (!admin) {
+      return res.status(404).json({ error: 'Admin not found' });
+    }
+    
+    // Remove default admin status from all other admins in this tenant
+    await User.updateMany(
+      { 
+        tenant_id: tenant._id,
+        role: { $in: ['super_admin', 'admin', 'tenant_admin'] }
+      },
+      { is_default_admin: false }
+    );
+    
+    // Set this admin as the default admin
+    admin.is_default_admin = true;
+    await admin.save();
+    
+    // Update tenant's default_admin field
+    tenant.default_admin = {
+      id: admin._id,
+      username: admin.username,
+      email: admin.email,
+      fullName: admin.fullName
+    };
+    await tenant.save();
+    
+    res.json({
+      message: 'Default admin set successfully',
+      defaultAdmin: {
+        username: admin.username,
+        fullName: admin.fullName,
+        email: admin.email,
+        is_default_admin: true
+      }
+    });
+  } catch (err) {
+    console.error('Error setting default admin:', err);
+    res.status(500).json({ error: 'Failed to set default admin' });
+  }
+});
+
 // Reset institution admin password endpoint
 app.patch('/api/tenants/:slug/reset-admin-password', cors(), authenticateMultiTenantAdmin, async (req, res) => {
   try {
