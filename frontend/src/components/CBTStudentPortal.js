@@ -16,6 +16,11 @@ const CBTStudentPortal = ({ user, institution, onLogout }) => {
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [allExams, setAllExams] = useState([]);
   const [loading, setLoading] = useState(true);
+  
+  // Timer state
+  const [examStartTime, setExamStartTime] = useState(null);
+  const [timeRemaining, setTimeRemaining] = useState(0);
+  const [isTimerRunning, setIsTimerRunning] = useState(false);
 
   useEffect(() => {
     loadExamsData();
@@ -35,6 +40,56 @@ const CBTStudentPortal = ({ user, institution, onLogout }) => {
       setAnswers([]);
     }
   }, [selectedExam]);
+
+  // Timer initialization when exam starts
+  useEffect(() => {
+    if (selectedExam && questions.length > 0 && !examStartTime) {
+      const startTime = Date.now();
+      setExamStartTime(startTime);
+      setTimeRemaining(selectedExam.duration * 60); // Convert minutes to seconds
+      setIsTimerRunning(true);
+      
+      // Store exam start time in localStorage to persist across page refreshes
+      localStorage.setItem(`exam_start_${selectedExam.id}`, startTime.toString());
+    }
+  }, [selectedExam, questions, examStartTime]);
+
+  // Timer countdown effect
+  useEffect(() => {
+    let interval = null;
+    
+    if (isTimerRunning && timeRemaining > 0) {
+      interval = setInterval(() => {
+        setTimeRemaining(prev => {
+          if (prev <= 1) {
+            // Time's up! Auto-submit the exam
+            handleSubmitExam();
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+    }
+
+    return () => {
+      if (interval) clearInterval(interval);
+    };
+  }, [isTimerRunning, timeRemaining]);
+
+  // Format time remaining as MM:SS
+  const formatTime = (seconds) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+  };
+
+  // Calculate progress percentage for timer bar
+  const getTimerProgress = () => {
+    if (!selectedExam || !examStartTime) return 0;
+    const totalTime = selectedExam.duration * 60;
+    const elapsed = totalTime - timeRemaining;
+    return Math.min((elapsed / totalTime) * 100, 100);
+  };
 
   const loadExamsData = async () => {
     try {
@@ -131,6 +186,11 @@ const CBTStudentPortal = ({ user, institution, onLogout }) => {
       old.push(result);
       localStorage.setItem(LS_KEYS.RESULTS, JSON.stringify(old));
     }
+  };
+
+  const handleSubmitExam = async () => {
+    setIsTimerRunning(false);
+    onSubmit();
   };
 
   if (loading) {
@@ -239,9 +299,45 @@ const CBTStudentPortal = ({ user, institution, onLogout }) => {
 
   return (
     <div className="min-h-screen bg-gray-50">
+      {/* Floating Timer Widget */}
+      {isTimerRunning && timeRemaining > 0 && (
+        <div className="fixed top-4 right-4 z-50 bg-white rounded-lg shadow-lg border p-3 min-w-[120px]">
+          <div className="text-center">
+            <div className={`text-xl font-mono font-bold ${
+              timeRemaining <= 300 ? 'text-red-600' : 
+              timeRemaining <= 600 ? 'text-yellow-600' : 'text-green-600'
+            }`}>
+              {formatTime(timeRemaining)}
+            </div>
+            <div className="text-xs text-gray-600">Time Left</div>
+            {/* Mini Progress Bar */}
+            <div className="w-full h-1 bg-gray-200 rounded-full mt-2 overflow-hidden">
+              <div 
+                className={`h-full transition-all duration-1000 ${
+                  timeRemaining > 600 ? 'bg-green-500' : 
+                  timeRemaining > 300 ? 'bg-yellow-500' : 'bg-red-500'
+                }`}
+                style={{ width: `${100 - getTimerProgress()}%` }}
+              ></div>
+            </div>
+          </div>
+        </div>
+      )}
+
       <main className="max-w-5xl mx-auto w-full px-3 sm:px-8 py-4 sm:py-8">
         {/* Exam Header */}
         <div className="bg-white rounded-2xl shadow p-6 mb-6">
+          {/* Low Time Warning Banner */}
+          {timeRemaining <= 300 && timeRemaining > 0 && (
+            <div className="mb-4 p-3 rounded-lg bg-red-50 border border-red-200 text-red-700 text-center">
+              <span className="font-semibold">⚠️ WARNING: </span>
+              {timeRemaining <= 60 
+                ? `Less than 1 minute remaining! Submit your exam now!`
+                : `Less than 5 minutes remaining! Please complete your exam soon.`
+              }
+            </div>
+          )}
+          
           <div className="flex justify-between items-start mb-4">
             <div>
               <h3 className="text-lg font-bold mb-1">{selectedExam.title}</h3>
@@ -253,6 +349,7 @@ const CBTStudentPortal = ({ user, institution, onLogout }) => {
               </div>
               <p className="text-xs text-emerald-600">⚠️ Questions are randomized for each student</p>
             </div>
+            
             <button
               onClick={() => setSelectedExam(null)}
               className="px-4 py-2 bg-gray-600 text-white rounded-xl hover:bg-gray-700 text-sm"
@@ -261,6 +358,27 @@ const CBTStudentPortal = ({ user, institution, onLogout }) => {
             </button>
           </div>
         </div>
+
+        {/* Time Expired Modal */}
+        {timeRemaining === 0 && (
+          <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+            <div className="relative top-20 mx-auto p-5 border w-11/12 md:w-3/4 lg:w-1/2 shadow-lg rounded-md bg-white">
+              <div className="mt-3 text-center">
+                <div className="text-6xl mb-4">⏰</div>
+                <h3 className="text-xl font-bold text-red-600 mb-2">Time's Up!</h3>
+                <p className="text-gray-600 mb-4">
+                  Your exam time has expired. The exam will be automatically submitted with your current answers.
+                </p>
+                <button
+                  onClick={handleSubmitExam}
+                  className="px-6 py-3 bg-red-600 text-white rounded-xl hover:bg-red-700 font-medium"
+                >
+                  Submit Exam Now
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Question Navigation */}
         <div className="bg-white rounded-2xl shadow p-4 mb-6">
