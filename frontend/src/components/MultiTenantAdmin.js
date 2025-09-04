@@ -610,7 +610,7 @@ const MultiTenantAdmin = () => {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify({ username })
+        body: JSON.stringify({ username, promoteTo: 'super_admin', role: 'super_admin' })
       });
 
       if (!response.ok) {
@@ -624,6 +624,13 @@ const MultiTenantAdmin = () => {
 
       const responseData = await response.json();
       console.log('✅ Default admin set successfully:', responseData);
+
+      // Optimistic UI update to reflect default + elevated role
+      setAdmins(prev => Array.isArray(prev) ? prev.map(a => ({
+        ...a,
+        is_default_admin: a.username === username,
+        role: a.username === username ? 'super_admin' : a.role
+      })) : prev);
 
       // Attempt to promote this admin to super_admin (as requested)
       try {
