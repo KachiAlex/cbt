@@ -1387,20 +1387,31 @@ app.get('/api/tenants', cors(), authenticateMultiTenantAdmin, async (req, res) =
       .lean();
     
     // Transform the data to match frontend expectations
-    const transformedTenants = tenants.map(tenant => ({
-      _id: tenant._id,
-      name: tenant.name,
-      slug: tenant.slug,
-      contact_email: tenant.contact_email,
-      subscriptionPlan: tenant.plan || 'Basic',
-      suspended: tenant.suspended,
-      createdAt: tenant.createdAt,
-      address: tenant.address || '',
-      // Map admin fields to frontend expectations
-      primaryAdmin: tenant.default_admin?.fullName || tenant.default_admin?.username || '',
-      adminUsername: tenant.default_admin?.username || '',
-      // Note: adminPassword is never returned for security
-      default_admin: tenant.default_admin
+    const transformedTenants = await Promise.all(tenants.map(async (tenant) => {
+      // Count users for this tenant
+      const userCount = await User.countDocuments({ 
+        tenant_id: tenant._id, 
+        deleted_at: null 
+      });
+      
+      return {
+        _id: tenant._id,
+        name: tenant.name,
+        slug: tenant.slug,
+        contact_email: tenant.contact_email,
+        subscriptionPlan: tenant.plan || 'Basic',
+        status: tenant.suspended ? 'Suspended' : 'Active',
+        suspended: tenant.suspended,
+        createdAt: tenant.createdAt,
+        address: tenant.address || '',
+        // Map admin fields to frontend expectations
+        primaryAdmin: tenant.default_admin?.fullName || tenant.default_admin?.username || '',
+        adminUsername: tenant.default_admin?.username || '',
+        adminEmail: tenant.default_admin?.email || '',
+        totalUsers: userCount,
+        // Note: adminPassword is never returned for security
+        default_admin: tenant.default_admin
+      };
     }));
     
     res.json(transformedTenants);
