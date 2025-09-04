@@ -861,11 +861,17 @@ function SettingsTab({ onBackToExams, institution, user }) {
         throw new Error('Invalid logo format. Must be a valid image URL or uploaded image.');
       }
 
-              const response = await fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:5000'}/api/tenants/${institution.slug}/logo/update`, {
+      // Use the correct endpoint for admin users
+      const endpoint = isSuperAdmin 
+        ? `/api/tenants/${institution.slug}/logo`
+        : `/api/tenants/${institution.slug}/logo/update`;
+
+      const response = await fetch(`https://cbt-rew7.onrender.com${endpoint}`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('multi_tenant_admin_token')}`
+          // Only add Authorization for multi-tenant admin endpoint
+          ...(isSuperAdmin && { 'Authorization': `Bearer ${localStorage.getItem('multi_tenant_admin_token')}` })
         },
         body: JSON.stringify({ 
           logo_url: logoUrl 
@@ -879,16 +885,12 @@ function SettingsTab({ onBackToExams, institution, user }) {
 
       const result = await response.json();
       
-      if (result.success) {
-        showToast('Logo updated successfully!', 'success');
-        // Clear the form
-        setSelectedLogoFile(null);
-        setLogoUrl('');
-        setLogoUrlInput('');
-        setLogoModalOpen(false);
-      } else {
-        throw new Error(result.error || 'Failed to update logo');
-      }
+      showToast('Logo updated successfully!', 'success');
+      // Clear the form
+      setSelectedLogoFile(null);
+      setLogoUrl('');
+      setLogoUrlInput('');
+      setLogoModalOpen(false);
     } catch (error) {
       console.error('Logo update failed:', error);
       setLogoError(error.message);
