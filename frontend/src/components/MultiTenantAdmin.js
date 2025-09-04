@@ -90,13 +90,30 @@ const MultiTenantAdmin = () => {
         return;
       }
 
+      // Transform frontend data to backend format
+      const backendData = {
+        name: formData.name,
+        address: formData.address,
+        plan: formData.subscriptionPlan,
+        timezone: 'UTC',
+        default_admin: {
+          username: formData.adminUsername,
+          email: formData.adminEmail || `${formData.adminUsername}@${formData.slug}.com`,
+          fullName: formData.primaryAdmin,
+          password: formData.adminPassword,
+          phone: ''
+        }
+      };
+
+      console.log('📡 Sending data to backend:', backendData);
+
       const response = await fetch('https://cbt-rew7.onrender.com/api/tenants', {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify(formData)
+        body: JSON.stringify(backendData)
       });
 
       if (!response.ok) {
@@ -268,15 +285,19 @@ const MultiTenantAdmin = () => {
 
   // Edit institution
   const handleEdit = (institution) => {
+    console.log('🔍 Editing institution:', institution);
+    console.log('🔍 adminUsername from institution:', institution.adminUsername);
+    console.log('🔍 default_admin from institution:', institution.default_admin);
+    
     setSelectedInstitution(institution);
     setFormData({
       name: institution.name,
       slug: institution.slug,
       subscriptionPlan: institution.subscriptionPlan || 'Basic',
-      primaryAdmin: institution.primaryAdmin || '',
-      adminUsername: institution.adminUsername || '',
+      primaryAdmin: institution.primaryAdmin || institution.default_admin?.fullName || '',
+      adminUsername: institution.adminUsername || institution.default_admin?.username || '',
       adminPassword: '',
-      adminEmail: institution.adminEmail || '',
+      adminEmail: institution.adminEmail || institution.default_admin?.email || '',
       address: institution.address || ''
     });
     setShowAddForm(true);
@@ -330,6 +351,8 @@ const MultiTenantAdmin = () => {
       if (!selectedInstitution.adminUsername) {
         console.warn('⚠️ Warning: adminUsername is undefined or empty');
         console.log('Selected Institution:', selectedInstitution);
+        setError('Cannot reset password: Admin username not found. Please edit the institution first to set admin details.');
+        return;
       }
 
       console.log('🔐 Password Reset Request:', {
@@ -696,14 +719,15 @@ const MultiTenantAdmin = () => {
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700">Admin Password</label>
-                    <input
-                      type="password"
-                      name="adminPassword"
-                      value={formData.adminPassword}
-                      onChange={handleInputChange}
-                      className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
-                      placeholder="Enter admin password"
-                    />
+                                         <input
+                       type="password"
+                       name="adminPassword"
+                       value={formData.adminPassword}
+                       onChange={handleInputChange}
+                       autoComplete="new-password"
+                       className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-indigo-500 focus:ring-indigo-500 focus:border-indigo-500"
+                       placeholder="Enter admin password"
+                     />
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700">Admin Email</label>
@@ -1004,18 +1028,26 @@ const MultiTenantAdmin = () => {
                  </button>
                </div>
 
-               <form onSubmit={handlePasswordReset} className="space-y-6">
-                 {/* Admin Info */}
-                 <div className="bg-yellow-50 p-4 rounded-lg border border-yellow-200">
-                   <div className="flex items-center">
-                     <svg className="h-5 w-5 text-yellow-400 mr-2" fill="currentColor" viewBox="0 0 20 20">
-                       <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
-                     </svg>
-                     <span className="text-sm text-yellow-800">
-                       You are about to reset the password for <strong>{selectedInstitution.primaryAdmin || selectedInstitution.adminUsername}</strong>
-                     </span>
-                   </div>
-                 </div>
+                               <form onSubmit={handlePasswordReset} className="space-y-6">
+                  {/* Hidden username field for accessibility */}
+                  <input
+                    type="hidden"
+                    name="username"
+                    value={selectedInstitution.adminUsername || ''}
+                    autoComplete="username"
+                  />
+                  
+                  {/* Admin Info */}
+                  <div className="bg-yellow-50 p-4 rounded-lg border border-yellow-200">
+                    <div className="flex items-center">
+                      <svg className="h-5 w-5 text-yellow-400 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a0 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                      </svg>
+                      <span className="text-sm text-yellow-800">
+                        You are about to reset the password for <strong>{selectedInstitution.primaryAdmin || selectedInstitution.adminUsername}</strong>
+                      </span>
+                    </div>
+                  </div>
 
                  {/* Password Fields */}
                  <div className="space-y-4">
