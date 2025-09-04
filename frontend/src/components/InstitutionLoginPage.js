@@ -272,9 +272,9 @@ const InstitutionLoginPage = () => {
       <main className="max-w-5xl mx-auto w-full px-3 sm:px-8 py-4 sm:py-8">
         <div className="text-center mb-8">
           <h1 className="text-3xl font-bold text-gray-800 mb-2">
-            Welcome to {institutionData?.name}
+            Computer-Based Testing Portal
           </h1>
-          <p className="text-gray-600">Computer-Based Testing Portal</p>
+          <p className="text-gray-600">Welcome to your institution's testing platform</p>
         </div>
 
         <div className="max-w-2xl mx-auto">
