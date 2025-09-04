@@ -31,7 +31,7 @@ const Settings = ({ user, tenant }) => {
         try {
             // For now, we'll use a simple approach
             // In a real app, you'd want to verify the current password first
-            await axios.put(`http://localhost:5000/api/tenant/${tenant.slug}/profile`, {
+            await axios.put(`https://cbt-rew7.onrender.com/api/tenant/${tenant.slug}/profile`, {
                 // This would need to be implemented on the backend
                 // For now, we'll just show a success message
             });
