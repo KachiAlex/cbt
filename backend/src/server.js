@@ -1394,6 +1394,13 @@ app.get('/api/tenants', cors(), authenticateMultiTenantAdmin, async (req, res) =
         deleted_at: null 
       });
       
+      // Debug: Log the tenant data
+      console.log(`🔍 Tenant ${tenant.name} (${tenant._id}):`, {
+        default_admin: tenant.default_admin,
+        hasDefaultAdmin: !!tenant.default_admin,
+        adminFields: tenant.default_admin ? Object.keys(tenant.default_admin) : 'none'
+      });
+      
       return {
         _id: tenant._id,
         name: tenant.name,
