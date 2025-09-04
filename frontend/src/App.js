@@ -1116,7 +1116,10 @@ function App() {
 
     return (
     <div className="min-h-screen bg-gray-50 text-gray-800">
-      <Header user={user} onLogout={onLogout} onLogoClick={handleLogoClick} institutionData={institutionData} />
+      {/* Hide header on institution pages to avoid duplicate branding */}
+      {view !== "institution-login" && currentView !== "cbt-admin" && currentView !== "student-exam" && (
+        <Header user={user} onLogout={onLogout} onLogoClick={handleLogoClick} institutionData={institutionData} />
+      )}
       <main className="max-w-5xl mx-auto w-full px-3 sm:px-8 py-4 sm:py-8">
         {user ? (
           user.role === "admin" ? (
