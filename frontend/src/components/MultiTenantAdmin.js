@@ -603,12 +603,11 @@ const MultiTenantAdmin = () => {
   };
 
   // Load institutions on component mount only
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (isAuthenticated()) {
       loadInstitutions();
     }
-  }, []); // Remove loadInstitutions dependency to prevent unnecessary reloads
+  }, [loadInstitutions]); // Include loadInstitutions dependency
 
   // Check authentication on every render
   if (!isAuthenticated()) {
