@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import dataService from '../services/dataService';
 
 const LS_KEYS = {
@@ -21,6 +21,12 @@ const CBTStudentPortal = ({ user, institution, onLogout }) => {
   const [examStartTime, setExamStartTime] = useState(null);
   const [timeRemaining, setTimeRemaining] = useState(0);
   const [isTimerRunning, setIsTimerRunning] = useState(false);
+
+  // Define handleSubmitExam early to avoid dependency issues
+  const handleSubmitExam = useCallback(async () => {
+    setIsTimerRunning(false);
+    onSubmit();
+  }, [onSubmit]);
 
   useEffect(() => {
     loadExamsData();
@@ -188,10 +194,7 @@ const CBTStudentPortal = ({ user, institution, onLogout }) => {
     }
   };
 
-  const handleSubmitExam = async () => {
-    setIsTimerRunning(false);
-    onSubmit();
-  };
+
 
   if (loading) {
     return (
