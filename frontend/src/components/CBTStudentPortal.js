@@ -22,6 +22,42 @@ const CBTStudentPortal = ({ user, institution, onLogout }) => {
   const [timeRemaining, setTimeRemaining] = useState(0);
   const [isTimerRunning, setIsTimerRunning] = useState(false);
 
+  // Define onSubmit early to avoid dependency issues
+  const onSubmit = useCallback(async () => {
+    let s = 0;
+    questions.forEach((q, i) => {
+      if (answers[i] === q.correctIndex) s++;
+    });
+    
+    setScore(s);
+    setSubmitted(true);
+
+    const result = {
+      username: user.username,
+      score: s,
+      total: questions.length,
+      percent: Math.round((s / questions.length) * 100),
+      submittedAt: new Date().toISOString(),
+      answers,
+      examTitle: selectedExam ? selectedExam.title : 'Institution CBT',
+      questionOrder: questions.map(q => q.originalId),
+      institutionSlug: institution.slug,
+      institutionName: institution.name
+    };
+
+    try {
+      const old = await dataService.loadResults();
+      old.push(result);
+      await dataService.saveResults(old);
+    } catch (error) {
+      console.error('Error saving result:', error);
+      // Fallback to localStorage
+      const old = JSON.parse(localStorage.getItem(LS_KEYS.RESULTS) || '[]');
+      old.push(result);
+      localStorage.setItem(LS_KEYS.RESULTS, JSON.stringify(old));
+    }
+  }, [questions, answers, user.username, selectedExam, institution.slug, institution.name]);
+
   // Define handleSubmitExam early to avoid dependency issues
   const handleSubmitExam = useCallback(async () => {
     setIsTimerRunning(false);
@@ -159,40 +195,7 @@ const CBTStudentPortal = ({ user, institution, onLogout }) => {
     }
   };
 
-  const onSubmit = async () => {
-    let s = 0;
-    questions.forEach((q, i) => {
-      if (answers[i] === q.correctIndex) s++;
-    });
-    
-    setScore(s);
-    setSubmitted(true);
 
-    const result = {
-      username: user.username,
-      score: s,
-      total: questions.length,
-      percent: Math.round((s / questions.length) * 100),
-      submittedAt: new Date().toISOString(),
-      answers,
-      examTitle: selectedExam ? selectedExam.title : 'Institution CBT',
-      questionOrder: questions.map(q => q.originalId),
-      institutionSlug: institution.slug,
-      institutionName: institution.name
-    };
-
-    try {
-      const old = await dataService.loadResults();
-      old.push(result);
-      await dataService.saveResults(old);
-    } catch (error) {
-      console.error('Error saving result:', error);
-      // Fallback to localStorage
-      const old = JSON.parse(localStorage.getItem(LS_KEYS.RESULTS) || '[]');
-      old.push(result);
-      localStorage.setItem(LS_KEYS.RESULTS, JSON.stringify(old));
-    }
-  };
 
 
 
