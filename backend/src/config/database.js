@@ -11,9 +11,7 @@ const connectDB = async () => {
         // Cloud database connection options
         maxPoolSize: 10,
         serverSelectionTimeoutMS: 5000,
-        socketTimeoutMS: 45000,
-        bufferMaxEntries: 0,
-        bufferCommands: false
+        socketTimeoutMS: 45000
       });
       console.log(`✅ MongoDB Atlas Connected: ${conn.connection.host}`);
       console.log(`🌐 Database: ${conn.connection.name}`);
