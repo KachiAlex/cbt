@@ -325,7 +325,7 @@ const MultiTenantAdmin = () => {
       }
 
       console.log('🔐 Password Reset Request:', {
-                           url: `http://localhost:5000/api/tenants/${selectedInstitution.slug}/reset-admin-password`,
+                           url: `https://cbt-rew7.onrender.com/api/tenants/${selectedInstitution.slug}/reset-admin-password`,
         method: 'PATCH',
         body: requestBody,
         institution: selectedInstitution.name,

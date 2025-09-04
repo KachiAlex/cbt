@@ -1,7 +1,7 @@
 // API Configuration
 const API_CONFIG = {
   // Get API URL from environment variable or use default
-  BASE_URL: process.env.REACT_APP_API_URL || 'http://localhost:5000',
+  BASE_URL: process.env.REACT_APP_API_URL || 'https://cbt-rew7.onrender.com',
   
   // API endpoints
   ENDPOINTS: {
