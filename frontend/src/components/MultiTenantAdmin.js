@@ -602,12 +602,12 @@ const MultiTenantAdmin = () => {
     }
   };
 
-  // Load institutions on component mount
+  // Load institutions on component mount only
   useEffect(() => {
     if (isAuthenticated()) {
       loadInstitutions();
     }
-  }, [loadInstitutions]);
+  }, []); // Remove loadInstitutions dependency to prevent unnecessary reloads
 
   // Check authentication on every render
   if (!isAuthenticated()) {
