@@ -7,7 +7,7 @@ const MultiTenantAdmin = () => {
   const [error, setError] = useState(null);
   const [showAddForm, setShowAddForm] = useState(false);
   const [showManageAdminsForm, setShowManageAdminsForm] = useState(false);
-  const [showAdminDetails, setShowAdminDetails] = useState(false);
+  const [showViewAdmins, setShowViewAdmins] = useState(false);
   const [showPasswordReset, setShowPasswordReset] = useState(false);
   const [showAddAdminForm, setShowAddAdminForm] = useState(false);
   const [admins, setAdmins] = useState([]);
@@ -1211,23 +1211,24 @@ const MultiTenantAdmin = () => {
                  {/* Admin Management Actions (accessible within this modal) */}
                  <div className="mt-6 space-y-3">
                    <h4 className="text-sm font-medium text-gray-700">Admin Management Actions</h4>
-                   <button
+                          <button
                      onClick={() => {
-                       setShowAdminDetails(true);
+                       setShowViewAdmins(true);
+                       loadAdmins(selectedInstitution.slug);
                      }}
                      className="w-full inline-flex items-center justify-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
                    >
-                     <span className="mr-2">👤</span> View Admin Details
-                   </button>
-                   <button
+                     <span className="mr-2">👥</span> View Admins
+                          </button>
+                          <button
                      onClick={() => {
                        setShowPasswordReset(true);
                      }}
                      className="w-full inline-flex items-center justify-center px-4 py-2 border border-yellow-300 shadow-sm text-sm font-medium rounded-md text-yellow-700 bg-white hover:bg-yellow-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-yellow-500"
                    >
                      <span className="mr-2">🔒</span> Reset Admin Password
-                   </button>
-                   <button
+                          </button>
+                          <button
                      onClick={() => {
                        setShowAddAdminForm(true);
                        loadAdmins(selectedInstitution.slug);
@@ -1235,9 +1236,9 @@ const MultiTenantAdmin = () => {
                      className="w-full inline-flex items-center justify-center px-4 py-2 border border-green-300 shadow-sm text-sm font-medium rounded-md text-green-700 bg-white hover:bg-green-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
                    >
                      <span className="mr-2">➕</span> Add New Admin
-                   </button>
+                          </button>
                  </div>
-
+                          
                  {/* Close Button */}
                  <div className="flex justify-end pt-4 border-t border-gray-200">
                           <button
@@ -1660,14 +1661,14 @@ const MultiTenantAdmin = () => {
                   <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                   </svg>
-                        </button>
-            </div>
+                  </button>
+                </div>
 
               {loadingAdmins ? (
                 <div className="text-center py-8">
                   <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600 mx-auto mb-4"></div>
                   <p className="text-gray-600">Loading admins...</p>
-          </div>
+              </div>
               ) : (
                 <div className="space-y-4">
                   {admins.length === 0 ? (
@@ -1720,9 +1721,101 @@ const MultiTenantAdmin = () => {
 
               {/* Close Button */}
               <div className="flex justify-end pt-4 border-t border-gray-200">
-                <button
+                        <button
                   onClick={() => {
                     setShowManageAdminsForm(false);
+                  }}
+                  className="bg-gray-300 text-gray-700 px-4 py-2 rounded-md hover:bg-gray-400 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500"
+                >
+                  Close
+                        </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* View Admins Modal */}
+      {showViewAdmins && selectedInstitution && (
+        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+          <div className="relative top-20 mx-auto p-5 border w-11/12 md:w-3/4 lg:w-1/2 shadow-lg rounded-md bg-white">
+            <div className="mt-3">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-medium text-gray-900">
+                  View Admins - {selectedInstitution.name}
+                </h3>
+                <button
+                  onClick={() => {
+                    setShowViewAdmins(false);
+                  }}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+
+              {loadingAdmins ? (
+                <div className="text-center py-8">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600 mx-auto mb-4"></div>
+                  <p className="text-gray-600">Loading admins...</p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {admins.length === 0 ? (
+                    <div className="text-center py-8 text-gray-500">
+                      <p>No admins found for this institution.</p>
+                    </div>
+                  ) : (
+                    admins.map((admin, index) => (
+                      <div key={index} className="border rounded-lg p-4 bg-gray-50">
+                        <div className="flex justify-between items-start">
+                          <div className="flex-1">
+                            <h4 className="font-semibold text-gray-900">{admin.fullName}</h4>
+                            <p className="text-sm text-gray-600">@{admin.username}</p>
+                            <p className="text-sm text-gray-500">{admin.email}</p>
+                            <div className="flex items-center gap-2 mt-2">
+                              <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                                admin.role === 'super_admin' ? 'bg-purple-100 text-purple-800' :
+                                admin.role === 'admin' ? 'bg-blue-100 text-blue-800' :
+                                'bg-green-100 text-green-800'
+                              }`}>
+                                {admin.role.replace('_', ' ').toUpperCase()}
+                              </span>
+                              {admin.is_default_admin && (
+                                <span className="px-2 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
+                                  DEFAULT ADMIN
+                                </span>
+                              )}
+            </div>
+            </div>
+                          <div className="flex flex-col gap-2">
+                            {!admin.is_default_admin && (
+                              <button
+                                onClick={() => handleSetDefaultAdmin(admin.username)}
+                                className="px-3 py-1 bg-yellow-600 text-white rounded-lg text-xs hover:bg-yellow-700"
+                                title="Set as default admin"
+                              >
+                                Set as Default
+                              </button>
+                            )}
+                            <span className="text-xs text-gray-500">
+                              {admin.is_default_admin ? 'Default Admin' : 'Regular Admin'}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              )}
+
+              {/* Close Button */}
+              <div className="flex justify-end pt-4 border-t border-gray-200">
+                <button
+                  onClick={() => {
+                    setShowViewAdmins(false);
                   }}
                   className="bg-gray-300 text-gray-700 px-4 py-2 rounded-md hover:bg-gray-400 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500"
                 >
