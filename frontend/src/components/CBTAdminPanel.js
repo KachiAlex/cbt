@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import * as XLSX from 'xlsx';
+import * as ExcelJS from 'exceljs';
 import { saveAs } from 'file-saver';
 import { Document, Packer, Paragraph, TextRun, Table, TableRow, TableCell } from 'docx';
 import mammoth from 'mammoth';
@@ -198,19 +198,30 @@ const CBTAdminPanel = ({ user, institution, onLogout }) => {
   };
 
   const exportResultsToExcel = async () => {
-    const workbook = XLSX.utils.book_new();
-    const worksheet = XLSX.utils.json_to_sheet(results.map(r => ({
-      Username: r.username,
-      'Exam Title': r.examTitle,
-      Score: r.score,
-      Total: r.total,
-      Percent: r.percent,
-      'Submitted At': new Date(r.submittedAt).toLocaleString(),
-      Answers: r.answers.join(", ")
+    const workbook = new ExcelJS.Workbook();
+    const worksheet = workbook.addWorksheet('Results');
+    
+    worksheet.columns = [
+      { header: 'Username', key: 'username', width: 15 },
+      { header: 'Exam Title', key: 'examTitle', width: 20 },
+      { header: 'Score', key: 'score', width: 10 },
+      { header: 'Total', key: 'total', width: 10 },
+      { header: 'Percent', key: 'percent', width: 10 },
+      { header: 'Submitted At', key: 'submittedAt', width: 20 },
+      { header: 'Answers', key: 'answers', width: 30 }
+    ];
+
+    worksheet.addRows(results.map(r => ({
+      username: r.username,
+      examTitle: r.examTitle,
+      score: r.score,
+      total: r.total,
+      percent: r.percent,
+      submittedAt: new Date(r.submittedAt).toLocaleString(),
+      answers: r.answers.join(", ")
     })));
     
-    XLSX.utils.book_append_sheet(workbook, worksheet, "Results");
-    const excelBuffer = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' });
+    const excelBuffer = await workbook.xlsx.writeBuffer();
     const blob = new Blob([excelBuffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
     saveAs(blob, `${institution?.name || 'Institution'}_CBT_Results.xlsx`);
   };
@@ -613,13 +624,21 @@ function QuestionsTab({ selectedExam, questions, setQuestions, onFileUpload, imp
       {isAdmin && (
         <div className="bg-white rounded-xl border p-6">
           <div className="flex flex-wrap gap-2 mb-4">
-            <button onClick={() => {
-              const workbook = XLSX.utils.book_new();
-              const rows = [['Question', 'A', 'B', 'C', 'D', 'Answer'], ['What is 2 + 2?', '3', '4', '5', '6', 'B']];
-              const ws = XLSX.utils.aoa_to_sheet(rows);
-              XLSX.utils.book_append_sheet(workbook, ws, 'Questions');
-              const buf = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' });
-              const blob = new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+            <button onClick={async () => {
+              const workbook = new ExcelJS.Workbook();
+              const worksheet = workbook.addWorksheet('Questions');
+              worksheet.columns = [
+                { header: 'Question', key: 'question', width: 20 },
+                { header: 'A', key: 'optionA', width: 10 },
+                { header: 'B', key: 'optionB', width: 10 },
+                { header: 'C', key: 'optionC', width: 10 },
+                { header: 'D', key: 'optionD', width: 10 },
+                { header: 'Answer', key: 'answer', width: 10 }
+              ];
+              worksheet.addRow({ question: 'What is 2 + 2?', optionA: '3', optionB: '4', optionC: '5', optionD: '6', answer: 'B' });
+              worksheet.addRow({ question: 'Capital of France?', optionA: 'Berlin', optionB: 'Madrid', optionC: 'Paris', optionD: 'Rome', answer: 'C' });
+              const excelBuffer = await workbook.xlsx.writeBuffer();
+              const blob = new Blob([excelBuffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
               saveAs(blob, 'cbt_questions_template.xlsx');
             }} className="px-3 py-2 text-sm rounded-lg border hover:bg-gray-50">Download Excel sample</button>
             <button onClick={async () => {
@@ -1638,38 +1657,44 @@ function createQuestionObject(questionText, options, correctAnswer) {
 async function parseQuestionsFromExcel(file) {
   try {
     const arrayBuffer = await file.arrayBuffer();
-    const workbook = XLSX.read(arrayBuffer, { type: 'array' });
+    const workbook = new ExcelJS.Workbook();
+    await workbook.xlsx.load(arrayBuffer);
     
-    const worksheetName = workbook.SheetNames[0];
-    if (!worksheetName) throw new Error('No worksheet found in Excel file');
-    
-    const worksheet = workbook.Sheets[worksheetName];
-    const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
-    
+    const worksheet = workbook.getWorksheet('Questions'); // Assuming worksheet name is 'Questions'
+    if (!worksheet) throw new Error('No worksheet named "Questions" found in Excel file');
+
     const questions = [];
-    
-    for (let i = 1; i < jsonData.length; i++) {
-      const row = jsonData[i];
-      if (!row || row.length < 6) continue;
-      
-      const questionText = String(row[0] || '').trim();
-      const optionA = String(row[1] || '').trim();
-      const optionB = String(row[2] || '').trim();
-      const optionC = String(row[3] || '').trim();
-      const optionD = String(row[4] || '').trim();
-      const correctAnswer = String(row[5] || '').trim().toUpperCase();
-      
-      if (!questionText || !optionA || !optionB || !optionC || !optionD || !correctAnswer) continue;
-      
-      const answerIndex = { 'A': 0, 'B': 1, 'C': 2, 'D': 3 }[correctAnswer];
-      if (answerIndex === undefined) continue;
-      
+    let rowNumber = 2; // Start from row 2 to skip header
+
+    while (true) {
+      const row = worksheet.getRow(rowNumber);
+      if (!row) break;
+
+      const questionText = row.getCell(1).value;
+      const optionA = row.getCell(2).value;
+      const optionB = row.getCell(3).value;
+      const optionC = row.getCell(4).value;
+      const optionD = row.getCell(5).value;
+      const correctAnswer = row.getCell(6).value;
+
+      if (!questionText || !optionA || !optionB || !optionC || !optionD || !correctAnswer) {
+        rowNumber++;
+        continue;
+      }
+
+      const answerIndex = { 'A': 0, 'B': 1, 'C': 2, 'D': 3 }[correctAnswer.toString().toUpperCase()];
+      if (answerIndex === undefined) {
+        rowNumber++;
+        continue;
+      }
+
       questions.push({
         id: Date.now().toString(36) + Math.random().toString(36).substr(2),
-        text: questionText,
-        options: [optionA, optionB, optionC, optionD],
+        text: questionText.toString().trim(),
+        options: [optionA.toString().trim(), optionB.toString().trim(), optionC.toString().trim(), optionD.toString().trim()],
         correctIndex: answerIndex
       });
+      rowNumber++;
     }
     
     return questions;

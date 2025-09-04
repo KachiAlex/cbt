@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import * as XLSX from 'xlsx';
+import * as ExcelJS from 'exceljs';
 import { saveAs } from 'file-saver';
 import { Document, Packer, Paragraph, TextRun, Table, TableRow, TableCell } from 'docx';
 import mammoth from 'mammoth';
@@ -68,12 +68,22 @@ const CBTExam = ({ user, tenant }) => {
     for (const r of results) {
       wsData.push([r.username, r.examTitle, r.score, r.total, r.percent, r.submittedAt, r.answers.join(", ")]);
     }
-    const wb = XLSX.utils.book_new();
-    const ws = XLSX.utils.aoa_to_sheet(wsData);
-    XLSX.utils.book_append_sheet(wb, ws, "Results");
-    const wbout = XLSX.write(wb, { bookType: "xlsx", type: "array" });
-    const blob = new Blob([wbout], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
-    saveAs(blob, `${tenant?.name || 'Institution'}_CBT_Results.xlsx`);
+    const wb = new ExcelJS.Workbook();
+    const ws = wb.addWorksheet("Results");
+    ws.columns = [
+      { header: "Username", key: "username", width: 15 },
+      { header: "Exam Title", key: "examTitle", width: 20 },
+      { header: "Score", key: "score", width: 10 },
+      { header: "Total", key: "total", width: 10 },
+      { header: "Percent", key: "percent", width: 10 },
+      { header: "Submitted At", key: "submittedAt", width: 25 },
+      { header: "Answers", key: "answers", width: 20 }
+    ];
+    ws.addRows(wsData);
+    wb.xlsx.writeBuffer().then(buffer => {
+      const blob = new Blob([buffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+      saveAs(blob, `${tenant?.name || 'Institution'}_CBT_Results.xlsx`);
+    });
   };
 
   const exportResultsToWord = async () => {

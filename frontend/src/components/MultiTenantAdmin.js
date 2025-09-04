@@ -23,7 +23,6 @@ export default function MultiTenantAdmin() {
   const [selectedInstitution, setSelectedInstitution] = useState(null);
 
   // Modals (refactored)
-  const [showAddForm, setShowAddForm] = useState(false);
   const [showManageAdminsForm, setShowManageAdminsForm] = useState(false);
   const [showViewAdmins, setShowViewAdmins] = useState(false);
   const [showPasswordReset, setShowPasswordReset] = useState(false);
@@ -34,17 +33,6 @@ export default function MultiTenantAdmin() {
   const [loadingAdmins, setLoadingAdmins] = useState(false);
 
   // Forms
-  const [formData, setFormData] = useState({
-    name: '',
-    slug: '',
-    subscriptionPlan: 'Basic',
-    primaryAdmin: '',
-    adminUsername: '',
-    adminPassword: '',
-    adminEmail: '',
-    address: ''
-  });
-
   const [passwordResetData, setPasswordResetData] = useState({
     newPassword: '',
     confirmPassword: ''
