@@ -334,7 +334,7 @@ const CBTAdminPanel = ({ user, institution, onLogout }) => {
           <div className="flex justify-between items-center">
             <div>
               <h2 className="text-2xl font-bold text-gray-800">CBT Admin Panel</h2>
-              <p className="text-gray-600">Manage exams, questions, and student results for {institution?.name}</p>
+              <p className="text-gray-600">Manage exams, questions, and student results</p>
             </div>
             <div className="text-sm text-gray-500">
               Logged in as: <span className="font-medium">{user.fullName || user.username}</span>
