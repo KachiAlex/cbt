@@ -26,7 +26,7 @@ const MultiTenantAdmin = () => {
   });
 
   const [addAdminData, setAddAdminData] = useState({
-    username: '',
+      username: '',
     email: '',
     fullName: '',
     password: '',
@@ -75,7 +75,7 @@ const MultiTenantAdmin = () => {
           'Content-Type': 'application/json'
         }
       });
-
+      
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
@@ -255,7 +255,7 @@ const MultiTenantAdmin = () => {
         setError('No institution selected for editing');
         return;
       }
-
+      
       // Map frontend fields to backend fields
       const updateData = {
         name: formData.name,
@@ -600,8 +600,8 @@ const MultiTenantAdmin = () => {
       const token = await getAuthToken();
       if (!token) {
         setError('No valid authentication token available');
-        return;
-      }
+      return;
+    }
 
       const safeUsername = encodeURIComponent(username);
       const response = await fetch(`https://cbt-rew7.onrender.com/api/tenants/${selectedInstitution.slug}/admins/${safeUsername}/set-default`, {
@@ -650,7 +650,7 @@ const MultiTenantAdmin = () => {
       
       setError(null);
       alert('Default admin set successfully!');
-    } catch (error) {
+     } catch (error) {
       console.error('Error setting default admin:', error);
       setError(`Failed to set default admin: ${error.message}`);
     }
@@ -700,18 +700,18 @@ const MultiTenantAdmin = () => {
               <p className="text-gray-600">Manage all institutions and their settings</p>
             </div>
             <div className="flex items-center space-x-4">
-              <button
+          <button
                 onClick={() => setShowAddForm(true)}
                 className="bg-indigo-600 text-white px-4 py-2 rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
               >
                 Add Institution
-              </button>
-              <button
-                onClick={handleLogout}
+          </button>
+          <button
+            onClick={handleLogout}
                 className="bg-red-600 text-white px-4 py-2 rounded-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
-              >
+          >
                 Logout
-              </button>
+          </button>
             </div>
           </div>
         </div>
@@ -727,15 +727,15 @@ const MultiTenantAdmin = () => {
                 <svg className="h-5 w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor">
                   <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
                 </svg>
-              </div>
+            </div>
               <div className="ml-3">
                 <h3 className="text-sm font-medium text-red-800">Error</h3>
                 <div className="mt-2 text-sm text-red-700">{error}</div>
-              </div>
-            </div>
           </div>
-        )}
-
+        </div>
+            </div>
+          )}
+          
         {/* Loading State */}
         {loading && (
           <div className="text-center py-12">
@@ -746,8 +746,8 @@ const MultiTenantAdmin = () => {
               </svg>
               Loading institutions...
             </div>
-          </div>
-        )}
+            </div>
+          )}
 
         {/* Institutions List */}
         {!loading && institutions.length === 0 && (
@@ -767,7 +767,7 @@ const MultiTenantAdmin = () => {
                 </svg>
                 Add Institution
               </button>
-            </div>
+              </div>
           </div>
         )}
 
@@ -788,15 +788,15 @@ const MultiTenantAdmin = () => {
                          {institution.status || 'Active'}
                        </span>
                      </div>
-                   </div>
-
+              </div>
+              
                    {/* Institution Info */}
                    <div className="px-6 py-4">
                      <div className="grid grid-cols-2 gap-4 text-sm">
                        <div>
                          <span className="font-medium text-gray-600">ID:</span>
                          <span className="ml-2 text-gray-900 font-mono">{institution.slug || institution.tenant?.slug}</span>
-                       </div>
+              </div>
                        <div>
                          <span className="font-medium text-gray-600">Plan:</span>
                          <span className="ml-2 text-gray-900">{institution.subscriptionPlan || institution.tenant?.plan || 'Basic'}</span>
@@ -819,8 +819,8 @@ const MultiTenantAdmin = () => {
                          <div className="col-span-2">
                            <span className="font-medium text-gray-600">Address:</span>
                            <span className="ml-2 text-gray-900">{institution.address || institution.tenant?.address}</span>
-                         </div>
-                       )}
+            </div>
+          )}
                      </div>
                    </div>
 
@@ -916,26 +916,26 @@ const MultiTenantAdmin = () => {
               </div>
 
               <form onSubmit={selectedInstitution ? handleUpdateInstitution : handleAddInstitution} className="space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
                     <label className="block text-sm font-medium text-gray-700">Institution Name</label>
-                    <input
-                      type="text"
+                      <input
+                        type="text"
                       name="name"
-                      value={formData.name}
+                        value={formData.name}
                       onChange={handleInputChange}
                       required
                       className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
-                      placeholder="Enter institution name"
-                    />
-                  </div>
-                  <div>
+                        placeholder="Enter institution name"
+                      />
+                    </div>
+                    <div>
                     <label className="block text-sm font-medium text-gray-700">
                       Institution Slug
                       <span className="text-xs text-gray-500 ml-2">
                         {selectedInstitution ? '(Editable)' : '(Auto-generated)'}
                       </span>
-                    </label>
+                      </label>
                     <div className="mt-1 flex">
                       <input
                         type="text"
@@ -972,34 +972,34 @@ const MultiTenantAdmin = () => {
                       </p>
                     )}
                   </div>
-                  <div>
+                    <div>
                     <label className="block text-sm font-medium text-gray-700">Subscription Plan</label>
-                    <select
+                      <select
                       name="subscriptionPlan"
                       value={formData.subscriptionPlan}
                       onChange={handleInputChange}
                       className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 text-gray-900 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
-                    >
-                      <option value="Basic">Basic</option>
-                      <option value="Premium">Premium</option>
-                      <option value="Enterprise">Enterprise</option>
-                    </select>
-                  </div>
-                  <div>
+                      >
+                        <option value="Basic">Basic</option>
+                        <option value="Premium">Premium</option>
+                        <option value="Enterprise">Enterprise</option>
+                      </select>
+                    </div>
+                    <div>
                     <label className="block text-sm font-medium text-gray-700">Primary Admin Name</label>
-                                         <input
-                       type="text"
+                      <input
+                        type="text"
                        name="primaryAdmin"
                        value={formData.primaryAdmin}
                        onChange={handleInputChange}
                        autoComplete="name"
                        className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-indigo-500 focus:ring-indigo-500 focus:border-indigo-500"
                        placeholder="Enter primary admin name"
-                     />
-                  </div>
-                  <div>
+                      />
+                    </div>
+                    <div>
                     <label className="block text-sm font-medium text-gray-700">Admin Username</label>
-                                         <input
+                      <input
                        type="text"
                        name="adminUsername"
                        value={formData.adminUsername}
@@ -1007,11 +1007,11 @@ const MultiTenantAdmin = () => {
                        autoComplete="username"
                        className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
                        placeholder="Enter admin username"
-                     />
-                  </div>
-                  <div>
+                      />
+                    </div>
+                    <div>
                     <label className="block text-sm font-medium text-gray-700">Admin Password</label>
-                                         <input
+                      <input
                        type="password"
                        name="adminPassword"
                        value={formData.adminPassword}
@@ -1019,11 +1019,11 @@ const MultiTenantAdmin = () => {
                        autoComplete="new-password"
                        className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-indigo-500 focus:ring-indigo-500 focus:border-indigo-500"
                        placeholder="Enter admin password"
-                     />
-                  </div>
-                  <div>
+                      />
+                    </div>
+                    <div>
                     <label className="block text-sm font-medium text-gray-700">Admin Email</label>
-                                         <input
+                      <input
                        type="email"
                        name="adminEmail"
                        value={formData.adminEmail}
@@ -1031,8 +1031,8 @@ const MultiTenantAdmin = () => {
                        autoComplete="email"
                        className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 text-gray-900 placeholder-gray-500 focus:ring-indigo-500 focus:border-indigo-500"
                        placeholder="Enter admin email"
-                     />
-                  </div>
+                      />
+                    </div>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700">Address</label>
@@ -1044,7 +1044,7 @@ const MultiTenantAdmin = () => {
                     className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
                     placeholder="Enter institution address"
                   />
-                </div>
+                      </div>
                 <div className="flex justify-end space-x-3 pt-4">
                   <button
                     type="button"
@@ -1076,19 +1076,19 @@ const MultiTenantAdmin = () => {
               </form>
             </div>
           </div>
-        </div>
-      )}
+            </div>
+          )}
 
       {/* Manage Admins Modal */}
       {showManageAdminsForm && selectedInstitution && (
-        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-40">
           <div className="relative top-20 mx-auto p-5 border w-11/12 md:w-3/4 lg:w-1/2 shadow-lg rounded-md bg-white">
             <div className="mt-3">
               <div className="flex items-center justify-between mb-4">
                 <h3 className="text-lg font-medium text-gray-900">
                   Manage Admins - {selectedInstitution.name}
                 </h3>
-                <button
+                  <button
                   onClick={() => {
                     setShowManageAdminsForm(false);
                     setSelectedInstitution(null);
@@ -1098,12 +1098,12 @@ const MultiTenantAdmin = () => {
                   <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                   </svg>
-                </button>
-              </div>
+                  </button>
+                </div>
 
                              <div className="space-y-6">
                  {/* Admin Information Display */}
-                 <div className="bg-gray-50 p-4 rounded-lg">
+                            <div className="bg-gray-50 p-4 rounded-lg">
                    <h4 className="text-sm font-medium text-gray-700 mb-3">Current Admin Information</h4>
                    {admins.length > 0 ? (
                      <div className="grid grid-cols-2 gap-4 text-sm">
@@ -1113,28 +1113,28 @@ const MultiTenantAdmin = () => {
                            {admins.find(admin => admin.is_default_admin)?.fullName || 
                             selectedInstitution.primaryAdmin || 'Not Set'}
                          </span>
-                       </div>
+                            </div>
                        <div>
                          <span className="font-medium text-gray-600">Username:</span>
                          <span className="ml-2 text-gray-900 font-mono">
                            {admins.find(admin => admin.is_default_admin)?.username || 
                             selectedInstitution.adminUsername || 'Not Set'}
                          </span>
-                       </div>
+                            </div>
                        <div className="col-span-2">
                          <span className="font-medium text-gray-600">Status:</span>
                          <span className="ml-2 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
                            Active
                          </span>
-                       </div>
-                     </div>
+                              </div>
+                            </div>
                    ) : (
                      <div className="text-sm text-gray-500 text-center py-2">
                        Loading admin information...
                      </div>
                    )}
-                 </div>
-
+                            </div>
+                            
                  {/* Current Admins List */}
                  <div className="bg-white p-4 rounded-lg border">
                    <div className="flex justify-between items-center mb-3">
@@ -1145,8 +1145,8 @@ const MultiTenantAdmin = () => {
                      >
                        🔄 Refresh
                      </button>
-                   </div>
-                   
+                            </div>
+                            
                    {loadingAdmins ? (
                      <div className="text-center py-4">
                        <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-indigo-600 mx-auto mb-2"></div>
@@ -1171,7 +1171,7 @@ const MultiTenantAdmin = () => {
                                      'bg-green-100 text-green-800'
                                    }`}>
                                      {admin.role.replace('_', ' ').toUpperCase()}
-                                   </span>
+                                </span>
                                    {admin.is_default_admin && (
                                      <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
                                        DEFAULT
@@ -1181,32 +1181,32 @@ const MultiTenantAdmin = () => {
                                </div>
                                <div className="flex flex-col gap-1">
                                  {!admin.is_default_admin && (
-                                   <button
+                                <button
                                      onClick={() => handleSetDefaultAdmin(admin.username)}
                                      className="px-2 py-1 bg-yellow-600 text-white rounded text-xs hover:bg-yellow-700"
                                      title="Set as default admin"
                                    >
                                      Set Default
-                                   </button>
+                                </button>
                                  )}
                                  <span className="text-xs text-gray-500">
                                    {admin.is_default_admin ? 'Default Admin' : 'Regular Admin'}
                                  </span>
-                               </div>
-                             </div>
-                           </div>
+                              </div>
+                            </div>
+                            </div>
                          ))
                        )}
-                     </div>
+                          </div>
                    )}
-                 </div>
-
+                        </div>
+                        
                  {/* Admin Management Actions */}
                  <div className="space-y-3">
                    <h4 className="text-sm font-medium text-gray-700">Admin Management Actions</h4>
                    
                                        {/* View Admin Details Button */}
-                    <button
+                          <button
                       onClick={() => {
                         setShowManageAdminsForm(false);
                         setShowAdminDetails(true);
@@ -1217,10 +1217,10 @@ const MultiTenantAdmin = () => {
                         <path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd" />
                       </svg>
                       View Admin Details
-                    </button>
-
+                          </button>
+                          
                                        {/* Reset Admin Password Button */}
-                    <button
+                          <button
                       onClick={() => {
                         setShowManageAdminsForm(false);
                         setShowPasswordReset(true);
@@ -1231,10 +1231,10 @@ const MultiTenantAdmin = () => {
                         <path fillRule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clipRule="evenodd" />
                       </svg>
                       Reset Admin Password
-                    </button>
-
+                          </button>
+                          
                    {/* Add New Admin Button */}
-                   <button
+                          <button
                      onClick={() => {
                        setShowManageAdminsForm(false);
                        setShowAddAdminForm(true);
@@ -1246,22 +1246,22 @@ const MultiTenantAdmin = () => {
                        <path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd" />
                      </svg>
                      Add New Admin
-                   </button>
+                          </button>
                  </div>
-
+                          
                  {/* Close Button */}
                  <div className="flex justify-end pt-4 border-t border-gray-200">
-                   <button
-                     onClick={() => {
+                          <button
+                            onClick={() => {
                        setShowManageAdminsForm(false);
                        setSelectedInstitution(null);
-                     }}
+                            }}
                      className="bg-gray-300 text-gray-700 px-4 py-2 rounded-md hover:bg-gray-400 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500"
-                   >
+                          >
                      Close
-                   </button>
-                 </div>
-               </div>
+                          </button>
+                        </div>
+                      </div>
             </div>
           </div>
         </div>
@@ -1297,40 +1297,40 @@ const MultiTenantAdmin = () => {
                        <span className="block text-sm font-medium text-gray-600">Full Name</span>
                        <span className="block text-lg text-gray-900 mt-1">
                          {selectedInstitution.primaryAdmin || 'Not Set'}
-                       </span>
-                     </div>
+                            </span>
+                          </div>
                      <div>
                        <span className="block text-sm font-medium text-gray-600">Username</span>
                        <span className="block text-lg text-gray-900 font-mono mt-1">
                          {selectedInstitution.adminUsername || 'Not Set'}
                        </span>
-                     </div>
+                        </div>
                      <div>
                        <span className="block text-sm font-medium text-gray-600">Email</span>
                        <span className="block text-lg text-gray-900 mt-1">
                          {selectedInstitution.adminEmail || 'Not Set'}
                        </span>
-                     </div>
+                      </div>
                      <div>
                        <span className="block text-sm font-medium text-gray-600">Phone</span>
                        <span className="block text-lg text-gray-900 mt-1">
                          {selectedInstitution.adminPhone || 'Not Set'}
                        </span>
-                     </div>
+                    </div>
                      <div>
                        <span className="block text-sm font-medium text-gray-600">Role</span>
                        <span className="block text-lg text-gray-900 mt-1">
                          Primary Administrator
                        </span>
-                     </div>
+                </div>
                      <div>
                        <span className="block text-sm font-medium text-gray-600">Status</span>
                        <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-green-100 text-green-800 mt-1">
                          Active
                        </span>
-                     </div>
-                   </div>
-                 </div>
+            </div>
+        </div>
+      </div>
 
                  {/* Institution Context */}
                  <div className="bg-blue-50 p-6 rounded-lg">
@@ -1400,11 +1400,11 @@ const MultiTenantAdmin = () => {
                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                    </svg>
                  </button>
-               </div>
+            </div>
 
                                <form onSubmit={handlePasswordReset} className="space-y-6">
                   {/* Hidden username field for accessibility */}
-                  <input
+                <input
                     type="hidden"
                     name="username"
                     value={selectedInstitution.adminUsername || ''}
@@ -1420,12 +1420,12 @@ const MultiTenantAdmin = () => {
                       <span className="text-sm text-yellow-800">
                         You are about to reset the password for <strong>{selectedInstitution.primaryAdmin || selectedInstitution.adminUsername}</strong>
                       </span>
-                    </div>
-                  </div>
+              </div>
+            </div>
 
                  {/* Password Fields */}
                  <div className="space-y-4">
-                   <div>
+                  <div>
                      <label className="block text-sm font-medium text-gray-700">New Password</label>
                                            <input
                         type="password"
@@ -1551,19 +1551,19 @@ const MultiTenantAdmin = () => {
                   </div>
                 </div>
 
-                <div>
+                  <div>
                   <label className="block text-sm font-medium text-gray-700">Full Name *</label>
-                  <input
-                    type="text"
+                    <input
+                      type="text"
                     name="fullName"
                     value={addAdminData.fullName}
                     onChange={(e) => setAddAdminData({...addAdminData, fullName: e.target.value})}
-                    required
+                      required
                     autoComplete="name"
                     className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
                     placeholder="Enter admin full name"
-                  />
-                </div>
+                    />
+                  </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
@@ -1594,7 +1594,7 @@ const MultiTenantAdmin = () => {
                       className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
                       placeholder="Confirm password"
                     />
-                  </div>
+                </div>
                 </div>
 
                 <div>
@@ -1649,20 +1649,20 @@ const MultiTenantAdmin = () => {
                 </div>
               </form>
             </div>
-          </div>
-        </div>
-      )}
+                </div>
+              </div>
+            )}
 
 
       {showManageAdminsForm && selectedInstitution && (
-        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-40">
           <div className="relative top-20 mx-auto p-5 border w-11/12 md:w-3/4 lg:w-1/2 shadow-lg rounded-md bg-white">
             <div className="mt-3">
               <div className="flex items-center justify-between mb-4">
                 <h3 className="text-lg font-medium text-gray-900">
                   Current Admins - {selectedInstitution.name}
                 </h3>
-                <button
+                        <button
                   onClick={() => {
                     setShowManageAdminsForm(false);
                     setSelectedInstitution(null);
@@ -1672,20 +1672,20 @@ const MultiTenantAdmin = () => {
                   <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                   </svg>
-                </button>
-              </div>
+                        </button>
+            </div>
 
               {loadingAdmins ? (
                 <div className="text-center py-8">
                   <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600 mx-auto mb-4"></div>
                   <p className="text-gray-600">Loading admins...</p>
-                </div>
+          </div>
               ) : (
                 <div className="space-y-4">
                   {admins.length === 0 ? (
                     <div className="text-center py-8 text-gray-500">
                       <p>No admins found for this institution.</p>
-                    </div>
+        </div>
                   ) : (
                     admins.map((admin, index) => (
                       <div key={index} className="border rounded-lg p-4 bg-gray-50">
@@ -1722,8 +1722,8 @@ const MultiTenantAdmin = () => {
                             <span className="text-xs text-gray-500">
                               {admin.is_default_admin ? 'Default Admin' : 'Regular Admin'}
                             </span>
-                          </div>
-                        </div>
+            </div>
+            </div>
                       </div>
                     ))
                   )}
@@ -1747,8 +1747,8 @@ const MultiTenantAdmin = () => {
         </div>
       )}
 
-     </div>
-   );
- };
+    </div>
+  );
+};
 
 export default MultiTenantAdmin; 
