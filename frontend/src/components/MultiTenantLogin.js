@@ -16,7 +16,7 @@ const MultiTenantLogin = ({ onLoginSuccess }) => {
 
     const fetchTenants = async () => {
         try {
-            const response = await axios.get('https://cbt-rew7.onrender.com/api/v1/managed-admin/tenants');
+            const response = await axios.get('http://localhost:5000/api/v1/managed-admin/tenants');
             setTenants(response.data.tenants || []);
         } catch (error) {
             console.error('Error fetching tenants:', error);
@@ -29,7 +29,7 @@ const MultiTenantLogin = ({ onLoginSuccess }) => {
         setError('');
 
         try {
-            const response = await axios.post('https://cbt-rew7.onrender.com/api/auth/login', {
+            const response = await axios.post('http://localhost:5000/api/auth/login', {
                 username,
                 password,
                 tenant_slug: selectedTenant

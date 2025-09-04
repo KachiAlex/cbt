@@ -9,7 +9,7 @@ let institutionLogo = null;
 // Load institution data
 async function loadInstitutionData() {
     try {
-        const response = await fetch(`https://cbt-rew7.onrender.com/api/tenant/${institutionSlug}/profile`);
+        const response = await fetch(`http://localhost:5000/api/tenant/${institutionSlug}/profile`);
         
         if (!response.ok) {
             throw new Error('Institution not found or suspended');
@@ -61,7 +61,7 @@ async function handleAdminLogin(event) {
     const password = document.getElementById('adminPassword').value;
     
     try {
-        const response = await fetch('https://cbt-rew7.onrender.com/api/auth/login', {
+        const response = await fetch('http://localhost:5000/api/auth/login', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -97,7 +97,7 @@ async function handleStudentLogin(event) {
     const password = document.getElementById('studentPassword').value;
     
     try {
-        const response = await fetch('https://cbt-rew7.onrender.com/api/auth/login', {
+        const response = await fetch('http://localhost:5000/api/auth/login', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({

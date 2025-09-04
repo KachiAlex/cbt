@@ -861,7 +861,7 @@ function SettingsTab({ onBackToExams, institution, user }) {
         throw new Error('Invalid logo format. Must be a valid image URL or uploaded image.');
       }
 
-      const response = await fetch(`${process.env.REACT_APP_API_URL || 'https://cbt-rew7.onrender.com'}/api/tenants/${institution.slug}/logo/update`, {
+              const response = await fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:5000'}/api/tenants/${institution.slug}/logo/update`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',

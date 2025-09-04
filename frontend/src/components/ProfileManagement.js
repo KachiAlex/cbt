@@ -34,7 +34,7 @@ const ProfileManagement = ({ user, tenant }) => {
 
     const fetchProfile = async () => {
         try {
-            const response = await axios.get(`https://cbt-rew7.onrender.com/api/tenant/${tenant.slug}/profile`);
+            const response = await axios.get(`http://localhost:5000/api/tenant/${tenant.slug}/profile`);
             setProfile(response.data);
             setEditForm({
                 name: response.data.name || '',
@@ -49,7 +49,7 @@ const ProfileManagement = ({ user, tenant }) => {
 
     const fetchAdmins = async () => {
         try {
-            const response = await axios.get(`https://cbt-rew7.onrender.com/api/tenant/${tenant.slug}/admins`);
+            const response = await axios.get(`http://localhost:5000/api/tenant/${tenant.slug}/admins`);
             setAdmins(response.data);
         } catch (error) {
             console.error('Error fetching admins:', error);
@@ -63,7 +63,7 @@ const ProfileManagement = ({ user, tenant }) => {
         setSuccess('');
 
         try {
-            await axios.put(`https://cbt-rew7.onrender.com/api/tenant/${tenant.slug}/profile`, editForm);
+            await axios.put(`http://localhost:5000/api/tenant/${tenant.slug}/profile`, editForm);
             setSuccess('Profile updated successfully!');
             fetchProfile();
         } catch (error) {
@@ -80,7 +80,7 @@ const ProfileManagement = ({ user, tenant }) => {
         setSuccess('');
 
         try {
-            await axios.post(`https://cbt-rew7.onrender.com/api/tenant/${tenant.slug}/admins`, {
+            await axios.post(`http://localhost:5000/api/tenant/${tenant.slug}/admins`, {
                 ...newAdminForm,
                 requesting_user_id: user._id
             });
@@ -104,7 +104,7 @@ const ProfileManagement = ({ user, tenant }) => {
         if (!window.confirm('Are you sure you want to remove this admin?')) return;
 
         try {
-            await axios.delete(`https://cbt-rew7.onrender.com/api/tenant/${tenant.slug}/admins/${adminId}`, {
+            await axios.delete(`http://localhost:5000/api/tenant/${tenant.slug}/admins/${adminId}`, {
                 data: { requesting_user_id: user._id }
             });
             setSuccess('Admin removed successfully!');

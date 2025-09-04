@@ -16,7 +16,7 @@ const MultiTenantAdminLogin = ({ onLogin }) => {
     setError('');
 
     try {
-      const response = await fetch('https://cbt-rew7.onrender.com/api/multi-tenant-admin/login', {
+              const response = await fetch('http://localhost:5000/api/multi-tenant-admin/login', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

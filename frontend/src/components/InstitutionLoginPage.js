@@ -56,7 +56,7 @@ const InstitutionLoginPage = () => {
       const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
       
       try {
-        const response = await fetch(`https://cbt-rew7.onrender.com/api/tenant/${slug}/profile`, {
+        const response = await fetch(`http://localhost:5000/api/tenant/${slug}/profile`, {
           signal: controller.signal
         });
         

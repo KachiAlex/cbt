@@ -22,7 +22,7 @@ const InstitutionLogin = () => {
     const fetchTenantData = async () => {
         try {
             setLoading(true);
-            const response = await fetch(`https://cbt-rew7.onrender.com/api/tenant/${slug}/profile`);
+            const response = await fetch(`http://localhost:5000/api/tenant/${slug}/profile`);
             
             if (!response.ok) {
                 throw new Error('Institution not found or suspended');
@@ -42,7 +42,7 @@ const InstitutionLogin = () => {
         setLoginError('');
 
         try {
-            const response = await fetch('https://cbt-rew7.onrender.com/api/auth/login', {
+            const response = await fetch('http://localhost:5000/api/auth/login', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -76,7 +76,7 @@ const InstitutionLogin = () => {
         setLoginError('');
 
         try {
-            const response = await fetch('https://cbt-rew7.onrender.com/api/auth/login', {
+            const response = await fetch('http://localhost:5000/api/auth/login', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({

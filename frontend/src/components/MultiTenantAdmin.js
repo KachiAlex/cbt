@@ -136,7 +136,7 @@ const MultiTenantAdmin = () => {
         return;
       }
 
-      const response = await fetch(`https://cbt-rew7.onrender.com/api/tenants/${institutionId}`, {
+              const response = await fetch(`https://cbt-rew7.onrender.com/api/tenants/${institutionId}`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -189,7 +189,7 @@ const MultiTenantAdmin = () => {
       };
 
       console.log('✏️ Edit Institution Request:', {
-        url: `https://cbt-rew7.onrender.com/api/tenants/${selectedInstitution._id}`,
+                           url: `https://cbt-rew7.onrender.com/api/tenants/${selectedInstitution._id}`,
         method: 'PUT',
         institutionId: selectedInstitution._id,
         formData: formData,
@@ -197,7 +197,7 @@ const MultiTenantAdmin = () => {
         selectedInstitution: selectedInstitution
       });
 
-      const response = await fetch(`https://cbt-rew7.onrender.com/api/tenants/${selectedInstitution._id}`, {
+                       const response = await fetch(`https://cbt-rew7.onrender.com/api/tenants/${selectedInstitution._id}`, {
         method: 'PUT',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -325,7 +325,7 @@ const MultiTenantAdmin = () => {
       }
 
       console.log('🔐 Password Reset Request:', {
-        url: `https://cbt-rew7.onrender.com/api/tenants/${selectedInstitution.slug}/reset-admin-password`,
+                           url: `http://localhost:5000/api/tenants/${selectedInstitution.slug}/reset-admin-password`,
         method: 'PATCH',
         body: requestBody,
         institution: selectedInstitution.name,
@@ -333,7 +333,7 @@ const MultiTenantAdmin = () => {
         adminUsername: selectedInstitution.adminUsername
       });
 
-      const response = await fetch(`https://cbt-rew7.onrender.com/api/tenants/${selectedInstitution.slug}/reset-admin-password`, {
+                       const response = await fetch(`https://cbt-rew7.onrender.com/api/tenants/${selectedInstitution.slug}/reset-admin-password`, {
         method: 'PATCH',
         headers: {
           'Authorization': `Bearer ${token}`,
