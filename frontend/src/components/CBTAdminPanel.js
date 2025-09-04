@@ -52,15 +52,7 @@ const CBTAdminPanel = ({ user, institution, onLogout }) => {
     }
   }, []);
 
-  const loadQuestions = React.useCallback(async () => {
-    try {
-      const data = await dataService.loadQuestions();
-      return Array.isArray(data) ? data : [];
-    } catch (error) {
-      console.error('Error loading questions:', error);
-      return [];
-    }
-  }, []);
+  // Removed unused loadQuestions to satisfy CI ESLint
 
   const loadResults = React.useCallback(async () => {
     try {
@@ -963,7 +955,7 @@ function SettingsTab({ onBackToExams, institution, user }) {
         throw new Error(errorData.error || `HTTP ${response.status}: ${response.statusText}`);
       }
 
-      const result = await response.json();
+      await response.json();
       
       showToast('Logo updated successfully!', 'success');
       // Clear the form
