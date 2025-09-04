@@ -471,6 +471,7 @@ const MultiTenantAdmin = () => {
   // Load admins for a specific institution
   const loadAdmins = async (institutionSlug) => {
     try {
+      console.log('🔍 Loading admins for institution:', institutionSlug);
       setLoadingAdmins(true);
       const token = await getAuthToken();
       if (!token) {
@@ -478,6 +479,7 @@ const MultiTenantAdmin = () => {
         return;
       }
 
+      console.log('🔍 Making API call to:', `https://cbt-rew7.onrender.com/api/tenants/${institutionSlug}/admins`);
       const response = await fetch(`https://cbt-rew7.onrender.com/api/tenants/${institutionSlug}/admins`, {
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -485,11 +487,14 @@ const MultiTenantAdmin = () => {
         }
       });
 
+      console.log('🔍 Response status:', response.status);
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
 
       const data = await response.json();
+      console.log('🔍 Response data:', data);
+      console.log('🔍 Admins array:', data.admins);
       setAdmins(data.admins || []);
       setError(null);
     } catch (error) {
@@ -797,6 +802,8 @@ const MultiTenantAdmin = () => {
                          onClick={() => {
                            setSelectedInstitution(institution);
                            setShowManageAdminsForm(true);
+                           // Load admins when opening the modal
+                           loadAdmins(institution.slug);
                          }}
                          className="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-xs font-medium rounded text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
                        >
@@ -1049,22 +1056,34 @@ const MultiTenantAdmin = () => {
                  {/* Admin Information Display */}
                  <div className="bg-gray-50 p-4 rounded-lg">
                    <h4 className="text-sm font-medium text-gray-700 mb-3">Current Admin Information</h4>
-                   <div className="grid grid-cols-2 gap-4 text-sm">
-                     <div>
-                       <span className="font-medium text-gray-600">Admin Name:</span>
-                       <span className="ml-2 text-gray-900">{selectedInstitution.primaryAdmin || 'Not Set'}</span>
+                   {admins.length > 0 ? (
+                     <div className="grid grid-cols-2 gap-4 text-sm">
+                       <div>
+                         <span className="font-medium text-gray-600">Admin Name:</span>
+                         <span className="ml-2 text-gray-900">
+                           {admins.find(admin => admin.is_default_admin)?.fullName || 
+                            selectedInstitution.primaryAdmin || 'Not Set'}
+                         </span>
+                       </div>
+                       <div>
+                         <span className="font-medium text-gray-600">Username:</span>
+                         <span className="ml-2 text-gray-900 font-mono">
+                           {admins.find(admin => admin.is_default_admin)?.username || 
+                            selectedInstitution.adminUsername || 'Not Set'}
+                         </span>
+                       </div>
+                       <div className="col-span-2">
+                         <span className="font-medium text-gray-600">Status:</span>
+                         <span className="ml-2 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                           Active
+                         </span>
+                       </div>
                      </div>
-                     <div>
-                       <span className="font-medium text-gray-600">Username:</span>
-                       <span className="ml-2 text-gray-900 font-mono">{selectedInstitution.adminUsername || 'Not Set'}</span>
+                   ) : (
+                     <div className="text-sm text-gray-500 text-center py-2">
+                       Loading admin information...
                      </div>
-                     <div className="col-span-2">
-                       <span className="font-medium text-gray-600">Status:</span>
-                       <span className="ml-2 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                         Active
-                       </span>
-                     </div>
-                   </div>
+                   )}
                  </div>
 
                  {/* Current Admins List */}

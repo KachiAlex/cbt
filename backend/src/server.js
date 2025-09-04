@@ -1876,7 +1876,7 @@ app.patch('/api/tenants/:slug/logo', cors(), authenticateMultiTenantAdmin, async
   }
 });
 
-// Update tenant logo URL (Institution users)
+// Update tenant logo (Institution users) - Accepts both URLs and data URLs
 app.patch('/api/tenants/:slug/logo/update', cors(), async (req, res) => {
   try {
     const { slug } = req.params;
@@ -1891,10 +1891,12 @@ app.patch('/api/tenants/:slug/logo/update', cors(), async (req, res) => {
       return res.status(404).json({ error: 'Tenant not found' });
     }
 
-    // Validate logo URL format
-    const urlPattern = /^https?:\/\/.+\.(jpg|jpeg|png|gif|webp|svg)(\?.*)?$/i;
-    if (!urlPattern.test(logo_url)) {
-      return res.status(400).json({ error: 'Invalid logo URL format. Must be a valid image URL.' });
+    // Accept both data URLs (file uploads) and regular image URLs
+    const isDataUrl = logo_url.startsWith('data:image/');
+    const isValidUrl = /^https?:\/\/.+\.(jpg|jpeg|png|gif|webp|svg)(\?.*)?$/i.test(logo_url);
+    
+    if (!isDataUrl && !isValidUrl) {
+      return res.status(400).json({ error: 'Invalid logo format. Must be a valid image URL or uploaded image data.' });
     }
 
     tenant.logo_url = logo_url.trim();
