@@ -135,26 +135,7 @@ export const dataService = {
       console.log('🌐 Loaded users from API:', apiData.length);
       // Check if any admin exists in cloud data
       const adminExists = apiData.some(user => user.role === 'admin');
-      if (!adminExists && USE_API) {
-        // Try to initialize default admin user in cloud database
-        try {
-          const response = await fetch(`${API_BASE}/api/init-admin`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' }
-          });
-          if (response.ok) {
-            const result = await response.json();
-            if (!result.exists) {
-              console.log('👤 Default admin user created in cloud database');
-              // Reload users to get the newly created admin
-              const updatedApiData = await apiCall('/api/users');
-              return updatedApiData || apiData;
-            }
-          }
-        } catch (error) {
-          console.warn('Failed to initialize admin in cloud database:', error.message);
-        }
-      }
+      console.log('👤 Admin exists in cloud data:', adminExists);
       return apiData;
     }
 
