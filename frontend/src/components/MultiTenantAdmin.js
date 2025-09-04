@@ -18,6 +18,7 @@ const MultiTenantAdmin = () => {
     primaryAdmin: '',
     adminUsername: '',
     adminPassword: '',
+    adminEmail: '',
     address: ''
   });
 
@@ -112,6 +113,7 @@ const MultiTenantAdmin = () => {
         primaryAdmin: '',
         adminUsername: '',
         adminPassword: '',
+        adminEmail: '',
         address: ''
       });
       setError(null);
@@ -185,7 +187,11 @@ const MultiTenantAdmin = () => {
         slug: formData.slug,
         address: formData.address,
         plan: formData.subscriptionPlan,
-        timezone: 'UTC' // Default timezone
+        timezone: 'UTC', // Default timezone
+        primaryAdmin: formData.primaryAdmin,
+        adminUsername: formData.adminUsername,
+        adminPassword: formData.adminPassword,
+        adminEmail: formData.adminEmail || `${formData.adminUsername}@${formData.slug}.com`
       };
 
       console.log('✏️ Edit Institution Request:', {
@@ -250,6 +256,7 @@ const MultiTenantAdmin = () => {
         primaryAdmin: '',
         adminUsername: '',
         adminPassword: '',
+        adminEmail: '',
         address: ''
       });
       setError(null);
@@ -269,6 +276,7 @@ const MultiTenantAdmin = () => {
       primaryAdmin: institution.primaryAdmin || '',
       adminUsername: institution.adminUsername || '',
       adminPassword: '',
+      adminEmail: institution.adminEmail || '',
       address: institution.address || ''
     });
     setShowAddForm(true);
@@ -697,6 +705,17 @@ const MultiTenantAdmin = () => {
                       placeholder="Enter admin password"
                     />
                   </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700">Admin Email</label>
+                    <input
+                      type="email"
+                      name="adminEmail"
+                      value={formData.adminEmail}
+                      onChange={handleInputChange}
+                      className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                      placeholder="Enter admin email"
+                    />
+                  </div>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700">Address</label>
@@ -722,6 +741,7 @@ const MultiTenantAdmin = () => {
                         primaryAdmin: '',
                         adminUsername: '',
                         adminPassword: '',
+                        adminEmail: '',
                         address: ''
                       });
                     }}
