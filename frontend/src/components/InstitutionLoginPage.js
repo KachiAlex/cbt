@@ -34,7 +34,8 @@ const InstitutionLoginPage = () => {
         if (savedUser) {
           const userData = JSON.parse(savedUser);
           setUser(userData);
-          setView(userData.role === "admin" ? "admin-panel" : "student-portal");
+          const isAdminEquivalent = ['admin','super_admin','managed_admin','tenant_admin'].includes(userData.role);
+          setView(isAdminEquivalent ? "admin-panel" : "student-portal");
         }
         
         setLoading(false);
@@ -81,7 +82,8 @@ const InstitutionLoginPage = () => {
         if (savedUser) {
           const userData = JSON.parse(savedUser);
           setUser(userData);
-          setView(userData.role === "admin" ? "admin-panel" : "student-portal");
+          const isAdminEquivalent = ['admin','super_admin','managed_admin','tenant_admin'].includes(userData.role);
+          setView(isAdminEquivalent ? "admin-panel" : "student-portal");
         }
       } catch (fetchError) {
         clearTimeout(timeoutId);
@@ -111,7 +113,7 @@ const InstitutionLoginPage = () => {
       
       console.log('🔍 Login attempt:', { username, role, user });
       
-      const isAdminRoleAccepted = user && ['admin', 'super_admin', 'managed_admin'].includes(user.role);
+      const isAdminRoleAccepted = user && ['admin', 'super_admin', 'managed_admin', 'tenant_admin'].includes(user.role);
       const roleIsValid = role === 'admin' ? isAdminRoleAccepted : (user && user.role === role);
       
       if (roleIsValid) {
