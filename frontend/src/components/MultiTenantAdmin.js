@@ -1649,12 +1649,11 @@ const MultiTenantAdmin = () => {
             <div className="mt-3">
               <div className="flex items-center justify-between mb-4">
                 <h3 className="text-lg font-medium text-gray-900">
-                  Current Admins - {selectedInstitution.name}
+                  Admin Details - {selectedInstitution.name}
                 </h3>
                         <button
                   onClick={() => {
                     setShowManageAdminsForm(false);
-                    setSelectedInstitution(null);
                   }}
                   className="text-gray-400 hover:text-gray-600"
                 >
@@ -1724,7 +1723,6 @@ const MultiTenantAdmin = () => {
                 <button
                   onClick={() => {
                     setShowManageAdminsForm(false);
-                    setSelectedInstitution(null);
                   }}
                   className="bg-gray-300 text-gray-700 px-4 py-2 rounded-md hover:bg-gray-400 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500"
                 >
