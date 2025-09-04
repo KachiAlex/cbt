@@ -13,6 +13,7 @@ const InstitutionLoginPage = () => {
   const [showAdminLogin, setShowAdminLogin] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [authError, setAuthError] = useState("");
 
   useEffect(() => {
     loadInstitutionData();
@@ -103,7 +104,7 @@ const InstitutionLoginPage = () => {
 
   const handleLogin = async (username, password, role) => {
     try {
-      setError("");
+      setAuthError("");
       
       // Use dataService to authenticate user with institution context
       console.log('🔍 Institution data for authentication:', institutionData);
@@ -138,18 +139,18 @@ const InstitutionLoginPage = () => {
       } else {
         console.log('❌ Role mismatch:', { expectedRole: role, actualRole: user?.role, user });
         if (!user) {
-          setError(`Authentication failed. Please check your username and password.`);
-      } else {
-          setError(`Invalid ${role} credentials. User role is '${user.role}', but '${role}' is required.`);
+          setAuthError(`Authentication failed. Please check your username and password.`);
+        } else {
+          setAuthError(`Invalid ${role} credentials. User role is '${user.role}', but '${role}' is required.`);
         }
       }
     } catch (error) {
       console.error('Login error:', error);
-      // Show the specific error message from the backend
+      // Show the specific error message inline for authentication failures
       if (error.message && error.message !== 'Invalid credentials') {
-        setError(error.message);
+        setAuthError(error.message);
       } else {
-        setError("Login failed. Please try again.");
+        setAuthError("Login failed. Please try again.");
       }
     }
   };
@@ -158,12 +159,14 @@ const InstitutionLoginPage = () => {
     setUser(null);
     localStorage.removeItem("cbt_logged_in_user");
     setView("login");
+    setAuthError("");
   };
 
   // Hidden admin access - click on the logo
   const handleLogoClick = () => {
     if (!user) {
       setShowAdminLogin(!showAdminLogin);
+      setAuthError("");
     }
   };
 
@@ -293,6 +296,11 @@ const InstitutionLoginPage = () => {
                   ×
                 </button>
               </div>
+              {authError && (
+                <div className="mb-4 p-3 rounded-lg bg-red-50 border border-red-200 text-red-700 text-sm">
+                  {authError}
+                </div>
+              )}
               <AdminLoginForm onLogin={(u, p) => handleLogin(u, p, "admin")} />
               <div className="text-xs text-gray-500 text-center mt-4">
                 <p>Default admin: username: admin | password: admin123</p>
@@ -302,6 +310,11 @@ const InstitutionLoginPage = () => {
             /* Student Portal */
             <div className="bg-white rounded-2xl shadow p-6">
               <h2 className="text-xl font-bold mb-4 text-center">👨‍🎓 Student Portal</h2>
+              {authError && (
+                <div className="mb-4 p-3 rounded-lg bg-red-50 border border-red-200 text-red-700 text-sm text-center">
+                  {authError}
+                </div>
+              )}
               <StudentPortalForm 
                 onLogin={(u, p) => handleLogin(u, p, "student")}
                 onRegister={handleStudentRegistration}

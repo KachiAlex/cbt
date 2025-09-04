@@ -624,6 +624,26 @@ const MultiTenantAdmin = () => {
 
       const responseData = await response.json();
       console.log('✅ Default admin set successfully:', responseData);
+
+      // Attempt to promote this admin to super_admin (as requested)
+      try {
+        const promoteRes = await fetch(`https://cbt-rew7.onrender.com/api/tenants/${selectedInstitution.slug}/admins/${safeUsername}/role`, {
+          method: 'PATCH',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ role: 'super_admin' })
+        });
+        if (!promoteRes.ok) {
+          // Don't hard-fail; log and continue
+          console.warn('Role promotion response not OK:', promoteRes.status);
+        } else {
+          console.log('✅ Admin promoted to super_admin');
+        }
+      } catch (promoteErr) {
+        console.warn('Role promotion failed (non-fatal):', promoteErr);
+      }
       
       // Reload admins list
       await loadAdmins(selectedInstitution.slug);
@@ -1188,6 +1208,7 @@ const MultiTenantAdmin = () => {
                                        {/* View Admin Details Button */}
                     <button
                       onClick={() => {
+                        setShowManageAdminsForm(false);
                         setShowAdminDetails(true);
                       }}
                       className="w-full inline-flex items-center justify-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
@@ -1201,6 +1222,7 @@ const MultiTenantAdmin = () => {
                                        {/* Reset Admin Password Button */}
                     <button
                       onClick={() => {
+                        setShowManageAdminsForm(false);
                         setShowPasswordReset(true);
                       }}
                       className="w-full inline-flex items-center justify-center px-4 py-2 border border-yellow-300 shadow-sm text-sm font-medium rounded-md text-yellow-700 bg-white hover:bg-yellow-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-yellow-500"
@@ -1214,6 +1236,7 @@ const MultiTenantAdmin = () => {
                    {/* Add New Admin Button */}
                    <button
                      onClick={() => {
+                       setShowManageAdminsForm(false);
                        setShowAddAdminForm(true);
                        loadAdmins(selectedInstitution.slug);
                      }}
