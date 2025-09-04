@@ -1147,6 +1147,7 @@ app.post('/api/tenants', cors(), authenticateMultiTenantAdmin, async (req, res) 
         id: tenant._id,
         name: tenant.name,
         slug: tenant.slug,
+        address: tenant.address,
         contact_email: tenant.contact_email,
         plan: tenant.plan,
         created_at: tenant.createdAt
