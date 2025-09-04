@@ -600,9 +600,10 @@ export const dataService = {
     
     const user = users.find(u => {
       const usernameMatch = u.username.toLowerCase() === username.toLowerCase();
+      const emailMatch = u.email && u.email.toLowerCase() === username.toLowerCase();
       const passwordMatch = u.password === password;
-      console.log(`🔍 Checking user ${u.username}: usernameMatch=${usernameMatch}, passwordMatch=${passwordMatch}`);
-      return usernameMatch && passwordMatch;
+      console.log(`🔍 Checking user ${u.username}: usernameMatch=${usernameMatch}, emailMatch=${emailMatch}, passwordMatch=${passwordMatch}`);
+      return (usernameMatch || emailMatch) && passwordMatch;
     });
 
     if (user) {

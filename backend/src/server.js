@@ -497,10 +497,13 @@ app.post('/api/auth/login', async (req, res) => {
             return res.status(401).json({ error: 'Invalid institution or institution is suspended' });
         }
         
-        // Find user by username within tenant (case-insensitive)
+        // Find user by username or email within tenant (case-insensitive)
         const user = await User.findOne({ 
             tenant_id: tenant._id,
-            username: { $regex: new RegExp(`^${username}$`, 'i') },
+            $or: [
+                { username: { $regex: new RegExp(`^${username}$`, 'i') } },
+                { email: { $regex: new RegExp(`^${username}$`, 'i') } }
+            ],
             is_active: true
         });
         

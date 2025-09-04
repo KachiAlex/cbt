@@ -187,8 +187,8 @@ const InstitutionLoginPage = () => {
     try {
       setError("");
       
-      // Use dataService to register student
-      const newStudent = await dataService.registerStudent(studentData);
+      // Use dataService to register student with tenant slug
+      const newStudent = await dataService.registerStudent(studentData, institutionData.slug);
       
       if (newStudent) {
         // Auto-login the new student
@@ -457,13 +457,13 @@ function StudentPortalForm({ onLogin, onRegister }) {
         )}
         
                   <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Username</label>
+          <label className="block text-sm font-medium text-gray-700 mb-1">{mode === "login" ? "Username or Email" : "Username"}</label>
                     <input
                       type="text"
             value={formData.username}
             onChange={(e) => setFormData({...formData, username: e.target.value})}
             className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
-            placeholder={mode === "login" ? "Enter your username" : "Choose a username"}
+            placeholder={mode === "login" ? "Enter your username or email" : "Choose a username"}
                       required
                     />
                   </div>
