@@ -1174,11 +1174,32 @@ app.post('/api/tenants', cors(), authenticateMultiTenantAdmin, async (req, res) 
   }
 });
 
-// Update tenant information endpoint
+// Update tenant information endpoint with automatic user creation
 app.put('/api/tenants/:id', cors(), authenticateMultiTenantAdmin, async (req, res) => {
   try {
     const { id } = req.params;
-    const { name, slug, address, contact_phone, plan, timezone } = req.body;
+    const { 
+      name, 
+      slug, 
+      address, 
+      contact_phone, 
+      plan, 
+      timezone,
+      primaryAdmin,
+      adminUsername,
+      adminPassword,
+      adminEmail
+    } = req.body;
+
+    console.log('📝 Edit request received:', { 
+      tenantId: id, 
+      name, 
+      slug, 
+      primaryAdmin, 
+      adminUsername,
+      hasPassword: !!adminPassword,
+      hasEmail: !!adminEmail
+    });
 
     // Validate required fields
     if (!name || !slug) {
@@ -1221,7 +1242,74 @@ app.put('/api/tenants/:id', cors(), authenticateMultiTenantAdmin, async (req, re
     tenant.timezone = timezone || 'UTC';
     tenant.updated_at = new Date();
 
+    // Handle admin user creation if admin details are provided
+    let createdUsers = [];
+    if (primaryAdmin && adminUsername && adminPassword) {
+      console.log('👤 Admin details provided, checking if user exists...');
+      
+      // Check if admin user already exists
+      let existingAdmin = await User.findOne({ 
+        tenant_id: tenant._id,
+        username: adminUsername
+      });
+
+      if (existingAdmin) {
+        console.log('👤 Admin user already exists, updating details...');
+        // Update existing admin user
+        existingAdmin.fullName = primaryAdmin;
+        existingAdmin.email = adminEmail || existingAdmin.email;
+        existingAdmin.phone = contact_phone || existingAdmin.phone;
+        existingAdmin.updatedAt = new Date();
+        
+        // Update password if provided
+        if (adminPassword && adminPassword.length >= 6) {
+          existingAdmin.password = adminPassword;
+        }
+        
+        await existingAdmin.save();
+        createdUsers.push({
+          username: existingAdmin.username,
+          fullName: existingAdmin.fullName,
+          role: existingAdmin.role,
+          action: 'updated'
+        });
+      } else {
+        console.log('👤 Creating new admin user...');
+        // Create new admin user
+        const newAdmin = new User({
+          tenant_id: tenant._id,
+          username: adminUsername,
+          password: adminPassword,
+          fullName: primaryAdmin,
+          email: adminEmail || `${adminUsername}@${tenant.slug}.com`,
+          phone: contact_phone || '',
+          role: 'tenant_admin',
+          is_active: true,
+          createdAt: new Date(),
+          updatedAt: new Date()
+        });
+        
+        await newAdmin.save();
+        createdUsers.push({
+          username: newAdmin.username,
+          fullName: newAdmin.fullName,
+          role: newAdmin.role,
+          action: 'created'
+        });
+        
+        // Update tenant's default_admin field
+        tenant.default_admin = {
+          username: adminUsername,
+          fullName: primaryAdmin,
+          email: adminEmail || `${adminUsername}@${tenant.slug}.com`,
+          phone: contact_phone || ''
+        };
+      }
+    }
+
     await tenant.save();
+
+    console.log('✅ Tenant updated successfully with user management');
 
     res.json({
       message: 'Tenant updated successfully',
@@ -1235,17 +1323,16 @@ app.put('/api/tenants/:id', cors(), authenticateMultiTenantAdmin, async (req, re
         plan: tenant.plan,
         timezone: tenant.timezone,
         suspended: tenant.suspended,
-        default_admin: {
-          username: tenant.default_admin.username,
-          email: tenant.default_admin.email,
-          fullName: tenant.default_admin.fullName,
-          phone: tenant.default_admin.phone
-        }
-      }
+        default_admin: tenant.default_admin
+      },
+      users: createdUsers,
+      userSummary: createdUsers.length > 0 ? 
+        `${createdUsers.length} user(s) ${createdUsers.some(u => u.action === 'created') ? 'created' : 'updated'}` : 
+        'No user changes'
     });
   } catch (err) {
-    console.error('Error updating tenant:', err);
-    res.status(500).json({ error: 'Failed to update tenant' });
+    console.error('❌ Error updating tenant:', err);
+    res.status(500).json({ error: 'Failed to update tenant: ' + err.message });
   }
 });
 
