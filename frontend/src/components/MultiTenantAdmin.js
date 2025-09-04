@@ -303,13 +303,36 @@ const MultiTenantAdmin = () => {
     setShowAddForm(true);
   };
 
+  // Generate slug from institution name
+  const generateSlug = (name) => {
+    if (!name.trim()) return '';
+    
+    return name
+      .toLowerCase()
+      .trim()
+      .replace(/[^a-z0-9\s-]/g, '') // Remove special characters except spaces and hyphens
+      .replace(/\s+/g, '-') // Replace spaces with hyphens
+      .replace(/-+/g, '-') // Replace multiple hyphens with single hyphen
+      .replace(/^-|-$/g, ''); // Remove leading/trailing hyphens
+  };
+
   // Handle form input changes
   const handleInputChange = (e) => {
     const { name, value } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: value
-    }));
+    
+    setFormData(prev => {
+      const updatedForm = {
+        ...prev,
+        [name]: value
+      };
+      
+      // Auto-generate slug when institution name changes
+      if (name === 'name' && value.trim()) {
+        updatedForm.slug = generateSlug(value);
+      }
+      
+      return updatedForm;
+    });
   };
 
   // Handle password reset input changes
@@ -671,16 +694,47 @@ const MultiTenantAdmin = () => {
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700">Institution Slug</label>
-                    <input
-                      type="text"
-                      name="slug"
-                      value={formData.slug}
-                      onChange={handleInputChange}
-                      required
-                      className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
-                      placeholder="Enter institution slug"
-                    />
+                    <label className="block text-sm font-medium text-gray-700">
+                      Institution Slug
+                      <span className="text-xs text-gray-500 ml-2">
+                        {selectedInstitution ? '(Editable)' : '(Auto-generated)'}
+                      </span>
+                    </label>
+                    <div className="mt-1 flex">
+                      <input
+                        type="text"
+                        name="slug"
+                        value={formData.slug}
+                        readOnly={!selectedInstitution} // Only read-only when adding new institution
+                        onChange={selectedInstitution ? handleInputChange : undefined}
+                        className={`flex-1 border border-gray-300 rounded-l-md px-3 py-2 ${
+                          selectedInstitution 
+                            ? 'text-gray-900 bg-white cursor-text' 
+                            : 'text-gray-500 bg-gray-50 cursor-not-allowed'
+                        }`}
+                        placeholder={selectedInstitution ? "Enter institution slug" : "Slug will be generated automatically"}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (formData.name.trim()) {
+                            setFormData(prev => ({
+                              ...prev,
+                              slug: generateSlug(formData.name)
+                            }));
+                          }
+                        }}
+                        className="px-3 py-2 bg-gray-200 border border-gray-300 border-l-0 rounded-r-md hover:bg-gray-300 text-gray-600 text-sm"
+                        title="Regenerate slug from institution name"
+                      >
+                        🔄
+                      </button>
+                    </div>
+                    {formData.slug && (
+                      <p className="mt-1 text-xs text-gray-500">
+                        URL: <span className="font-mono">/{formData.slug}</span>
+                      </p>
+                    )}
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700">Subscription Plan</label>
