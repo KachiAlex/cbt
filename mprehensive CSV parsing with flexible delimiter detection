@@ -1,7 +1,0 @@
-warning: in the working copy of 'frontend/src/App.js', LF will be replaced by CRLF the next time Git touches it
-warning: in the working copy of 'frontend/src/components/MultiTenantAdmin.js', LF will be replaced by CRLF the next time Git touches it
-frontend/src/App.js
-frontend/src/components/CBTAdminPanel.js
-frontend/src/components/MultiTenantAdmin.js
-frontend/src/services/dataService.js
-netlify.toml
