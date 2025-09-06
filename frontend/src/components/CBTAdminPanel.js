@@ -4,6 +4,7 @@ import { saveAs } from 'file-saver';
 import { Document, Packer, Paragraph, TextRun, Table, TableRow, TableCell } from 'docx';
 import mammoth from 'mammoth';
 import dataService from '../services/dataService';
+import ExamManagement from './ExamManagement';
 
 // Helper function to generate unique IDs (compatible with older browsers)
 const generateId = () => Date.now().toString(36) + Math.random().toString(36).substr(2);
@@ -164,9 +165,16 @@ const CBTAdminPanel = ({ user, institution, onLogout }) => {
         setImportError(`Successfully imported ${parsed.length} questions!`);
         setTimeout(() => setImportError(""), 3000);
       } else if (fileExtension === 'xlsx') {
+        console.log('📊 Processing Excel file:', file.name);
         const parsed = await parseQuestionsFromExcel(file);
         if (parsed.length === 0) {
-          throw new Error("No questions found. Please check the Excel format.");
+          throw new Error("No questions found. Please check the Excel format:\n" +
+            "• Column A: Question text\n" +
+            "• Column B: Option A\n" +
+            "• Column C: Option B\n" +
+            "• Column D: Option C\n" +
+            "• Column E: Option D\n" +
+            "• Column F: Correct Answer (A, B, C, or D)");
         }
         
         setQuestions(parsed);
@@ -174,8 +182,8 @@ const CBTAdminPanel = ({ user, institution, onLogout }) => {
           saveQuestionsForExam(selectedExam.id, parsed);
           updateExamQuestionCount(selectedExam.id, parsed.length);
         }
-        setImportError(`Successfully imported ${parsed.length} questions!`);
-        setTimeout(() => setImportError(""), 3000);
+        setImportError(`✅ Successfully imported ${parsed.length} questions from Excel file!`);
+        setTimeout(() => setImportError(""), 5000);
       } else {
         throw new Error("Unsupported file format. Please upload a .docx or .xlsx file.");
       }
@@ -360,7 +368,8 @@ const CBTAdminPanel = ({ user, institution, onLogout }) => {
             { id: "questions", label: "❓ Questions", icon: "❓", adminOnly: false },
             { id: "results", label: "📊 Results", icon: "📊", adminOnly: false },
             { id: "students", label: "👥 Students", icon: "👥", adminOnly: true },
-            { id: "settings", label: "⚙️ Settings", icon: "⚙️", adminOnly: true }
+            { id: "settings", label: "⚙️ Settings", icon: "⚙️", adminOnly: true },
+            { id: "advanced-exams", label: "🔧 Advanced Exams", icon: "🔧", adminOnly: true }
           ].filter(tab => !tab.adminOnly || user.role === 'admin' || user.role === 'super_admin' || user.role === 'managed_admin').map(tab => (
             <button
               key={tab.id}
@@ -388,6 +397,13 @@ const CBTAdminPanel = ({ user, institution, onLogout }) => {
             onEditExam={() => setShowEditExam(true)}
             user={user}
             onViewQuestions={() => setActiveTab("questions")}
+          />
+        )}
+
+        {activeTab === "advanced-exams" && (
+          <ExamManagement 
+            user={user}
+            onBack={() => setActiveTab("exams")}
           />
         )}
 
@@ -516,7 +532,7 @@ function ExamsTab({ exams, onCreateExam, onActivateExam, onDeleteExam, onSelectE
                       {isEnded && <span className="px-2 py-0.5 rounded-full bg-gray-200 text-gray-700">Ended</span>}
                     </div>
                   </div>
-                  <div className="flex gap-2">
+                    <div className="flex gap-2">
                     {/* View Questions Button - Available to all users */}
                     <button
                       onClick={() => {
@@ -535,30 +551,30 @@ function ExamsTab({ exams, onCreateExam, onActivateExam, onDeleteExam, onSelectE
                     {/* Admin-only buttons */}
                     {isAdmin && (
                       <>
-                        <button
-                          onClick={() => onActivateExam(exam.id)}
-                          className={`px-3 py-1 rounded-lg text-xs ${
-                            exam.isActive 
-                              ? "bg-orange-600 text-white hover:bg-orange-700" 
-                              : "bg-blue-600 text-white hover:bg-blue-700"
-                          }`}
-                        >
-                          {exam.isActive ? "Deactivate" : "Activate"}
-                        </button>
-                        <button
-                          onClick={() => onEditExam()}
-                          className="px-3 py-1 bg-blue-600 text-white rounded-lg text-xs hover:bg-blue-700"
-                        >
-                          Edit
-                        </button>
-                        <button
-                          onClick={() => onDeleteExam(exam.id)}
-                          className="px-3 py-1 bg-red-600 text-white rounded-lg text-xs hover:bg-red-700"
-                        >
-                          Delete
-                        </button>
+                      <button
+                        onClick={() => onActivateExam(exam.id)}
+                        className={`px-3 py-1 rounded-lg text-xs ${
+                          exam.isActive 
+                            ? "bg-orange-600 text-white hover:bg-orange-700" 
+                            : "bg-blue-600 text-white hover:bg-blue-700"
+                        }`}
+                      >
+                        {exam.isActive ? "Deactivate" : "Activate"}
+                      </button>
+                      <button
+                        onClick={() => onEditExam()}
+                        className="px-3 py-1 bg-blue-600 text-white rounded-lg text-xs hover:bg-blue-700"
+                      >
+                        Edit
+                      </button>
+                      <button
+                        onClick={() => onDeleteExam(exam.id)}
+                        className="px-3 py-1 bg-red-600 text-white rounded-lg text-xs hover:bg-red-700"
+                      >
+                        Delete
+                      </button>
                       </>
-                    )}
+                  )}
                   </div>
                 </div>
               </div>
@@ -611,13 +627,13 @@ function QuestionsTab({ selectedExam, questions, setQuestions, onFileUpload, imp
               <span>📅 Created: {new Date(selectedExam.createdAt).toLocaleDateString()}</span>
               {selectedExam.isActive && <span className="px-2 py-0.5 rounded-full bg-green-100 text-green-700">🟢 Active</span>}
             </div>
-          </div>
-          <button
-            onClick={onBackToExams}
+        </div>
+        <button
+          onClick={onBackToExams}
             className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm"
-          >
-            ← Back to Exams
-          </button>
+        >
+          ← Back to Exams
+        </button>
         </div>
       </div>
 
@@ -676,10 +692,12 @@ function QuestionsTab({ selectedExam, questions, setQuestions, onFileUpload, imp
               className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
             />
             {importError && (
-              <div className={`mt-3 p-2 rounded-lg text-sm ${
-                importError.includes('Successfully') ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
+              <div className={`mt-3 p-3 rounded-lg text-sm ${
+                importError.includes('Successfully') || importError.includes('✅') 
+                  ? 'bg-green-100 text-green-700 border border-green-200' 
+                  : 'bg-red-100 text-red-700 border border-red-200'
               }`}>
-                {importError}
+                <div className="whitespace-pre-line">{importError}</div>
               </div>
             )}
           </div>
@@ -976,12 +994,12 @@ function SettingsTab({ onBackToExams, institution, user }) {
 
       await response.json();
       
-      showToast('Logo updated successfully!', 'success');
-      // Clear the form
-      setSelectedLogoFile(null);
-      setLogoUrl('');
-      setLogoUrlInput('');
-      setLogoModalOpen(false);
+        showToast('Logo updated successfully!', 'success');
+        // Clear the form
+        setSelectedLogoFile(null);
+        setLogoUrl('');
+        setLogoUrlInput('');
+        setLogoModalOpen(false);
     } catch (error) {
       console.error('Logo update failed:', error);
       setLogoError(error.message);
@@ -1058,7 +1076,7 @@ function SettingsTab({ onBackToExams, institution, user }) {
           <div className="bg-white rounded-xl p-6 w-full max-w-md mx-4">
             <div className="flex justify-between items-center mb-4">
               <div>
-                <h3 className="text-lg font-bold">Update Institution Logo</h3>
+              <h3 className="text-lg font-bold">Update Institution Logo</h3>
                 <p className="text-sm text-gray-600 mt-1">Upload an image file or provide a URL</p>
               </div>
               <button
@@ -1656,51 +1674,124 @@ function createQuestionObject(questionText, options, correctAnswer) {
 
 async function parseQuestionsFromExcel(file) {
   try {
+    console.log('🔍 Starting Excel import for file:', file.name);
     const arrayBuffer = await file.arrayBuffer();
     const workbook = new ExcelJS.Workbook();
     await workbook.xlsx.load(arrayBuffer);
     
-    const worksheet = workbook.getWorksheet('Questions'); // Assuming worksheet name is 'Questions'
-    if (!worksheet) throw new Error('No worksheet named "Questions" found in Excel file');
-
+    // Get all worksheet names for debugging
+    const worksheetNames = workbook.worksheets.map(ws => ws.name);
+    console.log('📋 Available worksheets:', worksheetNames);
+    
+    // Try to find the right worksheet - check multiple possibilities
+    let worksheet = null;
+    const possibleNames = ['Questions', 'Sheet1', 'Sheet2', 'Sheet3', 'Questions Sheet', 'Exam Questions'];
+    
+    for (const name of possibleNames) {
+      worksheet = workbook.getWorksheet(name);
+      if (worksheet) {
+        console.log('✅ Found worksheet:', name);
+        break;
+      }
+    }
+    
+    // If no specific worksheet found, use the first one
+    if (!worksheet) {
+      worksheet = workbook.getWorksheet(1);
+      if (worksheet) {
+        console.log('✅ Using first worksheet:', worksheet.name);
+      }
+    }
+    
+    if (!worksheet) {
+      throw new Error('No worksheet found in Excel file');
+    }
+    
+    console.log('📊 Worksheet info:', {
+      name: worksheet.name,
+      rowCount: worksheet.rowCount,
+      columnCount: worksheet.columnCount
+    });
+    
     const questions = [];
-    let rowNumber = 2; // Start from row 2 to skip header
-
-    while (true) {
+    let startRow = 1;
+    
+    // Check if first row is a header
+    const firstRow = worksheet.getRow(1);
+    const firstCellValue = firstRow.getCell(1).value?.toString().toLowerCase() || '';
+    if (firstCellValue.includes('question') || firstCellValue.includes('option')) {
+      startRow = 2;
+      console.log('📝 Detected header row, starting from row 2');
+    }
+    
+    // Process each row
+    for (let rowNumber = startRow; rowNumber <= worksheet.rowCount; rowNumber++) {
       const row = worksheet.getRow(rowNumber);
-      if (!row) break;
-
-      const questionText = row.getCell(1).value;
-      const optionA = row.getCell(2).value;
-      const optionB = row.getCell(3).value;
-      const optionC = row.getCell(4).value;
-      const optionD = row.getCell(5).value;
-      const correctAnswer = row.getCell(6).value;
-
-      if (!questionText || !optionA || !optionB || !optionC || !optionD || !correctAnswer) {
-        rowNumber++;
-        continue;
-      }
-
-      const answerIndex = { 'A': 0, 'B': 1, 'C': 2, 'D': 3 }[correctAnswer.toString().toUpperCase()];
-      if (answerIndex === undefined) {
-        rowNumber++;
-        continue;
-      }
-
-      questions.push({
-        id: Date.now().toString(36) + Math.random().toString(36).substr(2),
-        text: questionText.toString().trim(),
-        options: [optionA.toString().trim(), optionB.toString().trim(), optionC.toString().trim(), optionD.toString().trim()],
-        correctIndex: answerIndex
+      
+      // Get cell values
+      const questionText = row.getCell(1).value?.toString().trim();
+      const optionA = row.getCell(2).value?.toString().trim();
+      const optionB = row.getCell(3).value?.toString().trim();
+      const optionC = row.getCell(4).value?.toString().trim();
+      const optionD = row.getCell(5).value?.toString().trim();
+      const correctAnswer = row.getCell(6).value?.toString().trim();
+      
+      console.log(`🔍 Row ${rowNumber}:`, {
+        question: questionText?.substring(0, 50) + '...',
+        optionA: optionA?.substring(0, 20) + '...',
+        optionB: optionB?.substring(0, 20) + '...',
+        optionC: optionC?.substring(0, 20) + '...',
+        optionD: optionD?.substring(0, 20) + '...',
+        answer: correctAnswer
       });
-      rowNumber++;
+      
+      // Skip empty rows
+      if (!questionText || questionText.length < 10) {
+        console.log(`⏭️ Skipping row ${rowNumber} - no question text`);
+        continue;
+      }
+      
+      // Check if we have all required fields
+      if (!optionA || !optionB || !optionC || !optionD || !correctAnswer) {
+        console.log(`⏭️ Skipping row ${rowNumber} - missing options or answer`);
+        continue;
+      }
+      
+      // Convert answer to index (A=0, B=1, C=2, D=3)
+      const answerIndex = { 'A': 0, 'B': 1, 'C': 2, 'D': 3 }[correctAnswer.toUpperCase()];
+      if (answerIndex === undefined) {
+        console.log(`⏭️ Skipping row ${rowNumber} - invalid answer: ${correctAnswer}`);
+        continue;
+      }
+      
+      // Create question object
+      const question = {
+        id: Date.now().toString(36) + Math.random().toString(36).substr(2),
+        text: questionText,
+        options: [optionA, optionB, optionC, optionD],
+        correctIndex: answerIndex
+      };
+      
+      questions.push(question);
+      console.log(`✅ Added question ${questions.length}: ${questionText.substring(0, 50)}...`);
+    }
+    
+    console.log(`🎉 Successfully parsed ${questions.length} questions from Excel file`);
+    
+    if (questions.length === 0) {
+      throw new Error('No valid questions found in Excel file. Please check the format:\n' +
+        'Column A: Question text\n' +
+        'Column B: Option A\n' +
+        'Column C: Option B\n' +
+        'Column D: Option C\n' +
+        'Column E: Option D\n' +
+        'Column F: Correct Answer (A, B, C, or D)');
     }
     
     return questions;
   } catch (error) {
-    console.error('Error parsing Excel file:', error);
-    throw new Error('Failed to parse Excel file. Please check the format.');
+    console.error('❌ Error parsing Excel file:', error);
+    throw new Error(`Failed to parse Excel file: ${error.message}`);
   }
 }
 

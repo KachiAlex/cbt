@@ -4,6 +4,17 @@ import MultiTenantAdmin from "./components/MultiTenantAdmin";
 import MultiTenantAdminLogin from "./components/MultiTenantAdminLogin";
 import CBTExam from "./components/CBTExam";
 import StudentExam from "./components/StudentExam";
+import ConnectionStatus from "./components/ConnectionStatus";
+import SystemDiagnostics from "./components/SystemDiagnostics";
+import AdminDashboardStats from "./components/AdminDashboardStats";
+import PerformanceAnalytics from "./components/PerformanceAnalytics";
+import RealTimeDataProvider from "./components/RealTimeDataProvider";
+import ValidatedInput, { EmailInput, PasswordInput } from "./components/ValidatedInput";
+import { useUserLoginForm, useUserRegistrationForm } from "./hooks/useFormValidation";
+import { ToastProvider, useToast } from "./components/Toast";
+import { useLoadingState } from "./hooks/useLoadingState";
+import LoadingSpinner, { PageSpinner, ButtonSpinner } from "./components/LoadingSpinner";
+import { CardSkeleton, StatsSkeleton } from "./components/SkeletonLoader";
 import dataService from "./services/dataService";
 
 const LS_KEYS = {
@@ -33,6 +44,7 @@ function Header({user, onLogout, onLogoClick}){
           </button>
         </div>
         <div className="flex items-center gap-3">
+          <ConnectionStatus className="hidden sm:block" />
           {user ? (
             <>
               <button onClick={onLogout} className="px-3 py-1.5 rounded-xl bg-gray-800 text-white text-sm hover:bg-black">Logout</button>
@@ -77,7 +89,21 @@ function AdminLogin({onLogin, onBack}){
       }
     } catch (error) {
       console.error('❌ Error during admin login:', error);
-      setError(`Login failed: ${error.message || 'Please try again.'}`);
+      
+      // Provide more specific error messages
+      let errorMessage = 'Login failed. Please try again.';
+      
+      if (error.message.includes('Failed to fetch')) {
+        errorMessage = 'Cannot connect to server. Please check your internet connection.';
+      } else if (error.message.includes('timeout')) {
+        errorMessage = 'Login request timed out. Please try again.';
+      } else if (error.message.includes('Invalid admin credentials')) {
+        errorMessage = 'Invalid admin credentials. Please check your username and password.';
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+      
+      setError(errorMessage);
     } finally {
       setIsLoading(false);
     }
@@ -175,32 +201,30 @@ function AdminLogin({onLogin, onBack}){
 
 function Login({onLogin}){
   const [mode, setMode] = useState("login"); // "login" or "register"
-  const [username, setUsername] = useState("");
-  const [password, setPassword] = useState("");
-  const [fullName, setFullName] = useState("");
-  const [email, setEmail] = useState("");
-  const [confirmPassword, setConfirmPassword] = useState("");
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const [showLoginPassword, setShowLoginPassword] = useState(false);
-  const [showRegisterPassword, setShowRegisterPassword] = useState(false);
-  const [showRegisterConfirm, setShowRegisterConfirm] = useState(false);
+  
+  // Use validation hooks
+  const loginForm = useUserLoginForm({ username: "", password: "" });
+  const registrationForm = useUserRegistrationForm({ 
+    username: "", 
+    password: "", 
+    fullName: "", 
+    email: "", 
+    confirmPassword: "" 
+  });
 
   const handleLogin = async (e) => {
     e.preventDefault();
     setError("");
-    setIsLoading(true);
     
-    if (!username || !password) {
-      setError("Please enter both username and password");
-      setIsLoading(false);
-      return;
-    }
+    const success = await loginForm.handleSubmit(async (formData) => {
+    setIsLoading(true);
 
     try {
       // Only student authentication - admin access is separate
-      const user = await authenticateUser(username, password);
+        const user = await authenticateUser(formData.username, formData.password);
       if (user && user.role === "student") {
         onLogin(user);
       } else if (user && user.role === "admin") {
@@ -210,10 +234,25 @@ function Login({onLogin}){
       }
     } catch (error) {
       console.error('Error during student login:', error);
-      setError("Login failed. Please try again.");
+        
+        // Provide more specific error messages
+        let errorMessage = 'Login failed. Please try again.';
+        
+        if (error.message.includes('Failed to fetch')) {
+          errorMessage = 'Cannot connect to server. Please check your internet connection.';
+        } else if (error.message.includes('timeout')) {
+          errorMessage = 'Login request timed out. Please try again.';
+        } else if (error.message.includes('Invalid username or password')) {
+          errorMessage = 'Invalid username or password. Please check your credentials.';
+        } else if (error.message) {
+          errorMessage = error.message;
+        }
+        
+        setError(errorMessage);
     } finally {
       setIsLoading(false);
     }
+    });
   };
 
   const handleRegister = async (e) => {
@@ -221,47 +260,44 @@ function Login({onLogin}){
     setError("");
     setSuccess("");
 
-    // Validation
-    if (!username || !password || !fullName || !email) {
-      setError("Please fill in all required fields");
-      return;
-    }
-
-    if (password !== confirmPassword) {
+    const success = await registrationForm.handleSubmit(async (formData) => {
+      try {
+        // Additional validation for password confirmation
+        if (formData.password !== formData.confirmPassword) {
       setError("Passwords do not match");
       return;
     }
 
-    if (password.length < 6) {
-      setError("Password must be at least 6 characters long");
-      return;
-    }
-
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(email)) {
-      setError("Please enter a valid email address");
-      return;
-    }
-
-    try {
       const studentData = {
-        username,
-        password,
-        fullName,
-        email
+          username: formData.username,
+          password: formData.password,
+          fullName: formData.fullName,
+          email: formData.email
       };
       
       await registerStudent(studentData);
       setSuccess("Registration successful! You can now login with your credentials.");
       setMode("login");
-      setUsername("");
-      setPassword("");
-      setFullName("");
-      setEmail("");
-      setConfirmPassword("");
+        registrationForm.resetForm();
     } catch (err) {
-      setError(err.message);
-    }
+        console.error('Error during student registration:', err);
+        
+        // Provide more specific error messages
+        let errorMessage = err.message || 'Registration failed. Please try again.';
+        
+        if (err.message.includes('Failed to fetch')) {
+          errorMessage = 'Cannot connect to server. Please check your internet connection.';
+        } else if (err.message.includes('timeout')) {
+          errorMessage = 'Registration request timed out. Please try again.';
+        } else if (err.message.includes('Username already exists')) {
+          errorMessage = 'Username already exists. Please choose a different username.';
+        } else if (err.message.includes('Email already registered')) {
+          errorMessage = 'Email already registered. Please use a different email address.';
+        }
+        
+        setError(errorMessage);
+      }
+    });
   };
 
   return (
@@ -291,61 +327,42 @@ function Login({onLogin}){
 
       {mode === "login" ? (
         <form onSubmit={handleLogin} className="space-y-4">
-          <div>
-            <label htmlFor="student-username" className="block text-sm mb-1">Username</label>
-            <input 
-              id="student-username"
+          <ValidatedInput
               name="username"
-              type="text"
-              value={username} 
-              onChange={e=>setUsername(e.target.value)} 
-              className="w-full border rounded-xl px-3 py-2" 
+            label="Username"
+            value={loginForm.formData.username}
+            onChange={loginForm.updateField}
+            onBlur={() => loginForm.touchField('username')}
               placeholder="Enter your username"
               autoComplete="username"
-            />
-          </div>
-          <div>
-            <label htmlFor="student-password" className="block text-sm mb-1">Password</label>
-            <div className="relative">
-              <input 
-                id="student-password"
+            error={loginForm.getFieldError('username')}
+            touched={loginForm.touched.username}
+            required
+          />
+          
+          <PasswordInput
                 name="password"
-                type={showLoginPassword ? "text" : "password"} 
-                value={password} 
-                onChange={e=>setPassword(e.target.value)} 
-                className="w-full border rounded-xl px-3 py-2 pr-10" 
+            label="Password"
+            value={loginForm.formData.password}
+            onChange={loginForm.updateField}
+            onBlur={() => loginForm.touchField('password')}
                 placeholder="Enter your password"
                 autoComplete="current-password"
-              />
-              <button
-                type="button"
-                onClick={()=>setShowLoginPassword(s=>!s)}
-                className="absolute inset-y-0 right-2 text-xs text-gray-500"
-                aria-label={showLoginPassword ? "Hide password" : "Show password"}
-              >
-                {showLoginPassword ? (
-                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" className="w-5 h-5">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M3.98 8.223A10.477 10.477 0 001.934 12C3.226 15.338 6.244 18 12 18c1.91 0 3.547-.276 4.93-.757M6.228 6.228A10.45 10.45 0 0112 6c5.756 0 8.774 2.662 10.066 6a10.523 10.523 0 01-4.26 4.52M6.228 6.228L3 3m3.228 3.228l3.65 3.65m7.894 7.894L21 21m-3.228-3.228l-3.65-3.65m0 0a3 3 0 10-4.243-4.243m4.243 4.243L9.88 9.88" />
-                  </svg>
-                ) : (
-                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" className="w-5 h-5">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.64 0 8.577 3.01 9.964 7.183.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5-4.64 0-8.577-3.01-9.964-7.178z" />
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                  </svg>
-                )}
-              </button>
-            </div>
-          </div>
+            error={loginForm.getFieldError('password')}
+            touched={loginForm.touched.password}
+            required
+          />
+          
           <button 
             type="submit"
-            disabled={isLoading}
+            disabled={isLoading || loginForm.isSubmitting}
             className={`w-full rounded-xl py-2.5 font-semibold ${
-              isLoading 
+              isLoading || loginForm.isSubmitting
                 ? 'bg-gray-400 cursor-not-allowed text-white' 
                 : 'bg-emerald-600 hover:bg-emerald-700 text-white'
             }`}
           >
-            {isLoading ? (
+            {isLoading || loginForm.isSubmitting ? (
               <span className="flex items-center justify-center">
                 <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                   <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
@@ -360,111 +377,88 @@ function Login({onLogin}){
         </form>
       ) : (
         <form onSubmit={handleRegister} className="space-y-4">
-          <div>
-            <label htmlFor="student-fullname" className="block text-sm mb-1">Full Name *</label>
-            <input 
-              id="student-fullname"
+          <ValidatedInput
               name="fullName"
-              type="text"
-              value={fullName} 
-              onChange={e=>setFullName(e.target.value)} 
-              className="w-full border rounded-xl px-3 py-2" 
+            label="Full Name"
+            value={registrationForm.formData.fullName}
+            onChange={registrationForm.updateField}
+            onBlur={() => registrationForm.touchField('fullName')}
               placeholder="Enter your full name"
               autoComplete="name"
-            />
-          </div>
-          <div>
-            <label htmlFor="student-email" className="block text-sm mb-1">Email *</label>
-            <input 
-              id="student-email"
+            error={registrationForm.getFieldError('fullName')}
+            touched={registrationForm.touched.fullName}
+            required
+          />
+          
+          <EmailInput
               name="email"
-              type="email" 
-              value={email} 
-              onChange={e=>setEmail(e.target.value)} 
-              className="w-full border rounded-xl px-3 py-2" 
+            label="Email"
+            value={registrationForm.formData.email}
+            onChange={registrationForm.updateField}
+            onBlur={() => registrationForm.touchField('email')}
               placeholder="Enter your email address"
-              autoComplete="email"
-            />
-          </div>
-          <div>
-            <label htmlFor="student-register-username" className="block text-sm mb-1">Username *</label>
-            <input 
-              id="student-register-username"
+            error={registrationForm.getFieldError('email')}
+            touched={registrationForm.touched.email}
+            required
+          />
+          
+          <ValidatedInput
               name="username"
-              type="text"
-              value={username} 
-              onChange={e=>setUsername(e.target.value)} 
-              className="w-full border rounded-xl px-3 py-2" 
+            label="Username"
+            value={registrationForm.formData.username}
+            onChange={registrationForm.updateField}
+            onBlur={() => registrationForm.touchField('username')}
               placeholder="Choose a username"
               autoComplete="username"
-            />
-          </div>
-          <div>
-            <label htmlFor="student-register-password" className="block text-sm mb-1">Password *</label>
-            <div className="relative">
-              <input 
-                id="student-register-password"
+            error={registrationForm.getFieldError('username')}
+            touched={registrationForm.touched.username}
+            required
+          />
+          
+          <PasswordInput
                 name="password"
-                type={showRegisterPassword ? "text" : "password"} 
-                value={password} 
-                onChange={e=>setPassword(e.target.value)} 
-                className="w-full border rounded-xl px-3 py-2 pr-10" 
-                placeholder="Choose a password (min 6 characters)"
-                autoComplete="new-password"
-              />
-              <button
-                type="button"
-                onClick={()=>setShowRegisterPassword(s=>!s)}
-                className="absolute inset-y-0 right-2 text-xs text-gray-500"
-                aria-label={showRegisterPassword ? "Hide password" : "Show password"}
-              >
-                {showRegisterPassword ? (
-                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" className="w-5 h-5">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M3.98 8.223A10.477 10.477 0 001.934 12C3.226 15.338 6.244 18 12 18c1.91 0 3.547-.276 4.93-.757M6.228 6.228A10.45 10.45 0 0112 6c5.756 0 8.774 2.662 10.066 6a10.523 10.523 0 01-4.26 4.52M6.228 6.228L3 3m3.228 3.228l3.65 3.65m7.894 7.894L21 21m-3.228-3.228l-3.65-3.65m0 0a3 3 0 10-4.243-4.243m4.243 4.243L9.88 9.88" />
-                  </svg>
-                ) : (
-                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" className="w-5 h-5">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.64 0 8.577 3.01 9.964 7.183.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5-4.64 0-8.577-3.01-9.964-7.178z" />
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                  </svg>
-                )}
-              </button>
-            </div>
-          </div>
-          <div>
-            <label htmlFor="student-confirm-password" className="block text-sm mb-1">Confirm Password *</label>
-            <div className="relative">
-              <input 
-                id="student-confirm-password"
+            label="Password"
+            value={registrationForm.formData.password}
+            onChange={registrationForm.updateField}
+            onBlur={() => registrationForm.touchField('password')}
+            placeholder="Choose a password (min 8 characters)"
+            error={registrationForm.getFieldError('password')}
+            touched={registrationForm.touched.password}
+            required
+          />
+          
+          <PasswordInput
                 name="confirmPassword"
-                type={showRegisterConfirm ? "text" : "password"} 
-                value={confirmPassword} 
-                onChange={e=>setConfirmPassword(e.target.value)} 
-                className="w-full border rounded-xl px-3 py-2 pr-10" 
+            label="Confirm Password"
+            value={registrationForm.formData.confirmPassword}
+            onChange={registrationForm.updateField}
+            onBlur={() => registrationForm.touchField('confirmPassword')}
                 placeholder="Confirm your password"
-                autoComplete="new-password"
+            error={registrationForm.getFieldError('confirmPassword')}
+            touched={registrationForm.touched.confirmPassword}
+            required
               />
+          
               <button
-                type="button"
-                onClick={()=>setShowRegisterConfirm(s=>!s)}
-                className="absolute inset-y-0 right-2 text-xs text-gray-500"
-                aria-label={showRegisterConfirm ? "Hide password" : "Show password"}
-              >
-                {showRegisterConfirm ? (
-                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" className="w-5 h-5">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M3.98 8.223A10.477 10.477 0 001.934 12C3.226 15.338 6.244 18 12 18c1.91 0 3.547-.276 4.93-.757M6.228 6.228A10.45 10.45 0 0112 6c5.756 0 8.774 2.662 10.066 6a10.523 10.523 0 01-4.26 4.52M6.228 6.228L3 3m3.228 3.228l3.65 3.65m7.894 7.894L21 21m-3.228-3.228l-3.65-3.65m0 0a3 3 0 10-4.243-4.243m4.243 4.243L9.88 9.88" />
+            type="submit"
+            disabled={registrationForm.isSubmitting}
+            className={`w-full rounded-xl py-2.5 font-semibold ${
+              registrationForm.isSubmitting
+                ? 'bg-gray-400 cursor-not-allowed text-white' 
+                : 'bg-blue-600 hover:bg-blue-700 text-white'
+            }`}
+          >
+            {registrationForm.isSubmitting ? (
+              <span className="flex items-center justify-center">
+                <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                   </svg>
+                Registering...
+              </span>
                 ) : (
-                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" className="w-5 h-5">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.64 0 8.577 3.01 9.964 7.183.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5-4.64 0-8.577-3.01-9.964-7.178z" />
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                  </svg>
+              'Register as Student'
                 )}
-              </button>
-            </div>
-          </div>
-          <button className="w-full bg-blue-600 hover:bg-blue-700 text-white rounded-xl py-2.5 font-semibold">
-            Register as Student
           </button>
         </form>
       )}
@@ -492,50 +486,11 @@ function AdminPanel({ user, tenant, onCBTView }) {
         </p>
             </div>
 
-      {/* Quick Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="bg-white rounded-lg shadow p-6">
-          <div className="flex items-center">
-            <div className="p-2 bg-blue-100 rounded-lg">
-              <svg className="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-              </svg>
-              </div>
-            <div className="ml-4">
-              <p className="text-sm font-medium text-gray-600">Active Exams</p>
-              <p className="text-2xl font-semibold text-gray-900">1</p>
-                        </div>
-                      </div>
-                      </div>
+      {/* Connection Status */}
+      <ConnectionStatus showDetails={true} className="mb-6" />
 
-        <div className="bg-white rounded-lg shadow p-6">
-          <div className="flex items-center">
-            <div className="p-2 bg-green-100 rounded-lg">
-              <svg className="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0z" />
-              </svg>
-                      </div>
-            <div className="ml-4">
-              <p className="text-sm font-medium text-gray-600">Total Students</p>
-              <p className="text-2xl font-semibold text-gray-900">0</p>
-                    </div>
-                </div>
-        </div>
-
-        <div className="bg-white rounded-lg shadow p-6">
-          <div className="flex items-center">
-            <div className="p-2 bg-purple-100 rounded-lg">
-              <svg className="w-6 h-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-              </svg>
-          </div>
-            <div className="ml-4">
-              <p className="text-sm font-medium text-gray-600">Exam Results</p>
-              <p className="text-2xl font-semibold text-gray-900">0</p>
-              </div>
-            </div>
-                    </div>
-                  </div>
+      {/* Enhanced Dashboard Statistics */}
+      <AdminDashboardStats user={user} tenant={tenant} />
 
       {/* Tab Navigation */}
       <div className="bg-white rounded-lg shadow">
@@ -572,6 +527,16 @@ function AdminPanel({ user, tenant, onCBTView }) {
               User Management
                   </button>
                   <button
+              onClick={() => setActiveTab('analytics')}
+              className={`py-4 px-1 border-b-2 font-medium text-sm ${
+                activeTab === 'analytics'
+                  ? 'border-blue-500 text-blue-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              }`}
+            >
+              Analytics
+                  </button>
+                  <button
               onClick={() => setActiveTab('settings')}
               className={`py-4 px-1 border-b-2 font-medium text-sm ${
                 activeTab === 'settings'
@@ -581,49 +546,59 @@ function AdminPanel({ user, tenant, onCBTView }) {
             >
               Settings
                   </button>
+                  <button
+              onClick={() => setActiveTab('diagnostics')}
+              className={`py-4 px-1 border-b-2 font-medium text-sm ${
+                activeTab === 'diagnostics'
+                  ? 'border-blue-500 text-blue-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              }`}
+            >
+              Diagnostics
+                  </button>
           </nav>
                 </div>
 
         <div className="p-6">
           {activeTab === 'dashboard' && (
             <div className="space-y-6">
-              <h3 className="text-lg font-medium text-gray-900">Quick Actions</h3>
-              
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-6">
+                <h4 className="font-medium text-blue-900 mb-3 text-lg">Welcome to Your CBT Dashboard</h4>
+                <p className="text-blue-800 mb-4">
+                  Your comprehensive statistics and system overview are displayed above. Use the tabs below to manage different aspects of your CBT system.
+                </p>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="bg-white rounded-lg p-4 border border-blue-200">
+                    <h5 className="font-medium text-blue-900 mb-2">📝 Exam Management</h5>
+                    <p className="text-sm text-blue-700 mb-3">Create and manage exams, upload questions, and configure settings.</p>
                   <button
                   onClick={onCBTView}
-                  className="flex items-center justify-center p-6 border-2 border-dashed border-gray-300 rounded-lg hover:border-blue-400 hover:bg-blue-50 transition-colors"
-                >
-                  <div className="text-center">
-                    <div className="text-4xl mb-3">📝</div>
-                    <div className="font-medium text-lg">Manage CBT Exams</div>
-                    <div className="text-sm text-gray-500 mt-1">
-                      Upload questions, manage exams, view results
-                </div>
-              </div>
+                      className="text-blue-600 hover:text-blue-800 font-medium text-sm"
+                    >
+                      Go to CBT Management →
                 </button>
-
+                  </div>
+                  <div className="bg-white rounded-lg p-4 border border-blue-200">
+                    <h5 className="font-medium text-blue-900 mb-2">👥 User Management</h5>
+                    <p className="text-sm text-blue-700 mb-3">View registered students, manage permissions, and track activity.</p>
             <button 
                   onClick={() => setActiveTab('users')}
-                  className="flex items-center justify-center p-6 border-2 border-dashed border-gray-300 rounded-lg hover:border-green-400 hover:bg-green-50 transition-colors"
-                >
-                  <div className="text-center">
-                    <div className="text-4xl mb-3">👥</div>
-                    <div className="font-medium text-lg">Manage Users</div>
-                    <div className="text-sm text-gray-500 mt-1">
-                      Add students, manage permissions
+                      className="text-blue-600 hover:text-blue-800 font-medium text-sm"
+                    >
+                      Manage Users →
+                    </button>
           </div>
               </div>
-              </button>
             </div>
 
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                <h4 className="font-medium text-blue-900 mb-2">Getting Started</h4>
-                <ul className="text-sm text-blue-800 space-y-1">
-                  <li>• Upload your exam questions using Microsoft Word (.docx) format</li>
-                  <li>• Set exam title and configure settings</li>
-                  <li>• Students can then take the exam and view results</li>
-                  <li>• Export results to Excel or Word for analysis</li>
+              <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+                <h4 className="font-medium text-green-900 mb-2">Getting Started Guide</h4>
+                <ul className="text-sm text-green-800 space-y-1">
+                  <li>• Upload your exam questions using Microsoft Word (.docx) or Excel (.xlsx) format</li>
+                  <li>• Set exam title and configure settings in the CBT Management tab</li>
+                  <li>• Students can register and take exams through the student portal</li>
+                  <li>• View real-time statistics and export results for analysis</li>
+                  <li>• Monitor system health and connection status at the top of the dashboard</li>
                 </ul>
               </div>
         </div>
@@ -657,6 +632,13 @@ function AdminPanel({ user, tenant, onCBTView }) {
                   <li>• View student exam history</li>
                 </ul>
             </div>
+        </div>
+      )}
+
+          {activeTab === 'analytics' && (
+            <div className="space-y-6">
+              <h3 className="text-lg font-medium text-gray-900">Performance Analytics</h3>
+              <PerformanceAnalytics />
         </div>
       )}
 
@@ -891,12 +873,36 @@ function App() {
     // Check if this is a multi-tenant admin route
     if (window.location.pathname === '/admin' || window.location.pathname === '/admin/' || urlParams.get('admin') === 'true') {
       console.log('🏢 Multi-tenant admin route detected');
+      console.log('🔍 Current URL:', window.location.href);
+      console.log('🔍 Pathname:', window.location.pathname);
+      console.log('🔍 Search params:', window.location.search);
       
       // Check if multi-tenant admin is authenticated
       const token = localStorage.getItem('multi_tenant_admin_token');
-      if (token) {
+      const refreshToken = localStorage.getItem('multi_tenant_admin_refresh_token');
+      const userData = localStorage.getItem('multi_tenant_admin_user');
+      
+      console.log('🔐 Authentication check:', {
+        hasToken: !!token,
+        hasRefreshToken: !!refreshToken,
+        hasUserData: !!userData,
+        tokenLength: token?.length || 0
+      });
+      
+      if (token && userData) {
+        try {
+          const user = JSON.parse(userData);
+          console.log('✅ Multi-tenant admin authenticated:', user.username);
         setView("multi-tenant-admin");
+        } catch (error) {
+          console.error('❌ Error parsing user data:', error);
+          localStorage.removeItem('multi_tenant_admin_token');
+          localStorage.removeItem('multi_tenant_admin_refresh_token');
+          localStorage.removeItem('multi_tenant_admin_user');
+          setView("multi-tenant-admin-login");
+        }
       } else {
+        console.log('❌ No valid authentication found, showing login');
         setView("multi-tenant-admin-login");
       }
       return; // Exit early for admin routes
@@ -1115,6 +1121,7 @@ function App() {
   }
 
     return (
+    <RealTimeDataProvider>
     <div className="min-h-screen bg-gray-50 text-gray-800">
       {/* Hide header on institution pages to avoid duplicate branding */}
       {view !== "institution-login" && currentView !== "cbt-admin" && currentView !== "student-exam" && (
@@ -1183,10 +1190,14 @@ function App() {
             <span className="opacity-30 hover:opacity-100 transition-opacity cursor-help" title="Admin Access: Click logo or press Ctrl+Alt+A">
               🔐
             </span>
+              <span className="ml-2 opacity-30 hover:opacity-100 transition-opacity cursor-help" title="Multi-Tenant Admin: Click to access">
+                <a href="/admin" className="text-blue-400 hover:text-blue-600">🏢</a>
+              </span>
     </div>
         )}
       </footer>
     </div>
+    </RealTimeDataProvider>
   );
 }
 
@@ -1206,8 +1217,8 @@ async function saveUsers(users) {
     return await dataService.saveUsers(users);
   } catch (error) {
     console.error('Error saving users:', error);
-        return false;
-      }
+    return false;
+  }
 }
 
 async function authenticateUser(username, password) {
@@ -1245,8 +1256,8 @@ async function authenticateUser(username, password) {
       console.log('❌ Authentication failed - user not found or wrong password');
       console.log('🔍 Searched for:', username.toLowerCase());
       console.log('🔍 Available users:', users.map(u => u.username.toLowerCase()));
-    return null;
-  }
+      return null;
+    }
   } catch (error) {
     console.error('❌ Authentication error:', error);
     return null;

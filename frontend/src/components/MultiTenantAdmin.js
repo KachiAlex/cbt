@@ -235,14 +235,14 @@ export default function MultiTenantAdmin() {
     }
   };
 
-  return (
+    return (
     <div className="p-4">
       <div className="mb-4">
         <h2 className="text-xl font-semibold">Multi-tenant Admin</h2>
         {error ? (
           <p className="text-red-600 mt-2">{error}</p>
         ) : null}
-      </div>
+        </div>
 
       {/* Institutions List */}
       <div className="space-y-3">
@@ -251,19 +251,19 @@ export default function MultiTenantAdmin() {
         ) : (
           institutions.map((inst) => (
             <div key={inst._id || inst.slug} className="border rounded p-3 flex items-center justify-between">
-              <div>
+            <div>
                 <div className="font-medium">{inst.name}</div>
                 <div className="text-sm text-gray-600">Users: {inst.totalUsers || 0}</div>
-              </div>
+            </div>
               <div className="flex items-center gap-2">
                 <button className="px-3 py-1 rounded bg-indigo-600 text-white" onClick={() => handleOpenManage(inst)}>
                   Manage Admins
-                </button>
-              </div>
-            </div>
+          </button>
+        </div>
+      </div>
           ))
         )}
-      </div>
+            </div>
 
       {/* Manage Admins Modal (3 buttons only) */}
       {showManageAdminsForm && selectedInstitution && (
@@ -272,15 +272,15 @@ export default function MultiTenantAdmin() {
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-lg font-semibold">Manage Admins - {selectedInstitution.name}</h3>
               <button className="text-gray-500" onClick={handleCloseManage}>✕</button>
-            </div>
+              </div>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
               <button className="px-4 py-3 rounded bg-blue-600 text-white" onClick={handleOpenViewAdmins}>View Admins</button>
               <button className="px-4 py-3 rounded bg-amber-600 text-white" onClick={handleOpenReset}>Reset Admin Password</button>
               <button className="px-4 py-3 rounded bg-green-600 text-white" onClick={handleOpenAddAdmin}>Add New Admin</button>
+              </div>
+              </div>
             </div>
-          </div>
-        </div>
-      )}
+          )}
 
       {/* View Admins Modal (list, roles, set default) */}
       {showViewAdmins && selectedInstitution && (
@@ -289,8 +289,8 @@ export default function MultiTenantAdmin() {
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-lg font-semibold">Admins - {selectedInstitution.name}</h3>
               <button className="text-gray-500" onClick={handleCloseViewAdmins}>✕</button>
-            </div>
-
+                    </div>
+                    
             {loadingAdmins ? (
               <p>Loading admins...</p>
             ) : admins.length === 0 ? (
@@ -323,10 +323,10 @@ export default function MultiTenantAdmin() {
                     </div>
                   </div>
                 ))}
-              </div>
+                </div>
             )}
-          </div>
-        </div>
+                    </div>
+                    </div>
       )}
 
       {/* Password Reset Modal */}
@@ -338,42 +338,42 @@ export default function MultiTenantAdmin() {
               <button className="text-gray-500" onClick={handleCloseReset}>✕</button>
             </div>
             <form onSubmit={handlePasswordReset} className="space-y-4">
-              <div>
+                    <div>
                 <label className="block text-sm font-medium text-gray-700">New Password</label>
-                <input
+                      <input
                   type="password"
                   name="newPassword"
                   value={passwordResetData.newPassword}
                   onChange={handlePasswordResetChange}
-                  required
+                        required
                   minLength={6}
                   autoComplete="new-password"
                   className="mt-1 block w-full border rounded px-3 py-2"
                   placeholder="Enter new password"
-                />
-              </div>
-              <div>
+                      />
+                    </div>
+                    <div>
                 <label className="block text-sm font-medium text-gray-700">Confirm New Password</label>
-                <input
+                      <input
                   type="password"
                   name="confirmPassword"
                   value={passwordResetData.confirmPassword}
                   onChange={handlePasswordResetChange}
-                  required
-                  minLength={6}
+                          required
+                          minLength={6}
                   autoComplete="new-password"
                   className="mt-1 block w-full border rounded px-3 py-2"
                   placeholder="Confirm new password"
                 />
-              </div>
+                      </div>
               <div className="flex justify-end gap-2">
                 <button type="button" className="px-3 py-2 rounded border" onClick={handleCloseReset}>Cancel</button>
                 <button type="submit" className="px-3 py-2 rounded bg-amber-600 text-white">Reset Password</button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
+                </div>
+              </form>
+            </div>
+                </div>
+              )}
 
       {/* Add New Admin Modal */}
       {showAddAdminForm && selectedInstitution && (
@@ -387,7 +387,7 @@ export default function MultiTenantAdmin() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 <div>
                   <label className="block text-sm font-medium text-gray-700">Full Name</label>
-                  <input
+                <input
                     type="text"
                     name="fullName"
                     value={addAdminData.fullName}
@@ -396,32 +396,32 @@ export default function MultiTenantAdmin() {
                     className="mt-1 block w-full border rounded px-3 py-2"
                     placeholder="e.g. John Doe"
                   />
-                </div>
-                <div>
+              </div>
+                  <div>
                   <label className="block text-sm font-medium text-gray-700">Username</label>
-                  <input
-                    type="text"
+                    <input
+                      type="text"
                     name="username"
                     value={addAdminData.username}
                     onChange={handleAddAdminChange}
-                    required
+                      required
                     className="mt-1 block w-full border rounded px-3 py-2"
                     placeholder="e.g. johndoe"
-                  />
-                </div>
-                <div>
+                    />
+                  </div>
+                  <div>
                   <label className="block text-sm font-medium text-gray-700">Email</label>
-                  <input
-                    type="email"
+                    <input
+                      type="email"
                     name="email"
                     value={addAdminData.email}
                     onChange={handleAddAdminChange}
-                    required
+                      required
                     className="mt-1 block w-full border rounded px-3 py-2"
                     placeholder="e.g. john@example.com"
-                  />
-                </div>
-                <div>
+                    />
+                  </div>
+                  <div>
                   <label className="block text-sm font-medium text-gray-700">Role</label>
                   <select name="role" value={addAdminData.role} onChange={handleAddAdminChange} className="mt-1 block w-full border rounded px-3 py-2">
                     <option value="admin">admin</option>
@@ -434,39 +434,39 @@ export default function MultiTenantAdmin() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 <div>
                   <label className="block text-sm font-medium text-gray-700">Password</label>
-                  <input
+                    <input
                     type="password"
                     name="password"
                     value={addAdminData.password}
                     onChange={handleAddAdminChange}
-                    required
+                      required
                     minLength={6}
                     autoComplete="new-password"
                     className="mt-1 block w-full border rounded px-3 py-2"
-                  />
-                </div>
-                <div>
+                    />
+                  </div>
+                  <div>
                   <label className="block text-sm font-medium text-gray-700">Confirm Password</label>
-                  <input
-                    type="password"
+                    <input
+                      type="password"
                     name="confirmPassword"
                     value={addAdminData.confirmPassword}
                     onChange={handleAddAdminChange}
-                    required
+                      required
                     minLength={6}
                     autoComplete="new-password"
                     className="mt-1 block w-full border rounded px-3 py-2"
-                  />
+                    />
+                  </div>
                 </div>
-              </div>
               <div className="flex justify-end gap-2">
                 <button type="button" className="px-3 py-2 rounded border" onClick={handleCloseAddAdmin}>Cancel</button>
                 <button type="submit" className="px-3 py-2 rounded bg-green-600 text-white">Create Admin</button>
-              </div>
+                </div>
             </form>
           </div>
         </div>
       )}
-    </div>
+            </div>
   );
 }

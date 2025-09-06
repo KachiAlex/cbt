@@ -16,6 +16,8 @@ const MultiTenantAdminLogin = ({ onLogin }) => {
     setError('');
 
     try {
+      console.log('🔐 Attempting multi-tenant admin login for:', credentials.username);
+      
       // Add timeout to prevent hanging
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 15000); // 15 second timeout
@@ -31,23 +33,53 @@ const MultiTenantAdminLogin = ({ onLogin }) => {
       
       clearTimeout(timeoutId);
 
+      console.log('🔍 Login response status:', response.status);
+      console.log('🔍 Login response headers:', Object.fromEntries(response.headers.entries()));
+
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Login failed');
+        let errorMessage = 'Login failed';
+        try {
+          const errorData = await response.json();
+          errorMessage = errorData.error || errorData.message || `HTTP ${response.status}: ${response.statusText}`;
+        } catch (parseError) {
+          errorMessage = `HTTP ${response.status}: ${response.statusText}`;
+        }
+        throw new Error(errorMessage);
       }
 
       const data = await response.json();
+      console.log('✅ Login successful, received data:', {
+        hasToken: !!data.token,
+        hasRefreshToken: !!data.refreshToken,
+        hasUser: !!data.user,
+        userRole: data.user?.role
+      });
       
       // Store authentication tokens using token service
       tokenService.storeTokens(data.token, data.refreshToken, data.user, data.expiresIn);
       
+      // Also store in localStorage for debugging
+      localStorage.setItem('multi_tenant_admin_token', data.token);
+      localStorage.setItem('multi_tenant_admin_refresh_token', data.refreshToken);
+      localStorage.setItem('multi_tenant_admin_user', JSON.stringify(data.user));
+      
+      console.log('💾 Tokens stored successfully');
+      
       // Call the onLogin callback
       onLogin(data);
     } catch (error) {
+      console.error('❌ Multi-tenant admin login error:', error);
+      
       if (error.name === 'AbortError') {
-        setError('Login request timed out. Please try again.');
+        setError('Login request timed out. Please check your internet connection and try again.');
+      } else if (error.message.includes('Failed to fetch')) {
+        setError('Cannot connect to server. Please check your internet connection and try again.');
+      } else if (error.message.includes('401')) {
+        setError('Invalid username or password. Please check your credentials.');
+      } else if (error.message.includes('500')) {
+        setError('Server error. Please try again later or contact support.');
       } else {
-        setError(error.message);
+        setError(error.message || 'Login failed. Please try again.');
       }
     } finally {
       setLoading(false);

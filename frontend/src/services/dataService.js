@@ -1,7 +1,7 @@
 
 
-// Configuration - Cloud Database Enabled
-const USE_API = true; // Enable cloud API for centralized data
+// Configuration - Local Database for CBTlocal
+const USE_API = process.env.REACT_APP_USE_API === 'true'; // Controlled via environment variable
 const API_BASE = process.env.REACT_APP_API_URL || 'https://cbt-rew7.onrender.com';
 
 // LocalStorage keys
@@ -90,34 +90,80 @@ const initializeLocalStorage = () => {
   setToLS(LS_KEYS.USERS, users);
 };
 
-// API wrapper with fallback to localStorage
+// Connection status tracking
+let connectionStatus = {
+  apiAvailable: false,
+  databaseConnected: false,
+  lastChecked: null,
+  error: null
+};
+
+// API wrapper with enhanced error handling and fallback to localStorage
 const apiCall = async (endpoint, options = {}) => {
   console.log('🔧 API Configuration:', { USE_API, API_BASE });
   
   if (!USE_API) {
     console.log('Using localStorage fallback for:', endpoint);
+    connectionStatus.apiAvailable = false;
     return null; // Will trigger localStorage fallback
   }
 
   try {
     console.log(`🌐 Making API call to: ${API_BASE}${endpoint}`);
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+    
     const response = await fetch(`${API_BASE}${endpoint}`, {
       headers: {
         'Content-Type': 'application/json',
         ...options.headers
       },
+      signal: controller.signal,
       ...options
     });
 
+    clearTimeout(timeoutId);
+
     if (!response.ok) {
       console.warn(`❌ API call failed with status: ${response.status} ${response.statusText}`);
+      
+      // Update connection status based on error type
+      if (response.status >= 500) {
+        connectionStatus.databaseConnected = false;
+        connectionStatus.error = `Server error: ${response.status}`;
+      } else if (response.status === 404) {
+        connectionStatus.apiAvailable = true;
+        connectionStatus.error = 'Endpoint not found';
+      }
+      
       throw new Error(`HTTP ${response.status}: ${response.statusText}`);
     }
 
     const data = await response.json();
     console.log(`✅ API call successful: ${endpoint}`, data);
+    
+    // Update connection status on success
+    connectionStatus.apiAvailable = true;
+    connectionStatus.databaseConnected = true;
+    connectionStatus.error = null;
+    connectionStatus.lastChecked = new Date().toISOString();
+    
     return data;
   } catch (error) {
+    clearTimeout(timeoutId);
+    
+    // Update connection status based on error type
+    if (error.name === 'AbortError') {
+      connectionStatus.error = 'Request timeout';
+    } else if (error.message.includes('Failed to fetch')) {
+      connectionStatus.apiAvailable = false;
+      connectionStatus.error = 'Network error - API server unreachable';
+    } else {
+      connectionStatus.error = error.message;
+    }
+    
+    connectionStatus.lastChecked = new Date().toISOString();
+    
     console.warn(`❌ API call failed for ${endpoint}, falling back to localStorage:`, error.message);
     return null; // Will trigger localStorage fallback
   }
@@ -125,6 +171,53 @@ const apiCall = async (endpoint, options = {}) => {
 
 // Data service functions
 export const dataService = {
+  // Connection status management
+  checkApiConnection: async () => {
+    console.log('🔍 Checking API connection status...');
+    try {
+      const response = await fetch(`${API_BASE}/health`, {
+        method: 'GET',
+        headers: { 'Content-Type': 'application/json' },
+        signal: AbortSignal.timeout(5000) // 5 second timeout
+      });
+      
+      if (response.ok) {
+        const healthData = await response.json();
+        connectionStatus.apiAvailable = true;
+        connectionStatus.databaseConnected = healthData.database?.status?.connected || false;
+        connectionStatus.error = null;
+        connectionStatus.lastChecked = new Date().toISOString();
+        
+        console.log('✅ API connection check successful:', healthData);
+        return {
+          status: 'connected',
+          apiAvailable: true,
+          databaseConnected: connectionStatus.databaseConnected,
+          healthData
+        };
+      } else {
+        throw new Error(`Health check failed: ${response.status}`);
+      }
+    } catch (error) {
+      connectionStatus.apiAvailable = false;
+      connectionStatus.databaseConnected = false;
+      connectionStatus.error = error.message;
+      connectionStatus.lastChecked = new Date().toISOString();
+      
+      console.warn('❌ API connection check failed:', error.message);
+      return {
+        status: 'disconnected',
+        apiAvailable: false,
+        databaseConnected: false,
+        error: error.message
+      };
+    }
+  },
+
+  getConnectionStatus: () => {
+    return { ...connectionStatus };
+  },
+
   // User management
   loadUsers: async () => {
     console.log('📋 Loading users...');

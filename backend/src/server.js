@@ -17,6 +17,17 @@ const Question = require('./models/Question');
 
 // Middleware
 const { authenticateMultiTenantAdmin, loginMultiTenantAdmin } = require('./middleware/auth');
+const { 
+  validateUserRegistration, 
+  validateUserLogin, 
+  validateExamCreation, 
+  validateQuestionCreation,
+  validateInstitutionCreation,
+  validateMongoId,
+  validateSlug,
+  validateRateLimit,
+  addSecurityHeaders
+} = require('./middleware/validation');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -38,6 +49,8 @@ app.use(cors({
 }));
 
 app.use(morgan('combined'));
+app.use(addSecurityHeaders);
+app.use(validateRateLimit);
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
 
@@ -56,14 +69,48 @@ app.get('/', (req, res) => {
 	res.redirect('/admin');
 });
 
-// Health check endpoint
-app.get('/health', (req, res) => {
-	res.status(200).json({ 
-		status: 'healthy', 
-		timestamp: new Date().toISOString(),
-		environment: process.env.NODE_ENV || 'development',
-		database: process.env.DB_TYPE || 'mongodb'
-	});
+// Enhanced health check endpoint
+app.get('/health', async (req, res) => {
+	try {
+		const mongoose = require('mongoose');
+		const dbStatus = {
+			connected: mongoose.connection.readyState === 1,
+			state: ['disconnected', 'connected', 'connecting', 'disconnecting'][mongoose.connection.readyState] || 'unknown',
+			host: mongoose.connection.host || 'unknown',
+			name: mongoose.connection.name || 'unknown'
+		};
+
+		const healthData = {
+			status: dbStatus.connected ? 'healthy' : 'degraded',
+			timestamp: new Date().toISOString(),
+			environment: process.env.NODE_ENV || 'development',
+			database: {
+				type: process.env.DB_TYPE || 'mongodb',
+				status: dbStatus,
+				uri_configured: !!process.env.MONGODB_URI
+			},
+			uptime: process.uptime(),
+			memory: process.memoryUsage(),
+			version: process.version
+		};
+
+		// If database is not connected, provide helpful error information
+		if (!dbStatus.connected) {
+			healthData.warnings = [
+				'Database connection is not available',
+				'Check MongoDB Atlas IP whitelist settings',
+				'Verify MONGODB_URI environment variable'
+			];
+		}
+
+		res.status(dbStatus.connected ? 200 : 503).json(healthData);
+	} catch (error) {
+		res.status(500).json({
+			status: 'error',
+			timestamp: new Date().toISOString(),
+			error: error.message
+		});
+	}
 });
 
 // Test endpoint to verify new code is running
@@ -89,43 +136,87 @@ app.get('/api/cors-test', cors(), (req, res) => {
   });
 });
 
-// Database connection check endpoint
+// Enhanced database connection check endpoint
 app.get('/api/debug/db-status', cors(), async (req, res) => {
   try {
+    const mongoose = require('mongoose');
     const dbStatus = {
-      connection: 'unknown',
+      connection: mongoose.connection.readyState === 1 ? 'connected' : 'disconnected',
+      state: ['disconnected', 'connected', 'connecting', 'disconnecting'][mongoose.connection.readyState] || 'unknown',
+      host: mongoose.connection.host || 'unknown',
+      name: mongoose.connection.name || 'unknown',
       collections: [],
       userCount: 0,
       tenantCount: 0,
-      timestamp: new Date().toISOString()
+      examCount: 0,
+      resultCount: 0,
+      timestamp: new Date().toISOString(),
+      environment: {
+        node_env: process.env.NODE_ENV || 'development',
+        db_type: process.env.DB_TYPE || 'mongodb',
+        uri_configured: !!process.env.MONGODB_URI,
+        uri_preview: process.env.MONGODB_URI ? 
+          process.env.MONGODB_URI.replace(/\/\/.*@/, '//***:***@') : 'Not set'
+      }
     };
     
-    // Check database connection
+    // Check database connection and get collection info
     if (mongoose.connection.readyState === 1) {
       dbStatus.connection = 'connected';
       
-      // Get collection names
-      const collections = await mongoose.connection.db.listCollections().toArray();
-      dbStatus.collections = collections.map(c => c.name);
-      
-      // Get document counts
       try {
-        dbStatus.userCount = await User.countDocuments({});
-        dbStatus.tenantCount = await Tenant.countDocuments({});
-      } catch (countError) {
-        dbStatus.userCount = 'error: ' + countError.message;
-        dbStatus.tenantCount = 'error: ' + countError.message;
+        // Get collection information
+        const collections = await mongoose.connection.db.listCollections().toArray();
+        dbStatus.collections = collections.map(col => col.name);
+        
+        // Get document counts for each collection
+        if (collections.length > 0) {
+          for (const collection of collections) {
+            const count = await mongoose.connection.db.collection(collection.name).countDocuments();
+            dbStatus[`${collection.name}Count`] = count;
+          }
+        }
+        
+        // Specific counts for our models
+        try {
+          dbStatus.userCount = await User.countDocuments();
+          dbStatus.tenantCount = await Tenant.countDocuments();
+          dbStatus.examCount = await Exam.countDocuments();
+          dbStatus.resultCount = await Result.countDocuments();
+        } catch (modelError) {
+          console.warn('Warning: Could not get model counts:', modelError.message);
+        }
+        
+      } catch (collectionError) {
+        console.warn('Warning: Could not get collection information:', collectionError.message);
+        dbStatus.collectionError = collectionError.message;
       }
     } else {
       dbStatus.connection = 'disconnected';
-      dbStatus.readyState = mongoose.connection.readyState;
+      dbStatus.error = 'Database not connected';
+      
+      // Provide troubleshooting information
+      dbStatus.troubleshooting = {
+        common_issues: [
+          'MongoDB Atlas IP whitelist not configured (add 0.0.0.0/0)',
+          'Incorrect MONGODB_URI format',
+          'Invalid username/password in connection string',
+          'Network connectivity issues'
+        ],
+        next_steps: [
+          'Check MongoDB Atlas Network Access settings',
+          'Verify MONGODB_URI environment variable',
+          'Check Render deployment logs for detailed errors'
+        ]
+      };
     }
     
     res.json(dbStatus);
   } catch (error) {
-    res.status(500).json({ 
-      error: 'Database status check failed: ' + error.message,
-      connection: mongoose.connection.readyState,
+    console.error('Database status check error:', error);
+    res.status(500).json({
+      error: 'Failed to check database status',
+      message: error.message,
       timestamp: new Date().toISOString()
     });
   }
@@ -437,7 +528,7 @@ app.get('/institution/:slug', async (req, res) => {
 });
 
 // Institution-specific authentication endpoint
-app.post('/api/auth/login', async (req, res) => {
+app.post('/api/auth/login', validateUserLogin, async (req, res) => {
     try {
         const { username, password, tenant_slug, user_type } = req.body;
         
@@ -547,7 +638,7 @@ app.post('/api/auth/login', async (req, res) => {
 });
 
 // Student registration endpoint
-app.post('/api/auth/register', async (req, res) => {
+app.post('/api/auth/register', validateUserRegistration, async (req, res) => {
   try {
     const { 
       fullName, 
