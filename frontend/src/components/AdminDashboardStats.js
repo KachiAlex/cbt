@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useRealTimeData } from './RealTimeDataProvider';
 import { StatsLoadingWrapper } from './LoadingWrapper';
-import { useToast } from './Toast';
+// import { useToast } from './Toast';
 
 const AdminDashboardStats = ({ user, tenant }) => {
   const { exams, questions, users, results, loading, lastUpdated, refreshData } = useRealTimeData();
@@ -17,7 +17,7 @@ const AdminDashboardStats = ({ user, tenant }) => {
   });
 
   const [recentActivity, setRecentActivity] = useState([]);
-  const [performanceData, setPerformanceData] = useState([]);
+  // const [performanceData, setPerformanceData] = useState([]);
 
   // Calculate statistics when data changes
   useEffect(() => {
@@ -56,7 +56,7 @@ const AdminDashboardStats = ({ user, tenant }) => {
     });
 
     setRecentActivity(sortedResults);
-    setPerformanceData(performanceData.slice(0, 10)); // Last 10 results for chart
+    // setPerformanceData(performanceData.slice(0, 10)); // Last 10 results for chart
 
   }, [exams, questions, users, results, loading]);
 

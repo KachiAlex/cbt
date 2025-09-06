@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import dataService from '../services/dataService';
 
 const RealTimeDataContext = createContext();
@@ -22,11 +22,34 @@ export const RealTimeDataProvider = ({ children }) => {
     error: null
   });
 
-  const [refreshInterval, setRefreshInterval] = useState(30000); // 30 seconds default
+  const [refreshInterval, setRefreshInterval] = useState(60000); // 60 seconds default to reduce API calls
 
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     try {
       setData(prev => ({ ...prev, loading: true, error: null }));
+      
+      // Check if API is enabled before making calls
+      const apiConfig = dataService.getApiConfig();
+      if (!apiConfig.USE_API) {
+        // If API is disabled, just load from localStorage once
+        const [exams, questions, users, results] = await Promise.all([
+          dataService.loadExams(),
+          dataService.loadQuestions(),
+          dataService.loadUsers(),
+          dataService.loadResults()
+        ]);
+
+        setData({
+          exams: Array.isArray(exams) ? exams : [],
+          questions: Array.isArray(questions) ? questions : [],
+          users: Array.isArray(users) ? users : [],
+          results: Array.isArray(results) ? results : [],
+          lastUpdated: new Date().toISOString(),
+          loading: false,
+          error: null
+        });
+        return; // Don't set up intervals for localStorage mode
+      }
       
       const [exams, questions, users, results] = await Promise.all([
         dataService.loadExams(),
@@ -53,7 +76,7 @@ export const RealTimeDataProvider = ({ children }) => {
         error: error.message
       }));
     }
-  };
+  }, []);
 
   const refreshData = () => {
     loadData();
@@ -67,11 +90,13 @@ export const RealTimeDataProvider = ({ children }) => {
     // Initial load
     loadData();
 
-    // Set up interval for automatic refresh
-    const interval = setInterval(loadData, refreshInterval);
-
-    return () => clearInterval(interval);
-  }, [refreshInterval]);
+    // Only set up interval for automatic refresh if API is enabled
+    const apiConfig = dataService.getApiConfig();
+    if (apiConfig.USE_API) {
+      const interval = setInterval(loadData, refreshInterval);
+      return () => clearInterval(interval);
+    }
+  }, [refreshInterval, loadData]);
 
   // Listen for storage changes (for localStorage updates)
   useEffect(() => {
@@ -84,7 +109,7 @@ export const RealTimeDataProvider = ({ children }) => {
 
     window.addEventListener('storage', handleStorageChange);
     return () => window.removeEventListener('storage', handleStorageChange);
-  }, []);
+  }, [loadData]);
 
   const value = {
     ...data,

@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import tokenService from '../services/tokenService';
+import dataService from '../services/dataService';
 
 const MultiTenantAdminLogin = ({ onLogin }) => {
   const [credentials, setCredentials] = useState({
@@ -18,7 +19,63 @@ const MultiTenantAdminLogin = ({ onLogin }) => {
     try {
       console.log('🔐 Attempting multi-tenant admin login for:', credentials.username);
       
-      // Add timeout to prevent hanging
+      // Check if API is enabled
+      const apiConfig = dataService.getApiConfig();
+      console.log('🔧 API Configuration:', apiConfig);
+      
+      if (!apiConfig.USE_API) {
+        // Use localStorage fallback for multi-tenant admin
+        console.log('ℹ️ API disabled, using localStorage for multi-tenant admin login');
+        
+        // Check against hardcoded credentials for demo purposes
+        if (credentials.username === 'superadmin' && credentials.password === 'superadmin123') {
+          const adminData = {
+            success: true,
+            token: 'super-admin-token',
+            role: 'super_admin',
+            fullName: 'Super Administrator',
+            email: 'superadmin@cbt-system.com'
+          };
+          
+          // Store tokens for debugging
+          localStorage.setItem('multi_tenant_admin_token', adminData.token);
+          localStorage.setItem('multi_tenant_admin_refresh_token', 'super-admin-refresh-token');
+          localStorage.setItem('multi_tenant_admin_user', JSON.stringify({
+            username: adminData.fullName,
+            role: adminData.role,
+            email: adminData.email
+          }));
+          
+          console.log('✅ Multi-tenant admin login successful (localStorage mode)');
+          onLogin(adminData);
+          return;
+        } else if (credentials.username === 'managedadmin' && credentials.password === 'managedadmin123') {
+          const adminData = {
+            success: true,
+            token: 'managed-admin-token',
+            role: 'managed_admin',
+            fullName: 'Managed Administrator',
+            email: 'managedadmin@cbt-system.com'
+          };
+          
+          // Store tokens for debugging
+          localStorage.setItem('multi_tenant_admin_token', adminData.token);
+          localStorage.setItem('multi_tenant_admin_refresh_token', 'managed-admin-refresh-token');
+          localStorage.setItem('multi_tenant_admin_user', JSON.stringify({
+            username: adminData.fullName,
+            role: adminData.role,
+            email: adminData.email
+          }));
+          
+          console.log('✅ Multi-tenant admin login successful (localStorage mode)');
+          onLogin(adminData);
+          return;
+        } else {
+          throw new Error('Invalid credentials for multi-tenant admin');
+        }
+      }
+      
+      // API mode - make actual API call
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 15000); // 15 second timeout
       

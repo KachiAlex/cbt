@@ -1,5 +1,5 @@
 import React from 'react';
-import LoadingSpinner, { PageSpinner, CardSpinner } from './LoadingSpinner';
+import { PageSpinner, CardSpinner } from './LoadingSpinner';
 import { CardSkeleton, TableSkeleton, ListSkeleton, FormSkeleton, StatsSkeleton } from './SkeletonLoader';
 
 const LoadingWrapper = ({

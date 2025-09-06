@@ -561,48 +561,6 @@ export const dataService = {
     }
   },
 
-  // Check API connection and configuration
-  checkApiConnection: async () => {
-    try {
-      console.log('🔍 Checking API connection...');
-      console.log('API Base URL:', API_BASE);
-      console.log('USE_API setting:', USE_API);
-      
-      if (!USE_API) {
-        console.log('ℹ️ API is disabled, using localStorage only');
-        return { connected: false, reason: 'API disabled' };
-      }
-      
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 3000); // 3 second timeout
-      
-      const response = await fetch(`${API_BASE}/health`, {
-        method: 'GET',
-        headers: { 'Content-Type': 'application/json' },
-        signal: controller.signal
-      });
-      
-      clearTimeout(timeoutId);
-      
-      if (response.ok) {
-        const healthData = await response.json();
-        console.log('✅ API connection successful:', healthData);
-        return { connected: true, data: healthData };
-      } else {
-        console.log('❌ API health check failed:', response.status, response.statusText);
-        return { connected: false, reason: `HTTP ${response.status}` };
-      }
-    } catch (error) {
-      if (error.name === 'AbortError') {
-        console.log('❌ API connection timed out');
-        return { connected: false, reason: 'Connection timeout' };
-      } else {
-        console.log('❌ API connection error:', error.message);
-        return { connected: false, reason: error.message };
-      }
-    }
-  },
-
   // Manual admin user creation for testing
   createAdminUser: () => {
     const defaultAdmin = {

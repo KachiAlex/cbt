@@ -13,7 +13,7 @@ const ConnectionStatus = ({ showDetails = false, className = "" }) => {
   const checkConnection = async () => {
     setIsChecking(true);
     try {
-      const connectionResult = await dataService.checkApiConnection();
+      await dataService.checkApiConnection();
       setStatus(dataService.getConnectionStatus());
     } catch (error) {
       console.error('Connection check failed:', error);

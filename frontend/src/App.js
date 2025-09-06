@@ -5,7 +5,7 @@ import MultiTenantAdminLogin from "./components/MultiTenantAdminLogin";
 import CBTExam from "./components/CBTExam";
 import StudentExam from "./components/StudentExam";
 import ConnectionStatus from "./components/ConnectionStatus";
-import SystemDiagnostics from "./components/SystemDiagnostics";
+// import SystemDiagnostics from "./components/SystemDiagnostics";
 import AdminDashboardStats from "./components/AdminDashboardStats";
 import PerformanceAnalytics from "./components/PerformanceAnalytics";
 import RealTimeDataProvider from "./components/RealTimeDataProvider";
