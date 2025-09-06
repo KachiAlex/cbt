@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useRealTimeData } from './RealTimeDataProvider';
+import { StatsLoadingWrapper } from './LoadingWrapper';
+import { useToast } from './Toast';
 
 const AdminDashboardStats = ({ user, tenant }) => {
   const { exams, questions, users, results, loading, lastUpdated, refreshData } = useRealTimeData();
@@ -99,7 +101,8 @@ const AdminDashboardStats = ({ user, tenant }) => {
   };
 
   return (
-    <div className="space-y-6">
+    <StatsLoadingWrapper loading={loading} error={null}>
+      <div className="space-y-6">
       {/* Header with refresh button */}
       <div className="flex items-center justify-between">
         <h2 className="text-xl font-semibold text-gray-900">Dashboard Statistics</h2>
@@ -274,7 +277,8 @@ const AdminDashboardStats = ({ user, tenant }) => {
           </button>
         </div>
       </div>
-    </div>
+      </div>
+    </StatsLoadingWrapper>
   );
 };
 

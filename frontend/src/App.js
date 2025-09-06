@@ -12,9 +12,7 @@ import RealTimeDataProvider from "./components/RealTimeDataProvider";
 import ValidatedInput, { EmailInput, PasswordInput } from "./components/ValidatedInput";
 import { useUserLoginForm, useUserRegistrationForm } from "./hooks/useFormValidation";
 import { ToastProvider, useToast } from "./components/Toast";
-import { useLoadingState } from "./hooks/useLoadingState";
-import LoadingSpinner, { PageSpinner, ButtonSpinner } from "./components/LoadingSpinner";
-import { CardSkeleton, StatsSkeleton } from "./components/SkeletonLoader";
+import { ButtonSpinner } from "./components/LoadingSpinner";
 import dataService from "./services/dataService";
 
 const LS_KEYS = {
@@ -204,6 +202,7 @@ function Login({onLogin}){
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const toast = useToast();
   
   // Use validation hooks
   const loginForm = useUserLoginForm({ username: "", password: "" });
@@ -219,19 +218,22 @@ function Login({onLogin}){
     e.preventDefault();
     setError("");
     
-    const success = await loginForm.handleSubmit(async (formData) => {
+    await loginForm.handleSubmit(async (formData) => {
     setIsLoading(true);
 
     try {
       // Only student authentication - admin access is separate
         const user = await authenticateUser(formData.username, formData.password);
-      if (user && user.role === "student") {
-        onLogin(user);
-      } else if (user && user.role === "admin") {
-        setError("This is an admin account. Please use the admin login instead.");
-      } else {
-        setError("Invalid username or password. Please check your credentials or register as a new student.");
-      }
+        if (user && user.role === "student") {
+          toast.success("Login successful! Welcome back.");
+          onLogin(user);
+        } else if (user && user.role === "admin") {
+          setError("This is an admin account. Please use the admin login instead.");
+          toast.warning("This is an admin account. Please use the admin login instead.");
+        } else {
+          setError("Invalid username or password. Please check your credentials or register as a new student.");
+          toast.error("Invalid username or password. Please check your credentials.");
+        }
     } catch (error) {
       console.error('Error during student login:', error);
         
@@ -249,9 +251,10 @@ function Login({onLogin}){
         }
         
         setError(errorMessage);
-    } finally {
-      setIsLoading(false);
-    }
+        toast.error(errorMessage);
+      } finally {
+        setIsLoading(false);
+      }
     });
   };
 
@@ -260,7 +263,7 @@ function Login({onLogin}){
     setError("");
     setSuccess("");
 
-    const success = await registrationForm.handleSubmit(async (formData) => {
+    await registrationForm.handleSubmit(async (formData) => {
       try {
         // Additional validation for password confirmation
         if (formData.password !== formData.confirmPassword) {
@@ -275,9 +278,10 @@ function Login({onLogin}){
           email: formData.email
       };
       
-      await registerStudent(studentData);
-      setSuccess("Registration successful! You can now login with your credentials.");
-      setMode("login");
+        await registerStudent(studentData);
+        setSuccess("Registration successful! You can now login with your credentials.");
+        toast.success("Registration successful! You can now login with your credentials.");
+        setMode("login");
         registrationForm.resetForm();
     } catch (err) {
         console.error('Error during student registration:', err);
@@ -296,6 +300,7 @@ function Login({onLogin}){
         }
         
         setError(errorMessage);
+        toast.error(errorMessage);
       }
     });
   };
@@ -364,10 +369,7 @@ function Login({onLogin}){
           >
             {isLoading || loginForm.isSubmitting ? (
               <span className="flex items-center justify-center">
-                <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                </svg>
+                <ButtonSpinner />
                 Authenticating...
               </span>
             ) : (
@@ -450,15 +452,12 @@ function Login({onLogin}){
           >
             {registrationForm.isSubmitting ? (
               <span className="flex items-center justify-center">
-                <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                  </svg>
+                <ButtonSpinner />
                 Registering...
               </span>
-                ) : (
+            ) : (
               'Register as Student'
-                )}
+            )}
           </button>
         </form>
       )}
@@ -1121,12 +1120,13 @@ function App() {
   }
 
     return (
-    <RealTimeDataProvider>
-    <div className="min-h-screen bg-gray-50 text-gray-800">
-      {/* Hide header on institution pages to avoid duplicate branding */}
-      {view !== "institution-login" && currentView !== "cbt-admin" && currentView !== "student-exam" && (
-        <Header user={user} onLogout={onLogout} onLogoClick={handleLogoClick} institutionData={institutionData} />
-      )}
+    <ToastProvider>
+      <RealTimeDataProvider>
+        <div className="min-h-screen bg-gray-50 text-gray-800">
+          {/* Hide header on institution pages to avoid duplicate branding */}
+          {view !== "institution-login" && currentView !== "cbt-admin" && currentView !== "student-exam" && (
+            <Header user={user} onLogout={onLogout} onLogoClick={handleLogoClick} institutionData={institutionData} />
+          )}
       <main className="max-w-5xl mx-auto w-full px-3 sm:px-8 py-4 sm:py-8">
         {user ? (
           user.role === "admin" ? (
@@ -1196,8 +1196,9 @@ function App() {
     </div>
         )}
       </footer>
-    </div>
-    </RealTimeDataProvider>
+        </div>
+      </RealTimeDataProvider>
+    </ToastProvider>
   );
 }
 

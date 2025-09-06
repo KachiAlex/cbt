@@ -108,10 +108,11 @@ const apiCall = async (endpoint, options = {}) => {
     return null; // Will trigger localStorage fallback
   }
 
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+
   try {
     console.log(`🌐 Making API call to: ${API_BASE}${endpoint}`);
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
     
     const response = await fetch(`${API_BASE}${endpoint}`, {
       headers: {
