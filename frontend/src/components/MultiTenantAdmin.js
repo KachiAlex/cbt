@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import dataService from '../services/dataService';
+import { getInstitutionLogo, createFallbackLogo } from '../utils/logoUtils';
 
 // Helper: safe fetch JSON
 async function fetchJson(url, options = {}) {
@@ -59,6 +60,9 @@ export default function MultiTenantAdmin() {
     address: ''
   });
 
+  const [logoFile, setLogoFile] = useState(null);
+  const [logoPreview, setLogoPreview] = useState('');
+
   // Load institutions
   const loadInstitutions = useCallback(async () => {
     try {
@@ -113,7 +117,7 @@ export default function MultiTenantAdmin() {
             website: 'https://demouniversity.edu',
             contactPhone: '+1 (555) 123-4567',
             address: '123 University Avenue, Tech City, TC 12345',
-            logo: 'https://via.placeholder.com/100x100/4F46E5/FFFFFF?text=DU'
+            logo: getInstitutionLogo('Demo University')
           },
           {
             _id: 'demo_institution_2',
@@ -132,7 +136,7 @@ export default function MultiTenantAdmin() {
             website: 'https://samplecollege.edu',
             contactPhone: '+1 (555) 987-6543',
             address: '456 College Street, Education Town, ET 67890',
-            logo: 'https://via.placeholder.com/100x100/059669/FFFFFF?text=SC'
+            logo: getInstitutionLogo('Sample College')
           },
           {
             _id: 'demo_institution_3',
@@ -151,7 +155,7 @@ export default function MultiTenantAdmin() {
             website: 'https://techinstitute.edu',
             contactPhone: '+1 (555) 456-7890',
             address: '789 Innovation Drive, Tech Valley, TV 54321',
-            logo: 'https://via.placeholder.com/100x100/DC2626/FFFFFF?text=TI'
+            logo: getInstitutionLogo('Tech Institute of Learning')
           }
         ];
         setInstitutions(demoInstitutions);
@@ -265,6 +269,8 @@ export default function MultiTenantAdmin() {
       contactPhone: institution.contactPhone || '',
       address: institution.address || ''
     });
+    setLogoPreview(institution.logo || '');
+    setLogoFile(null);
     setShowEditInstitution(true);
   };
 
@@ -281,11 +287,54 @@ export default function MultiTenantAdmin() {
       contactPhone: '',
       address: ''
     });
+    setLogoFile(null);
+    setLogoPreview('');
+    // Reset file input
+    const fileInput = document.getElementById('logo-file-input');
+    if (fileInput) fileInput.value = '';
   };
 
   const handleEditInstitutionChange = (e) => {
     const { name, value } = e.target;
     setEditInstitutionData((prev) => ({ ...prev, [name]: value }));
+  };
+
+  // File upload handlers
+  const handleLogoFileChange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      // Validate file type
+      const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/svg+xml', 'image/webp'];
+      if (!validTypes.includes(file.type)) {
+        setError('Please select a valid image file (JPEG, PNG, GIF, SVG, or WebP)');
+        return;
+      }
+
+      // Validate file size (max 5MB)
+      if (file.size > 5 * 1024 * 1024) {
+        setError('File size must be less than 5MB');
+        return;
+      }
+
+      setLogoFile(file);
+      
+      // Create preview
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        setLogoPreview(e.target.result);
+        setEditInstitutionData(prev => ({ ...prev, logo: e.target.result }));
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleRemoveLogo = () => {
+    setLogoFile(null);
+    setLogoPreview('');
+    setEditInstitutionData(prev => ({ ...prev, logo: '' }));
+    // Reset file input
+    const fileInput = document.getElementById('logo-file-input');
+    if (fileInput) fileInput.value = '';
   };
 
   const handleEditInstitution = async (e) => {
@@ -531,14 +580,21 @@ export default function MultiTenantAdmin() {
               <div className="flex items-start justify-between">
                 <div className="flex-1">
                   <div className="flex items-center gap-3 mb-3">
-                    {inst.logo && (
+                    {inst.logo ? (
                       <img 
                         src={inst.logo} 
                         alt={`${inst.name} logo`}
                         className="w-12 h-12 rounded-lg object-cover border"
-                        onError={(e) => { e.target.style.display = 'none'; }}
+                        onError={(e) => { 
+                          e.target.style.display = 'none';
+                          e.target.nextSibling.style.display = 'flex';
+                        }}
                       />
-                    )}
+                    ) : null}
+                    <div 
+                      {...createFallbackLogo(inst.name, 'w-12 h-12')}
+                      style={{ display: inst.logo ? 'none' : 'flex' }}
+                    />
                     <div>
                       <h3 className="text-lg font-semibold text-gray-900">{inst.name}</h3>
                       <p className="text-sm text-gray-600">Slug: {inst.slug}</p>
@@ -848,15 +904,70 @@ export default function MultiTenantAdmin() {
                 </div>
                 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Logo URL</label>
-                  <input
-                    type="url"
-                    name="logo"
-                    value={editInstitutionData.logo}
-                    onChange={handleEditInstitutionChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    placeholder="https://example.com/logo.png"
-                  />
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Logo</label>
+                  <div className="space-y-3">
+                    {/* Logo Preview */}
+                    <div className="flex items-center gap-3">
+                      {logoPreview ? (
+                        <div className="relative">
+                          <img 
+                            src={logoPreview} 
+                            alt="Logo preview" 
+                            className="w-16 h-16 rounded-lg object-cover border"
+                          />
+                          <button
+                            type="button"
+                            onClick={handleRemoveLogo}
+                            className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center text-xs hover:bg-red-600"
+                            title="Remove logo"
+                          >
+                            ×
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="w-16 h-16 rounded-lg border-2 border-dashed border-gray-300 flex items-center justify-center text-gray-400 text-xs">
+                          No logo
+                        </div>
+                      )}
+                      <div className="flex-1">
+                        <p className="text-sm text-gray-600">Current logo preview</p>
+                      </div>
+                    </div>
+                    
+                    {/* File Upload */}
+                    <div>
+                      <input
+                        id="logo-file-input"
+                        type="file"
+                        accept="image/*"
+                        onChange={handleLogoFileChange}
+                        className="hidden"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => document.getElementById('logo-file-input').click()}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      >
+                        📁 Choose Logo File
+                      </button>
+                      <p className="text-xs text-gray-500 mt-1">
+                        Supported: JPEG, PNG, GIF, SVG, WebP (max 5MB)
+                      </p>
+                    </div>
+                    
+                    {/* URL Input (Alternative) */}
+                    <div className="border-t pt-3">
+                      <label className="block text-xs font-medium text-gray-600 mb-1">Or enter logo URL:</label>
+                      <input
+                        type="url"
+                        name="logo"
+                        value={editInstitutionData.logo}
+                        onChange={handleEditInstitutionChange}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                        placeholder="https://example.com/logo.png"
+                      />
+                    </div>
+                  </div>
                 </div>
               </div>
 
