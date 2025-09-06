@@ -172,6 +172,14 @@ const apiCall = async (endpoint, options = {}) => {
 
 // Data service functions
 export const dataService = {
+  // API Configuration
+  getApiConfig: () => {
+    return {
+      USE_API: USE_API,
+      API_BASE: API_BASE
+    };
+  },
+
   // Connection status management
   checkApiConnection: async () => {
     console.log('🔍 Checking API connection status...');
