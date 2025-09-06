@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import StudentExam from './StudentExam';
+import EnhancedExam from './EnhancedExam';
 
 const LS_KEYS = {
   QUESTIONS: "cbt_questions_v1",
@@ -49,7 +50,7 @@ const StudentPanel = ({ user, tenant }) => {
   };
 
   if (showExam) {
-    return <StudentExam user={user} tenant={tenant} onComplete={backToDashboard} />;
+    return <EnhancedExam user={user} tenant={tenant} onComplete={backToDashboard} />;
   }
 
   if (loading) {

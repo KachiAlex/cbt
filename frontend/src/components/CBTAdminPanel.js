@@ -5,6 +5,9 @@ import { Document, Packer, Paragraph, TextRun, Table, TableRow, TableCell } from
 import mammoth from 'mammoth';
 import dataService from '../services/dataService';
 import ExamManagement from './ExamManagement';
+import ReportingDashboard from './ReportingDashboard';
+import ExportOptions from './ExportOptions';
+import DataAnalytics from './DataAnalytics';
 
 // Helper function to generate unique IDs (compatible with older browsers)
 const generateId = () => Date.now().toString(36) + Math.random().toString(36).substr(2);
@@ -367,6 +370,7 @@ const CBTAdminPanel = ({ user, institution, onLogout }) => {
             { id: "exams", label: "📋 Exam Management", icon: "📋", adminOnly: false },
             { id: "questions", label: "❓ Questions", icon: "❓", adminOnly: false },
             { id: "results", label: "📊 Results", icon: "📊", adminOnly: false },
+            { id: "reporting", label: "📈 Reporting", icon: "📈", adminOnly: true },
             { id: "students", label: "👥 Students", icon: "👥", adminOnly: true },
             { id: "settings", label: "⚙️ Settings", icon: "⚙️", adminOnly: true },
             { id: "advanced-exams", label: "🔧 Advanced Exams", icon: "🔧", adminOnly: true }
@@ -428,6 +432,42 @@ const CBTAdminPanel = ({ user, institution, onLogout }) => {
             onBackToExams={() => setActiveTab("exams")}
             user={user}
           />
+        )}
+
+        {activeTab === "reporting" && (user.role === 'admin' || user.role === 'super_admin' || user.role === 'managed_admin') && (
+          <div className="space-y-6">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <ExportOptions 
+                results={results}
+                questions={questions}
+                exams={exams}
+                institution={institution}
+              />
+              <div className="bg-white rounded-lg shadow-sm p-6">
+                <h3 className="text-lg font-semibold text-gray-900 mb-4">Quick Export</h3>
+                <div className="space-y-3">
+                  <button
+                    onClick={exportResultsToExcel}
+                    className="w-full flex items-center justify-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
+                  >
+                    📊 Export to Excel
+                  </button>
+                  <button
+                    onClick={exportResultsToWord}
+                    className="w-full flex items-center justify-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                  >
+                    📄 Export to Word
+                  </button>
+                </div>
+              </div>
+            </div>
+            
+            <DataAnalytics 
+              results={results}
+              questions={questions}
+              exams={exams}
+            />
+          </div>
         )}
 
         {activeTab === "students" && (user.role === 'admin' || user.role === 'super_admin' || user.role === 'managed_admin') && (

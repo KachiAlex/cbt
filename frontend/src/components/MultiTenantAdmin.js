@@ -1,7 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-
-// Centralized API base
-const API_BASE = 'https://cbt-rew7.onrender.com';
+import dataService from '../services/dataService';
 
 // Helper: safe fetch JSON
 async function fetchJson(url, options = {}) {
@@ -52,30 +50,69 @@ export default function MultiTenantAdmin() {
     try {
       setLoading(true);
       setError('');
-      const raw = await fetchJson(`${API_BASE}/api/tenants`);
-      const list = Array.isArray(raw) ? raw : (Array.isArray(raw?.tenants) ? raw.tenants : []);
-      const normalized = list.map((t) => {
-        const defaultAdmin = t.default_admin || (Array.isArray(t.admins) ? t.admins.find(a => a.is_default_admin) : null) || {};
-        const totalUsers = (
-          t.totalUsers ??
-          t.userCount ??
-          (Array.isArray(t.users) ? t.users.length : undefined) ??
-          (Array.isArray(t.admins) ? t.admins.length : undefined) ??
-          (t.stats && typeof t.stats.totalUsers === 'number' ? t.stats.totalUsers : undefined) ??
-          0
-        );
-        return {
-          ...t,
-          _id: t._id || t.id,
-          subscriptionPlan: t.subscriptionPlan || t.plan || 'Basic',
-          createdAt: t.createdAt || t.created_at || t.createdOn,
-          primaryAdmin: t.primaryAdmin || defaultAdmin.fullName || defaultAdmin.name || '',
-          adminUsername: t.adminUsername || defaultAdmin.username || '',
-          adminEmail: t.adminEmail || defaultAdmin.email || '',
-          totalUsers
-        };
-      });
-      setInstitutions(normalized);
+      // Check API configuration
+      const apiConfig = dataService.getApiConfig();
+      
+      if (apiConfig.USE_API) {
+        // Use API
+        const raw = await fetchJson(`${apiConfig.API_BASE}/api/tenants`);
+        const list = Array.isArray(raw) ? raw : (Array.isArray(raw?.tenants) ? raw.tenants : []);
+        const normalized = list.map((t) => {
+          const defaultAdmin = t.default_admin || (Array.isArray(t.admins) ? t.admins.find(a => a.is_default_admin) : null) || {};
+          const totalUsers = (
+            t.totalUsers ??
+            t.userCount ??
+            (Array.isArray(t.users) ? t.users.length : undefined) ??
+            (Array.isArray(t.admins) ? t.admins.length : undefined) ??
+            (t.stats && typeof t.stats.totalUsers === 'number' ? t.stats.totalUsers : undefined) ??
+            0
+          );
+          return {
+            ...t,
+            _id: t._id || t.id,
+            subscriptionPlan: t.subscriptionPlan || t.plan || 'Basic',
+            createdAt: t.createdAt || t.created_at || t.createdOn,
+            primaryAdmin: t.primaryAdmin || defaultAdmin.fullName || defaultAdmin.name || '',
+            adminUsername: t.adminUsername || defaultAdmin.username || '',
+            adminEmail: t.adminEmail || defaultAdmin.email || '',
+            totalUsers
+          };
+        });
+        setInstitutions(normalized);
+      } else {
+        // Use localStorage fallback - create demo institutions
+        const demoInstitutions = [
+          {
+            _id: 'demo_institution_1',
+            slug: 'demo-institution-1',
+            name: 'Demo University',
+            adminUsername: 'admin',
+            adminEmail: 'admin@demo.edu',
+            adminFullName: 'Demo Administrator',
+            totalUsers: 150,
+            isActive: true,
+            createdAt: new Date().toISOString(),
+            lastActivity: new Date().toISOString(),
+            subscriptionPlan: 'Basic',
+            primaryAdmin: 'Demo Administrator'
+          },
+          {
+            _id: 'demo_institution_2',
+            slug: 'demo-institution-2',
+            name: 'Sample College',
+            adminUsername: 'college_admin',
+            adminEmail: 'admin@sample.edu',
+            adminFullName: 'College Administrator',
+            totalUsers: 75,
+            isActive: true,
+            createdAt: new Date().toISOString(),
+            lastActivity: new Date().toISOString(),
+            subscriptionPlan: 'Basic',
+            primaryAdmin: 'College Administrator'
+          }
+        ];
+        setInstitutions(demoInstitutions);
+      }
     } catch (e) {
       setError(e.message || 'Failed to load institutions');
     } finally {
@@ -92,9 +129,39 @@ export default function MultiTenantAdmin() {
     if (!tenantSlug) return;
     try {
       setLoadingAdmins(true);
-      const data = await fetchJson(`${API_BASE}/api/tenants/${tenantSlug}/admins`);
-      const list = Array.isArray(data) ? data : (Array.isArray(data?.admins) ? data.admins : []);
-      setAdmins(list);
+      
+      // Check API configuration
+      const apiConfig = dataService.getApiConfig();
+      
+      if (apiConfig.USE_API) {
+        // Use API
+        const data = await fetchJson(`${apiConfig.API_BASE}/api/tenants/${tenantSlug}/admins`);
+        const list = Array.isArray(data) ? data : (Array.isArray(data?.admins) ? data.admins : []);
+        setAdmins(list);
+      } else {
+        // Use localStorage fallback - create demo admins
+        const demoAdmins = [
+          {
+            _id: 'admin_1',
+            username: 'admin',
+            email: 'admin@demo.edu',
+            fullName: 'Demo Administrator',
+            role: 'super_admin',
+            isDefaultAdmin: true,
+            createdAt: new Date().toISOString()
+          },
+          {
+            _id: 'admin_2',
+            username: 'college_admin',
+            email: 'admin@sample.edu',
+            fullName: 'College Administrator',
+            role: 'admin',
+            isDefaultAdmin: false,
+            createdAt: new Date().toISOString()
+          }
+        ];
+        setAdmins(demoAdmins);
+      }
     } catch (e) {
       setError(e.message || 'Failed to load admins');
       setAdmins([]);
@@ -144,14 +211,26 @@ export default function MultiTenantAdmin() {
   // Admin operations
   const setDefaultAdmin = async (adminId) => {
     if (!selectedInstitution || !adminId) return;
+    
+    // Check API configuration
+    const apiConfig = dataService.getApiConfig();
+    
+    if (!apiConfig.USE_API) {
+      // Demo mode - just show success message
+      setError('Demo mode: Admin role updated successfully');
+      await loadAdmins(selectedInstitution.slug || selectedInstitution._id);
+      await loadInstitutions();
+      return;
+    }
+    
     try {
-      await fetchJson(`${API_BASE}/api/tenants/${selectedInstitution.slug || selectedInstitution._id}/admins/${adminId}/default`, {
+      await fetchJson(`${apiConfig.API_BASE}/api/tenants/${selectedInstitution.slug || selectedInstitution._id}/admins/${adminId}/default`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ makeDefault: true })
       });
       // Promote to super_admin per requirement
-      await fetchJson(`${API_BASE}/api/tenants/${selectedInstitution.slug || selectedInstitution._id}/admins/${adminId}/role`, {
+      await fetchJson(`${apiConfig.API_BASE}/api/tenants/${selectedInstitution.slug || selectedInstitution._id}/admins/${adminId}/role`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ role: 'super_admin' })
@@ -165,8 +244,19 @@ export default function MultiTenantAdmin() {
 
   const updateAdminRole = async (adminId, role) => {
     if (!selectedInstitution || !adminId) return;
+    
+    // Check API configuration
+    const apiConfig = dataService.getApiConfig();
+    
+    if (!apiConfig.USE_API) {
+      // Demo mode - just show success message
+      setError('Demo mode: Admin role updated successfully');
+      await loadAdmins(selectedInstitution.slug || selectedInstitution._id);
+      return;
+    }
+    
     try {
-      await fetchJson(`${API_BASE}/api/tenants/${selectedInstitution.slug || selectedInstitution._id}/admins/${adminId}/role`, {
+      await fetchJson(`${apiConfig.API_BASE}/api/tenants/${selectedInstitution.slug || selectedInstitution._id}/admins/${adminId}/role`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ role })
@@ -189,8 +279,19 @@ export default function MultiTenantAdmin() {
       setError('Passwords do not match');
       return;
     }
+    
+    // Check API configuration
+    const apiConfig = dataService.getApiConfig();
+    
+    if (!apiConfig.USE_API) {
+      // Demo mode - just show success message
+      setError('Demo mode: Password reset successfully');
+      handleCloseReset();
+      return;
+    }
+    
     try {
-      await fetchJson(`${API_BASE}/api/tenants/${selectedInstitution.slug || selectedInstitution._id}/admins/reset-password`, {
+      await fetchJson(`${apiConfig.API_BASE}/api/tenants/${selectedInstitution.slug || selectedInstitution._id}/admins/reset-password`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -216,8 +317,19 @@ export default function MultiTenantAdmin() {
       setError('Passwords do not match');
       return;
     }
+    // Check API configuration
+    const apiConfig = dataService.getApiConfig();
+    
+    if (!apiConfig.USE_API) {
+      // Demo mode - just show success message
+      setError('Demo mode: Admin added successfully');
+      handleCloseAddAdmin();
+      await loadAdmins(selectedInstitution.slug || selectedInstitution._id);
+      return;
+    }
+    
     try {
-      await fetchJson(`${API_BASE}/api/tenants/${selectedInstitution.slug || selectedInstitution._id}/admins`, {
+      await fetchJson(`${apiConfig.API_BASE}/api/tenants/${selectedInstitution.slug || selectedInstitution._id}/admins`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
