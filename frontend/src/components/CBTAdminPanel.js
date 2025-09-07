@@ -4,7 +4,6 @@ import { saveAs } from 'file-saver';
 import { Document, Packer, Paragraph, TextRun, Table, TableRow, TableCell } from 'docx';
 import mammoth from 'mammoth';
 import dataService from '../services/dataService';
-import ExamManagement from './ExamManagement';
 import ReportingDashboard from './ReportingDashboard';
 import ExportOptions from './ExportOptions';
 import DataAnalytics from './DataAnalytics';
@@ -394,8 +393,7 @@ const CBTAdminPanel = ({ user, institution, onLogout, onAdminAccess }) => {
             { id: "results", label: "📊 Results", icon: "📊", adminOnly: false },
             { id: "reporting", label: "📈 Reporting", icon: "📈", adminOnly: true },
             { id: "students", label: "👥 Students", icon: "👥", adminOnly: true },
-            { id: "settings", label: "⚙️ Settings", icon: "⚙️", adminOnly: true },
-            { id: "advanced-exams", label: "🔧 Advanced Exams", icon: "🔧", adminOnly: true }
+            { id: "settings", label: "⚙️ Settings", icon: "⚙️", adminOnly: true }
           ].filter(tab => !tab.adminOnly || user.role === 'admin' || user.role === 'super_admin' || user.role === 'managed_admin').map(tab => (
             <button
               key={tab.id}
@@ -426,12 +424,6 @@ const CBTAdminPanel = ({ user, institution, onLogout, onAdminAccess }) => {
           />
         )}
 
-        {activeTab === "advanced-exams" && (
-          <ExamManagement 
-            user={user}
-            onBack={() => setActiveTab("exams")}
-          />
-        )}
 
         {activeTab === "questions" && (
           <QuestionsTab 
@@ -1364,13 +1356,13 @@ function SettingsTab({ onBackToExams, institution, user }) {
                 className="px-4 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700 text-sm"
               >
                 Manage Students
-                </button>
-                <button
-                  onClick={() => setCreateStudentModalOpen(true)}
-                  className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 text-sm"
-                >
-                  Create Student
-                </button>
+              </button>
+              <button
+                onClick={() => setCreateStudentModalOpen(true)}
+                className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 text-sm"
+              >
+                Create Student
+              </button>
               </>
             )}
             <button
