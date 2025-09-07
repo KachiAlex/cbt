@@ -18,6 +18,7 @@ const EnhancedExam = ({ user, tenant, onComplete }) => {
   const [loading, setLoading] = useState(true);
   const [currentQuestion, setCurrentQuestion] = useState(0);
   const [timeLeft, setTimeLeft] = useState(0);
+  const [examDuration, setExamDuration] = useState(0); // Duration in minutes
   const [examStarted, setExamStarted] = useState(false);
   const [showReview, setShowReview] = useState(false);
   const [autoSaveEnabled, setAutoSaveEnabled] = useState(true);
@@ -87,7 +88,7 @@ const EnhancedExam = ({ user, tenant, onComplete }) => {
       submittedAt: new Date().toISOString(),
       answers: answers,
       examTitle: examTitle,
-      timeTaken: (questions.length * 60) - timeLeft,
+      timeTaken: (examDuration * 60) - timeLeft,
       tenant: tenant?.name || 'Unknown Institution'
     };
 
@@ -104,7 +105,7 @@ const EnhancedExam = ({ user, tenant, onComplete }) => {
       console.error('Error saving result:', error);
       toast.error('Error saving exam result');
     }
-  }, [questions, answers, user.username, user.fullName, examTitle, timeLeft, tenant?.name, toast]);
+  }, [questions, answers, user.username, user.fullName, examTitle, timeLeft, examDuration, tenant?.name, toast]);
 
   useEffect(() => {
     loadExamData();
@@ -132,7 +133,20 @@ const EnhancedExam = ({ user, tenant, onComplete }) => {
   const loadExamData = () => {
     try {
       const loadedQuestions = JSON.parse(localStorage.getItem(LS_KEYS.QUESTIONS) || '[]');
-      const loadedExamTitle = localStorage.getItem(LS_KEYS.ACTIVE_EXAM) || 'Institution CBT – 12 Questions';
+      
+      // Try to load active exam data (including duration)
+      let activeExamData = null;
+      try {
+        const activeExamJson = localStorage.getItem(LS_KEYS.ACTIVE_EXAM);
+        if (activeExamJson) {
+          activeExamData = JSON.parse(activeExamJson);
+        }
+      } catch (e) {
+        console.warn('Could not parse active exam data, using fallback');
+      }
+      
+      const loadedExamTitle = activeExamData?.title || 'Institution CBT – 12 Questions';
+      const examDuration = activeExamData?.duration || loadedQuestions.length; // Default to 1 minute per question if no duration set
       
       if (loadedQuestions.length === 0) {
         setLoading(false);
@@ -142,7 +156,15 @@ const EnhancedExam = ({ user, tenant, onComplete }) => {
       setQuestions(loadedQuestions);
       setExamTitle(loadedExamTitle);
       setAnswers(new Array(loadedQuestions.length).fill(-1));
-      setTimeLeft(loadedQuestions.length * 60); // 1 minute per question
+      setExamDuration(examDuration);
+      setTimeLeft(examDuration * 60); // Convert minutes to seconds
+      
+      console.log('📝 Exam loaded:', {
+        title: loadedExamTitle,
+        duration: examDuration,
+        questions: loadedQuestions.length,
+        timeLeft: examDuration * 60
+      });
       
       // Try to load saved progress
       if (loadProgress()) {
@@ -277,7 +299,7 @@ const EnhancedExam = ({ user, tenant, onComplete }) => {
                 <h3 className="font-semibold text-blue-900 mb-2">📊 Exam Details</h3>
                 <ul className="text-blue-800 space-y-1">
                   <li>• {questions.length} questions</li>
-                  <li>• {questions.length} minutes time limit</li>
+                  <li>• {examDuration} minutes time limit</li>
                   <li>• Multiple choice format</li>
                   <li>• Auto-save enabled</li>
                 </ul>
@@ -337,7 +359,7 @@ const EnhancedExam = ({ user, tenant, onComplete }) => {
             <div className="grid grid-cols-2 gap-4 mb-6 text-sm">
               <div className="bg-gray-50 rounded-lg p-4">
                 <div className="font-semibold text-gray-700">Time Taken</div>
-                <div className="text-gray-600">{formatTime((questions.length * 60) - timeLeft)}</div>
+                <div className="text-gray-600">{formatTime((examDuration * 60) - timeLeft)}</div>
               </div>
               <div className="bg-gray-50 rounded-lg p-4">
                 <div className="font-semibold text-gray-700">Questions Answered</div>

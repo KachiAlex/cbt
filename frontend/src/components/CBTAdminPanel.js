@@ -312,6 +312,18 @@ const CBTAdminPanel = ({ user, institution, onLogout }) => {
       });
       await saveExams(updatedExams);
       setExams(updatedExams);
+      
+      // Store active exam data for students to access
+      const activeExam = updatedExams.find(exam => exam.id === examId && exam.isActive);
+      if (activeExam) {
+        // Store the full exam object including duration
+        localStorage.setItem(LS_KEYS.ACTIVE_EXAM, JSON.stringify(activeExam));
+        console.log('✅ Active exam set with duration:', activeExam.duration, 'minutes');
+      } else {
+        // Clear active exam if deactivated
+        localStorage.removeItem(LS_KEYS.ACTIVE_EXAM);
+        console.log('✅ Active exam cleared');
+      }
     } catch (error) {
       console.error('Error activating exam:', error);
     }
