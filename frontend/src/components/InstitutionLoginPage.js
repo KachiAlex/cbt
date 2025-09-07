@@ -250,9 +250,14 @@ const InstitutionLoginPage = () => {
       const newStudent = await dataService.registerStudent(studentData, institutionData.slug);
       
       if (newStudent) {
-        // Auto-login the new student
-        setUser(newStudent);
-        localStorage.setItem("cbt_logged_in_user", JSON.stringify(newStudent));
+        // Auto-login the new student with institution context
+        const userWithInstitution = {
+          ...newStudent,
+          institutionSlug: institutionData?.slug || null,
+          institutionName: institutionData?.name || null
+        };
+        setUser(userWithInstitution);
+        localStorage.setItem("cbt_logged_in_user", JSON.stringify(userWithInstitution));
         setView("student-portal");
       }
     } catch (error) {

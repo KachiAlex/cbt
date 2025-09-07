@@ -826,6 +826,7 @@ export const dataService = {
       fullName,
       email,
       role: 'student',
+      institutionSlug: tenantSlug, // Store the institution context
       registeredAt: new Date().toISOString()
     };
     users.push(newStudent);
