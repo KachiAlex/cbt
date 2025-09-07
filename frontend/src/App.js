@@ -3,11 +3,10 @@ import InstitutionLoginPage from "./components/InstitutionLoginPage";
 import MultiTenantAdmin from "./components/MultiTenantAdmin";
 import MultiTenantAdminLogin from "./components/MultiTenantAdminLogin";
 import CBTExam from "./components/CBTExam";
+import CBTAdminPanel from "./components/CBTAdminPanel";
 import StudentExam from "./components/StudentExam";
 import ConnectionStatus from "./components/ConnectionStatus";
 // import SystemDiagnostics from "./components/SystemDiagnostics";
-import AdminDashboardStats from "./components/AdminDashboardStats";
-import PerformanceAnalytics from "./components/PerformanceAnalytics";
 import RealTimeDataProvider from "./components/RealTimeDataProvider";
 import ValidatedInput, { EmailInput, PasswordInput } from "./components/ValidatedInput";
 import { useUserLoginForm, useUserRegistrationForm } from "./hooks/useFormValidation";
@@ -494,194 +493,6 @@ function Login({onLogin}){
   );
 }
 
-function AdminPanel({ user, tenant, onCBTView }) {
-  const [activeTab, setActiveTab] = useState("dashboard");
-
-  return (
-        <div className="space-y-6">
-      {/* Welcome Section */}
-      <div className="bg-gradient-to-r from-blue-600 to-blue-700 rounded-lg p-6 text-white">
-        <h1 className="text-2xl font-bold mb-2">Admin Dashboard</h1>
-        <p className="opacity-90">
-          Welcome back, {user.fullName || user.username}! Manage your institution's CBT system.
-        </p>
-        <p className="text-sm opacity-75 mt-1">
-          Institution: {tenant?.name || 'Unknown Institution'}
-        </p>
-            </div>
-
-      {/* Connection Status */}
-      <ConnectionStatus showDetails={true} className="mb-6" />
-
-      {/* Enhanced Dashboard Statistics */}
-      <AdminDashboardStats user={user} tenant={tenant} />
-
-      {/* Tab Navigation */}
-      <div className="bg-white rounded-lg shadow">
-        <div className="border-b border-gray-200">
-          <nav className="-mb-px flex space-x-8 px-6">
-                  <button
-              onClick={() => setActiveTab('dashboard')}
-              className={`py-4 px-1 border-b-2 font-medium text-sm ${
-                activeTab === 'dashboard'
-                  ? 'border-blue-500 text-blue-600'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-              }`}
-            >
-              Dashboard
-                  </button>
-                  <button 
-              onClick={() => setActiveTab('cbt')}
-              className={`py-4 px-1 border-b-2 font-medium text-sm ${
-                activeTab === 'cbt'
-                  ? 'border-blue-500 text-blue-600'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-              }`}
-            >
-              CBT Management
-                  </button>
-                  <button 
-              onClick={() => setActiveTab('users')}
-              className={`py-4 px-1 border-b-2 font-medium text-sm ${
-                activeTab === 'users'
-                  ? 'border-blue-500 text-blue-600'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-              }`}
-            >
-              User Management
-                  </button>
-                  <button
-              onClick={() => setActiveTab('analytics')}
-              className={`py-4 px-1 border-b-2 font-medium text-sm ${
-                activeTab === 'analytics'
-                  ? 'border-blue-500 text-blue-600'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-              }`}
-            >
-              Analytics
-                  </button>
-                  <button
-              onClick={() => setActiveTab('settings')}
-              className={`py-4 px-1 border-b-2 font-medium text-sm ${
-                activeTab === 'settings'
-                  ? 'border-blue-500 text-blue-600'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-              }`}
-            >
-              Settings
-                  </button>
-                  <button
-              onClick={() => setActiveTab('diagnostics')}
-              className={`py-4 px-1 border-b-2 font-medium text-sm ${
-                activeTab === 'diagnostics'
-                  ? 'border-blue-500 text-blue-600'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-              }`}
-            >
-              Diagnostics
-                  </button>
-          </nav>
-                </div>
-
-        <div className="p-6">
-          {activeTab === 'dashboard' && (
-            <div className="space-y-6">
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-6">
-                <h4 className="font-medium text-blue-900 mb-3 text-lg">Welcome to Your CBT Dashboard</h4>
-                <p className="text-blue-800 mb-4">
-                  Your comprehensive statistics and system overview are displayed above. Use the tabs below to manage different aspects of your CBT system.
-                </p>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="bg-white rounded-lg p-4 border border-blue-200">
-                    <h5 className="font-medium text-blue-900 mb-2">📝 Exam Management</h5>
-                    <p className="text-sm text-blue-700 mb-3">Create and manage exams, upload questions, and configure settings.</p>
-                  <button
-                  onClick={onCBTView}
-                      className="text-blue-600 hover:text-blue-800 font-medium text-sm"
-                    >
-                      Go to CBT Management →
-                </button>
-                  </div>
-                  <div className="bg-white rounded-lg p-4 border border-blue-200">
-                    <h5 className="font-medium text-blue-900 mb-2">👥 User Management</h5>
-                    <p className="text-sm text-blue-700 mb-3">View registered students, manage permissions, and track activity.</p>
-            <button 
-                  onClick={() => setActiveTab('users')}
-                      className="text-blue-600 hover:text-blue-800 font-medium text-sm"
-                    >
-                      Manage Users →
-                    </button>
-          </div>
-              </div>
-            </div>
-
-              <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-                <h4 className="font-medium text-green-900 mb-2">Getting Started Guide</h4>
-                <ul className="text-sm text-green-800 space-y-1">
-                  <li>• Upload your exam questions using Microsoft Word (.docx) or Excel (.xlsx) format</li>
-                  <li>• Set exam title and configure settings in the CBT Management tab</li>
-                  <li>• Students can register and take exams through the student portal</li>
-                  <li>• View real-time statistics and export results for analysis</li>
-                  <li>• Monitor system health and connection status at the top of the dashboard</li>
-                </ul>
-              </div>
-        </div>
-      )}
-
-          {activeTab === 'cbt' && (
-        <div className="space-y-6">
-              <h3 className="text-lg font-medium text-gray-900">CBT Management</h3>
-              <p className="text-gray-600">Click the button below to access the full CBT management system.</p>
-            <button 
-                onClick={onCBTView}
-                className="px-6 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 font-semibold"
-            >
-                Open CBT Management
-            </button>
-          </div>
-          )}
-
-          {activeTab === 'users' && (
-            <div className="space-y-6">
-              <h3 className="text-lg font-medium text-gray-900">User Management</h3>
-              
-              <div className="bg-gray-50 rounded-lg p-4">
-                <p className="text-gray-600">
-                  User management features will be implemented here. This will include:
-                </p>
-                <ul className="mt-2 text-sm text-gray-600 space-y-1">
-                  <li>• View all registered students</li>
-                  <li>• Add new students</li>
-                  <li>• Manage student permissions</li>
-                  <li>• View student exam history</li>
-                </ul>
-            </div>
-        </div>
-      )}
-
-          {activeTab === 'analytics' && (
-            <div className="space-y-6">
-              <h3 className="text-lg font-medium text-gray-900">Performance Analytics</h3>
-              <PerformanceAnalytics />
-        </div>
-      )}
-
-          {activeTab === 'settings' && (
-        <div className="space-y-6">
-              <h3 className="text-lg font-medium text-gray-900">Institution Settings</h3>
-              
-              <div className="bg-gray-50 rounded-lg p-4">
-                <p className="text-gray-600">
-                  Institution settings and configuration options will be available here.
-                </p>
-            </div>
-        </div>
-      )}
-        </div>
-      </div>
-    </div>
-  );
-}
 
 function StudentPanel({ user, tenant, onExamView }) {
   const [activeTab, setActiveTab] = useState("dashboard");
@@ -1137,9 +948,6 @@ function App() {
   }, [user]);
 
   // CBT System Navigation Handlers
-  const handleCBTAdminView = () => {
-    setCurrentView("cbt-admin");
-  };
 
   const handleStudentExamView = (exam) => {
     setSelectedExam(exam);
@@ -1196,10 +1004,9 @@ function App() {
       <main className="max-w-5xl mx-auto w-full px-3 sm:px-8 py-4 sm:py-8">
         {user ? (
           user.role === "admin" ? (
-            <AdminPanel 
+            <CBTAdminPanel 
               user={user} 
-              tenant={institutionData}
-              onCBTView={handleCBTAdminView}
+              institution={institutionData}
               onLogoClick={handleLogoClick}
             />
           ) : (
