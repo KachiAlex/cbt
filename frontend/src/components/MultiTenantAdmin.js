@@ -657,6 +657,42 @@ export default function MultiTenantAdmin() {
       address: '',
       plan: 'basic'
     });
+    setLogoFile(null);
+    setLogoPreview('');
+  };
+
+  // Logo file handling for create institution
+  const handleCreateLogoFileChange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      // Validate file type
+      if (!file.type.startsWith('image/')) {
+        setError('Please select an image file');
+        return;
+      }
+      
+      // Validate file size (max 5MB)
+      if (file.size > 5 * 1024 * 1024) {
+        setError('File size must be less than 5MB');
+        return;
+      }
+      
+      setLogoFile(file);
+      
+      // Create preview
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        setLogoPreview(e.target.result);
+        setCreateInstitutionData(prev => ({ ...prev, logo: e.target.result }));
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleRemoveCreateLogo = () => {
+    setLogoFile(null);
+    setLogoPreview('');
+    setCreateInstitutionData(prev => ({ ...prev, logo: '' }));
   };
 
     // Logout function
@@ -1356,14 +1392,50 @@ export default function MultiTenantAdmin() {
                 <h4 className="text-md font-semibold text-gray-800 mb-3">Additional Information</h4>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Logo URL</label>
-                    <input
-                      type="url"
-                      name="logo"
-                      value={createInstitutionData.logo}
-                      onChange={handleCreateInstitutionChange}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Logo</label>
+                    <div className="space-y-2">
+                      {/* Logo Preview */}
+                      {logoPreview && (
+                        <div className="relative inline-block">
+                          <img 
+                            src={logoPreview} 
+                            alt="Logo preview" 
+                            className="w-16 h-16 object-cover rounded border"
+                          />
+                          <button
+                            type="button"
+                            onClick={handleRemoveCreateLogo}
+                            className="absolute -top-2 -right-2 w-5 h-5 bg-red-500 text-white rounded-full text-xs hover:bg-red-600"
+                          >
+                            ×
+                          </button>
+                        </div>
+                      )}
+                      
+                      {/* File Picker */}
+                      <div>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          onChange={handleCreateLogoFileChange}
+                          className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+                        />
+                        <p className="text-xs text-gray-500 mt-1">Upload an image file (max 5MB)</p>
+                      </div>
+                      
+                      {/* URL Input */}
+                      <div>
+                        <input
+                          type="url"
+                          name="logo"
+                          value={createInstitutionData.logo}
+                          onChange={handleCreateInstitutionChange}
+                          placeholder="Or enter logo URL"
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        />
+                        <p className="text-xs text-gray-500 mt-1">Or provide a logo URL</p>
+                      </div>
+                    </div>
                   </div>
                   
                   <div>
