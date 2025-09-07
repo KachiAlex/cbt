@@ -28,6 +28,7 @@ export default function MultiTenantAdmin() {
   const [showAddAdminForm, setShowAddAdminForm] = useState(false);
   const [showEditInstitution, setShowEditInstitution] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [showCreateInstitution, setShowCreateInstitution] = useState(false);
 
   // Admins state
   const [admins, setAdmins] = useState([]);
@@ -60,6 +61,21 @@ export default function MultiTenantAdmin() {
     address: ''
   });
 
+  const [createInstitutionData, setCreateInstitutionData] = useState({
+    name: '',
+    slug: '',
+    adminUsername: '',
+    adminEmail: '',
+    adminFullName: '',
+    adminPassword: '',
+    logo: '',
+    description: '',
+    website: '',
+    contactPhone: '',
+    address: '',
+    plan: 'basic'
+  });
+
   const [logoFile, setLogoFile] = useState(null);
   const [logoPreview, setLogoPreview] = useState('');
 
@@ -74,29 +90,29 @@ export default function MultiTenantAdmin() {
       if (apiConfig.USE_API) {
         // Use API
         const raw = await fetchJson(`${apiConfig.API_BASE}/api/tenants`);
-        const list = Array.isArray(raw) ? raw : (Array.isArray(raw?.tenants) ? raw.tenants : []);
-        const normalized = list.map((t) => {
-          const defaultAdmin = t.default_admin || (Array.isArray(t.admins) ? t.admins.find(a => a.is_default_admin) : null) || {};
-          const totalUsers = (
-            t.totalUsers ??
-            t.userCount ??
-            (Array.isArray(t.users) ? t.users.length : undefined) ??
-            (Array.isArray(t.admins) ? t.admins.length : undefined) ??
-            (t.stats && typeof t.stats.totalUsers === 'number' ? t.stats.totalUsers : undefined) ??
-            0
-          );
-          return {
-            ...t,
-            _id: t._id || t.id,
-            subscriptionPlan: t.subscriptionPlan || t.plan || 'Basic',
-            createdAt: t.createdAt || t.created_at || t.createdOn,
-            primaryAdmin: t.primaryAdmin || defaultAdmin.fullName || defaultAdmin.name || '',
-            adminUsername: t.adminUsername || defaultAdmin.username || '',
-            adminEmail: t.adminEmail || defaultAdmin.email || '',
-            totalUsers
-          };
-        });
-        setInstitutions(normalized);
+      const list = Array.isArray(raw) ? raw : (Array.isArray(raw?.tenants) ? raw.tenants : []);
+      const normalized = list.map((t) => {
+        const defaultAdmin = t.default_admin || (Array.isArray(t.admins) ? t.admins.find(a => a.is_default_admin) : null) || {};
+        const totalUsers = (
+          t.totalUsers ??
+          t.userCount ??
+          (Array.isArray(t.users) ? t.users.length : undefined) ??
+          (Array.isArray(t.admins) ? t.admins.length : undefined) ??
+          (t.stats && typeof t.stats.totalUsers === 'number' ? t.stats.totalUsers : undefined) ??
+          0
+        );
+        return {
+          ...t,
+          _id: t._id || t.id,
+          subscriptionPlan: t.subscriptionPlan || t.plan || 'Basic',
+          createdAt: t.createdAt || t.created_at || t.createdOn,
+          primaryAdmin: t.primaryAdmin || defaultAdmin.fullName || defaultAdmin.name || '',
+          adminUsername: t.adminUsername || defaultAdmin.username || '',
+          adminEmail: t.adminEmail || defaultAdmin.email || '',
+          totalUsers
+        };
+      });
+      setInstitutions(normalized);
       } else {
         // Use localStorage fallback - create demo institutions
         const demoInstitutions = [
@@ -183,8 +199,8 @@ export default function MultiTenantAdmin() {
       if (apiConfig.USE_API) {
         // Use API
         const data = await fetchJson(`${apiConfig.API_BASE}/api/tenants/${tenantSlug}/admins`);
-        const list = Array.isArray(data) ? data : (Array.isArray(data?.admins) ? data.admins : []);
-        setAdmins(list);
+      const list = Array.isArray(data) ? data : (Array.isArray(data?.admins) ? data.admins : []);
+      setAdmins(list);
       } else {
         // Use localStorage fallback - create demo admins
         const demoAdmins = [
@@ -554,6 +570,95 @@ export default function MultiTenantAdmin() {
     }
   };
 
+  // Create institution handler
+  const handleCreateInstitution = async (e) => {
+    e.preventDefault();
+    
+    if (!createInstitutionData.name || !createInstitutionData.adminUsername || !createInstitutionData.adminPassword) {
+      setError('Name, admin username, and password are required');
+      return;
+    }
+    
+    // Check API configuration
+    const apiConfig = dataService.getApiConfig();
+    
+    if (!apiConfig.USE_API) {
+      // Demo mode - just show success message
+      setError('Demo mode: Institution created successfully');
+      handleCloseCreateInstitution();
+      await loadInstitutions();
+      return;
+    }
+    
+    try {
+      await fetchJson(`${apiConfig.API_BASE}/api/tenants`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: createInstitutionData.name,
+          slug: createInstitutionData.slug || createInstitutionData.name.toLowerCase().replace(/\s+/g, '-'),
+          adminUsername: createInstitutionData.adminUsername,
+          adminEmail: createInstitutionData.adminEmail,
+          adminFullName: createInstitutionData.adminFullName,
+          adminPassword: createInstitutionData.adminPassword,
+          logo: createInstitutionData.logo,
+          description: createInstitutionData.description,
+          website: createInstitutionData.website,
+          contactPhone: createInstitutionData.contactPhone,
+          address: createInstitutionData.address,
+          plan: createInstitutionData.plan
+        })
+      });
+      handleCloseCreateInstitution();
+      await loadInstitutions();
+      setCreateInstitutionData({
+        name: '',
+        slug: '',
+        adminUsername: '',
+        adminEmail: '',
+        adminFullName: '',
+        adminPassword: '',
+        logo: '',
+        description: '',
+        website: '',
+        contactPhone: '',
+        address: '',
+        plan: 'basic'
+      });
+    } catch (e) {
+      setError(e.message || 'Failed to create institution');
+    }
+  };
+
+  // Create institution form handlers
+  const handleCreateInstitutionChange = (e) => {
+    const { name, value } = e.target;
+    setCreateInstitutionData((prev) => ({ ...prev, [name]: value }));
+  };
+
+  const handleOpenCreateInstitution = () => {
+    setShowCreateInstitution(true);
+    setError('');
+  };
+
+  const handleCloseCreateInstitution = () => {
+    setShowCreateInstitution(false);
+    setCreateInstitutionData({
+      name: '',
+      slug: '',
+      adminUsername: '',
+      adminEmail: '',
+      adminFullName: '',
+      adminPassword: '',
+      logo: '',
+      description: '',
+      website: '',
+      contactPhone: '',
+      address: '',
+      plan: 'basic'
+    });
+  };
+
     // Logout function
   const handleLogout = () => {
     // Clear multi-tenant admin authentication
@@ -565,23 +670,34 @@ export default function MultiTenantAdmin() {
     window.location.href = '/?admin=true';
   };
 
-  return (
+    return (
     <div className="p-4">
       <div className="mb-4 flex justify-between items-center">
         <h2 className="text-xl font-semibold">Multi-tenant Admin Dashboard</h2>
-        <button
-          onClick={handleLogout}
-          className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors flex items-center gap-2"
-        >
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-          </svg>
-          Logout
-        </button>
+        <div className="flex gap-2">
+          <button
+            onClick={handleOpenCreateInstitution}
+            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+            </svg>
+            Create Institution
+          </button>
+          <button
+            onClick={handleLogout}
+            className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors flex items-center gap-2"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+            </svg>
+            Logout
+          </button>
+        </div>
       </div>
-      {error ? (
-        <p className="text-red-600 mt-2">{error}</p>
-      ) : null}
+        {error ? (
+          <p className="text-red-600 mt-2">{error}</p>
+        ) : null}
 
       {/* Institutions List */}
       <div className="space-y-4">
@@ -615,7 +731,7 @@ export default function MultiTenantAdmin() {
                       {...createFallbackLogo(inst.name, 'w-12 h-12')}
                       style={{ display: inst.logo ? 'none' : 'flex' }}
                     />
-                    <div>
+            <div>
                       <h3 className="text-lg font-semibold text-gray-900">{inst.name}</h3>
                       <p className="text-sm text-gray-600">Slug: {inst.slug}</p>
                     </div>
@@ -648,8 +764,8 @@ export default function MultiTenantAdmin() {
                         <span className="text-sm text-gray-600">
                           {inst.lastActivity ? new Date(inst.lastActivity).toLocaleDateString() : 'N/A'}
                         </span>
-                      </div>
-                      <div className="flex items-center gap-2">
+            </div>
+              <div className="flex items-center gap-2">
                         <span className="text-sm font-medium text-gray-700">📊 Plan:</span>
                         <span className="text-sm text-gray-600">{inst.subscriptionPlan || 'Basic'}</span>
                       </div>
@@ -688,13 +804,13 @@ export default function MultiTenantAdmin() {
                     onClick={() => handleOpenDeleteConfirm(inst)}
                   >
                     🗑️ Delete
-                  </button>
+          </button>
                 </div>
-              </div>
-            </div>
+        </div>
+      </div>
           ))
         )}
-      </div>
+            </div>
 
       {/* Manage Admins Modal (3 buttons only) */}
       {showManageAdminsForm && selectedInstitution && (
@@ -1145,6 +1261,187 @@ export default function MultiTenantAdmin() {
                 Delete Institution
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Create Institution Modal */}
+      {showCreateInstitution && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-start justify-center overflow-y-auto">
+          <div className="bg-white rounded shadow w-11/12 md:w-3/4 lg:w-1/2 mt-16 p-6">
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="text-lg font-semibold">Create New Institution</h3>
+              <button className="text-gray-500 hover:text-gray-700" onClick={handleCloseCreateInstitution}>✕</button>
+            </div>
+            
+            <form onSubmit={handleCreateInstitution} className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Institution Name *</label>
+                  <input
+                    type="text"
+                    name="name"
+                    value={createInstitutionData.name}
+                    onChange={handleCreateInstitutionChange}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    required
+                  />
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Slug (URL-friendly)</label>
+                  <input
+                    type="text"
+                    name="slug"
+                    value={createInstitutionData.slug}
+                    onChange={handleCreateInstitutionChange}
+                    placeholder="auto-generated from name"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+              </div>
+
+              <div className="border-t pt-4">
+                <h4 className="text-md font-semibold text-gray-800 mb-3">Primary Administrator</h4>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Admin Username *</label>
+                    <input
+                      type="text"
+                      name="adminUsername"
+                      value={createInstitutionData.adminUsername}
+                      onChange={handleCreateInstitutionChange}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      required
+                    />
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Admin Email</label>
+                    <input
+                      type="email"
+                      name="adminEmail"
+                      value={createInstitutionData.adminEmail}
+                      onChange={handleCreateInstitutionChange}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Admin Full Name</label>
+                    <input
+                      type="text"
+                      name="adminFullName"
+                      value={createInstitutionData.adminFullName}
+                      onChange={handleCreateInstitutionChange}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Admin Password *</label>
+                    <input
+                      type="password"
+                      name="adminPassword"
+                      value={createInstitutionData.adminPassword}
+                      onChange={handleCreateInstitutionChange}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      required
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div className="border-t pt-4">
+                <h4 className="text-md font-semibold text-gray-800 mb-3">Additional Information</h4>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Logo URL</label>
+                    <input
+                      type="url"
+                      name="logo"
+                      value={createInstitutionData.logo}
+                      onChange={handleCreateInstitutionChange}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Plan</label>
+                    <select
+                      name="plan"
+                      value={createInstitutionData.plan}
+                      onChange={handleCreateInstitutionChange}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    >
+                      <option value="basic">Basic</option>
+                      <option value="premium">Premium</option>
+                      <option value="enterprise">Enterprise</option>
+                    </select>
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Website</label>
+                    <input
+                      type="url"
+                      name="website"
+                      value={createInstitutionData.website}
+                      onChange={handleCreateInstitutionChange}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Contact Phone</label>
+                    <input
+                      type="tel"
+                      name="contactPhone"
+                      value={createInstitutionData.contactPhone}
+                      onChange={handleCreateInstitutionChange}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+                </div>
+                
+                <div className="mt-4">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
+                  <textarea
+                    name="description"
+                    value={createInstitutionData.description}
+                    onChange={handleCreateInstitutionChange}
+                    rows={3}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+                
+                <div className="mt-4">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Address</label>
+                  <textarea
+                    name="address"
+                    value={createInstitutionData.address}
+                    onChange={handleCreateInstitutionChange}
+                    rows={2}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+              </div>
+
+              <div className="flex justify-end gap-3 pt-4 border-t">
+                <button
+                  type="button"
+                  onClick={handleCloseCreateInstitution}
+                  className="px-4 py-2 text-gray-700 border border-gray-300 rounded-md hover:bg-gray-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+                >
+                  Create Institution
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}
