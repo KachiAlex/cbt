@@ -150,7 +150,7 @@ const AdminLogin = ({ onLogin, onBack, institutionData }) => {
           onClick={onBack}
           className="text-blue-600 hover:text-blue-800 text-sm font-medium"
         >
-          ← Back to Student Login
+          Back to Student login
         </button>
       </div>
 

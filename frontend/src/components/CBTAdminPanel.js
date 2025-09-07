@@ -1104,21 +1104,26 @@ function SettingsTab({ onBackToExams, institution, user }) {
         index === self.findIndex(s => s.email === student.email)
       );
       
+      // Filter by institution if needed
+      const institutionStudents = uniqueStudents.filter(student => 
+        !institution?.slug || student.institutionSlug === institution.slug
+      );
+      
       // Add status information
-      const studentsWithStatus = uniqueStudents.map(student => ({
+      const studentsWithStatus = institutionStudents.map(student => ({
         ...student,
         status: getStudentStatus(student.username || student.email) || 'active'
       }));
       
       setStudents(studentsWithStatus);
-      console.log('📚 Loaded students:', studentsWithStatus.length);
+      console.log('📚 Loaded students for institution:', institution?.slug || 'all', studentsWithStatus.length);
     } catch (error) {
       console.error('Error loading students:', error);
       showToast('Failed to load students', 'error');
     } finally {
       setLoadingStudents(false);
     }
-  }, []);
+  }, [institution?.slug]);
 
   // Toggle student status (suspend/unsuspend)
   const toggleStudentStatus = (student) => {

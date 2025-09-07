@@ -83,7 +83,7 @@ function AdminLogin({onLogin, onBack}){
     <div className="max-w-md mx-auto">
       <div className="bg-white p-6 rounded-xl shadow-lg border">
         <div className="text-center mb-6">
-          <h2 className="text-2xl font-bold text-gray-800 mb-2">🔐 Admin Login</h2>
+          <h2 className="text-2xl font-bold text-gray-800 mb-2">Admin Login</h2>
           <p className="text-gray-600">Access the admin panel</p>
         </div>
         
@@ -119,7 +119,7 @@ function AdminLogin({onLogin, onBack}){
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                placeholder="Enter admin password"
+                placeholder=""
                 autoComplete="current-password"
                 required
               />
@@ -161,7 +161,7 @@ function AdminLogin({onLogin, onBack}){
             onClick={onBack}
             className="text-blue-600 hover:text-blue-800 text-sm"
           >
-            ← Back to Student Login
+            Back to Student login
           </button>
         </div>
       </div>

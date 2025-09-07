@@ -831,11 +831,13 @@ export const dataService = {
     };
     users.push(newStudent);
     await dataService.saveUsers(users);
+    console.log('✅ Student added to users:', newStudent);
 
     // Track registrations locally
     const regs = (await dataService.loadStudentRegistrations()) || [];
     regs.push(newStudent);
     await dataService.saveStudentRegistrations(regs);
+    console.log('✅ Student added to registrations:', newStudent);
 
     return newStudent;
   }
