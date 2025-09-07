@@ -221,7 +221,7 @@ const InstitutionLoginPage = () => {
     setAuthError("");
   };
 
-  // Hidden admin access - click on the logo (only if no institution logo)
+  // Hidden admin access (only if no institution logo)
   const handleLogoClick = () => {
     if (!user && !institutionData?.logo) {
       setShowAdminLogin(!showAdminLogin);
@@ -229,7 +229,7 @@ const InstitutionLoginPage = () => {
     }
   };
 
-  // Keyboard shortcut for admin access (Ctrl + Alt + A) - only if no institution logo
+  // Keyboard shortcut for admin access - only if no institution logo
   useEffect(() => {
     const handleKeyPress = (e) => {
       if (!user && !institutionData?.logo && e.ctrlKey && e.altKey && e.key === 'A') {
@@ -346,7 +346,7 @@ const InstitutionLoginPage = () => {
             /* Admin Login */
             <div className="bg-white rounded-2xl shadow p-6">
               <div className="flex justify-between items-center mb-4">
-                <h2 className="text-xl font-bold text-center flex-1">🔐 Admin Access</h2>
+                <h2 className="text-xl font-bold text-center flex-1">🔐 Access</h2>
                 <button
                   onClick={() => setShowAdminLogin(false)}
                   className="text-gray-500 hover:text-gray-700 text-xl"
@@ -380,7 +380,6 @@ const InstitutionLoginPage = () => {
               />
               {!institutionData?.logo ? (
                 <div className="text-xs text-gray-500 text-center mt-4">
-                  <p>💡 <strong>Tip:</strong> Click on the CBT logo above for admin access</p>
                 </div>
               ) : (
                 <div className="text-center mt-4">
@@ -388,7 +387,7 @@ const InstitutionLoginPage = () => {
                     onClick={() => setShowAdminLogin(true)}
                     className="text-sm text-blue-600 hover:text-blue-800 underline"
                   >
-                    🔐 Admin Access
+                    🔐 Access
                   </button>
                 </div>
               )}

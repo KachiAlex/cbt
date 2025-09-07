@@ -29,7 +29,7 @@ const CBTHeader = ({ user, institution, onLogout, onSwitchToAdmin, onSwitchToStu
                   : ''
               }`}
               onClick={!user && onLogoClick ? onLogoClick : undefined}
-              title={!user && onLogoClick ? "Click for admin access (or press Ctrl+Alt+A)" : ""}
+              title=""
             >
               <span className="text-white font-bold text-xl">CBT</span>
               {!user && onLogoClick && (
