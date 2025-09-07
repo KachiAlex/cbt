@@ -903,6 +903,7 @@ function App() {
     console.log('🔄 View changed to:', view);
   }, [view]);
 
+
   // Keyboard shortcut for admin access - works from anywhere
   useEffect(() => {
     const handleKeyPress = (e) => {

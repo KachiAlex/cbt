@@ -379,8 +379,8 @@ const CBTAdminPanel = ({ user, institution, onLogout, onAdminAccess }) => {
               >
                 ⚙️
               </button>
-              <div className="text-sm text-gray-500">
-                Logged in as: <span className="font-medium">{user.fullName || user.username}</span>
+            <div className="text-sm text-gray-500">
+              Logged in as: <span className="font-medium">{user.fullName || user.username}</span>
               </div>
             </div>
           </div>
@@ -1030,6 +1030,14 @@ function SettingsTab({ onBackToExams, institution, user }) {
   const [students, setStudents] = useState([]);
   const [loadingStudents, setLoadingStudents] = useState(false);
   const [studentSearchTerm, setStudentSearchTerm] = useState('');
+  const [createStudentModalOpen, setCreateStudentModalOpen] = useState(false);
+  const [newStudent, setNewStudent] = useState({
+    username: '',
+    password: '',
+    fullName: '',
+    email: ''
+  });
+  const [createStudentError, setCreateStudentError] = useState('');
 
   const updateLogo = async (logoUrl) => {
     try {
@@ -1145,6 +1153,108 @@ function SettingsTab({ onBackToExams, institution, user }) {
     }
   };
 
+  // Delete student permanently
+  const deleteStudent = async (student) => {
+    if (!window.confirm(`Are you sure you want to permanently delete student "${student.fullName || student.username}"? This action cannot be undone.`)) {
+      return;
+    }
+
+    try {
+      // Remove from users
+      const users = JSON.parse(localStorage.getItem('cbt_users_v1') || '[]');
+      const updatedUsers = users.filter(user => 
+        !(user.email && user.email.toLowerCase() === student.email.toLowerCase())
+      );
+      localStorage.setItem('cbt_users_v1', JSON.stringify(updatedUsers));
+
+      // Remove from registrations
+      const registrations = JSON.parse(localStorage.getItem('cbt_student_registrations_v1') || '[]');
+      const updatedRegistrations = registrations.filter(reg => 
+        !(reg.email && reg.email.toLowerCase() === student.email.toLowerCase())
+      );
+      localStorage.setItem('cbt_student_registrations_v1', JSON.stringify(updatedRegistrations));
+
+      // Remove from student status
+      const statusMap = JSON.parse(localStorage.getItem('cbt_student_status_v1') || '{}');
+      delete statusMap[student.username || student.email];
+      localStorage.setItem('cbt_student_status_v1', JSON.stringify(statusMap));
+
+      // Update local state
+      setStudents(prev => prev.filter(s => 
+        (s.username || s.email) !== (student.username || student.email)
+      ));
+
+      showToast('Student deleted successfully', 'success');
+      console.log('🗑️ Student deleted:', student.email);
+    } catch (error) {
+      console.error('Error deleting student:', error);
+      showToast('Failed to delete student', 'error');
+    }
+  };
+
+  // Create student manually
+  const createStudent = async () => {
+    try {
+      setCreateStudentError('');
+      
+      // Validate required fields
+      if (!newStudent.username || !newStudent.password || !newStudent.fullName || !newStudent.email) {
+        setCreateStudentError('All fields are required');
+        return;
+      }
+
+      if (newStudent.password.length < 6) {
+        setCreateStudentError('Password must be at least 6 characters long');
+        return;
+      }
+
+      // Check if username or email already exists
+      const users = JSON.parse(localStorage.getItem('cbt_users_v1') || '[]');
+      const existingUser = users.find(u => 
+        (u.username && u.username.toLowerCase() === newStudent.username.toLowerCase()) ||
+        (u.email && u.email.toLowerCase() === newStudent.email.toLowerCase())
+      );
+
+      if (existingUser) {
+        setCreateStudentError('Username or email already exists');
+        return;
+      }
+
+      // Create new student
+      const studentData = {
+        username: newStudent.username,
+        password: newStudent.password,
+        fullName: newStudent.fullName,
+        email: newStudent.email,
+        role: 'student',
+        institutionSlug: institution?.slug || null,
+        registeredAt: new Date().toISOString()
+      };
+
+      // Add to users
+      users.push(studentData);
+      localStorage.setItem('cbt_users_v1', JSON.stringify(users));
+
+      // Add to registrations
+      const registrations = JSON.parse(localStorage.getItem('cbt_student_registrations_v1') || '[]');
+      registrations.push(studentData);
+      localStorage.setItem('cbt_student_registrations_v1', JSON.stringify(registrations));
+
+      // Reset form and close modal
+      setNewStudent({ username: '', password: '', fullName: '', email: '' });
+      setCreateStudentModalOpen(false);
+      
+      // Reload students list
+      await loadStudents();
+      
+      showToast('Student created successfully', 'success');
+      console.log('✅ Student created manually:', studentData);
+    } catch (error) {
+      console.error('Error creating student:', error);
+      setCreateStudentError('Failed to create student: ' + error.message);
+    }
+  };
+
   // Load students when modal opens
   useEffect(() => {
     if (studentsModalOpen) {
@@ -1232,28 +1342,34 @@ function SettingsTab({ onBackToExams, institution, user }) {
           </div>
         </div>
         
-        <div className="mt-6 pt-6 border-t border-gray-200">
-          <h5 className="font-semibold mb-4">Administrative Actions</h5>
-          <div className="flex flex-wrap gap-3">
+          <div className="mt-6 pt-6 border-t border-gray-200">
+            <h5 className="font-semibold mb-4">Administrative Actions</h5>
+            <div className="flex flex-wrap gap-3">
             {isSuperAdmin && (
               <>
-                <button
-                  onClick={() => setLogoModalOpen(true)}
-                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm"
-                >
-                  Change Logo
+              <button
+                onClick={() => setLogoModalOpen(true)}
+                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm"
+              >
+                Change Logo
+              </button>
+              <button
+                onClick={() => setAdminsModalOpen(true)}
+                className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 text-sm"
+              >
+                Manage Admins
+              </button>
+              <button
+                onClick={() => setStudentsModalOpen(true)}
+                className="px-4 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700 text-sm"
+              >
+                Manage Students
                 </button>
                 <button
-                  onClick={() => setAdminsModalOpen(true)}
-                  className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 text-sm"
+                  onClick={() => setCreateStudentModalOpen(true)}
+                  className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 text-sm"
                 >
-                  Manage Admins
-                </button>
-                <button
-                  onClick={() => setStudentsModalOpen(true)}
-                  className="px-4 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700 text-sm"
-                >
-                  Manage Students
+                  Create Student
                 </button>
               </>
             )}
@@ -1262,9 +1378,9 @@ function SettingsTab({ onBackToExams, institution, user }) {
               className="px-4 py-2 bg-amber-600 text-white rounded-lg hover:bg-amber-700 text-sm"
             >
               Change Password
-            </button>
+              </button>
+            </div>
           </div>
-        </div>
       </div>
 
       {/* Logo Update Modal */}
@@ -1523,11 +1639,11 @@ function SettingsTab({ onBackToExams, institution, user }) {
                 <p className="text-gray-500 mt-2">Loading students...</p>
               </div>
             ) : students.length === 0 ? (
-              <div className="text-center text-gray-500 py-8">
+            <div className="text-center text-gray-500 py-8">
                 <div className="text-4xl mb-4">👥</div>
                 <p className="text-lg font-medium mb-2">No students found</p>
                 <p className="text-sm">Students will appear here once they register for exams.</p>
-              </div>
+            </div>
             ) : (() => {
               const filteredStudents = students.filter(student => {
                 if (!studentSearchTerm) return true;
@@ -1546,7 +1662,7 @@ function SettingsTab({ onBackToExams, institution, user }) {
                       <div className="text-4xl mb-4">🔍</div>
                       <p className="text-lg font-medium mb-2">No students found</p>
                       <p className="text-sm">No students match your search for "{studentSearchTerm}"</p>
-                    </div>
+          </div>
                   ) : (
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                       {filteredStudents.map((student, index) => (
@@ -1558,7 +1674,7 @@ function SettingsTab({ onBackToExams, institution, user }) {
                           {student.username && (
                             <p className="text-xs text-gray-500">@{student.username}</p>
                           )}
-                        </div>
+        </div>
                         <span className={`px-2 py-1 rounded-full text-xs font-medium ${
                           student.status === 'active' 
                             ? 'bg-green-100 text-green-800' 
@@ -1587,6 +1703,13 @@ function SettingsTab({ onBackToExams, institution, user }) {
                           }`}
                         >
                           {student.status === 'active' ? 'Suspend' : 'Activate'}
+                        </button>
+                        <button
+                          onClick={() => deleteStudent(student)}
+                          className="px-3 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 text-sm font-medium transition-colors"
+                          title="Delete student permanently"
+                        >
+                          🗑️
                         </button>
                       </div>
                     </div>
@@ -1687,6 +1810,102 @@ function SettingsTab({ onBackToExams, institution, user }) {
                   setChangePasswordModalOpen(false);
                   setPasswordData({ currentPassword: '', newPassword: '', confirmPassword: '' });
                   setPasswordError('');
+                }}
+                className="flex-1 px-4 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 text-sm font-medium"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Create Student Modal */}
+      {createStudentModalOpen && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-xl p-6 w-full max-w-md mx-4">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-lg font-bold">Create New Student</h3>
+              <button 
+                onClick={() => {
+                  setCreateStudentModalOpen(false);
+                  setNewStudent({ username: '', password: '', fullName: '', email: '' });
+                  setCreateStudentError('');
+                }} 
+                className="text-gray-500 hover:text-gray-700 text-xl"
+              >
+                ×
+              </button>
+            </div>
+            
+            {createStudentError && (
+              <div className="mb-4 p-3 bg-red-50 text-red-700 rounded-lg text-sm">
+                {createStudentError}
+              </div>
+            )}
+            
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Full Name</label>
+                <input
+                  type="text"
+                  value={newStudent.fullName}
+                  onChange={(e) => setNewStudent(prev => ({ ...prev, fullName: e.target.value }))}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  placeholder="Enter full name"
+                  autoComplete="name"
+                />
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Username</label>
+                <input
+                  type="text"
+                  value={newStudent.username}
+                  onChange={(e) => setNewStudent(prev => ({ ...prev, username: e.target.value }))}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  placeholder="Enter username"
+                  autoComplete="username"
+                />
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+                <input
+                  type="email"
+                  value={newStudent.email}
+                  onChange={(e) => setNewStudent(prev => ({ ...prev, email: e.target.value }))}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  placeholder="Enter email address"
+                  autoComplete="email"
+                />
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Password</label>
+                <input
+                  type="password"
+                  value={newStudent.password}
+                  onChange={(e) => setNewStudent(prev => ({ ...prev, password: e.target.value }))}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  placeholder="Enter password (min 6 characters)"
+                  autoComplete="new-password"
+                />
+              </div>
+            </div>
+            
+            <div className="flex gap-3 mt-6">
+              <button
+                onClick={createStudent}
+                className="flex-1 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 text-sm font-medium"
+              >
+                Create Student
+              </button>
+              <button
+                onClick={() => {
+                  setCreateStudentModalOpen(false);
+                  setNewStudent({ username: '', password: '', fullName: '', email: '' });
+                  setCreateStudentError('');
                 }}
                 className="flex-1 px-4 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 text-sm font-medium"
               >
@@ -2132,7 +2351,7 @@ async function parseQuestionsFromExcel(file) {
         console.log(`⏭️ Skipping row ${rowNumber} - no question text`);
         continue;
       }
-      
+
       // Check if we have all required fields
       if (!optionA || !optionB || !optionC || !optionD || !correctAnswer) {
         console.log(`⏭️ Skipping row ${rowNumber} - missing options or answer`);
