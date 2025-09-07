@@ -8,7 +8,7 @@ const LS_KEYS = {
   ACTIVE_EXAM: "cbt_active_exam_v1",
 };
 
-const StudentPanel = ({ user, tenant }) => {
+const StudentPanel = ({ user, tenant, onLogoClick }) => {
   const [exams, setExams] = useState([]);
   const [results, setResults] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -65,8 +65,32 @@ const StudentPanel = ({ user, tenant }) => {
   }
 
   return (
-    <div className="space-y-6">
-      {/* Welcome Section */}
+    <div>
+      {/* Header with Logo Click */}
+      <div className="bg-white border-b shadow-sm mb-6">
+        <div className="max-w-5xl mx-auto flex items-center justify-between p-4">
+          <div className="flex items-center gap-3">
+            <button 
+              onClick={onLogoClick}
+              className="h-10 w-10 bg-blue-600 rounded-lg flex items-center justify-center cursor-pointer hover:scale-105 hover:bg-blue-700 transition-all"
+              title="Click to logout and switch access"
+            >
+              <span className="text-white font-bold text-lg">CBT</span>
+            </button>
+            <div>
+              <h1 className="text-xl font-bold text-gray-800">Student Portal</h1>
+              <p className="text-sm text-gray-600">Computer-Based Testing System</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-3">
+            <span className="text-sm text-gray-600">Welcome, <b>{user.fullName || user.username}</b></span>
+            <span className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded-full">Student</span>
+          </div>
+        </div>
+      </div>
+      
+      <div className="space-y-6">
+        {/* Welcome Section */}
       <div className="bg-gradient-to-r from-green-600 to-green-700 rounded-lg p-6 text-white">
         <h1 className="text-2xl font-bold mb-2">Student Dashboard</h1>
         <p className="opacity-90">
@@ -228,6 +252,7 @@ const StudentPanel = ({ user, tenant }) => {
             </div>
           </button>
         </div>
+      </div>
       </div>
     </div>
   );

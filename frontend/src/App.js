@@ -1178,12 +1178,14 @@ function App() {
               user={user} 
               tenant={institutionData}
               onCBTView={handleCBTAdminView}
+              onLogoClick={handleLogoClick}
             />
           ) : (
             <StudentPanel 
               user={user} 
               tenant={institutionData}
               onExamView={handleStudentExamView}
+              onLogoClick={handleLogoClick}
             />
           )
         ) : (
