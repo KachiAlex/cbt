@@ -45,10 +45,54 @@ const InstitutionLoginPage = () => {
 
       // Fallback: Get institution slug from URL and load data
       const urlParams = new URLSearchParams(window.location.search);
-      const slug = urlParams.get('slug');
+      const slug = urlParams.get('tenant') || urlParams.get('slug');
 
       if (!slug) {
         setError("No institution specified");
+        setLoading(false);
+        return;
+      }
+
+      // Check API configuration first
+      const apiConfig = dataService.getApiConfig();
+      
+      if (!apiConfig.USE_API) {
+        // Demo mode - create demo institution data
+        const demoInstitution = {
+          _id: `demo_${slug}`,
+          slug: slug,
+          name: slug.split('-').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' '),
+          adminUsername: 'admin',
+          adminEmail: `admin@${slug}.edu`,
+          adminFullName: 'Institution Administrator',
+          logo: '',
+          description: `Welcome to ${slug.split('-').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ')} - Your trusted educational partner.`,
+          website: `https://${slug}.edu`,
+          contactPhone: '+1 (555) 123-4567',
+          address: '123 Education Street, Learning City, LC 12345',
+          plan: 'basic',
+          totalUsers: 50,
+          isActive: true,
+          createdAt: new Date().toISOString(),
+          lastActivity: new Date().toISOString()
+        };
+        
+        console.log('🏫 Demo institution data created:', demoInstitution);
+        setInstitutionData(demoInstitution);
+        
+        // Store institution data in localStorage
+        localStorage.setItem('institution_data', JSON.stringify(demoInstitution));
+        localStorage.setItem('institution_slug', slug);
+        
+        // Check if user is already logged in
+        const savedUser = localStorage.getItem("cbt_logged_in_user");
+        if (savedUser) {
+          const userData = JSON.parse(savedUser);
+          setUser(userData);
+          const isAdminEquivalent = ['admin','super_admin','managed_admin','tenant_admin'].includes(userData.role);
+          setView(isAdminEquivalent ? "admin-panel" : "student-portal");
+        }
+        
         setLoading(false);
         return;
       }
