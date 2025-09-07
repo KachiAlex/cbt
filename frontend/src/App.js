@@ -34,7 +34,7 @@ function Header({user, onLogout, onLogoClick, institutionData}){
             <button 
               onClick={onLogoClick}
               className="flex items-center gap-2 text-left hover:text-blue-600 transition-colors cursor-pointer"
-              title={user ? "Click to logout and switch access" : "Click to access admin panel"}
+              title={user ? (user.role === "admin" ? "Click to switch to Student Portal" : "Click to switch to Admin Panel") : "Click to access admin panel"}
             >
               <div className="h-10 md:h-12 w-10 md:w-12 rounded-lg overflow-hidden flex items-center justify-center bg-gray-100">
                 <img 
@@ -57,7 +57,7 @@ function Header({user, onLogout, onLogoClick, institutionData}){
             <button 
               onClick={onLogoClick}
               className="flex items-center gap-2 text-left hover:text-blue-600 transition-colors cursor-pointer"
-              title={user ? "Click to logout and switch access" : "Click to access admin panel"}
+              title={user ? (user.role === "admin" ? "Click to switch to Student Portal" : "Click to switch to Admin Panel") : "Click to access admin panel"}
             >
               <div className="h-10 md:h-12 w-10 md:w-12 bg-blue-600 rounded-lg flex items-center justify-center">
                 <span className="text-white font-bold text-lg md:text-xl">CBT</span>
@@ -1094,10 +1094,18 @@ function App() {
       // If no user is logged in, go to admin login
       setView("admin-login");
     } else {
-      // If user is logged in, logout and show access options
-      setUser(null);
-      localStorage.removeItem("cbt_logged_in_user");
-      setView("login");
+      // If user is logged in, switch their role
+      if (user.role === "admin") {
+        // Switch admin to student view
+        const studentUser = { ...user, role: "student" };
+        setUser(studentUser);
+        localStorage.setItem("cbt_logged_in_user", JSON.stringify(studentUser));
+      } else if (user.role === "student") {
+        // Switch student to admin view
+        const adminUser = { ...user, role: "admin" };
+        setUser(adminUser);
+        localStorage.setItem("cbt_logged_in_user", JSON.stringify(adminUser));
+      }
     }
   };
 

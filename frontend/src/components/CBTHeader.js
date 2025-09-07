@@ -9,7 +9,7 @@ const CBTHeader = ({ user, institution, onLogout, onLogoClick }) => {
             <div 
               className="h-12 w-12 rounded-lg overflow-hidden flex items-center justify-center bg-gray-100 cursor-pointer hover:scale-105 transition-all"
               onClick={onLogoClick}
-              title={user ? "Click to logout and switch access" : "Click to access admin panel"}
+              title={user ? (user.role === "admin" ? "Click to switch to Student Portal" : "Click to switch to Admin Panel") : "Click to access admin panel"}
             >
               <img 
                 src={institution.logo} 
@@ -33,7 +33,7 @@ const CBTHeader = ({ user, institution, onLogout, onLogoClick }) => {
                   : ''
               }`}
               onClick={onLogoClick}
-              title={user ? "Click to logout and switch access" : "Click to access admin panel"}
+              title={user ? (user.role === "admin" ? "Click to switch to Student Portal" : "Click to switch to Admin Panel") : "Click to access admin panel"}
             >
               <span className="text-white font-bold text-xl">CBT</span>
               {onLogoClick && (

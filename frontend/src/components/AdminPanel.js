@@ -24,7 +24,7 @@ const AdminPanel = ({ user, tenant, onLogoClick }) => {
               <button 
                 onClick={onLogoClick}
                 className="h-10 w-10 bg-blue-600 rounded-lg flex items-center justify-center cursor-pointer hover:scale-105 hover:bg-blue-700 transition-all"
-                title="Click to logout and switch access"
+                title="Click to switch to Student Portal"
               >
                 <span className="text-white font-bold text-lg">CBT</span>
               </button>
@@ -65,7 +65,7 @@ const AdminPanel = ({ user, tenant, onLogoClick }) => {
             <button 
               onClick={onLogoClick}
               className="h-10 w-10 bg-blue-600 rounded-lg flex items-center justify-center cursor-pointer hover:scale-105 hover:bg-blue-700 transition-all"
-              title="Click to logout and switch access"
+              title="Click to switch to Student Portal"
             >
               <span className="text-white font-bold text-lg">CBT</span>
             </button>
