@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import InstitutionLoginPage from "./components/InstitutionLoginPage";
 import MultiTenantAdmin from "./components/MultiTenantAdmin";
 import MultiTenantAdminLogin from "./components/MultiTenantAdminLogin";
@@ -885,6 +885,10 @@ function App() {
   // eslint-disable-next-line no-unused-vars
   const [selectedExam, setSelectedExam] = useState(null); // Used in handleStudentExamView
 
+  // Secret admin access via triple-click on logo
+  const logoClickCountRef = useRef(0);
+  const logoClickTimerRef = useRef(null);
+
   useEffect(() => {
     console.log('🔍 Current URL:', window.location.href);
     console.log('🔍 Pathname:', window.location.pathname);
@@ -1088,24 +1092,34 @@ function App() {
     setView("multi-tenant-admin");
   };
 
-  // Logo click handler - switch between admin and student access
+  // Logo click handler - triple-click to open admin login (logs out if needed)
   const handleLogoClick = () => {
-    if (!user) {
-      // If no user is logged in, go to admin login
-      setView("admin-login");
-    } else {
-      // If user is logged in, switch their role
-      if (user.role === "admin") {
-        // Switch admin to student view
-        const studentUser = { ...user, role: "student" };
-        setUser(studentUser);
-        localStorage.setItem("cbt_logged_in_user", JSON.stringify(studentUser));
-      } else if (user.role === "student") {
-        // Switch student to admin view
-        const adminUser = { ...user, role: "admin" };
-        setUser(adminUser);
-        localStorage.setItem("cbt_logged_in_user", JSON.stringify(adminUser));
+    // increment click count within a short window
+    logoClickCountRef.current += 1;
+
+    // start/reset timer window
+    if (logoClickTimerRef.current) {
+      clearTimeout(logoClickTimerRef.current);
+    }
+    logoClickTimerRef.current = setTimeout(() => {
+      logoClickCountRef.current = 0;
+      logoClickTimerRef.current = null;
+    }, 600); // 600ms window for triple-click
+
+    if (logoClickCountRef.current >= 3) {
+      // reset counters
+      if (logoClickTimerRef.current) {
+        clearTimeout(logoClickTimerRef.current);
+        logoClickTimerRef.current = null;
       }
+      logoClickCountRef.current = 0;
+
+      // Ensure we show the admin login even if someone is logged in
+      if (user) {
+        setUser(null);
+        localStorage.removeItem("cbt_logged_in_user");
+      }
+      setView("admin-login");
     }
   };
 
