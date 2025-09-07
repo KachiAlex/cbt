@@ -114,8 +114,12 @@ export default function MultiTenantAdmin() {
       });
       setInstitutions(normalized);
       } else {
-        // Use localStorage fallback - create demo institutions
-        const demoInstitutions = [
+        // Use localStorage fallback - load from localStorage or create demo institutions
+        let demoInstitutions = JSON.parse(localStorage.getItem('demo_institutions') || '[]');
+        
+        // If no institutions in localStorage, create default demo institutions
+        if (demoInstitutions.length === 0) {
+          demoInstitutions = [
           {
             _id: 'demo_institution_1',
             slug: 'demo-university',
@@ -174,6 +178,10 @@ export default function MultiTenantAdmin() {
             logo: getInstitutionLogo('Tech Institute of Learning')
           }
         ];
+        // Save default demo institutions to localStorage
+        localStorage.setItem('demo_institutions', JSON.stringify(demoInstitutions));
+        }
+        
         setInstitutions(demoInstitutions);
       }
     } catch (e) {
@@ -583,10 +591,33 @@ export default function MultiTenantAdmin() {
     const apiConfig = dataService.getApiConfig();
     
     if (!apiConfig.USE_API) {
-      // Demo mode - just show success message
-      setError('Demo mode: Institution created successfully');
+      // Demo mode - create institution in localStorage
+      const newInstitution = {
+        _id: Date.now().toString(),
+        name: createInstitutionData.name,
+        slug: createInstitutionData.slug || createInstitutionData.name.toLowerCase().replace(/\s+/g, '-'),
+        adminUsername: createInstitutionData.adminUsername,
+        adminEmail: createInstitutionData.adminEmail,
+        adminFullName: createInstitutionData.adminFullName,
+        logo: createInstitutionData.logo,
+        description: createInstitutionData.description,
+        website: createInstitutionData.website,
+        contactPhone: createInstitutionData.contactPhone,
+        address: createInstitutionData.address,
+        plan: createInstitutionData.plan,
+        totalUsers: 1,
+        createdAt: new Date().toISOString(),
+        lastActivity: new Date().toISOString()
+      };
+      
+      // Add to demo institutions
+      const existingInstitutions = JSON.parse(localStorage.getItem('demo_institutions') || '[]');
+      existingInstitutions.push(newInstitution);
+      localStorage.setItem('demo_institutions', JSON.stringify(existingInstitutions));
+      
       handleCloseCreateInstitution();
       await loadInstitutions();
+      setError(''); // Clear any previous errors
       return;
     }
     
@@ -1348,6 +1379,7 @@ export default function MultiTenantAdmin() {
                       value={createInstitutionData.adminUsername}
                       onChange={handleCreateInstitutionChange}
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      autoComplete="username"
                       required
                     />
                   </div>
@@ -1360,6 +1392,7 @@ export default function MultiTenantAdmin() {
                       value={createInstitutionData.adminEmail}
                       onChange={handleCreateInstitutionChange}
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      autoComplete="email"
                     />
                   </div>
                   
@@ -1382,6 +1415,7 @@ export default function MultiTenantAdmin() {
                       value={createInstitutionData.adminPassword}
                       onChange={handleCreateInstitutionChange}
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      autoComplete="new-password"
                       required
                     />
                   </div>
