@@ -298,7 +298,6 @@ const InstitutionLoginPage = () => {
             user={user} 
             institution={institutionData} 
             onLogout={handleLogout}
-            onSwitchToStudent={() => setView("student-portal")}
           />
           <CBTAdminPanel 
             user={user} 
@@ -316,7 +315,6 @@ const InstitutionLoginPage = () => {
             user={user} 
             institution={institutionData} 
             onLogout={handleLogout}
-            onSwitchToAdmin={() => setView("admin-panel")}
           />
           <CBTStudentPortal 
             user={user} 
@@ -386,16 +384,7 @@ const InstitutionLoginPage = () => {
               {!institutionData?.logo ? (
                 <div className="text-xs text-gray-500 text-center mt-4">
                 </div>
-              ) : (
-                <div className="text-center mt-4">
-                  <button
-                    onClick={() => setShowAdminLogin(true)}
-                    className="text-sm text-blue-600 hover:text-blue-800 underline"
-                  >
-                    🔐 Access
-                  </button>
-                </div>
-              )}
+              ) : null}
             </div>
           )}
         </div>

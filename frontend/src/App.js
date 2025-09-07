@@ -876,7 +876,6 @@ function StudentPanel({ user, tenant, onExamView }) {
 function App() {
   const [user, setUser] = useState(null);
   const [view, setView] = useState("multi-tenant-admin-login"); // Default to multi-tenant admin
-  const [showAdminLink, setShowAdminLink] = useState(false);
   const [institutionData, setInstitutionData] = useState(null);
   const [currentView, setCurrentView] = useState("main"); // "main", "cbt-admin", "student-exam"
   // eslint-disable-next-line no-unused-vars
@@ -1088,7 +1087,6 @@ function App() {
   // Hidden admin access
   const handleLogoClick = () => {
     if (!user) {
-      setShowAdminLink(false);
       setView("admin-login");
     }
   };
@@ -1098,8 +1096,7 @@ function App() {
     const handleKeyPress = (e) => {
       if (!user && e.ctrlKey && e.altKey && e.key === 'A') {
         e.preventDefault();
-        setShowAdminLink(true);
-        setTimeout(() => setShowAdminLink(false), 5000);
+        setView("admin-login");
       }
     };
 
@@ -1202,19 +1199,6 @@ function App() {
                     onLogin={(u)=>{setUser(u); localStorage.setItem("cbt_logged_in_user", JSON.stringify(u)); setView("home");}}
                     institutionData={institutionData}
                   />
-                {showAdminLink && (
-                  <div className="mt-8 p-4 bg-red-50 border border-red-200 rounded-lg">
-                    <div className="text-center">
-                      <p className="text-red-700 font-semibold mb-2">🔐 Access</p>
-              <button 
-                        onClick={() => setView("admin-login")}
-                        className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
-              >
-                        Access Admin Panel
-              </button>
-          </div>
-        </div>
-      )}
                   </>
                 ) : (
                   <div className="text-center py-8">

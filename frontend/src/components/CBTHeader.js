@@ -1,6 +1,6 @@
 import React from 'react';
 
-const CBTHeader = ({ user, institution, onLogout, onSwitchToAdmin, onSwitchToStudent, onLogoClick }) => {
+const CBTHeader = ({ user, institution, onLogout, onLogoClick }) => {
   return (
     <div className="bg-white border-b shadow-sm">
       <div className="max-w-7xl mx-auto flex items-center justify-between p-4">
@@ -52,24 +52,6 @@ const CBTHeader = ({ user, institution, onLogout, onSwitchToAdmin, onSwitchToStu
                 <span className="capitalize">{user.role}</span>
               </div>
               
-              {/* Role Switch Buttons */}
-              {user.role === "admin" && (
-                <button
-                  onClick={onSwitchToStudent}
-                  className="px-3 py-1.5 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 text-sm"
-                >
-                  👨‍🎓 Student View
-                </button>
-              )}
-              
-              {user.role === "student" && (
-                <button
-                  onClick={onSwitchToAdmin}
-                  className="px-3 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm"
-                >
-                  🔐 Admin View
-                </button>
-              )}
               
               <button
                 onClick={onLogout}

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import * as ExcelJS from 'exceljs';
 import { saveAs } from 'file-saver';
 import { Document, Packer, Paragraph, TextRun, Table, TableRow, TableCell } from 'docx';
@@ -1005,7 +1005,21 @@ function SettingsTab({ onBackToExams, institution, user }) {
   const [logoError, setLogoError] = useState('');
   const [adminsModalOpen, setAdminsModalOpen] = useState(false);
   const [studentsModalOpen, setStudentsModalOpen] = useState(false);
+  const [changePasswordModalOpen, setChangePasswordModalOpen] = useState(false);
   const [toast, setToast] = useState({ message: '', type: 'success' });
+  
+  // Change password state
+  const [passwordData, setPasswordData] = useState({
+    currentPassword: '',
+    newPassword: '',
+    confirmPassword: ''
+  });
+  const [passwordError, setPasswordError] = useState('');
+  
+  // Student management state
+  const [students, setStudents] = useState([]);
+  const [loadingStudents, setLoadingStudents] = useState(false);
+  const [studentSearchTerm, setStudentSearchTerm] = useState('');
 
   const updateLogo = async (logoUrl) => {
     try {
@@ -1064,6 +1078,114 @@ function SettingsTab({ onBackToExams, institution, user }) {
     setTimeout(() => setToast({ message: '', type: 'success' }), 3000);
   };
 
+  // Load students from localStorage
+  const loadStudents = useCallback(async () => {
+    setLoadingStudents(true);
+    try {
+      // Load from both users and student registrations
+      const users = JSON.parse(localStorage.getItem('cbt_users_v1') || '[]');
+      const registrations = JSON.parse(localStorage.getItem('cbt_student_registrations_v1') || '[]');
+      
+      // Combine and filter students
+      const allStudents = [...users.filter(u => u.role === 'student'), ...registrations];
+      
+      // Remove duplicates based on email
+      const uniqueStudents = allStudents.filter((student, index, self) => 
+        index === self.findIndex(s => s.email === student.email)
+      );
+      
+      // Add status information
+      const studentsWithStatus = uniqueStudents.map(student => ({
+        ...student,
+        status: getStudentStatus(student.username || student.email) || 'active'
+      }));
+      
+      setStudents(studentsWithStatus);
+      console.log('📚 Loaded students:', studentsWithStatus.length);
+    } catch (error) {
+      console.error('Error loading students:', error);
+      showToast('Failed to load students', 'error');
+    } finally {
+      setLoadingStudents(false);
+    }
+  }, []);
+
+  // Toggle student status (suspend/unsuspend)
+  const toggleStudentStatus = (student) => {
+    try {
+      const newStatus = student.status === 'active' ? 'suspended' : 'active';
+      setStudentStatus(student.username || student.email, newStatus);
+      
+      // Update local state
+      setStudents(prev => prev.map(s => 
+        (s.username || s.email) === (student.username || student.email)
+          ? { ...s, status: newStatus }
+          : s
+      ));
+      
+      showToast(`Student ${newStatus === 'suspended' ? 'suspended' : 'activated'} successfully`, 'success');
+    } catch (error) {
+      console.error('Error updating student status:', error);
+      showToast('Failed to update student status', 'error');
+    }
+  };
+
+  // Load students when modal opens
+  useEffect(() => {
+    if (studentsModalOpen) {
+      loadStudents();
+    }
+  }, [studentsModalOpen, loadStudents]);
+
+  const handleChangePassword = async () => {
+    try {
+      setPasswordError('');
+      
+      // Validate input
+      if (!passwordData.currentPassword || !passwordData.newPassword || !passwordData.confirmPassword) {
+        setPasswordError('All fields are required');
+        return;
+      }
+      
+      if (passwordData.newPassword !== passwordData.confirmPassword) {
+        setPasswordError('New passwords do not match');
+        return;
+      }
+      
+      if (passwordData.newPassword.length < 6) {
+        setPasswordError('New password must be at least 6 characters long');
+        return;
+      }
+      
+      // Check current password
+      const users = JSON.parse(localStorage.getItem('cbt_users_v1') || '[]');
+      const currentUser = users.find(u => u.username === user.username);
+      
+      if (!currentUser || currentUser.password !== passwordData.currentPassword) {
+        setPasswordError('Current password is incorrect');
+        return;
+      }
+      
+      // Update password
+      const updatedUsers = users.map(u => 
+        u.username === user.username 
+          ? { ...u, password: passwordData.newPassword }
+          : u
+      );
+      
+      localStorage.setItem('cbt_users_v1', JSON.stringify(updatedUsers));
+      
+      // Clear form and close modal
+      setPasswordData({ currentPassword: '', newPassword: '', confirmPassword: '' });
+      setChangePasswordModalOpen(false);
+      showToast('Password changed successfully!', 'success');
+      
+    } catch (error) {
+      console.error('Password change failed:', error);
+      setPasswordError('Failed to change password. Please try again.');
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
@@ -1095,31 +1217,39 @@ function SettingsTab({ onBackToExams, institution, user }) {
           </div>
         </div>
         
-        {isSuperAdmin && (
-          <div className="mt-6 pt-6 border-t border-gray-200">
-            <h5 className="font-semibold mb-4">Administrative Actions</h5>
-            <div className="flex flex-wrap gap-3">
-              <button
-                onClick={() => setLogoModalOpen(true)}
-                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm"
-              >
-                Change Logo
-              </button>
-              <button
-                onClick={() => setAdminsModalOpen(true)}
-                className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 text-sm"
-              >
-                Manage Admins
-              </button>
-              <button
-                onClick={() => setStudentsModalOpen(true)}
-                className="px-4 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700 text-sm"
-              >
-                Manage Students
-              </button>
-            </div>
+        <div className="mt-6 pt-6 border-t border-gray-200">
+          <h5 className="font-semibold mb-4">Administrative Actions</h5>
+          <div className="flex flex-wrap gap-3">
+            {isSuperAdmin && (
+              <>
+                <button
+                  onClick={() => setLogoModalOpen(true)}
+                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm"
+                >
+                  Change Logo
+                </button>
+                <button
+                  onClick={() => setAdminsModalOpen(true)}
+                  className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 text-sm"
+                >
+                  Manage Admins
+                </button>
+                <button
+                  onClick={() => setStudentsModalOpen(true)}
+                  className="px-4 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700 text-sm"
+                >
+                  Manage Students
+                </button>
+              </>
+            )}
+            <button
+              onClick={() => setChangePasswordModalOpen(true)}
+              className="px-4 py-2 bg-amber-600 text-white rounded-lg hover:bg-amber-700 text-sm"
+            >
+              Change Password
+            </button>
           </div>
-        )}
+        </div>
       </div>
 
       {/* Logo Update Modal */}
@@ -1354,14 +1484,199 @@ function SettingsTab({ onBackToExams, institution, user }) {
       {/* Manage Students Modal */}
       {studentsModalOpen && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-xl p-6 w-full max-w-2xl mx-4">
+          <div className="bg-white rounded-xl p-6 w-full max-w-4xl mx-4 max-h-[90vh] overflow-y-auto">
             <div className="flex justify-between items-center mb-4">
-              <h3 className="text-lg font-bold">Manage Students</h3>
+              <h3 className="text-lg font-bold">Manage Students ({students.length})</h3>
               <button onClick={() => setStudentsModalOpen(false)} className="text-gray-500 hover:text-gray-700 text-xl">×</button>
             </div>
-            <div className="text-center text-gray-500 py-8">
-              <p>Student management functionality will be implemented here.</p>
-              <p className="text-sm mt-2">This will allow you to view, suspend, and manage student accounts.</p>
+            
+            {students.length > 0 && (
+              <div className="mb-4">
+                <input
+                  type="text"
+                  placeholder="Search students by name, email, or username..."
+                  value={studentSearchTerm}
+                  onChange={(e) => setStudentSearchTerm(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                />
+              </div>
+            )}
+            
+            {loadingStudents ? (
+              <div className="text-center py-8">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
+                <p className="text-gray-500 mt-2">Loading students...</p>
+              </div>
+            ) : students.length === 0 ? (
+              <div className="text-center text-gray-500 py-8">
+                <div className="text-4xl mb-4">👥</div>
+                <p className="text-lg font-medium mb-2">No students found</p>
+                <p className="text-sm">Students will appear here once they register for exams.</p>
+              </div>
+            ) : (() => {
+              const filteredStudents = students.filter(student => {
+                if (!studentSearchTerm) return true;
+                const searchLower = studentSearchTerm.toLowerCase();
+                return (
+                  (student.fullName && student.fullName.toLowerCase().includes(searchLower)) ||
+                  (student.email && student.email.toLowerCase().includes(searchLower)) ||
+                  (student.username && student.username.toLowerCase().includes(searchLower))
+                );
+              });
+              
+              return (
+                <div className="space-y-4">
+                  {filteredStudents.length === 0 && studentSearchTerm ? (
+                    <div className="text-center text-gray-500 py-8">
+                      <div className="text-4xl mb-4">🔍</div>
+                      <p className="text-lg font-medium mb-2">No students found</p>
+                      <p className="text-sm">No students match your search for "{studentSearchTerm}"</p>
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                      {filteredStudents.map((student, index) => (
+                    <div key={student.email || student.username || index} className="border rounded-lg p-4 hover:shadow-md transition-shadow">
+                      <div className="flex items-start justify-between mb-3">
+                        <div className="flex-1">
+                          <h4 className="font-semibold text-gray-900">{student.fullName || 'Unknown'}</h4>
+                          <p className="text-sm text-gray-600">{student.email}</p>
+                          {student.username && (
+                            <p className="text-xs text-gray-500">@{student.username}</p>
+                          )}
+                        </div>
+                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                          student.status === 'active' 
+                            ? 'bg-green-100 text-green-800' 
+                            : 'bg-red-100 text-red-800'
+                        }`}>
+                          {student.status === 'active' ? 'Active' : 'Suspended'}
+                        </span>
+                      </div>
+                      
+                      <div className="text-xs text-gray-500 mb-3">
+                        {student.registeredAt && (
+                          <p>Registered: {new Date(student.registeredAt).toLocaleDateString()}</p>
+                        )}
+                        {student.createdAt && (
+                          <p>Created: {new Date(student.createdAt).toLocaleDateString()}</p>
+                        )}
+                      </div>
+                      
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => toggleStudentStatus(student)}
+                          className={`flex-1 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                            student.status === 'active'
+                              ? 'bg-red-100 text-red-700 hover:bg-red-200'
+                              : 'bg-green-100 text-green-700 hover:bg-green-200'
+                          }`}
+                        >
+                          {student.status === 'active' ? 'Suspend' : 'Activate'}
+                        </button>
+                      </div>
+                    </div>
+                      ))}
+                    </div>
+                  )}
+                  
+                  <div className="mt-6 p-4 bg-blue-50 rounded-lg">
+                    <h4 className="font-semibold text-blue-900 mb-2">Student Management</h4>
+                    <ul className="text-sm text-blue-800 space-y-1">
+                      <li>• <strong>Active</strong> students can log in and take exams</li>
+                      <li>• <strong>Suspended</strong> students cannot access the system</li>
+                      <li>• You can toggle student status by clicking the suspend/activate button</li>
+                      <li>• Changes are saved immediately and take effect right away</li>
+                    </ul>
+                  </div>
+                </div>
+              );
+            })()}
+          </div>
+        </div>
+      )}
+
+      {/* Change Password Modal */}
+      {changePasswordModalOpen && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-xl p-6 w-full max-w-md mx-4">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-lg font-bold">Change Password</h3>
+              <button 
+                onClick={() => {
+                  setChangePasswordModalOpen(false);
+                  setPasswordData({ currentPassword: '', newPassword: '', confirmPassword: '' });
+                  setPasswordError('');
+                }} 
+                className="text-gray-500 hover:text-gray-700 text-xl"
+              >
+                ×
+              </button>
+            </div>
+            
+            {passwordError && (
+              <div className="mb-4 p-3 bg-red-50 text-red-700 rounded-lg text-sm">
+                {passwordError}
+              </div>
+            )}
+            
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Current Password
+                </label>
+                <input
+                  type="password"
+                  value={passwordData.currentPassword}
+                  onChange={(e) => setPasswordData({...passwordData, currentPassword: e.target.value})}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  placeholder="Enter current password"
+                />
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  New Password
+                </label>
+                <input
+                  type="password"
+                  value={passwordData.newPassword}
+                  onChange={(e) => setPasswordData({...passwordData, newPassword: e.target.value})}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  placeholder="Enter new password (min 6 characters)"
+                />
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Confirm New Password
+                </label>
+                <input
+                  type="password"
+                  value={passwordData.confirmPassword}
+                  onChange={(e) => setPasswordData({...passwordData, confirmPassword: e.target.value})}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  placeholder="Confirm new password"
+                />
+              </div>
+            </div>
+            
+            <div className="flex gap-3 mt-6">
+              <button
+                onClick={handleChangePassword}
+                className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm font-medium"
+              >
+                Change Password
+              </button>
+              <button
+                onClick={() => {
+                  setChangePasswordModalOpen(false);
+                  setPasswordData({ currentPassword: '', newPassword: '', confirmPassword: '' });
+                  setPasswordError('');
+                }}
+                className="flex-1 px-4 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 text-sm font-medium"
+              >
+                Cancel
+              </button>
             </div>
           </div>
         </div>
