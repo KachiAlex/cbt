@@ -406,10 +406,23 @@ export default function MultiTenantAdmin() {
     const apiConfig = dataService.getApiConfig();
     
     if (!apiConfig.USE_API) {
-      // Demo mode - just show success message
-      setError('Demo mode: Institution deleted successfully');
-      handleCloseDeleteConfirm();
-      await loadInstitutions();
+      // Demo mode - actually delete from localStorage
+      try {
+        const demoInstitutions = JSON.parse(localStorage.getItem('demo_institutions') || '[]');
+        const updatedInstitutions = demoInstitutions.filter(
+          inst => inst.slug !== selectedInstitution.slug && inst._id !== selectedInstitution._id
+        );
+        localStorage.setItem('demo_institutions', JSON.stringify(updatedInstitutions));
+        
+        // Clear any error and close modal
+        setError('');
+        handleCloseDeleteConfirm();
+        await loadInstitutions();
+        
+        console.log('✅ Institution deleted from demo mode:', selectedInstitution.name);
+      } catch (e) {
+        setError('Failed to delete institution: ' + e.message);
+      }
       return;
     }
     
