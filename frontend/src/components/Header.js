@@ -35,7 +35,14 @@ const Header = ({ user, onLogout, onLogoClick, institutionData, onAdminAccess })
           <div className="flex items-center space-x-4">
             {/* Hidden Admin Access Button - always visible but unobtrusive */}
             <button
-              onClick={onAdminAccess}
+              onClick={() => {
+                console.log('🔧 Header admin access button clicked');
+                if (onAdminAccess) {
+                  onAdminAccess();
+                } else {
+                  console.error('❌ onAdminAccess function not provided to Header');
+                }
+              }}
               className="text-xs text-gray-400 hover:text-gray-600 transition-colors opacity-30 hover:opacity-70"
               title="Admin Access (Ctrl+Alt+A)"
             >

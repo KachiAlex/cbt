@@ -43,8 +43,24 @@ export const sanitizeInput = {
   // Remove SQL injection patterns
   sql: (input) => {
     if (typeof input !== 'string') return input;
+    
+    // Define dangerous characters that could be used in SQL injection
+    const dangerousChars = [
+      "'", ";", "\\", "*", "|", "%", "+", "=", "<", ">", 
+      "[", "]", "{", "}", "(", ")", "^", "$", "!", "@", 
+      "#", "&", "~", "`", "-"
+    ];
+    
+    // Create regex pattern from the array
+    const pattern = new RegExp(`[${dangerousChars.map(char => 
+      char === '\\' ? '\\\\' : 
+      char === '[' ? '\\[' : 
+      char === ']' ? '\\]' : 
+      char === '-' ? '\\-' : char
+    ).join('')}]`, 'g');
+    
     return input
-      .replace(/[';\\*|%+=<>[\]{}()^$!@#&~`-]/g, '')
+      .replace(pattern, '')
       .trim();
   },
 

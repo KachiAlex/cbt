@@ -649,6 +649,7 @@ function App() {
   const logoClickTimerRef = useRef(null);
 
   useEffect(() => {
+    // Only run URL routing logic on initial load, not on every render
     console.log('🔍 Current URL:', window.location.href);
     console.log('🔍 Pathname:', window.location.pathname);
     console.log('🔍 Search:', window.location.search);
@@ -750,7 +751,7 @@ function App() {
     };
     
     checkConnection();
-  }, []);
+  }, []); // Only run on initial load
 
   // Load institution data for institution-specific routes
   const loadInstitutionData = async (slug) => {
@@ -884,25 +885,38 @@ function App() {
 
   // Direct admin access handler - always works
   const handleAdminAccess = () => {
+    console.log('🔧 Admin access button clicked!');
+    console.log('🔍 Current view before change:', view);
     // If user is logged in, log them out first
     if (user) {
+      console.log('👤 Logging out user:', user.username);
       setUser(null);
       localStorage.removeItem("cbt_logged_in_user");
     }
+    console.log('🔄 Setting view to admin-login');
     setView("admin-login");
+    console.log('✅ View set to admin-login');
   };
+
+  // Debug: Monitor view changes
+  useEffect(() => {
+    console.log('🔄 View changed to:', view);
+  }, [view]);
 
   // Keyboard shortcut for admin access - works from anywhere
   useEffect(() => {
     const handleKeyPress = (e) => {
       // Ctrl+Alt+A to access admin login from anywhere
       if (e.ctrlKey && e.altKey && e.key === 'A') {
+        console.log('⌨️ Keyboard shortcut triggered: Ctrl+Alt+A');
         e.preventDefault();
         // If user is logged in, log them out first
         if (user) {
+          console.log('👤 Logging out user via keyboard shortcut:', user.username);
           setUser(null);
           localStorage.removeItem("cbt_logged_in_user");
         }
+        console.log('🔄 Setting view to admin-login via keyboard shortcut');
         setView("admin-login");
       }
     };
