@@ -59,13 +59,17 @@ const InstitutionLoginPage = () => {
       if (!apiConfig.USE_API) {
         // Demo mode - check if institution exists in demo institutions first
         const demoInstitutions = JSON.parse(localStorage.getItem('demo_institutions') || '[]');
+        console.log('🔍 All demo institutions:', demoInstitutions);
+        console.log('🔍 Looking for slug:', slug);
         const existingInstitution = demoInstitutions.find(inst => inst.slug === slug);
+        console.log('🔍 Found existing institution:', existingInstitution);
         
         let demoInstitution;
         if (existingInstitution) {
           // Use existing institution data (created by multi-tenant admin)
           demoInstitution = existingInstitution;
           console.log('🏫 Using existing institution data from multi-tenant admin:', demoInstitution);
+          console.log('🏫 Institution logo:', demoInstitution.logo);
         } else {
           // Create new demo institution data
           demoInstitution = {

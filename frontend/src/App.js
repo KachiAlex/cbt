@@ -989,7 +989,53 @@ function App() {
   // Load institution data for institution-specific routes
   const loadInstitutionData = async (slug) => {
     try {
-      // Load institution data from MongoDB API with timeout
+      // Check API configuration first
+      const apiConfig = dataService.getApiConfig();
+      
+      if (!apiConfig.USE_API) {
+        // Demo mode - check if institution exists in demo institutions first
+        const demoInstitutions = JSON.parse(localStorage.getItem('demo_institutions') || '[]');
+        console.log('🔍 [App.js] All demo institutions:', demoInstitutions);
+        console.log('🔍 [App.js] Looking for slug:', slug);
+        const existingInstitution = demoInstitutions.find(inst => inst.slug === slug);
+        console.log('🔍 [App.js] Found existing institution:', existingInstitution);
+        
+        let demoInstitution;
+        if (existingInstitution) {
+          // Use existing institution data (created by multi-tenant admin)
+          demoInstitution = existingInstitution;
+          console.log('🏫 [App.js] Using existing institution data from multi-tenant admin:', demoInstitution);
+          console.log('🏫 [App.js] Institution logo:', demoInstitution.logo);
+        } else {
+          // Create new demo institution data
+          demoInstitution = {
+            _id: `demo_${slug}`,
+            slug: slug,
+            name: slug.split('-').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' '),
+            adminUsername: 'admin',
+            adminEmail: `admin@${slug}.edu`,
+            adminFullName: 'Institution Administrator',
+            logo: '', // No logo for new demo institutions
+            description: `Welcome to ${slug.split('-').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ')} - Your trusted educational partner.`,
+            website: `https://${slug}.edu`,
+            contactPhone: '+1 (555) 123-4567',
+            address: '123 Education Street, Learning City, LC 12345',
+            plan: 'basic',
+            totalUsers: 50,
+            isActive: true,
+            createdAt: new Date().toISOString(),
+            lastActivity: new Date().toISOString()
+          };
+          console.log('🏫 [App.js] Demo institution data created:', demoInstitution);
+        }
+        
+        setInstitutionData(demoInstitution);
+        localStorage.setItem('institution_data', JSON.stringify(demoInstitution));
+        localStorage.setItem('institution_slug', slug);
+        return;
+      }
+      
+      // API mode - Load institution data from MongoDB API with timeout
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 8000); // 8 second timeout
       
