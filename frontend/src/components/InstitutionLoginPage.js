@@ -57,27 +57,38 @@ const InstitutionLoginPage = () => {
       const apiConfig = dataService.getApiConfig();
       
       if (!apiConfig.USE_API) {
-        // Demo mode - create demo institution data
-        const demoInstitution = {
-          _id: `demo_${slug}`,
-          slug: slug,
-          name: slug.split('-').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' '),
-          adminUsername: 'admin',
-          adminEmail: `admin@${slug}.edu`,
-          adminFullName: 'Institution Administrator',
-          logo: '',
-          description: `Welcome to ${slug.split('-').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ')} - Your trusted educational partner.`,
-          website: `https://${slug}.edu`,
-          contactPhone: '+1 (555) 123-4567',
-          address: '123 Education Street, Learning City, LC 12345',
-          plan: 'basic',
-          totalUsers: 50,
-          isActive: true,
-          createdAt: new Date().toISOString(),
-          lastActivity: new Date().toISOString()
-        };
+        // Demo mode - check if institution exists in demo institutions first
+        const demoInstitutions = JSON.parse(localStorage.getItem('demo_institutions') || '[]');
+        const existingInstitution = demoInstitutions.find(inst => inst.slug === slug);
         
-        console.log('🏫 Demo institution data created:', demoInstitution);
+        let demoInstitution;
+        if (existingInstitution) {
+          // Use existing institution data (created by multi-tenant admin)
+          demoInstitution = existingInstitution;
+          console.log('🏫 Using existing institution data from multi-tenant admin:', demoInstitution);
+        } else {
+          // Create new demo institution data
+          demoInstitution = {
+            _id: `demo_${slug}`,
+            slug: slug,
+            name: slug.split('-').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' '),
+            adminUsername: 'admin',
+            adminEmail: `admin@${slug}.edu`,
+            adminFullName: 'Institution Administrator',
+            logo: '',
+            description: `Welcome to ${slug.split('-').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ')} - Your trusted educational partner.`,
+            website: `https://${slug}.edu`,
+            contactPhone: '+1 (555) 123-4567',
+            address: '123 Education Street, Learning City, LC 12345',
+            plan: 'basic',
+            totalUsers: 50,
+            isActive: true,
+            createdAt: new Date().toISOString(),
+            lastActivity: new Date().toISOString()
+          };
+          console.log('🏫 Demo institution data created:', demoInstitution);
+        }
+        
         setInstitutionData(demoInstitution);
         
         // Store institution data in localStorage
