@@ -224,16 +224,16 @@ function Login({onLogin}){
     try {
       // Only student authentication - admin access is separate
         const user = await authenticateUser(formData.username, formData.password);
-        if (user && user.role === "student") {
+      if (user && user.role === "student") {
           toast.success("Login successful! Welcome back.");
-          onLogin(user);
-        } else if (user && user.role === "admin") {
-          setError("This is an admin account. Please use the admin login instead.");
+        onLogin(user);
+      } else if (user && user.role === "admin") {
+        setError("This is an admin account. Please use the admin login instead.");
           toast.warning("This is an admin account. Please use the admin login instead.");
-        } else {
-          setError("Invalid username or password. Please check your credentials or register as a new student.");
+      } else {
+        setError("Invalid username or password. Please check your credentials or register as a new student.");
           toast.error("Invalid username or password. Please check your credentials.");
-        }
+      }
     } catch (error) {
       console.error('Error during student login:', error);
         
@@ -252,9 +252,9 @@ function Login({onLogin}){
         
         setError(errorMessage);
         toast.error(errorMessage);
-      } finally {
-        setIsLoading(false);
-      }
+    } finally {
+      setIsLoading(false);
+    }
     });
   };
 
@@ -278,10 +278,10 @@ function Login({onLogin}){
           email: formData.email
       };
       
-        await registerStudent(studentData);
-        setSuccess("Registration successful! You can now login with your credentials.");
+      await registerStudent(studentData);
+      setSuccess("Registration successful! You can now login with your credentials.");
         toast.success("Registration successful! You can now login with your credentials.");
-        setMode("login");
+      setMode("login");
         registrationForm.resetForm();
     } catch (err) {
         console.error('Error during student registration:', err);
@@ -854,7 +854,7 @@ function StudentPanel({ user, tenant, onExamView }) {
 
 function App() {
   const [user, setUser] = useState(null);
-  const [view, setView] = useState("login");
+  const [view, setView] = useState("multi-tenant-admin-login"); // Default to multi-tenant admin
   const [showAdminLink, setShowAdminLink] = useState(false);
   const [institutionData, setInstitutionData] = useState(null);
   const [currentView, setCurrentView] = useState("main"); // "main", "cbt-admin", "student-exam"
@@ -865,16 +865,25 @@ function App() {
     console.log('🔍 Current URL:', window.location.href);
     console.log('🔍 Pathname:', window.location.pathname);
     console.log('🔍 Search:', window.location.search);
+    console.log('🔍 Initial view state:', view);
     
     // Get URL parameters first
     const urlParams = new URLSearchParams(window.location.search);
     
-    // Check if this is a multi-tenant admin route
-    if (window.location.pathname === '/admin' || window.location.pathname === '/admin/' || urlParams.get('admin') === 'true') {
-      console.log('🏢 Multi-tenant admin route detected');
+    // Multi-tenant admin is now the default at root URL
+    // Check if this is a multi-tenant admin route (default for root URL)
+    const isMultiTenantAdminRoute = window.location.pathname === '/admin' || 
+                                   window.location.pathname === '/admin/' || 
+                                   urlParams.get('admin') === 'true' ||
+                                   urlParams.get('mode') === 'admin' ||
+                                   window.location.pathname === '/';
+    
+    if (isMultiTenantAdminRoute) {
+      console.log('🏢 Multi-tenant admin route detected (default at root)');
       console.log('🔍 Current URL:', window.location.href);
       console.log('🔍 Pathname:', window.location.pathname);
       console.log('🔍 Search params:', window.location.search);
+      console.log('🔍 isMultiTenantAdminRoute condition result:', isMultiTenantAdminRoute);
       
       // Check if multi-tenant admin is authenticated
       const token = localStorage.getItem('multi_tenant_admin_token');
@@ -900,17 +909,19 @@ function App() {
           localStorage.removeItem('multi_tenant_admin_user');
           setView("multi-tenant-admin-login");
         }
-      } else {
-        console.log('❌ No valid authentication found, showing login');
-        setView("multi-tenant-admin-login");
-      }
+        } else {
+          console.log('❌ No valid authentication found, showing login');
+          console.log('🔧 Setting view to multi-tenant-admin-login');
+          setView("multi-tenant-admin-login");
+          console.log('🔧 View set to:', "multi-tenant-admin-login");
+        }
       return; // Exit early for admin routes
     }
     
-    // Check if this is an institution-specific route
-    let slug = urlParams.get('slug');
+    // Check if this is an institution-specific route (only with explicit tenant parameter)
+    let slug = urlParams.get('tenant') || urlParams.get('slug');
     
-    // If no slug in query params, check if pathname contains an institution slug
+    // Only check pathname for institution slugs if we're not at root and no tenant param
     if (!slug && window.location.pathname !== '/' && window.location.pathname !== '/admin') {
       const pathParts = window.location.pathname.split('/').filter(part => part);
       if (pathParts.length > 0) {
@@ -933,54 +944,13 @@ function App() {
       loadInstitutionData(slug);
       return; // Exit early for institution routes
     } else {
-      console.log('🏠 Regular route detected');
-      // Check if user is already logged in with institution context
-      const saved = localStorage.getItem("cbt_logged_in_user");
-      const institutionSlug = localStorage.getItem("institution_slug");
-      
-      if (saved && institutionSlug) {
-        // Load institution data for logged-in user
-        loadInstitutionData(institutionSlug);
-        setUser(JSON.parse(saved));
-        setView("home");
-      } else if (saved) {
-        setUser(JSON.parse(saved));
-        setView("home");
-      }
+      console.log('🏠 Regular route detected - this should not happen as multi-tenant admin is now default');
+      // This should not be reached since multi-tenant admin is now the default
+      // But keeping as fallback for any edge cases
+      setView("multi-tenant-admin-login");
     }
     
-    // Ensure admin user exists in localStorage
-    try {
-      console.log('🔧 Ensuring admin user exists...');
-      const users = JSON.parse(localStorage.getItem("cbt_users_v1") || "[]");
-      console.log('📋 Current users:', users.length);
-      
-      const adminExists = users.some(user => user.username === "admin" && user.role === "admin");
-      console.log('👤 Admin exists:', adminExists);
-      
-      if (!adminExists) {
-        console.log('👤 Creating default admin user...');
-        const defaultAdmin = {
-          username: "admin",
-          password: "admin123",
-          role: "admin",
-          fullName: "System Administrator",
-          email: "admin@healthschool.com",
-          createdAt: new Date().toISOString(),
-          isDefaultAdmin: true,
-          canDeleteDefaultAdmin: true
-        };
-        
-        users.push(defaultAdmin);
-        localStorage.setItem("cbt_users_v1", JSON.stringify(users));
-        console.log('✅ Default admin user created successfully');
-        console.log('🔐 Login credentials: admin / admin123');
-      } else {
-        console.log('✅ Admin user already exists');
-      }
-    } catch (error) {
-      console.error('❌ Error ensuring admin user exists:', error);
-    }
+    // Multi-tenant admin is now the default, no need for local admin user creation
     
     // Check API connection on app load
     const checkConnection = async () => {
@@ -1122,11 +1092,11 @@ function App() {
     return (
     <ToastProvider>
       <RealTimeDataProvider>
-        <div className="min-h-screen bg-gray-50 text-gray-800">
-          {/* Hide header on institution pages to avoid duplicate branding */}
-          {view !== "institution-login" && currentView !== "cbt-admin" && currentView !== "student-exam" && (
-            <Header user={user} onLogout={onLogout} onLogoClick={handleLogoClick} institutionData={institutionData} />
-          )}
+    <div className="min-h-screen bg-gray-50 text-gray-800">
+      {/* Hide header on institution pages to avoid duplicate branding */}
+      {view !== "institution-login" && currentView !== "cbt-admin" && currentView !== "student-exam" && (
+        <Header user={user} onLogout={onLogout} onLogoClick={handleLogoClick} institutionData={institutionData} />
+      )}
       <main className="max-w-5xl mx-auto w-full px-3 sm:px-8 py-4 sm:py-8">
         {user ? (
           user.role === "admin" ? (
@@ -1144,6 +1114,7 @@ function App() {
           )
         ) : (
           <>
+            {console.log('🔍 Rendering view:', view)}
             {view === "multi-tenant-admin-login" ? (
               <MultiTenantAdminLogin onLogin={handleMultiTenantAdminLogin} />
             ) : view === "multi-tenant-admin" ? (
@@ -1152,12 +1123,18 @@ function App() {
               <InstitutionLoginPage />
             ) : (
               <>
-                {view !== "admin-login" && (
+                {view === "admin-login" ? (
+                  <AdminLogin 
+                    onLogin={(u)=>{setUser(u); localStorage.setItem("cbt_logged_in_user", JSON.stringify(u)); setView("home");}}
+                    onBack={() => setView("login")}
+                    institutionData={institutionData}
+                  />
+                ) : view === "login" ? (
+                  <>
                   <Login 
                     onLogin={(u)=>{setUser(u); localStorage.setItem("cbt_logged_in_user", JSON.stringify(u)); setView("home");}}
                     institutionData={institutionData}
                   />
-                )}
                 {showAdminLink && (
                   <div className="mt-8 p-4 bg-red-50 border border-red-200 rounded-lg">
                     <div className="text-center">
@@ -1171,12 +1148,11 @@ function App() {
           </div>
         </div>
       )}
-                {view === "admin-login" && (
-                  <AdminLogin 
-                    onLogin={(u)=>{setUser(u); localStorage.setItem("cbt_logged_in_user", JSON.stringify(u)); setView("home");}}
-                    onBack={() => setView("login")}
-                    institutionData={institutionData}
-                  />
+                  </>
+                ) : (
+                  <div className="text-center py-8">
+                    <p className="text-gray-600">Loading...</p>
+                  </div>
                 )}
               </>
             )}
@@ -1185,18 +1161,15 @@ function App() {
       </main>
       <footer className="text-center text-xs text-gray-500 py-6">
         © {new Date().getFullYear()} {institutionData ? institutionData.name : 'CBT Platform'}
-        {!user && (
+        {!user && view !== "multi-tenant-admin" && view !== "multi-tenant-admin-login" && (
           <div className="mt-1 text-gray-400">
             <span className="opacity-30 hover:opacity-100 transition-opacity cursor-help" title="Admin Access: Click logo or press Ctrl+Alt+A">
               🔐
             </span>
-              <span className="ml-2 opacity-30 hover:opacity-100 transition-opacity cursor-help" title="Multi-Tenant Admin: Click to access">
-                <a href="/admin" className="text-blue-400 hover:text-blue-600">🏢</a>
-              </span>
     </div>
         )}
       </footer>
-        </div>
+    </div>
       </RealTimeDataProvider>
     </ToastProvider>
   );
