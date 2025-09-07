@@ -6,7 +6,11 @@ const CBTHeader = ({ user, institution, onLogout, onLogoClick }) => {
       <div className="max-w-7xl mx-auto flex items-center justify-between p-4">
         <div className="flex items-center gap-3">
           {institution?.logo ? (
-            <div className="h-12 w-12 rounded-lg overflow-hidden flex items-center justify-center bg-gray-100">
+            <div 
+              className="h-12 w-12 rounded-lg overflow-hidden flex items-center justify-center bg-gray-100 cursor-pointer hover:scale-105 transition-all"
+              onClick={onLogoClick}
+              title={user ? "Click to logout and switch access" : "Click to access admin panel"}
+            >
               <img 
                 src={institution.logo} 
                 alt={`${institution.name} logo`}
@@ -24,15 +28,15 @@ const CBTHeader = ({ user, institution, onLogout, onLogoClick }) => {
           ) : (
             <div 
               className={`h-12 w-12 bg-blue-600 rounded-lg flex items-center justify-center transition-all relative ${
-                !user && onLogoClick 
+                onLogoClick 
                   ? 'cursor-pointer hover:scale-105 hover:bg-blue-700 shadow-lg hover:shadow-xl' 
                   : ''
               }`}
-              onClick={!user && onLogoClick ? onLogoClick : undefined}
-              title=""
+              onClick={onLogoClick}
+              title={user ? "Click to logout and switch access" : "Click to access admin panel"}
             >
               <span className="text-white font-bold text-xl">CBT</span>
-              {!user && onLogoClick && (
+              {onLogoClick && (
                 <div className="absolute -top-1 -right-1 w-3 h-3 bg-yellow-400 rounded-full animate-pulse"></div>
               )}
             </div>
