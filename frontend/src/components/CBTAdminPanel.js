@@ -23,7 +23,7 @@ const LS_KEYS = {
   SHARED_DATA: "cbt_shared_data_v1"
 };
 
-const CBTAdminPanel = ({ user, institution, onLogout }) => {
+const CBTAdminPanel = ({ user, institution, onLogout, onAdminAccess }) => {
   const [activeTab, setActiveTab] = useState("exams");
   const [exams, setExams] = useState([]);
   const [questions, setQuestions] = useState([]);
@@ -370,8 +370,18 @@ const CBTAdminPanel = ({ user, institution, onLogout }) => {
                 </div>
               )}
             </div>
-            <div className="text-sm text-gray-500">
-              Logged in as: <span className="font-medium">{user.fullName || user.username}</span>
+            <div className="flex items-center gap-3">
+              {/* Hidden Admin Access Button */}
+              <button
+                onClick={onAdminAccess}
+                className="text-xs text-gray-400 hover:text-gray-600 transition-colors opacity-30 hover:opacity-70"
+                title="Admin Access (Ctrl+Alt+A)"
+              >
+                ⚙️
+              </button>
+              <div className="text-sm text-gray-500">
+                Logged in as: <span className="font-medium">{user.fullName || user.username}</span>
+              </div>
             </div>
           </div>
         </div>

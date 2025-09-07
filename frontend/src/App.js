@@ -6,6 +6,7 @@ import CBTExam from "./components/CBTExam";
 import CBTAdminPanel from "./components/CBTAdminPanel";
 import StudentExam from "./components/StudentExam";
 import ConnectionStatus from "./components/ConnectionStatus";
+import Header from "./components/Header";
 // import SystemDiagnostics from "./components/SystemDiagnostics";
 import RealTimeDataProvider from "./components/RealTimeDataProvider";
 import ValidatedInput, { EmailInput, PasswordInput } from "./components/ValidatedInput";
@@ -24,59 +25,6 @@ const LS_KEYS = {
   SHARED_DATA: "cbt_shared_data_v1"
 };
 
-function Header({user, onLogout, onLogoClick, institutionData}){
-  return (
-    <div className="bg-white border-b">
-      <div className="max-w-5xl mx-auto flex items-center justify-between p-4">
-        <div className="flex items-center gap-3">
-          {institutionData?.logo ? (
-            <button 
-              onClick={onLogoClick}
-              className="flex items-center gap-2 text-left hover:text-blue-600 transition-colors cursor-pointer"
-              title={user ? (user.role === "admin" ? "Click to switch to Student Portal" : "Click to switch to Admin Panel") : "Click to access admin panel"}
-            >
-              <div className="h-10 md:h-12 w-10 md:w-12 rounded-lg overflow-hidden flex items-center justify-center bg-gray-100">
-                <img 
-                  src={institutionData.logo} 
-                  alt={`${institutionData.name} logo`}
-                  className="h-full w-full object-contain"
-                  onError={(e) => {
-                    // Fallback to default CBT logo if image fails to load
-                    e.target.style.display = 'none';
-                    e.target.nextSibling.style.display = 'flex';
-                  }}
-                />
-                <div className="h-10 md:h-12 w-10 md:w-12 bg-blue-600 rounded-lg flex items-center justify-center hidden">
-                  <span className="text-white font-bold text-lg md:text-xl">CBT</span>
-                </div>
-              </div>
-              <span className="text-base sm:text-lg font-bold whitespace-nowrap">{institutionData.name}</span>
-            </button>
-          ) : (
-            <button 
-              onClick={onLogoClick}
-              className="flex items-center gap-2 text-left hover:text-blue-600 transition-colors cursor-pointer"
-              title={user ? (user.role === "admin" ? "Click to switch to Student Portal" : "Click to switch to Admin Panel") : "Click to access admin panel"}
-            >
-              <div className="h-10 md:h-12 w-10 md:w-12 bg-blue-600 rounded-lg flex items-center justify-center">
-                <span className="text-white font-bold text-lg md:text-xl">CBT</span>
-              </div>
-              <span className="text-base sm:text-lg font-bold whitespace-nowrap">CBT Platform</span>
-            </button>
-          )}
-        </div>
-        <div className="flex items-center gap-3">
-          <ConnectionStatus className="hidden sm:block" />
-          {user ? (
-            <>
-              <button onClick={onLogout} className="px-3 py-1.5 rounded-xl bg-gray-800 text-white text-sm hover:bg-black">Logout</button>
-            </>
-          ) : null}
-        </div>
-      </div>
-    </div>
-  );
-}
 
 function AdminLogin({onLogin, onBack}){
   const [username, setUsername] = useState("");
@@ -934,11 +882,27 @@ function App() {
     }
   };
 
-  // Keyboard shortcut for admin access
+  // Direct admin access handler - always works
+  const handleAdminAccess = () => {
+    // If user is logged in, log them out first
+    if (user) {
+      setUser(null);
+      localStorage.removeItem("cbt_logged_in_user");
+    }
+    setView("admin-login");
+  };
+
+  // Keyboard shortcut for admin access - works from anywhere
   useEffect(() => {
     const handleKeyPress = (e) => {
-      if (!user && e.ctrlKey && e.altKey && e.key === 'A') {
+      // Ctrl+Alt+A to access admin login from anywhere
+      if (e.ctrlKey && e.altKey && e.key === 'A') {
         e.preventDefault();
+        // If user is logged in, log them out first
+        if (user) {
+          setUser(null);
+          localStorage.removeItem("cbt_logged_in_user");
+        }
         setView("admin-login");
       }
     };
@@ -999,7 +963,7 @@ function App() {
     <div className="min-h-screen bg-gray-50 text-gray-800">
       {/* Hide header on institution pages to avoid duplicate branding */}
       {view !== "institution-login" && currentView !== "cbt-admin" && currentView !== "student-exam" && (
-        <Header user={user} onLogout={onLogout} onLogoClick={handleLogoClick} institutionData={institutionData} />
+        <Header user={user} onLogout={onLogout} onLogoClick={handleLogoClick} institutionData={institutionData} onAdminAccess={handleAdminAccess} />
       )}
       <main className="max-w-5xl mx-auto w-full px-3 sm:px-8 py-4 sm:py-8">
         {user ? (
@@ -1008,6 +972,7 @@ function App() {
               user={user} 
               institution={institutionData}
               onLogoClick={handleLogoClick}
+              onAdminAccess={handleAdminAccess}
             />
           ) : (
             <StudentPanel 
@@ -1015,6 +980,7 @@ function App() {
               tenant={institutionData}
               onExamView={handleStudentExamView}
               onLogoClick={handleLogoClick}
+              onAdminAccess={handleAdminAccess}
             />
           )
         ) : (

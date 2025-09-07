@@ -8,7 +8,7 @@ const LS_KEYS = {
   ACTIVE_EXAM: "cbt_active_exam_v1",
 };
 
-const StudentPanel = ({ user, tenant, onLogoClick }) => {
+const StudentPanel = ({ user, tenant, onLogoClick, onAdminAccess }) => {
   const [exams, setExams] = useState([]);
   const [results, setResults] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -77,15 +77,23 @@ const StudentPanel = ({ user, tenant, onLogoClick }) => {
             >
               <span className="text-white font-bold text-lg">CBT</span>
             </button>
-            <div>
-              <h1 className="text-xl font-bold text-gray-800">Student Portal</h1>
-              <p className="text-sm text-gray-600">Computer-Based Testing System</p>
+              <div>
+                <h1 className="text-xl font-bold text-gray-800">Student Portal</h1>
+                <p className="text-sm text-gray-600">Computer-Based Testing System</p>
+              </div>
             </div>
-          </div>
-          <div className="flex items-center gap-3">
-            <span className="text-sm text-gray-600">Welcome, <b>{user.fullName || user.username}</b></span>
-            <span className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded-full">Student</span>
-          </div>
+            <div className="flex items-center gap-3">
+              {/* Hidden Admin Access Button */}
+              <button
+                onClick={onAdminAccess}
+                className="text-xs text-gray-400 hover:text-gray-600 transition-colors opacity-30 hover:opacity-70"
+                title="Admin Access (Ctrl+Alt+A)"
+              >
+                ⚙️
+              </button>
+              <span className="text-sm text-gray-600">Welcome, <b>{user.fullName || user.username}</b></span>
+              <span className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded-full">Student</span>
+            </div>
         </div>
       </div>
       

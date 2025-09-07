@@ -1,6 +1,6 @@
 import React from 'react';
 
-const CBTHeader = ({ user, institution, onLogout, onLogoClick }) => {
+const CBTHeader = ({ user, institution, onLogout, onLogoClick, onAdminAccess }) => {
   return (
     <div className="bg-white border-b shadow-sm">
       <div className="max-w-7xl mx-auto flex items-center justify-between p-4">
@@ -56,6 +56,15 @@ const CBTHeader = ({ user, institution, onLogout, onLogoClick }) => {
                 <span className="capitalize">{user.role}</span>
               </div>
               
+              
+              {/* Hidden Admin Access Button */}
+              <button
+                onClick={onAdminAccess}
+                className="text-xs text-gray-400 hover:text-gray-600 transition-colors opacity-30 hover:opacity-70 mr-2"
+                title="Admin Access (Ctrl+Alt+A)"
+              >
+                ⚙️
+              </button>
               
               <button
                 onClick={onLogout}
