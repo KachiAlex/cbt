@@ -876,7 +876,7 @@ function App() {
                                    window.location.pathname === '/admin/' || 
                                    urlParams.get('admin') === 'true' ||
                                    urlParams.get('mode') === 'admin' ||
-                                   window.location.pathname === '/';
+                                   (window.location.pathname === '/' && !urlParams.get('tenant') && !urlParams.get('student'));
     
     if (isMultiTenantAdminRoute) {
       console.log('🏢 Multi-tenant admin route detected (default at root)');

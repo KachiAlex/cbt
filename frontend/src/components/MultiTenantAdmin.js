@@ -430,13 +430,8 @@ export default function MultiTenantAdmin() {
     const baseUrl = window.location.origin;
     const institutionUrl = `${baseUrl}/?tenant=${institution.slug}`;
     
-    // Copy to clipboard
-    navigator.clipboard.writeText(institutionUrl).then(() => {
-      setError(`Institution URL copied to clipboard: ${institutionUrl}`);
-    }).catch(() => {
-      // Fallback: show the URL
-      setError(`Institution URL: ${institutionUrl}`);
-    });
+    // Open in new tab
+    window.open(institutionUrl, '_blank', 'noopener,noreferrer');
   };
 
   // Admin operations
@@ -850,7 +845,7 @@ export default function MultiTenantAdmin() {
                   <button 
                     className="px-3 py-2 rounded bg-blue-600 text-white text-sm hover:bg-blue-700 transition-colors"
                     onClick={() => handleViewInstitution(inst)}
-                    title="Copy institution URL"
+                    title="Open institution page in new tab"
                   >
                     🔗 View Link
                   </button>
