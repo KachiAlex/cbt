@@ -206,26 +206,26 @@ const InstitutionLoginPage = () => {
     setAuthError("");
   };
 
-  // Hidden admin access - click on the logo
+  // Hidden admin access - click on the logo (only if no institution logo)
   const handleLogoClick = () => {
-    if (!user) {
+    if (!user && !institutionData?.logo) {
       setShowAdminLogin(!showAdminLogin);
       setAuthError("");
     }
   };
 
-  // Keyboard shortcut for admin access (Ctrl + Alt + A)
+  // Keyboard shortcut for admin access (Ctrl + Alt + A) - only if no institution logo
   useEffect(() => {
     const handleKeyPress = (e) => {
-      if (!user && e.ctrlKey && e.altKey && e.key === 'A') {
-    e.preventDefault();
+      if (!user && !institutionData?.logo && e.ctrlKey && e.altKey && e.key === 'A') {
+        e.preventDefault();
         setShowAdminLogin(true);
       }
     };
 
     document.addEventListener('keydown', handleKeyPress);
     return () => document.removeEventListener('keydown', handleKeyPress);
-  }, [user]);
+  }, [user, institutionData?.logo]);
 
   const handleStudentRegistration = async (studentData) => {
     try {
@@ -363,9 +363,20 @@ const InstitutionLoginPage = () => {
                 onLogin={(u, p) => handleLogin(u, p, "student")}
                 onRegister={handleStudentRegistration}
               />
-              <div className="text-xs text-gray-500 text-center mt-4">
-                <p>💡 <strong>Tip:</strong> Click on the CBT logo above for admin access</p>
-              </div>
+              {!institutionData?.logo ? (
+                <div className="text-xs text-gray-500 text-center mt-4">
+                  <p>💡 <strong>Tip:</strong> Click on the CBT logo above for admin access</p>
+                </div>
+              ) : (
+                <div className="text-center mt-4">
+                  <button
+                    onClick={() => setShowAdminLogin(true)}
+                    className="text-sm text-blue-600 hover:text-blue-800 underline"
+                  >
+                    🔐 Admin Access
+                  </button>
+                </div>
+              )}
             </div>
           )}
         </div>

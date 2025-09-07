@@ -25,21 +25,42 @@ const LS_KEYS = {
   SHARED_DATA: "cbt_shared_data_v1"
 };
 
-function Header({user, onLogout, onLogoClick}){
+function Header({user, onLogout, onLogoClick, institutionData}){
   return (
     <div className="bg-white border-b">
       <div className="max-w-5xl mx-auto flex items-center justify-between p-4">
         <div className="flex items-center gap-3">
-          <button 
-            onClick={onLogoClick}
-            className="flex items-center gap-2 text-left hover:text-blue-600 transition-colors cursor-pointer"
-            title={!user ? "Click to reveal admin access" : ""}
-          >
-            <div className="h-10 md:h-12 w-10 md:w-12 bg-blue-600 rounded-lg flex items-center justify-center">
-              <span className="text-white font-bold text-lg md:text-xl">CBT</span>
+          {institutionData?.logo ? (
+            <div className="flex items-center gap-2 text-left">
+              <div className="h-10 md:h-12 w-10 md:w-12 rounded-lg overflow-hidden flex items-center justify-center bg-gray-100">
+                <img 
+                  src={institutionData.logo} 
+                  alt={`${institutionData.name} logo`}
+                  className="h-full w-full object-contain"
+                  onError={(e) => {
+                    // Fallback to default CBT logo if image fails to load
+                    e.target.style.display = 'none';
+                    e.target.nextSibling.style.display = 'flex';
+                  }}
+                />
+                <div className="h-10 md:h-12 w-10 md:w-12 bg-blue-600 rounded-lg flex items-center justify-center hidden">
+                  <span className="text-white font-bold text-lg md:text-xl">CBT</span>
+                </div>
+              </div>
+              <span className="text-base sm:text-lg font-bold whitespace-nowrap">{institutionData.name}</span>
             </div>
-            <span className="text-base sm:text-lg font-bold whitespace-nowrap">CBT Platform</span>
-          </button>
+          ) : (
+            <button 
+              onClick={onLogoClick}
+              className="flex items-center gap-2 text-left hover:text-blue-600 transition-colors cursor-pointer"
+              title={!user ? "Click to reveal admin access" : ""}
+            >
+              <div className="h-10 md:h-12 w-10 md:w-12 bg-blue-600 rounded-lg flex items-center justify-center">
+                <span className="text-white font-bold text-lg md:text-xl">CBT</span>
+              </div>
+              <span className="text-base sm:text-lg font-bold whitespace-nowrap">CBT Platform</span>
+            </button>
+          )}
         </div>
         <div className="flex items-center gap-3">
           <ConnectionStatus className="hidden sm:block" />
@@ -1161,7 +1182,7 @@ function App() {
       </main>
       <footer className="text-center text-xs text-gray-500 py-6">
         © {new Date().getFullYear()} {institutionData ? institutionData.name : 'CBT Platform'}
-        {!user && view !== "multi-tenant-admin" && view !== "multi-tenant-admin-login" && (
+        {!user && view !== "multi-tenant-admin" && view !== "multi-tenant-admin-login" && !institutionData?.logo && (
           <div className="mt-1 text-gray-400">
             <span className="opacity-30 hover:opacity-100 transition-opacity cursor-help" title="Admin Access: Click logo or press Ctrl+Alt+A">
               🔐
