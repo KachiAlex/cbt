@@ -505,6 +505,42 @@ router.delete('/tenants/:id/admins/:adminId', requireManagedAdmin, async (req, r
   }
 });
 
+// Danger: Clear all users for a tenant (optionally keep default admin)
+router.delete('/tenants/:id/users', requireManagedAdmin, async (req, res) => {
+  try {
+    const tenant = await findTenantByIdOrSlug(req.params.id);
+    if (!tenant) {
+      return res.status(404).json({ error: 'Tenant not found' });
+    }
+
+    const includeDefault = String(req.query.includeDefault || 'false').toLowerCase() === 'true';
+
+    const filter = { tenant_id: tenant._id };
+    if (!includeDefault) {
+      filter.is_default_admin = { $ne: true };
+    }
+
+    const result = await User.deleteMany(filter);
+
+    try {
+      await new AuditLog({
+        actor_user_id: req.user?.id,
+        actor_ip: req.ip,
+        actor_user_agent: req.get('User-Agent'),
+        action: 'tenant.clear_users',
+        resource_type: 'tenant',
+        resource_id: tenant._id,
+        details: { includeDefault, deletedCount: result.deletedCount }
+      }).save();
+    } catch (_) {}
+
+    return res.json({ message: 'Users cleared', deleted: result.deletedCount });
+  } catch (error) {
+    console.error('Error clearing users:', error);
+    return res.status(500).json({ error: 'Failed to clear users' });
+  }
+});
+
 // Remove tenant (soft delete)
 router.delete('/tenants/:id', requireManagedAdmin, async (req, res) => {
   try {
