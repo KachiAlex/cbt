@@ -134,6 +134,29 @@ export default function MultiTenantAdmin() {
         };
       });
       setInstitutions(normalized);
+
+      // Resolve tenant-specific user counts to avoid showing global numbers
+      const sleep = (ms) => new Promise(r => setTimeout(r, ms));
+      for (let i = 0; i < normalized.length; i += 1) {
+        const tenant = normalized[i];
+        const tenantKey = tenant._id || tenant.id || tenant.slug;
+        if (!tenantKey) continue;
+        // Stagger requests to reduce API rate limiting
+        // eslint-disable-next-line no-await-in-loop
+        await sleep(200);
+        try {
+          // eslint-disable-next-line no-await-in-loop
+          const detail = await fetchJson(`${apiConfig.API_BASE}/api/tenants/${tenant._id || tenant.id || tenant.slug}`);
+          const usersArr = Array.isArray(detail?.users) ? detail.users : [];
+          const perTenantCount = usersArr.length;
+          setInstitutions(prev => prev.map(inst => {
+            const key = inst._id || inst.id || inst.slug;
+            return key === tenantKey ? { ...inst, totalUsers: perTenantCount } : inst;
+          }));
+        } catch (_) {
+          // Ignore per-tenant failures, keep existing value
+        }
+      }
       } else {
         // Use localStorage fallback - load from localStorage or create demo institutions
         let demoInstitutions = JSON.parse(localStorage.getItem('demo_institutions') || '[]');
@@ -269,7 +292,7 @@ export default function MultiTenantAdmin() {
   const handleOpenManage = (institution) => {
     setSelectedInstitution(institution);
     setShowManageAdminsForm(true);
-    loadAdmins(institution.slug || institution._id);
+    loadAdmins(institution._id || institution.slug);
   };
 
   const handleCloseManage = () => {
