@@ -470,41 +470,15 @@ const CBTAdminPanel = ({ user, institution, onLogout, onAdminAccess }) => {
         )}
 
         {activeTab === "reporting" && (user.role === 'admin' || user.role === 'super_admin' || user.role === 'managed_admin') && (
-          <div className="space-y-6">
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              <ExportOptions 
-                results={results}
-                questions={questions}
-                exams={exams}
-                institution={institution}
-              />
-              <div className="bg-white rounded-lg shadow-sm p-6">
-                <h3 className="text-lg font-semibold text-gray-900 mb-4">Quick Export</h3>
-                <div className="space-y-3">
-                  <button
-                    onClick={exportResultsToExcel}
-                    className="w-full flex items-center justify-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
-                  >
-                    📊 Export to Excel
-                  </button>
-                  <button
-                    onClick={exportResultsToWord}
-                    className="w-full flex items-center justify-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-                  >
-                    📄 Export to Word
-                  </button>
-                </div>
-              </div>
-            </div>
-            
-            <DataAnalytics 
-              results={results}
-              questions={questions}
-              exams={exams}
-              students={students}
-              institution={institution}
-            />
-          </div>
+          <ReportingTab 
+            results={results}
+            questions={questions}
+            exams={exams}
+            students={students}
+            institution={institution}
+            onExportExcel={exportResultsToExcel}
+            onExportWord={exportResultsToWord}
+          />
         )}
 
         {activeTab === "students" && (user.role === 'admin' || user.role === 'super_admin' || user.role === 'managed_admin') && (
@@ -2136,6 +2110,286 @@ function SettingsTab({ onBackToExams, institution, user }) {
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+function ReportingTab({ results, questions, exams, students, institution, onExportExcel, onExportWord }) {
+  const [selectedReportType, setSelectedReportType] = useState('overview');
+  const [dateRange, setDateRange] = useState('all');
+  const [selectedExam, setSelectedExam] = useState('all');
+
+  // Calculate key metrics
+  const totalStudents = students.length;
+  const totalExams = exams.length;
+  const totalResults = results.length;
+  const averageScore = totalResults > 0 ? Math.round(results.reduce((sum, r) => sum + r.percent, 0) / totalResults) : 0;
+  const passRate = totalResults > 0 ? Math.round((results.filter(r => r.percent >= 60).length / totalResults) * 100) : 0;
+  const highPerformers = totalResults > 0 ? Math.round((results.filter(r => r.percent >= 80).length / totalResults) * 100) : 0;
+
+  // Filter data based on selections
+  const filteredResults = results.filter(result => {
+    if (dateRange !== 'all') {
+      const days = parseInt(dateRange);
+      const cutoffDate = new Date(Date.now() - (days * 24 * 60 * 60 * 1000));
+      if (new Date(result.submittedAt) < cutoffDate) return false;
+    }
+    if (selectedExam !== 'all' && result.examTitle !== selectedExam) return false;
+    return true;
+  });
+
+  const MetricCard = ({ title, value, subtitle, color = 'blue', icon }) => (
+    <div className="bg-white rounded-lg shadow-sm p-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <p className="text-sm font-medium text-gray-600">{title}</p>
+          <p className="text-2xl font-semibold text-gray-900">{value}</p>
+          {subtitle && <p className="text-sm text-gray-500">{subtitle}</p>}
+        </div>
+        {icon && <div className="text-3xl text-gray-400">{icon}</div>}
+      </div>
+    </div>
+  );
+
+  const ReportSection = ({ title, children }) => (
+    <div className="bg-white rounded-lg shadow-sm p-6">
+      <h3 className="text-lg font-semibold text-gray-900 mb-4">{title}</h3>
+      {children}
+    </div>
+  );
+
+  return (
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex justify-between items-center">
+        <div>
+          <h2 className="text-2xl font-bold text-gray-900">Reporting Dashboard</h2>
+          <p className="text-gray-600">Comprehensive analytics and insights for {institution?.name || 'your institution'}</p>
+        </div>
+        <div className="flex gap-2">
+          <button
+            onClick={onExportExcel}
+            className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 text-sm font-medium"
+          >
+            📊 Export Excel
+          </button>
+          <button
+            onClick={onExportWord}
+            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm font-medium"
+          >
+            📄 Export Word
+          </button>
+        </div>
+      </div>
+
+      {/* Filters */}
+      <div className="bg-white rounded-lg shadow-sm p-6">
+        <h3 className="text-lg font-semibold text-gray-900 mb-4">Report Filters</h3>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Report Type</label>
+            <select
+              value={selectedReportType}
+              onChange={(e) => setSelectedReportType(e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="overview">Overview</option>
+              <option value="performance">Performance Analysis</option>
+              <option value="demographics">Student Demographics</option>
+              <option value="exams">Exam Analysis</option>
+            </select>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Date Range</label>
+            <select
+              value={dateRange}
+              onChange={(e) => setDateRange(e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="all">All Time</option>
+              <option value="7">Last 7 days</option>
+              <option value="30">Last 30 days</option>
+              <option value="90">Last 90 days</option>
+            </select>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Exam</label>
+            <select
+              value={selectedExam}
+              onChange={(e) => setSelectedExam(e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="all">All Exams</option>
+              {exams.map(exam => (
+                <option key={exam.id} value={exam.title}>{exam.title}</option>
+              ))}
+            </select>
+          </div>
+        </div>
+      </div>
+
+      {/* Key Metrics */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <MetricCard
+          title="Total Students"
+          value={totalStudents}
+          subtitle="Registered students"
+          icon="👥"
+          color="blue"
+        />
+        <MetricCard
+          title="Total Exams"
+          value={totalExams}
+          subtitle="Available exams"
+          icon="📋"
+          color="green"
+        />
+        <MetricCard
+          title="Average Score"
+          value={`${averageScore}%`}
+          subtitle="Overall performance"
+          icon="📊"
+          color="purple"
+        />
+        <MetricCard
+          title="Pass Rate"
+          value={`${passRate}%`}
+          subtitle="Students ≥ 60%"
+          icon="✅"
+          color="green"
+        />
+      </div>
+
+      {/* Report Content */}
+      {selectedReportType === 'overview' && (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <ReportSection title="Performance Overview">
+            <div className="space-y-4">
+              <div className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
+                <span className="font-medium">High Performers (≥80%)</span>
+                <span className="text-lg font-semibold text-green-600">{highPerformers}%</span>
+              </div>
+              <div className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
+                <span className="font-medium">Passing Students (≥60%)</span>
+                <span className="text-lg font-semibold text-blue-600">{passRate}%</span>
+              </div>
+              <div className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
+                <span className="font-medium">Total Exam Attempts</span>
+                <span className="text-lg font-semibold text-gray-900">{filteredResults.length}</span>
+              </div>
+            </div>
+          </ReportSection>
+
+          <ReportSection title="Recent Activity">
+            <div className="space-y-3">
+              {filteredResults.slice(0, 5).map((result, index) => (
+                <div key={index} className="flex justify-between items-center p-3 border rounded-lg">
+                  <div>
+                    <p className="font-medium">{result.username}</p>
+                    <p className="text-sm text-gray-600">{result.examTitle}</p>
+                  </div>
+                  <div className="text-right">
+                    <p className="font-semibold">{result.percent}%</p>
+                    <p className="text-sm text-gray-500">
+                      {new Date(result.submittedAt).toLocaleDateString()}
+                    </p>
+                  </div>
+                </div>
+              ))}
+              {filteredResults.length === 0 && (
+                <p className="text-gray-500 text-center py-4">No recent activity</p>
+              )}
+            </div>
+          </ReportSection>
+        </div>
+      )}
+
+      {selectedReportType === 'performance' && (
+        <ReportSection title="Performance Analysis">
+          <DataAnalytics 
+            results={filteredResults}
+            questions={questions}
+            exams={exams}
+            students={students}
+            institution={institution}
+          />
+        </ReportSection>
+      )}
+
+      {selectedReportType === 'demographics' && (
+        <ReportSection title="Student Demographics">
+          <DataAnalytics 
+            results={filteredResults}
+            questions={questions}
+            exams={exams}
+            students={students}
+            institution={institution}
+          />
+        </ReportSection>
+      )}
+
+      {selectedReportType === 'exams' && (
+        <ReportSection title="Exam Analysis">
+          <div className="space-y-4">
+            {exams.map(exam => {
+              const examResults = filteredResults.filter(r => r.examTitle === exam.title);
+              const examAvg = examResults.length > 0 
+                ? Math.round(examResults.reduce((sum, r) => sum + r.percent, 0) / examResults.length)
+                : 0;
+              const examPassRate = examResults.length > 0
+                ? Math.round((examResults.filter(r => r.percent >= 60).length / examResults.length) * 100)
+                : 0;
+
+              return (
+                <div key={exam.id} className="p-4 border rounded-lg">
+                  <div className="flex justify-between items-start mb-2">
+                    <h4 className="font-semibold text-lg">{exam.title}</h4>
+                    <span className="text-sm text-gray-500">{examResults.length} attempts</span>
+                  </div>
+                  <p className="text-gray-600 mb-3">{exam.description}</p>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="text-center p-3 bg-blue-50 rounded-lg">
+                      <p className="text-2xl font-bold text-blue-600">{examAvg}%</p>
+                      <p className="text-sm text-blue-800">Average Score</p>
+                    </div>
+                    <div className="text-center p-3 bg-green-50 rounded-lg">
+                      <p className="text-2xl font-bold text-green-600">{examPassRate}%</p>
+                      <p className="text-sm text-green-800">Pass Rate</p>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </ReportSection>
+      )}
+
+      {/* Export Options */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <ExportOptions 
+          results={filteredResults}
+          questions={questions}
+          exams={exams}
+          institution={institution}
+        />
+        <div className="bg-white rounded-lg shadow-sm p-6">
+          <h3 className="text-lg font-semibold text-gray-900 mb-4">Quick Actions</h3>
+          <div className="space-y-3">
+            <button
+              onClick={onExportExcel}
+              className="w-full flex items-center justify-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
+            >
+              📊 Export Current View to Excel
+            </button>
+            <button
+              onClick={onExportWord}
+              className="w-full flex items-center justify-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+            >
+              📄 Export Current View to Word
+            </button>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
