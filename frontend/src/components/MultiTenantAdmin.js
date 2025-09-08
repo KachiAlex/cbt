@@ -4,8 +4,29 @@ import { getInstitutionLogo, createFallbackLogo } from '../utils/logoUtils';
 
 // Helper: safe fetch JSON
 async function fetchJson(url, options = {}) {
-  const res = await fetch(url, options);
+  const token = localStorage.getItem('multi_tenant_admin_token');
+  const mergedHeaders = {
+    'Content-Type': 'application/json',
+    ...(options.headers || {}),
+    ...(token ? { Authorization: `Bearer ${token}` } : {})
+  };
+
+  const res = await fetch(url, { ...options, headers: mergedHeaders });
+
   if (!res.ok) {
+    if (res.status === 401) {
+      // Not authenticated – send user to multi-tenant admin login
+      try {
+        // Clear any stale tokens
+        localStorage.removeItem('multi_tenant_admin_token');
+        localStorage.removeItem('multi_tenant_admin_refresh_token');
+        localStorage.removeItem('multi_tenant_admin_user');
+      } catch (_) {}
+      // Redirect silently to admin login view on the same site
+      if (typeof window !== 'undefined') {
+        window.location.href = '/?admin=true';
+      }
+    }
     const text = await res.text().catch(() => '');
     throw new Error(`HTTP ${res.status}: ${text || res.statusText}`);
   }
