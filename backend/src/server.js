@@ -82,8 +82,8 @@ app.get('/health', async (req, res) => {
 
 		const healthData = {
 			status: dbStatus.connected ? 'healthy' : 'degraded',
-			timestamp: new Date().toISOString(),
-			environment: process.env.NODE_ENV || 'development',
+		timestamp: new Date().toISOString(),
+		environment: process.env.NODE_ENV || 'development',
 			database: {
 				type: process.env.DB_TYPE || 'mongodb',
 				status: dbStatus,
@@ -166,7 +166,7 @@ app.get('/api/debug/db-status', cors(), async (req, res) => {
       
       try {
         // Get collection information
-        const collections = await mongoose.connection.db.listCollections().toArray();
+      const collections = await mongoose.connection.db.listCollections().toArray();
         dbStatus.collections = collections.map(col => col.name);
         
         // Get document counts for each collection
@@ -214,7 +214,7 @@ app.get('/api/debug/db-status', cors(), async (req, res) => {
     res.json(dbStatus);
   } catch (error) {
     console.error('Database status check error:', error);
-    res.status(500).json({
+    res.status(500).json({ 
       error: 'Failed to check database status',
       message: error.message,
       timestamp: new Date().toISOString()

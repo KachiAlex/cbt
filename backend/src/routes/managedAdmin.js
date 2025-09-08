@@ -8,6 +8,18 @@ const Tenant = require('../models/Tenant');
 const User = require('../models/User');
 const AuditLog = require('../models/AuditLog');
 
+// Helper: find tenant by ObjectId or slug
+async function findTenantByIdOrSlug(idOrSlug) {
+  let tenant = null;
+  try {
+    tenant = await Tenant.findById(idOrSlug);
+  } catch (_) {}
+  if (!tenant) {
+    tenant = await Tenant.findOne({ slug: idOrSlug });
+  }
+  return tenant;
+}
+
 // Simple middleware to check for admin token
 const requireManagedAdmin = async (req, res, next) => {
   try {
@@ -273,7 +285,7 @@ router.post('/tenants/:id/reinstate', requireManagedAdmin, async (req, res) => {
 // Reset default admin password
 router.post('/tenants/:id/reset-default-admin', requireManagedAdmin, async (req, res) => {
   try {
-    const tenant = await Tenant.findById(req.params.id);
+    const tenant = await findTenantByIdOrSlug(req.params.id);
     if (!tenant) {
       return res.status(404).json({ error: 'Tenant not found' });
     }
@@ -316,6 +328,82 @@ router.post('/tenants/:id/reset-default-admin', requireManagedAdmin, async (req,
   } catch (error) {
     console.error('Error resetting default admin password:', error);
     res.status(500).json({ error: 'Failed to reset password' });
+  }
+});
+
+// Reset password for a specific admin (by adminId)
+router.post('/tenants/:id/admins/:adminId/reset-password', requireManagedAdmin, async (req, res) => {
+  try {
+    const tenant = await findTenantByIdOrSlug(req.params.id);
+    if (!tenant) {
+      return res.status(404).json({ error: 'Tenant not found' });
+    }
+
+    const adminId = req.params.adminId;
+    const adminUser = await User.findOne({ _id: adminId, tenant_id: tenant._id });
+    if (!adminUser) {
+      return res.status(404).json({ error: 'Admin not found' });
+    }
+
+    const tempPassword = generateTempPassword();
+    adminUser.password = tempPassword;
+    adminUser.must_change_password = true;
+    await adminUser.save();
+
+    // Audit log
+    await new AuditLog({
+      actor_user_id: req.user.id,
+      actor_ip: req.ip,
+      actor_user_agent: req.get('User-Agent'),
+      action: 'user.reset_password',
+      resource_type: 'user',
+      resource_id: adminUser._id,
+      details: { tenant_id: tenant._id, tenant_name: tenant.name }
+    }).save();
+
+    res.json({ message: 'Admin password reset successfully', temp_password: tempPassword, admin_id: adminUser._id });
+  } catch (error) {
+    console.error('Error resetting admin password:', error);
+    res.status(500).json({ error: 'Failed to reset admin password' });
+  }
+});
+
+// Delete a specific admin (by adminId)
+router.delete('/tenants/:id/admins/:adminId', requireManagedAdmin, async (req, res) => {
+  try {
+    const tenant = await findTenantByIdOrSlug(req.params.id);
+    if (!tenant) {
+      return res.status(404).json({ error: 'Tenant not found' });
+    }
+
+    const adminId = req.params.adminId;
+    const adminUser = await User.findOne({ _id: adminId, tenant_id: tenant._id });
+    if (!adminUser) {
+      return res.status(404).json({ error: 'Admin not found' });
+    }
+
+    // Prevent deleting default admin without explicit override (simple guard)
+    if (adminUser.is_default_admin) {
+      return res.status(400).json({ error: 'Cannot delete default admin' });
+    }
+
+    await User.deleteOne({ _id: adminUser._id });
+
+    // Audit log
+    await new AuditLog({
+      actor_user_id: req.user.id,
+      actor_ip: req.ip,
+      actor_user_agent: req.get('User-Agent'),
+      action: 'user.delete',
+      resource_type: 'user',
+      resource_id: adminUser._id,
+      details: { tenant_id: tenant._id, tenant_name: tenant.name }
+    }).save();
+
+    res.json({ message: 'Admin deleted successfully' });
+  } catch (error) {
+    console.error('Error deleting admin:', error);
+    res.status(500).json({ error: 'Failed to delete admin' });
   }
 });
 

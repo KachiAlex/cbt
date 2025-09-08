@@ -96,7 +96,7 @@ const MultiTenantAdminLogin = ({ onLogin }) => {
       if (!response.ok) {
         let errorMessage = 'Login failed';
         try {
-          const errorData = await response.json();
+        const errorData = await response.json();
           errorMessage = errorData.error || errorData.message || `HTTP ${response.status}: ${response.statusText}`;
         } catch (parseError) {
           errorMessage = `HTTP ${response.status}: ${response.statusText}`;
@@ -129,7 +129,7 @@ const MultiTenantAdminLogin = ({ onLogin }) => {
           body: JSON.stringify({ usernameOrEmail: normalizedUser.username || normalizedUser.email })
         });
       } catch (_) {}
-
+      
       // Store authentication tokens using token service
       tokenService.storeTokens(data.token, data.refreshToken, normalizedUser, data.expiresIn);
       

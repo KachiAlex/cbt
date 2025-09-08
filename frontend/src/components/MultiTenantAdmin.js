@@ -562,9 +562,20 @@ export default function MultiTenantAdmin() {
     }
 
     try {
-      await fetchJson(`${apiConfig.API_BASE}/api/tenants/${selectedInstitution.slug || selectedInstitution._id}/admins/${admin._id || admin.id}/reset-password`, {
-        method: 'POST'
-      });
+      // Try by adminId first (preferred)
+      const adminId = admin._id || admin.id || admin.userId || admin.user_id;
+      if (adminId) {
+        await fetchJson(`${apiConfig.API_BASE}/api/tenants/${selectedInstitution.slug || selectedInstitution._id}/admins/${adminId}/reset-password`, {
+          method: 'POST'
+        });
+      } else {
+        // Fallback: legacy endpoint by username/email
+        await fetchJson(`${apiConfig.API_BASE}/api/tenants/${selectedInstitution.slug || selectedInstitution._id}/admins/reset-password`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ username: admin.username || admin.email })
+        });
+      }
       // Optionally show a toast or success message
     } catch (e) {
       setError(e.message || 'Failed to reset admin password');
@@ -874,12 +885,12 @@ export default function MultiTenantAdmin() {
             <div>
                       <h3 className="text-lg font-semibold text-gray-900">{inst.name}</h3>
                       <p className="text-sm text-gray-600">Slug: {inst.slug}</p>
-                    </div>
+            </div>
                   </div>
                   
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                     <div className="space-y-2">
-                      <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2">
                         <span className="text-sm font-medium text-gray-700">👥 Total Users:</span>
                         <span className="text-sm text-gray-600">{inst.totalUsers || 0}</span>
                       </div>
@@ -1633,7 +1644,7 @@ export default function MultiTenantAdmin() {
                 >
                   Create Institution
                 </button>
-              </div>
+                </div>
             </form>
           </div>
         </div>

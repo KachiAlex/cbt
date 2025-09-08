@@ -697,12 +697,12 @@ function App() {
           localStorage.removeItem('multi_tenant_admin_user');
           setView("multi-tenant-admin-login");
         }
-        } else {
+      } else {
           console.log('❌ No valid authentication found, showing login');
           console.log('🔧 Setting view to multi-tenant-admin-login');
-          setView("multi-tenant-admin-login");
+        setView("multi-tenant-admin-login");
           console.log('🔧 View set to:', "multi-tenant-admin-login");
-        }
+      }
       return; // Exit early for admin routes
     }
     
