@@ -562,10 +562,8 @@ export default function MultiTenantAdmin() {
     }
 
     try {
-      await fetchJson(`${apiConfig.API_BASE}/api/tenants/${selectedInstitution.slug || selectedInstitution._id}/admins/reset-password`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username: admin.username || admin.email })
+      await fetchJson(`${apiConfig.API_BASE}/api/tenants/${selectedInstitution.slug || selectedInstitution._id}/admins/${admin._id || admin.id}/reset-password`, {
+        method: 'POST'
       });
       // Optionally show a toast or success message
     } catch (e) {
