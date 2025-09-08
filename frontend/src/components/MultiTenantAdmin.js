@@ -218,7 +218,7 @@ export default function MultiTenantAdmin() {
 
   // Load admins for institution
   const loadAdmins = useCallback(async (tenantSlugOrId) => {
-    if (!tenantSlug) return;
+    if (!tenantSlugOrId) return;
     try {
       setLoadingAdmins(true);
       
