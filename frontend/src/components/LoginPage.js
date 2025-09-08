@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 
-const LoginPage = ({ onLogin }) => {
+const LoginPage = ({ onLogin, onAdminAccess }) => {
   const [credentials, setCredentials] = useState({
     username: '',
     password: ''
@@ -95,6 +95,16 @@ const LoginPage = ({ onLogin }) => {
             <p>Default Admin: admin / admin123</p>
           </div>
         </form>
+
+        {/* Multi-Tenant Admin Access */}
+        <div className="mt-6 text-center">
+          <button
+            onClick={onAdminAccess}
+            className="text-sm text-blue-600 hover:text-blue-500 font-medium"
+          >
+            Multi-Tenant Admin Access
+          </button>
+        </div>
       </div>
     </div>
   );

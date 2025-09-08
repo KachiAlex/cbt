@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { dataService } from '../services/dataService';
 
-const AdminDashboard = ({ user, onLogout }) => {
+const AdminDashboard = ({ user, onLogout, onAdminAccess }) => {
   const [stats, setStats] = useState({
     totalExams: 0,
     totalStudents: 0,
@@ -87,12 +87,20 @@ const AdminDashboard = ({ user, onLogout }) => {
               <h1 className="text-3xl font-bold text-gray-900">Admin Dashboard</h1>
               <p className="text-gray-600">Welcome back, {user?.fullName || user?.username}</p>
             </div>
-            <button
-              onClick={onLogout}
-              className="bg-red-600 text-white px-4 py-2 rounded-md hover:bg-red-700"
-            >
-              Logout
-            </button>
+            <div className="flex space-x-3">
+              <button
+                onClick={onAdminAccess}
+                className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700"
+              >
+                Multi-Tenant Admin
+              </button>
+              <button
+                onClick={onLogout}
+                className="bg-red-600 text-white px-4 py-2 rounded-md hover:bg-red-700"
+              >
+                Logout
+              </button>
+            </div>
           </div>
         </div>
       </header>
