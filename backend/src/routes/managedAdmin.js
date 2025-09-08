@@ -60,52 +60,68 @@ router.post('/tenants', requireManagedAdmin, async (req, res) => {
       timezone = 'UTC',
       language = 'en',
       logo_url,
+      logo,
       plan = 'basic',
-      default_admin
+      default_admin,
+      // New fields from frontend
+      adminFullName,
+      adminUsername,
+      adminEmail,
+      adminPassword,
+      role = 'super_admin'
     } = req.body;
 
-    // Validate required fields
-    if (!name || !slug || !contact_email || !default_admin) {
+    // Validate required fields - support both old and new formats
+    const institutionName = name;
+    const adminEmailField = adminEmail || (default_admin && default_admin.email) || contact_email;
+    const adminFullNameField = adminFullName || (default_admin && default_admin.fullName);
+    const adminUsernameField = adminUsername || (default_admin && default_admin.username);
+    const adminPasswordField = adminPassword || (default_admin && default_admin.password);
+
+    if (!institutionName || !adminEmailField || !adminFullNameField || !adminUsernameField || !adminPasswordField) {
       return res.status(400).json({
-        error: 'Missing required fields: name, slug, contact_email, default_admin'
+        error: 'Missing required fields: name, adminFullName, adminUsername, adminEmail, adminPassword'
       });
     }
 
+    // Generate slug if not provided
+    const tenantSlug = slug || institutionName.toLowerCase().replace(/[^a-z0-9]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '');
+
     // Check if tenant slug already exists
-    const existingTenant = await Tenant.findOne({ slug });
+    const existingTenant = await Tenant.findOne({ slug: tenantSlug });
     if (existingTenant) {
       return res.status(400).json({ error: 'Tenant slug already exists' });
     }
 
     // Create tenant
     const tenant = new Tenant({
-      name,
-      slug,
-      address,
-      contact_email,
-      contact_phone,
+      name: institutionName,
+      slug: tenantSlug,
+      address: address || '',
+      contact_email: adminEmailField,
+      contact_phone: contact_phone || '',
       timezone,
       language,
-      logo_url,
+      logo_url: logo_url || logo || '',
       plan
     });
 
     await tenant.save();
 
-    // Generate temporary password for default admin
-    const tempPassword = generateTempPassword();
+    // Hash the provided password
+    const hashedPassword = await bcrypt.hash(adminPasswordField, 10);
 
-    // Create default admin user (platform-level default as super_admin)
+    // Create default admin user (always super_admin)
     const defaultAdminUser = new User({
       tenant_id: tenant._id,
-      username: default_admin.username || default_admin.email.split('@')[0],
-      email: default_admin.email,
-      phone: default_admin.phone,
-      fullName: default_admin.fullName || default_admin.email.split('@')[0],
-      password: tempPassword,
-      role: 'super_admin',
+      username: adminUsernameField,
+      email: adminEmailField,
+      phone: contact_phone || '',
+      fullName: adminFullNameField,
+      password: hashedPassword,
+      role: 'super_admin', // All admins are super_admin
       is_default_admin: true,
-      must_change_password: true
+      must_change_password: false // Password is already set
     });
 
     await defaultAdminUser.save();
@@ -119,28 +135,37 @@ router.post('/tenants', requireManagedAdmin, async (req, res) => {
       resource_type: 'tenant',
       resource_id: tenant._id,
       details: {
-        tenant_name: name,
-        tenant_slug: slug,
-        default_admin_email: default_admin.email,
+        tenant_name: institutionName,
+        tenant_slug: tenantSlug,
+        default_admin_email: adminEmailField,
         plan: plan
       }
     }).save();
 
     res.status(201).json({
-      message: 'Tenant created successfully',
+      success: true,
+      message: 'Institution created successfully',
       tenant: {
+        _id: tenant._id,
         id: tenant._id,
         name: tenant.name,
         slug: tenant.slug,
         contact_email: tenant.contact_email,
         plan: tenant.plan,
-        created_at: tenant.created_at
+        createdAt: tenant.createdAt || tenant.created_at,
+        logo: tenant.logo_url || tenant.logo || '',
+        adminName: adminFullNameField,
+        adminEmail: adminEmailField,
+        adminUsername: adminUsernameField,
+        totalUsers: 0
       },
       default_admin: {
+        _id: defaultAdminUser._id,
         id: defaultAdminUser._id,
         email: defaultAdminUser.email,
         username: defaultAdminUser.username,
-        temp_password: tempPassword
+        fullName: defaultAdminUser.fullName,
+        role: 'super_admin'
       }
     });
 
@@ -228,7 +253,7 @@ router.post('/tenants/:id/admins', requireManagedAdmin, async (req, res) => {
       return res.status(404).json({ error: 'Tenant not found' });
     }
 
-    const { username, email, fullName, password } = req.body || {};
+    const { username, email, fullName, password, role = 'super_admin' } = req.body || {};
     if (!username || !email || !fullName || !password) {
       return res.status(400).json({ error: 'username, email, fullName, and password are required' });
     }
