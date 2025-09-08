@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useToast } from './Toast';
 
-const DataAnalytics = ({ results, questions, exams }) => {
+const DataAnalytics = ({ results, questions, exams, students = [], institution }) => {
   const [selectedMetric, setSelectedMetric] = useState('performance');
   const [selectedTimeframe, setSelectedTimeframe] = useState('all');
   const [selectedExam, setSelectedExam] = useState('all');
@@ -70,6 +70,9 @@ const DataAnalytics = ({ results, questions, exams }) => {
     // Student performance patterns
     const studentPatterns = calculateStudentPatterns(filteredResults);
 
+    // Student demographics analytics
+    const demographics = calculateStudentDemographics(students, filteredResults);
+
     // Generate insights
     const insights = generateInsights(performance, trends, examPerformance, studentPatterns);
 
@@ -79,6 +82,7 @@ const DataAnalytics = ({ results, questions, exams }) => {
       distribution: gradeDistribution,
       examPerformance,
       studentPatterns,
+      demographics,
       insights
     };
   }, [filteredResults]);
@@ -157,6 +161,59 @@ const DataAnalytics = ({ results, questions, exams }) => {
       examCount: data.exams.length,
       averageTime: data.times.length > 0 ? Math.round(data.times.reduce((a, b) => a + b, 0) / data.times.length / 60) : 0
     }));
+  };
+
+  const calculateStudentDemographics = (students, results) => {
+    if (students.length === 0) {
+      return {
+        gender: {},
+        age: {},
+        totalStudents: 0,
+        activeStudents: 0
+      };
+    }
+
+    // Filter students by institution if needed
+    const institutionStudents = institution?.slug 
+      ? students.filter(s => s.institutionSlug === institution.slug)
+      : students;
+
+    // Gender distribution
+    const genderDistribution = institutionStudents.reduce((acc, student) => {
+      const gender = student.gender || 'unknown';
+      acc[gender] = (acc[gender] || 0) + 1;
+      return acc;
+    }, {});
+
+    // Age distribution
+    const ageDistribution = institutionStudents.reduce((acc, student) => {
+      if (student.age) {
+        const ageGroup = student.age < 20 ? 'Under 20' :
+                        student.age < 25 ? '20-24' :
+                        student.age < 30 ? '25-29' :
+                        student.age < 35 ? '30-34' :
+                        student.age < 40 ? '35-39' :
+                        '40+';
+        acc[ageGroup] = (acc[ageGroup] || 0) + 1;
+      }
+      return acc;
+    }, {});
+
+    // Students who have taken exams
+    const studentsWithResults = new Set(results.map(r => r.username));
+    const activeStudents = institutionStudents.filter(s => 
+      studentsWithResults.has(s.username)
+    ).length;
+
+    return {
+      gender: genderDistribution,
+      age: ageDistribution,
+      totalStudents: institutionStudents.length,
+      activeStudents: activeStudents,
+      participationRate: institutionStudents.length > 0 
+        ? Math.round((activeStudents / institutionStudents.length) * 100) 
+        : 0
+    };
   };
 
   const generateInsights = (performance, trends, examPerformance, studentPatterns) => {
@@ -325,6 +382,7 @@ const DataAnalytics = ({ results, questions, exams }) => {
               <option value="performance">Performance</option>
               <option value="trends">Trends</option>
               <option value="distribution">Distribution</option>
+              <option value="demographics">Student Demographics</option>
               <option value="correlations">Correlations</option>
             </select>
           </div>
@@ -417,6 +475,75 @@ const DataAnalytics = ({ results, questions, exams }) => {
                 ))}
               </tbody>
             </table>
+          </div>
+        </div>
+      )}
+
+      {/* Student Demographics */}
+      {selectedMetric === 'demographics' && (
+        <div className="space-y-6">
+          <div className="bg-white rounded-lg shadow-sm p-6">
+            <h3 className="text-lg font-semibold text-gray-900 mb-6">Student Demographics</h3>
+            
+            {/* Overview Cards */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+              <MetricCard
+                title="Total Students"
+                value={analytics.demographics.totalStudents}
+                subtitle="Registered students"
+                color="blue"
+              />
+              <MetricCard
+                title="Active Students"
+                value={analytics.demographics.activeStudents}
+                subtitle="Students who took exams"
+                color="green"
+              />
+              <MetricCard
+                title="Participation Rate"
+                value={`${analytics.demographics.participationRate}%`}
+                subtitle="Exam participation"
+                color="purple"
+              />
+            </div>
+
+            {/* Gender Distribution */}
+            <div className="mb-8">
+              <h4 className="text-md font-semibold text-gray-900 mb-4">Gender Distribution</h4>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                {Object.entries(analytics.demographics.gender).map(([gender, count]) => {
+                  const percentage = analytics.demographics.totalStudents > 0 
+                    ? Math.round((count / analytics.demographics.totalStudents) * 100) 
+                    : 0;
+                  return (
+                    <div key={gender} className="text-center p-4 bg-gray-50 rounded-lg">
+                      <div className="text-2xl font-bold text-gray-900">{count}</div>
+                      <div className="text-sm text-gray-600 capitalize">{gender}</div>
+                      <div className="text-xs text-gray-500">{percentage}%</div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Age Distribution */}
+            <div>
+              <h4 className="text-md font-semibold text-gray-900 mb-4">Age Distribution</h4>
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+                {Object.entries(analytics.demographics.age).map(([ageGroup, count]) => {
+                  const percentage = analytics.demographics.totalStudents > 0 
+                    ? Math.round((count / analytics.demographics.totalStudents) * 100) 
+                    : 0;
+                  return (
+                    <div key={ageGroup} className="text-center p-4 bg-gray-50 rounded-lg">
+                      <div className="text-2xl font-bold text-gray-900">{count}</div>
+                      <div className="text-sm text-gray-600">{ageGroup}</div>
+                      <div className="text-xs text-gray-500">{percentage}%</div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
           </div>
         </div>
       )}

@@ -465,7 +465,7 @@ function StudentPortalForm({ onLogin, onRegister }) {
       onLogin(formData.username, formData.password);
       setIsLoading(false);
     } else {
-      if (!formData.username || !formData.password || !formData.fullName || !formData.email) return;
+      if (!formData.username || !formData.password || !formData.fullName || !formData.email || !formData.gender || !formData.age) return;
       if (formData.password !== formData.confirmPassword) return;
       
       setIsLoading(true);
@@ -513,6 +513,33 @@ function StudentPortalForm({ onLogin, onRegister }) {
                 onChange={(e) => setFormData({...formData, email: e.target.value})}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
                 placeholder="Enter your email"
+                required
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Gender</label>
+              <select
+                value={formData.gender || ''}
+                onChange={(e) => setFormData({...formData, gender: e.target.value})}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+                required
+              >
+                <option value="">Select gender</option>
+                <option value="male">Male</option>
+                <option value="female">Female</option>
+                <option value="other">Other</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Age</label>
+              <input
+                type="number"
+                value={formData.age || ''}
+                onChange={(e) => setFormData({...formData, age: e.target.value})}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+                placeholder="Enter your age"
+                min="16"
+                max="100"
                 required
               />
             </div>

@@ -784,8 +784,8 @@ export const dataService = {
 
   // Student registration (API first, then local fallback)
   registerStudent: async (studentData, tenantSlug = null) => {
-    const { username, password, fullName, email } = studentData || {};
-    if (!username || !password || !fullName || !email) {
+    const { username, password, fullName, email, gender, age } = studentData || {};
+    if (!username || !password || !fullName || !email || !gender || !age) {
       throw new Error('Please fill in all required fields');
     }
     if (String(password).length < 6) {
@@ -797,7 +797,7 @@ export const dataService = {
         const response = await fetch(`${API_BASE}/api/auth/register`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ username, password, fullName, email, tenant_slug: tenantSlug })
+          body: JSON.stringify({ username, password, fullName, email, gender, age, tenant_slug: tenantSlug })
         });
         if (response.ok) {
           const data = await response.json();
@@ -825,6 +825,8 @@ export const dataService = {
       password,
       fullName,
       email,
+      gender,
+      age: parseInt(age),
       role: 'student',
       institutionSlug: tenantSlug, // Store the institution context
       registeredAt: new Date().toISOString()

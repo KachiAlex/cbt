@@ -32,6 +32,7 @@ const CBTAdminPanel = ({ user, institution, onLogout, onAdminAccess }) => {
   const [showEditExam, setShowEditExam] = useState(false);
   const [selectedExam, setSelectedExam] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [students, setStudents] = useState([]);
 
 
 
@@ -64,6 +65,24 @@ const CBTAdminPanel = ({ user, institution, onLogout, onAdminAccess }) => {
       return institution?.slug ? list.filter(r => r.institutionSlug === institution.slug) : list;
     } catch (error) {
       console.error('Error loading results:', error);
+      return [];
+    }
+  }, [institution?.slug]);
+
+  const loadStudents = React.useCallback(async () => {
+    try {
+      const users = JSON.parse(localStorage.getItem('cbt_users_v1') || '[]');
+      const registrations = JSON.parse(localStorage.getItem('cbt_student_registrations_v1') || '[]');
+      const allStudents = [...users.filter(u => u.role === 'student'), ...registrations];
+      const uniqueStudents = allStudents.filter((student, index, self) => 
+        index === self.findIndex(s => s.email === student.email)
+      );
+      const institutionStudents = uniqueStudents.filter(student => 
+        !institution?.slug || student.institutionSlug === institution.slug
+      );
+      return institutionStudents;
+    } catch (error) {
+      console.error('Error loading students:', error);
       return [];
     }
   }, [institution?.slug]);
@@ -117,14 +136,16 @@ const CBTAdminPanel = ({ user, institution, onLogout, onAdminAccess }) => {
     const initializeData = async () => {
       try {
         setLoading(true);
-        const [examsData, resultsData] = await Promise.all([
+        const [examsData, resultsData, studentsData] = await Promise.all([
           loadExams(),
-          loadResults()
+          loadResults(),
+          loadStudents()
         ]);
         setExams(examsData || []);
         // Don't load general questions here - questions are exam-specific
         setQuestions([]);
         setResults(resultsData || []);
+        setStudents(studentsData || []);
       } catch (error) {
         console.error('Error loading data:', error);
       } finally {
@@ -480,6 +501,8 @@ const CBTAdminPanel = ({ user, institution, onLogout, onAdminAccess }) => {
               results={results}
               questions={questions}
               exams={exams}
+              students={students}
+              institution={institution}
             />
           </div>
         )}
@@ -932,6 +955,18 @@ function StudentsTab({ onBackToExams, institution, user }) {
   // eslint-disable-next-line no-unused-vars
   const isAdmin = user.role === 'admin' || user.role === 'super_admin' || user.role === 'managed_admin';
   
+  // State for Create Student modal
+  const [createStudentModalOpen, setCreateStudentModalOpen] = useState(false);
+  const [newStudent, setNewStudent] = useState({
+    username: '',
+    password: '',
+    fullName: '',
+    email: '',
+    gender: '',
+    age: ''
+  });
+  const [createStudentError, setCreateStudentError] = useState('');
+  
   // Load actual registered students from localStorage or API
   const raw = localStorage.getItem('cbt_student_registrations_v1');
   const allStudents = raw ? JSON.parse(raw) : [];
@@ -939,16 +974,93 @@ function StudentsTab({ onBackToExams, institution, user }) {
   // Filter students by institution if needed
   const students = allStudents.filter(s => !institution?.slug || s.institutionSlug === institution.slug);
 
+  // Create student function
+  const createStudent = async () => {
+    try {
+      setCreateStudentError('');
+      
+      // Validate required fields
+      if (!newStudent.username || !newStudent.password || !newStudent.fullName || !newStudent.email || !newStudent.gender || !newStudent.age) {
+        setCreateStudentError('All fields are required');
+        return;
+      }
+
+      if (newStudent.password.length < 6) {
+        setCreateStudentError('Password must be at least 6 characters long');
+        return;
+      }
+
+      if (isNaN(newStudent.age) || parseInt(newStudent.age) < 16 || parseInt(newStudent.age) > 100) {
+        setCreateStudentError('Age must be a number between 16 and 100');
+        return;
+      }
+
+      // Check if username or email already exists
+      const users = JSON.parse(localStorage.getItem('cbt_users_v1') || '[]');
+      const existingUser = users.find(u => 
+        (u.username && u.username.toLowerCase() === newStudent.username.toLowerCase()) ||
+        (u.email && u.email.toLowerCase() === newStudent.email.toLowerCase())
+      );
+
+      if (existingUser) {
+        setCreateStudentError('Username or email already exists');
+        return;
+      }
+
+      // Create new student
+      const studentData = {
+        username: newStudent.username,
+        password: newStudent.password,
+        fullName: newStudent.fullName,
+        email: newStudent.email,
+        gender: newStudent.gender,
+        age: parseInt(newStudent.age),
+        role: 'student',
+        institutionSlug: institution?.slug || null,
+        registeredAt: new Date().toISOString()
+      };
+
+      // Add to users
+      users.push(studentData);
+      localStorage.setItem('cbt_users_v1', JSON.stringify(users));
+
+      // Add to registrations
+      const registrations = JSON.parse(localStorage.getItem('cbt_student_registrations_v1') || '[]');
+      registrations.push(studentData);
+      localStorage.setItem('cbt_student_registrations_v1', JSON.stringify(registrations));
+
+      // Reset form and close modal
+      setNewStudent({ username: '', password: '', fullName: '', email: '', gender: '', age: '' });
+      setCreateStudentModalOpen(false);
+      
+      // Reload page to refresh student list
+      window.location.reload();
+      
+      console.log('✅ Student created manually:', studentData);
+    } catch (error) {
+      console.error('Error creating student:', error);
+      setCreateStudentError('Failed to create student: ' + error.message);
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <h3 className="text-lg font-semibold">Student Management</h3>
-        <button
-          onClick={onBackToExams}
-          className="px-4 py-2 bg-gray-600 text-white rounded-xl hover:bg-gray-700 text-sm"
-        >
-          ← Back to Exams
-        </button>
+        <div className="flex gap-2">
+          <button
+            onClick={() => setCreateStudentModalOpen(true)}
+            className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 text-sm"
+          >
+            Create Student
+          </button>
+          <button
+            onClick={onBackToExams}
+            className="px-4 py-2 bg-gray-600 text-white rounded-xl hover:bg-gray-700 text-sm"
+          >
+            ← Back to Exams
+          </button>
+        </div>
       </div>
       
       <div className="bg-white rounded-xl border overflow-hidden">
@@ -990,6 +1102,129 @@ function StudentsTab({ onBackToExams, institution, user }) {
           </tbody>
         </table>
       </div>
+
+      {/* Create Student Modal */}
+      {createStudentModalOpen && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-xl p-6 w-full max-w-md mx-4">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-lg font-bold">Create New Student</h3>
+              <button 
+                onClick={() => {
+                  setCreateStudentModalOpen(false);
+                  setNewStudent({ username: '', password: '', fullName: '', email: '', gender: '', age: '' });
+                  setCreateStudentError('');
+                }} 
+                className="text-gray-500 hover:text-gray-700 text-xl"
+              >
+                ×
+              </button>
+            </div>
+            
+            {createStudentError && (
+              <div className="mb-4 p-3 bg-red-50 text-red-700 rounded-lg text-sm">
+                {createStudentError}
+              </div>
+            )}
+            
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Full Name</label>
+                <input
+                  type="text"
+                  value={newStudent.fullName}
+                  onChange={(e) => setNewStudent(prev => ({ ...prev, fullName: e.target.value }))}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  placeholder="Enter full name"
+                  autoComplete="name"
+                />
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Username</label>
+                <input
+                  type="text"
+                  value={newStudent.username}
+                  onChange={(e) => setNewStudent(prev => ({ ...prev, username: e.target.value }))}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  placeholder="Enter username"
+                  autoComplete="username"
+                />
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+                <input
+                  type="email"
+                  value={newStudent.email}
+                  onChange={(e) => setNewStudent(prev => ({ ...prev, email: e.target.value }))}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  placeholder="Enter email address"
+                  autoComplete="email"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Gender</label>
+                <select
+                  value={newStudent.gender}
+                  onChange={(e) => setNewStudent(prev => ({ ...prev, gender: e.target.value }))}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                >
+                  <option value="">Select gender</option>
+                  <option value="male">Male</option>
+                  <option value="female">Female</option>
+                  <option value="other">Other</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Age</label>
+                <input
+                  type="number"
+                  value={newStudent.age}
+                  onChange={(e) => setNewStudent(prev => ({ ...prev, age: e.target.value }))}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  placeholder="Enter age (16-100)"
+                  min="16"
+                  max="100"
+                />
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Password</label>
+                <input
+                  type="password"
+                  value={newStudent.password}
+                  onChange={(e) => setNewStudent(prev => ({ ...prev, password: e.target.value }))}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  placeholder="Enter password (min 6 characters)"
+                  autoComplete="new-password"
+                />
+              </div>
+            </div>
+            
+            <div className="flex gap-3 mt-6">
+              <button
+                onClick={createStudent}
+                className="flex-1 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 text-sm font-medium"
+              >
+                Create Student
+              </button>
+              <button
+                onClick={() => {
+                  setCreateStudentModalOpen(false);
+                  setNewStudent({ username: '', password: '', fullName: '', email: '', gender: '', age: '' });
+                  setCreateStudentError('');
+                }}
+                className="flex-1 px-4 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 text-sm font-medium"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -1356,12 +1591,6 @@ function SettingsTab({ onBackToExams, institution, user }) {
                 className="px-4 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700 text-sm"
               >
                 Manage Students
-              </button>
-              <button
-                onClick={() => setCreateStudentModalOpen(true)}
-                className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 text-sm"
-              >
-                Create Student
               </button>
               </>
             )}
