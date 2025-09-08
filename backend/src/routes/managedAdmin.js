@@ -188,7 +188,7 @@ router.get('/tenants', requireManagedAdmin, async (req, res) => {
 // Get tenant details
 router.get('/tenants/:id', requireManagedAdmin, async (req, res) => {
   try {
-    const tenant = await Tenant.findById(req.params.id);
+    const tenant = await findTenantByIdOrSlug(req.params.id);
     if (!tenant) {
       return res.status(404).json({ error: 'Tenant not found' });
     }
@@ -217,6 +217,57 @@ router.get('/tenants/:id', requireManagedAdmin, async (req, res) => {
   } catch (error) {
     console.error('Error fetching tenant details:', error);
     res.status(500).json({ error: 'Failed to fetch tenant details' });
+  }
+});
+
+// Create an admin for a tenant (role forced to super_admin at platform level)
+router.post('/tenants/:id/admins', requireManagedAdmin, async (req, res) => {
+  try {
+    const tenant = await findTenantByIdOrSlug(req.params.id);
+    if (!tenant) {
+      return res.status(404).json({ error: 'Tenant not found' });
+    }
+
+    const { username, email, fullName, password } = req.body || {};
+    if (!username || !email || !fullName || !password) {
+      return res.status(400).json({ error: 'username, email, fullName, and password are required' });
+    }
+
+    // Check duplicate
+    const existing = await User.findOne({ tenant_id: tenant._id, $or: [{ username: username.toLowerCase() }, { email: email.toLowerCase() }] });
+    if (existing) {
+      return res.status(400).json({ error: 'An admin with this username or email already exists' });
+    }
+
+    const adminUser = new User({
+      tenant_id: tenant._id,
+      username: username.toLowerCase(),
+      email: email.toLowerCase(),
+      fullName,
+      password,
+      role: 'super_admin',
+      is_default_admin: false,
+      must_change_password: false
+    });
+    await adminUser.save();
+
+    try {
+      await new AuditLog({
+        actor_user_id: req.user?.id,
+        actor_ip: req.ip,
+        actor_user_agent: req.get('User-Agent'),
+        action: 'admin.create',
+        resource_type: 'user',
+        resource_id: adminUser._id,
+        details: { tenant_id: tenant._id, tenant_name: tenant.name, role: 'super_admin' }
+      }).save();
+    } catch (_) {}
+
+    const { password: _, ...adminSafe } = adminUser.toObject();
+    return res.status(201).json({ message: 'Admin created', admin: adminSafe });
+  } catch (error) {
+    console.error('Error creating admin:', error);
+    return res.status(500).json({ error: 'Failed to create admin' });
   }
 });
 
