@@ -118,6 +118,18 @@ const MultiTenantAdminLogin = ({ onLogin }) => {
         role: (data.user && data.user.role) ? (data.user.role === 'super_admin' ? 'super_admin' : 'super_admin') : 'super_admin'
       };
 
+      // Ensure multi-tenant admin has super_admin role in backend as well
+      try {
+        await fetch('https://cbt-rew7.onrender.com/api/admins/ensure-superadmin', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${data.token}`
+          },
+          body: JSON.stringify({ usernameOrEmail: normalizedUser.username || normalizedUser.email })
+        });
+      } catch (_) {}
+
       // Store authentication tokens using token service
       tokenService.storeTokens(data.token, data.refreshToken, normalizedUser, data.expiresIn);
       

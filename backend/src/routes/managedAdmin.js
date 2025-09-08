@@ -401,4 +401,46 @@ router.get('/audit-logs', requireManagedAdmin, async (req, res) => {
   }
 });
 
+// Ensure a platform admin has super_admin role (backend sync)
+router.post('/admins/ensure-superadmin', requireManagedAdmin, async (req, res) => {
+  try {
+    const { usernameOrEmail } = req.body || {};
+    if (!usernameOrEmail) {
+      return res.status(400).json({ error: 'usernameOrEmail is required' });
+    }
+
+    // Normalize input for lookup
+    const key = String(usernameOrEmail).toLowerCase();
+
+    // Update any matching users across tenants
+    const result = await User.updateMany(
+      {
+        $or: [
+          { username: key },
+          { email: key }
+        ]
+      },
+      { $set: { role: 'super_admin' } }
+    );
+
+    // Audit
+    try {
+      await new AuditLog({
+        actor_user_id: req.user?.id,
+        actor_ip: req.ip,
+        actor_user_agent: req.get('User-Agent'),
+        action: 'admin.ensure_super_admin',
+        resource_type: 'user',
+        resource_id: null,
+        details: { usernameOrEmail: key, matchedCount: result.matchedCount, modifiedCount: result.modifiedCount }
+      }).save();
+    } catch (_) {}
+
+    return res.json({ matched: result.matchedCount || 0, updated: result.modifiedCount || 0 });
+  } catch (error) {
+    console.error('Error ensuring super_admin role:', error);
+    return res.status(500).json({ error: 'Failed to ensure super_admin role' });
+  }
+});
+
 module.exports = router;
