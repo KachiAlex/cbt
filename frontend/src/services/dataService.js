@@ -135,6 +135,11 @@ const apiCall = async (endpoint, options = {}) => {
       } else if (response.status === 404) {
         connectionStatus.apiAvailable = true;
         connectionStatus.error = 'Endpoint not found';
+      } else if (response.status === 401) {
+        // 401 errors should fallback to localStorage (not authenticated yet)
+        console.log(`🔐 Authentication required for ${endpoint}, falling back to localStorage`);
+        connectionStatus.error = 'Authentication required';
+        return null; // Will trigger localStorage fallback
       }
       
       throw new Error(`HTTP ${response.status}: ${response.statusText}`);
