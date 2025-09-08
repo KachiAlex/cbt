@@ -527,6 +527,52 @@ export default function MultiTenantAdmin() {
     }
   };
 
+  // Delete an admin
+  const deleteAdmin = async (adminId) => {
+    if (!selectedInstitution || !adminId) return;
+    if (!window.confirm('Are you sure you want to delete this admin? This action cannot be undone.')) return;
+
+    const apiConfig = dataService.getApiConfig();
+
+    if (!apiConfig.USE_API) {
+      // Demo/local fallback: just remove from local state
+      setAdmins(prev => prev.filter(a => (a._id || a.id) !== adminId));
+      return;
+    }
+
+    try {
+      await fetchJson(`${apiConfig.API_BASE}/api/tenants/${selectedInstitution.slug || selectedInstitution._id}/admins/${adminId}`, {
+        method: 'DELETE'
+      });
+      await loadAdmins(selectedInstitution.slug || selectedInstitution._id);
+    } catch (e) {
+      setError(e.message || 'Failed to delete admin');
+    }
+  };
+
+  // Reset password for a specific admin
+  const resetPasswordForAdmin = async (admin) => {
+    if (!selectedInstitution || !admin) return;
+    const apiConfig = dataService.getApiConfig();
+
+    if (!apiConfig.USE_API) {
+      // Demo/local fallback: no-op with message
+      setError('Demo mode: Password reset simulated successfully');
+      return;
+    }
+
+    try {
+      await fetchJson(`${apiConfig.API_BASE}/api/tenants/${selectedInstitution.slug || selectedInstitution._id}/admins/reset-password`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username: admin.username || admin.email })
+      });
+      // Optionally show a toast or success message
+    } catch (e) {
+      setError(e.message || 'Failed to reset admin password');
+    }
+  };
+
   const handlePasswordResetChange = (e) => {
     const { name, value } = e.target;
     setPasswordResetData((prev) => ({ ...prev, [name]: value }));
@@ -962,6 +1008,20 @@ export default function MultiTenantAdmin() {
                         onClick={() => setDefaultAdmin(admin._id || admin.id)}
                       >
                         Set Default
+                      </button>
+                      <button
+                        className="px-3 py-1 rounded bg-amber-600 text-white"
+                        title="Reset this admin's password"
+                        onClick={() => resetPasswordForAdmin(admin)}
+                      >
+                        Reset Password
+                      </button>
+                      <button
+                        className="px-3 py-1 rounded bg-red-600 text-white"
+                        title="Delete this admin"
+                        onClick={() => deleteAdmin(admin._id || admin.id)}
+                      >
+                        Delete
                       </button>
                     </div>
                   </div>
