@@ -4,6 +4,8 @@ import StudentPortal from './components/StudentPortal';
 import LoginPage from './components/LoginPage';
 import ExamInterface from './components/ExamInterface';
 import MultiTenantAdmin from './components/MultiTenantAdmin';
+import MultiTenantAdminLogin from './components/MultiTenantAdminLogin';
+import InstitutionCBT from './components/InstitutionCBT';
 import { dataService } from './services/dataService';
 import { testFirebaseConnection } from './firebase/testConnection';
 
@@ -23,24 +25,26 @@ function App() {
       }
     });
 
-    // Check URL parameters for multi-tenant admin access
+    // Check URL parameters for institution access
     const urlParams = new URLSearchParams(window.location.search);
-    const isAdminMode = urlParams.get('admin') === 'true';
+    const institutionSlug = urlParams.get('institution');
     
-    if (isAdminMode) {
-      setShowMultiTenantAdmin(true);
+    if (institutionSlug) {
+      // Institution-specific CBT app
+      setCurrentView('institution-cbt');
+      return;
+    }
+
+    // Check for saved multi-tenant admin user
+    const savedAdminUser = localStorage.getItem('multi_tenant_admin_user');
+    if (savedAdminUser) {
+      setUser(JSON.parse(savedAdminUser));
       setCurrentView('multi-tenant-admin');
       return;
     }
 
-    // Check for saved user
-    const savedUser = localStorage.getItem('cbt_user');
-    if (savedUser) {
-      setUser(JSON.parse(savedUser));
-      setCurrentView('dashboard');
-    }
-    
-    initializeDefaultAdmin();
+    // Default to multi-tenant admin login
+    setCurrentView('multi-tenant-admin-login');
   }, []);
 
   const initializeDefaultAdmin = async () => {
@@ -96,7 +100,7 @@ function App() {
 
   const handleLogout = () => {
     setUser(null);
-    setCurrentView('login');
+    setCurrentView('multi-tenant-admin-login');
     setCurrentExam(null);
     setShowMultiTenantAdmin(false);
     localStorage.removeItem('cbt_user');
@@ -118,29 +122,21 @@ function App() {
     setCurrentView('student');
   };
 
-  const handleMultiTenantAdminAccess = () => {
-    setShowMultiTenantAdmin(true);
+  const handleMultiTenantAdminLogin = (user) => {
+    setUser(user);
     setCurrentView('multi-tenant-admin');
-    // Update URL to show admin mode
-    const newUrl = new URL(window.location);
-    newUrl.searchParams.set('admin', 'true');
-    window.history.pushState({}, '', newUrl);
   };
 
   const renderCurrentView = () => {
     switch (currentView) {
-      case 'login':
-        return <LoginPage onLogin={handleLogin} onAdminAccess={handleMultiTenantAdminAccess} />;
-      case 'dashboard':
-        return <AdminDashboard user={user} onLogout={handleLogout} onAdminAccess={handleMultiTenantAdminAccess} />;
-      case 'student':
-        return <StudentPortal user={user} onLogout={handleLogout} onStartExam={startExam} onAdminAccess={handleMultiTenantAdminAccess} />;
-      case 'exam':
-        return <ExamInterface user={user} exam={currentExam} onComplete={completeExam} />;
+      case 'multi-tenant-admin-login':
+        return <MultiTenantAdminLogin onLoginSuccess={handleMultiTenantAdminLogin} />;
       case 'multi-tenant-admin':
         return <MultiTenantAdmin />;
+      case 'institution-cbt':
+        return <InstitutionCBT />;
       default:
-        return <LoginPage onLogin={handleLogin} onAdminAccess={handleMultiTenantAdminAccess} />;
+        return <MultiTenantAdminLogin onLoginSuccess={handleMultiTenantAdminLogin} />;
     }
   };
 

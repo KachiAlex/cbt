@@ -279,6 +279,16 @@ export default function MultiTenantAdmin() {
                   <div className="mt-6 space-y-3">
                     <button
                       onClick={() => {
+                        const institutionUrl = `${window.location.origin}/?institution=${institution.slug}`;
+                        navigator.clipboard.writeText(institutionUrl);
+                        alert('Institution link copied to clipboard!');
+                      }}
+                      className="w-full bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg font-medium transition-colors"
+                    >
+                      Copy CBT Link
+                    </button>
+                    <button
+                      onClick={() => {
                         setSelectedInstitution(institution);
                         setShowViewInstitution(true);
                       }}
@@ -294,9 +304,9 @@ export default function MultiTenantAdmin() {
                       }}
                       className="w-full bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium transition-colors"
                     >
-                  Manage Admins
-          </button>
-        </div>
+                      Manage Admins
+                    </button>
+                  </div>
       </div>
               </div>
             ))}
@@ -652,6 +662,27 @@ export default function MultiTenantAdmin() {
                     <p><span className="font-medium">Total Users:</span> {selectedInstitution.totalUsers || 0}</p>
                     <p><span className="font-medium">Created:</span> {selectedInstitution.createdAt ? new Date(selectedInstitution.createdAt.seconds * 1000).toLocaleDateString() : 'Unknown'}</p>
                     <p><span className="font-medium">Slug:</span> {selectedInstitution.slug}</p>
+                    <div className="mt-3">
+                      <p className="font-medium text-gray-900 mb-2">CBT App Link:</p>
+                      <div className="flex items-center space-x-2">
+                        <input
+                          type="text"
+                          readOnly
+                          value={`${window.location.origin}/?institution=${selectedInstitution.slug}`}
+                          className="flex-1 px-3 py-2 border border-gray-300 rounded text-sm bg-gray-50"
+                        />
+                        <button
+                          onClick={() => {
+                            const institutionUrl = `${window.location.origin}/?institution=${selectedInstitution.slug}`;
+                            navigator.clipboard.writeText(institutionUrl);
+                            alert('Link copied to clipboard!');
+                          }}
+                          className="px-3 py-2 bg-blue-600 text-white rounded text-sm hover:bg-blue-700"
+                        >
+                          Copy
+                        </button>
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>

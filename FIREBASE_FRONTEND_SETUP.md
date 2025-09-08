@@ -10,7 +10,7 @@
 
 ### 1.1 Enable Authentication
 1. Go to [Firebase Console](https://console.firebase.google.com/)
-2. Select your project: `cbt-91a97`
+2. Select your project: `cbt-multitenant-admin`
 3. Go to **"Authentication"** → **"Sign-in method"**
 4. Click **"Email/Password"**
 5. Toggle **"Enable"** and click **"Save"**
