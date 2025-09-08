@@ -1976,10 +1976,10 @@ function SettingsTab({ onBackToExams, institution, user }) {
                         </button>
                         <button
                           onClick={() => deleteStudent(student)}
-                          className="px-3 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 text-sm font-medium transition-colors"
+                          className="flex-1 px-3 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 text-sm font-medium transition-colors"
                           title="Delete student permanently"
                         >
-                          🗑️
+                          Delete
                         </button>
                       </div>
                     </div>
