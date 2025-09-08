@@ -576,6 +576,28 @@ export default function MultiTenantAdmin() {
     }
   };
 
+  // Purge all users for selected tenant
+  const purgeAllUsers = async (includeDefault = true) => {
+    if (!selectedInstitution) return;
+    if (!window.confirm(`This will permanently delete ${includeDefault ? 'ALL users including default admin' : 'all non-default users'} for this tenant. Continue?`)) return;
+    try {
+      const apiConfig = dataService.getApiConfig();
+      if (!apiConfig.USE_API) {
+        setError('Demo mode: cannot purge users');
+        return;
+      }
+      const key = selectedInstitution._id || selectedInstitution.slug;
+      await fetchJson(`${apiConfig.API_BASE}/api/tenants/${key}/users?includeDefault=${includeDefault ? 'true' : 'false'}`, {
+        method: 'DELETE'
+      });
+      // Refresh admins list after purge
+      await loadAdmins(key);
+      setError('');
+    } catch (e) {
+      setError(e.message || 'Failed to purge users');
+    }
+  };
+
   // Reset password for a specific admin
   const resetPasswordForAdmin = async (admin) => {
     if (!selectedInstitution || !admin) return;

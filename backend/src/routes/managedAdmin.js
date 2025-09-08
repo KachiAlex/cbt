@@ -665,4 +665,45 @@ router.post('/admins/ensure-superadmin', requireManagedAdmin, async (req, res) =
   }
 });
 
+// Global admin endpoint: purge users across all tenants or a specific tenant
+// DELETE /api/admins/purge-users?tenant=<idOrSlug>&includeDefault=true|false
+router.delete('/admins/purge-users', requireManagedAdmin, async (req, res) => {
+  try {
+    const { tenant: tenantIdOrSlug, includeDefault = 'false' } = req.query || {};
+
+    let tenantFilter = {};
+    if (tenantIdOrSlug) {
+      const tenant = await findTenantByIdOrSlug(tenantIdOrSlug);
+      if (!tenant) {
+        return res.status(404).json({ error: 'Tenant not found' });
+      }
+      tenantFilter.tenant_id = tenant._id;
+    }
+
+    const filter = { ...tenantFilter };
+    if (String(includeDefault).toLowerCase() !== 'true') {
+      filter.is_default_admin = { $ne: true };
+    }
+
+    const result = await User.deleteMany(filter);
+
+    try {
+      await new AuditLog({
+        actor_user_id: req.user?.id,
+        actor_ip: req.ip,
+        actor_user_agent: req.get('User-Agent'),
+        action: 'admin.purge_users',
+        resource_type: 'system',
+        resource_id: null,
+        details: { tenant: tenantIdOrSlug || 'ALL', includeDefault: String(includeDefault), deletedCount: result.deletedCount }
+      }).save();
+    } catch (_) {}
+
+    return res.json({ message: 'Users purged', scope: tenantIdOrSlug ? 'tenant' : 'all', deleted: result.deletedCount });
+  } catch (error) {
+    console.error('Error purging users (global):', error);
+    return res.status(500).json({ error: 'Failed to purge users' });
+  }
+});
+
 module.exports = router;
