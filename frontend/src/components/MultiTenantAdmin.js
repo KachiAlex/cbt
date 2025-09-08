@@ -1,34 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import dataService from '../services/dataService';
-
-// Helper: safe fetch JSON
-async function fetchJson(url, options = {}) {
-  const token = localStorage.getItem('multi_tenant_admin_token');
-  const mergedHeaders = {
-    'Content-Type': 'application/json',
-    ...(options.headers || {}),
-    ...(token ? { Authorization: `Bearer ${token}` } : {})
-  };
-
-  const res = await fetch(url, { ...options, headers: mergedHeaders });
-
-  if (!res.ok) {
-    if (res.status === 401) {
-      // Not authenticated – send user to multi-tenant admin login
-      try {
-        localStorage.removeItem('multi_tenant_admin_token');
-        localStorage.removeItem('multi_tenant_admin_refresh_token');
-        localStorage.removeItem('multi_tenant_admin_user');
-      } catch (_) {}
-      if (typeof window !== 'undefined') {
-        window.location.href = '/?admin=true';
-      }
-    }
-    const text = await res.text().catch(() => '');
-    throw new Error(`HTTP ${res.status}: ${text || res.statusText}`);
-  }
-  return res.json().catch(() => ({}));
-}
+import firebaseDataService from '../firebase/dataService';
+import firebaseAuthService from '../firebase/authService';
 
 export default function MultiTenantAdmin() {
   // Main state
@@ -70,32 +42,8 @@ export default function MultiTenantAdmin() {
     try {
       setLoading(true);
       setError('');
-      const apiConfig = dataService.getApiConfig();
-      
-      if (apiConfig.USE_API) {
-        const raw = await fetchJson(`${apiConfig.API_BASE}/api/tenants`);
-        const list = Array.isArray(raw) ? raw : (Array.isArray(raw?.tenants) ? raw.tenants : []);
-        const normalized = list.map((t) => {
-          const defaultAdmin = t.default_admin || (Array.isArray(t.admins) ? t.admins.find(a => a.is_default_admin) : null) || {};
-          return {
-            ...t,
-            _id: t._id || t.id,
-            name: t.name || t.institutionName || 'Unnamed Institution',
-            slug: t.slug || t.institutionSlug || '',
-            adminName: defaultAdmin.fullName || defaultAdmin.name || '',
-            adminEmail: defaultAdmin.email || '',
-            adminUsername: defaultAdmin.username || '',
-            totalUsers: t.totalUsers || t.userCount || 0,
-            createdAt: t.createdAt || t.created_at || new Date().toISOString(),
-            logo: t.logo || ''
-          };
-        });
-        setInstitutions(normalized);
-      } else {
-        // Demo mode - use localStorage
-        const demoInstitutions = JSON.parse(localStorage.getItem('demo_institutions') || '[]');
-        setInstitutions(demoInstitutions);
-      }
+      const institutionsList = await firebaseDataService.getInstitutions();
+      setInstitutions(institutionsList);
     } catch (err) {
       console.error('Failed to load institutions:', err);
       setError('Failed to load institutions. Please try again.');
@@ -108,17 +56,8 @@ export default function MultiTenantAdmin() {
   const loadAdmins = useCallback(async (institution) => {
     try {
       setLoadingAdmins(true);
-      const apiConfig = dataService.getApiConfig();
-      
-      if (apiConfig.USE_API) {
-        const raw = await fetchJson(`${apiConfig.API_BASE}/api/tenants/${institution._id || institution.id}/admins`);
-        const adminList = Array.isArray(raw) ? raw : (Array.isArray(raw?.admins) ? raw.admins : []);
-        setAdmins(adminList);
-      } else {
-        // Demo mode
-        const demoAdmins = JSON.parse(localStorage.getItem(`demo_admins_${institution._id}`) || '[]');
-        setAdmins(demoAdmins);
-      }
+      const adminsList = await firebaseDataService.getInstitutionAdmins(institution.id);
+      setAdmins(adminsList);
     } catch (err) {
       console.error('Failed to load admins:', err);
       setAdmins([]);
@@ -139,64 +78,55 @@ export default function MultiTenantAdmin() {
     try {
       setLoading(true);
       setError('');
-      const apiConfig = dataService.getApiConfig();
       
+      // Create admin user in Firebase Auth first
+      const authResult = await firebaseAuthService.createUser(
+        createForm.adminEmail,
+        createForm.adminPassword,
+        createForm.adminFullName
+      );
+
+      if (!authResult.success) {
+        setError(authResult.error);
+        return;
+      }
+
+      // Create institution data
       const institutionData = {
         name: createForm.name,
         slug: createForm.name.toLowerCase().replace(/[^a-z0-9]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, ''),
         adminFullName: createForm.adminFullName,
         adminUsername: createForm.adminUsername,
         adminEmail: createForm.adminEmail,
-        adminPassword: createForm.adminPassword,
-        role: 'super_admin', // All admins are super_admin
-        logo: createForm.logo,
+        logo: createForm.logo || '',
         plan: 'basic'
       };
 
-      if (apiConfig.USE_API) {
-        const result = await fetchJson(`${apiConfig.API_BASE}/api/tenants`, {
-          method: 'POST',
-          body: JSON.stringify(institutionData)
-        });
-        
-        if (result.success) {
-          setShowCreateInstitution(false);
-          setCreateForm({
-            name: '',
-            adminFullName: '',
-            adminUsername: '',
-            adminEmail: '',
-            adminPassword: '',
-            confirmPassword: '',
-            logo: null
-          });
-          await loadInstitutions();
-        }
-      } else {
-        // Demo mode
-        const newInstitution = {
-          _id: `inst_${Date.now()}`,
-          ...institutionData,
-          totalUsers: 0,
-          createdAt: new Date().toISOString()
-        };
-        
-        const existing = JSON.parse(localStorage.getItem('demo_institutions') || '[]');
-        existing.push(newInstitution);
-        localStorage.setItem('demo_institutions', JSON.stringify(existing));
-        
-        setShowCreateInstitution(false);
-        setCreateForm({
-          name: '',
-          adminFullName: '',
-          adminUsername: '',
-          adminEmail: '',
-          adminPassword: '',
-          confirmPassword: '',
-          logo: null
-        });
-        await loadInstitutions();
-      }
+      // Create institution in Firestore
+      const institution = await firebaseDataService.createInstitution(institutionData);
+
+      // Create admin record in Firestore
+      await firebaseDataService.createAdmin({
+        institutionId: institution.id,
+        uid: authResult.user.uid,
+        username: createForm.adminUsername,
+        email: createForm.adminEmail,
+        fullName: createForm.adminFullName,
+        role: 'super_admin',
+        isDefaultAdmin: true
+      });
+      
+      setShowCreateInstitution(false);
+      setCreateForm({
+        name: '',
+        adminFullName: '',
+        adminUsername: '',
+        adminEmail: '',
+        adminPassword: '',
+        confirmPassword: '',
+        logo: null
+      });
+      await loadInstitutions();
     } catch (err) {
       console.error('Failed to create institution:', err);
       setError('Failed to create institution. Please try again.');
@@ -217,23 +147,17 @@ export default function MultiTenantAdmin() {
     try {
       setLoading(true);
       setError('');
-      const apiConfig = dataService.getApiConfig();
       
-      if (apiConfig.USE_API) {
-        await fetchJson(`${apiConfig.API_BASE}/api/tenants/${selectedInstitution._id}/admins/${selectedAdmin._id}/reset-password`, {
-          method: 'POST',
-          body: JSON.stringify({ newPassword: passwordResetForm.newPassword })
-        });
-      } else {
-        // Demo mode - update localStorage
-        const demoAdmins = JSON.parse(localStorage.getItem(`demo_admins_${selectedInstitution._id}`) || '[]');
-        const updatedAdmins = demoAdmins.map(admin => 
-          admin._id === selectedAdmin._id 
-            ? { ...admin, password: passwordResetForm.newPassword }
-            : admin
-        );
-        localStorage.setItem(`demo_admins_${selectedInstitution._id}`, JSON.stringify(updatedAdmins));
+      // Update password in Firebase Auth
+      const authResult = await firebaseAuthService.updatePassword(passwordResetForm.newPassword);
+      
+      if (!authResult.success) {
+        setError(authResult.error);
+        return;
       }
+
+      // Update password in Firestore
+      await firebaseDataService.updateAdminPassword(selectedAdmin.id, passwordResetForm.newPassword);
       
       setShowPasswordReset(false);
       setPasswordResetForm({ newPassword: '', confirmPassword: '' });
@@ -256,19 +180,8 @@ export default function MultiTenantAdmin() {
     try {
       setLoading(true);
       setError('');
-      const apiConfig = dataService.getApiConfig();
       
-      if (apiConfig.USE_API) {
-        await fetchJson(`${apiConfig.API_BASE}/api/tenants/${selectedInstitution._id}/admins/${admin._id}`, {
-          method: 'DELETE'
-        });
-      } else {
-        // Demo mode
-        const demoAdmins = JSON.parse(localStorage.getItem(`demo_admins_${selectedInstitution._id}`) || '[]');
-        const updatedAdmins = demoAdmins.filter(a => a._id !== admin._id);
-        localStorage.setItem(`demo_admins_${selectedInstitution._id}`, JSON.stringify(updatedAdmins));
-      }
-      
+      await firebaseDataService.deleteAdmin(admin.id);
       await loadAdmins(selectedInstitution);
     } catch (err) {
       console.error('Failed to delete admin:', err);
@@ -330,7 +243,7 @@ export default function MultiTenantAdmin() {
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {institutions.map((institution) => (
-              <div key={institution._id} className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden hover:shadow-md transition-shadow">
+              <div key={institution.id} className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden hover:shadow-md transition-shadow">
                 {/* Institution Logo/Header */}
                 <div className="h-32 bg-gradient-to-r from-blue-500 to-purple-600 flex items-center justify-center">
                   {institution.logo ? (
@@ -352,10 +265,10 @@ export default function MultiTenantAdmin() {
                 <div className="p-6">
                   <h3 className="text-xl font-semibold text-gray-900 mb-2">{institution.name}</h3>
                   <div className="space-y-2 text-sm text-gray-600">
-                    <p><span className="font-medium">Admin:</span> {institution.adminName}</p>
+                    <p><span className="font-medium">Admin:</span> {institution.adminFullName}</p>
                     <p><span className="font-medium">Email:</span> {institution.adminEmail}</p>
-                    <p><span className="font-medium">Users:</span> {institution.totalUsers}</p>
-                    <p><span className="font-medium">Created:</span> {new Date(institution.createdAt).toLocaleDateString()}</p>
+                    <p><span className="font-medium">Users:</span> {institution.totalUsers || 0}</p>
+                    <p><span className="font-medium">Created:</span> {institution.createdAt ? new Date(institution.createdAt.seconds * 1000).toLocaleDateString() : 'Unknown'}</p>
                   </div>
 
                   {/* Action Buttons */}
@@ -568,7 +481,7 @@ export default function MultiTenantAdmin() {
               ) : (
                 <div className="space-y-4">
                   {admins.map((admin) => (
-                    <div key={admin._id} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+                    <div key={admin.id} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
                       <div className="flex items-center space-x-4">
                         <div className="h-10 w-10 rounded-full bg-blue-500 flex items-center justify-center">
                           <span className="text-white font-medium">
@@ -715,7 +628,7 @@ export default function MultiTenantAdmin() {
                 )}
                 <div>
                   <h3 className="text-lg font-semibold text-gray-900">{selectedInstitution.name}</h3>
-                  <p className="text-gray-600">Institution ID: {selectedInstitution._id}</p>
+                  <p className="text-gray-600">Institution ID: {selectedInstitution.id}</p>
                 </div>
               </div>
 
@@ -723,7 +636,7 @@ export default function MultiTenantAdmin() {
                 <div>
                   <h4 className="font-medium text-gray-900 mb-3">Administrator Details</h4>
                   <div className="space-y-2 text-sm">
-                    <p><span className="font-medium">Name:</span> {selectedInstitution.adminName}</p>
+                    <p><span className="font-medium">Name:</span> {selectedInstitution.adminFullName}</p>
                     <p><span className="font-medium">Email:</span> {selectedInstitution.adminEmail}</p>
                     <p><span className="font-medium">Username:</span> {selectedInstitution.adminUsername}</p>
                   </div>
@@ -732,8 +645,8 @@ export default function MultiTenantAdmin() {
                 <div>
                   <h4 className="font-medium text-gray-900 mb-3">Institution Stats</h4>
                   <div className="space-y-2 text-sm">
-                    <p><span className="font-medium">Total Users:</span> {selectedInstitution.totalUsers}</p>
-                    <p><span className="font-medium">Created:</span> {new Date(selectedInstitution.createdAt).toLocaleDateString()}</p>
+                    <p><span className="font-medium">Total Users:</span> {selectedInstitution.totalUsers || 0}</p>
+                    <p><span className="font-medium">Created:</span> {selectedInstitution.createdAt ? new Date(selectedInstitution.createdAt.seconds * 1000).toLocaleDateString() : 'Unknown'}</p>
                     <p><span className="font-medium">Slug:</span> {selectedInstitution.slug}</p>
                   </div>
                 </div>

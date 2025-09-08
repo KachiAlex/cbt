@@ -1,0 +1,5 @@
+[33me14a2c8[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmaster[m[33m, [m[1;31morigin/master[m[33m, [m[1;31morigin/HEAD[m[33m)[m feat: complete cleanup and integration of new multi-tenant admin platform
+[33meda6030[m feat: rebuild multi-tenant admin platform with modern UI
+[33m5536c59[m merge: rollback to stable state with backend fixes
+[33m8ecfb0e[m[33m ([m[1;31morigin/rollback-tenant-good[m[33m, [m[1;32mrollback-tenant-good[m[33m)[m fix: add trust proxy, helper function, and update tenant routes
+[33m6f7c13b[m fix: add trust proxy, helper function, and update tenant routes
