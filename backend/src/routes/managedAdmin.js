@@ -95,7 +95,7 @@ router.post('/tenants', requireManagedAdmin, async (req, res) => {
     // Generate temporary password for default admin
     const tempPassword = generateTempPassword();
 
-    // Create default admin user
+    // Create default admin user (platform-level default as super_admin)
     const defaultAdminUser = new User({
       tenant_id: tenant._id,
       username: default_admin.username || default_admin.email.split('@')[0],
@@ -103,7 +103,7 @@ router.post('/tenants', requireManagedAdmin, async (req, res) => {
       phone: default_admin.phone,
       fullName: default_admin.fullName || default_admin.email.split('@')[0],
       password: tempPassword,
-      role: 'tenant_admin',
+      role: 'super_admin',
       is_default_admin: true,
       must_change_password: true
     });
@@ -365,6 +365,53 @@ router.post('/tenants/:id/admins/:adminId/reset-password', requireManagedAdmin, 
   } catch (error) {
     console.error('Error resetting admin password:', error);
     res.status(500).json({ error: 'Failed to reset admin password' });
+  }
+});
+
+// Reset password for an admin identified by username or email (legacy path)
+router.post('/tenants/:id/admins/reset-password', requireManagedAdmin, async (req, res) => {
+  try {
+    const tenant = await findTenantByIdOrSlug(req.params.id);
+    if (!tenant) {
+      return res.status(404).json({ error: 'Tenant not found' });
+    }
+
+    const { username, email, usernameOrEmail } = req.body || {};
+    const key = String(username || email || usernameOrEmail || '').toLowerCase();
+    if (!key) {
+      return res.status(400).json({ error: 'username or email is required' });
+    }
+
+    const adminUser = await User.findOne({
+      tenant_id: tenant._id,
+      $or: [ { username: key }, { email: key } ]
+    });
+
+    if (!adminUser) {
+      return res.status(404).json({ error: 'Admin not found' });
+    }
+
+    const tempPassword = generateTempPassword();
+    adminUser.password = tempPassword;
+    adminUser.must_change_password = true;
+    await adminUser.save();
+
+    try {
+      await new AuditLog({
+        actor_user_id: req.user.id,
+        actor_ip: req.ip,
+        actor_user_agent: req.get('User-Agent'),
+        action: 'user.reset_password',
+        resource_type: 'user',
+        resource_id: adminUser._id,
+        details: { tenant_id: tenant._id, tenant_name: tenant.name, via: 'usernameOrEmail' }
+      }).save();
+    } catch (_) {}
+
+    return res.json({ message: 'Admin password reset successfully', temp_password: tempPassword, admin_id: adminUser._id });
+  } catch (error) {
+    console.error('Error resetting admin password (legacy):', error);
+    return res.status(500).json({ error: 'Failed to reset admin password' });
   }
 });
 

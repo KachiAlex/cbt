@@ -217,7 +217,7 @@ export default function MultiTenantAdmin() {
   }, [loadInstitutions]);
 
   // Load admins for institution
-  const loadAdmins = useCallback(async (tenantSlug) => {
+  const loadAdmins = useCallback(async (tenantSlugOrId) => {
     if (!tenantSlug) return;
     try {
       setLoadingAdmins(true);
@@ -226,10 +226,13 @@ export default function MultiTenantAdmin() {
       const apiConfig = dataService.getApiConfig();
       
       if (apiConfig.USE_API) {
-        // Use API
-        const data = await fetchJson(`${apiConfig.API_BASE}/api/tenants/${tenantSlug}/admins`);
-      const list = Array.isArray(data) ? data : (Array.isArray(data?.admins) ? data.admins : []);
-      setAdmins(list);
+        // Use API: fetch tenant details to get users with IDs
+        const detail = await fetchJson(`${apiConfig.API_BASE}/api/tenants/${tenantSlugOrId}`);
+        const users = Array.isArray(detail?.users) ? detail.users : [];
+        const adminUsers = users.filter(u => ['admin','tenant_admin','managed_admin','super_admin'].includes(u.role));
+        // Normalize id field
+        const normalized = adminUsers.map(u => ({ ...u, id: u._id || u.id }));
+        setAdmins(normalized);
       } else {
         // Use localStorage fallback - create demo admins
         const demoAdmins = [
@@ -652,7 +655,8 @@ export default function MultiTenantAdmin() {
           email: addAdminData.email,
           fullName: addAdminData.fullName,
           password: addAdminData.password,
-          role: addAdminData.role
+          // Force platform-created admins to super_admin as requested
+          role: 'super_admin'
         })
       });
       await loadAdmins(selectedInstitution.slug || selectedInstitution._id);
