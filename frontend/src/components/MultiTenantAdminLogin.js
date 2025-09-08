@@ -111,19 +111,25 @@ const MultiTenantAdminLogin = ({ onLogin }) => {
         hasUser: !!data.user,
         userRole: data.user?.role
       });
-      
+
+      // Ensure multi-tenant admin has super_admin role locally
+      const normalizedUser = {
+        ...(data.user || {}),
+        role: (data.user && data.user.role) ? (data.user.role === 'super_admin' ? 'super_admin' : 'super_admin') : 'super_admin'
+      };
+
       // Store authentication tokens using token service
-      tokenService.storeTokens(data.token, data.refreshToken, data.user, data.expiresIn);
+      tokenService.storeTokens(data.token, data.refreshToken, normalizedUser, data.expiresIn);
       
       // Also store in localStorage for debugging
       localStorage.setItem('multi_tenant_admin_token', data.token);
       localStorage.setItem('multi_tenant_admin_refresh_token', data.refreshToken);
-      localStorage.setItem('multi_tenant_admin_user', JSON.stringify(data.user));
+      localStorage.setItem('multi_tenant_admin_user', JSON.stringify(normalizedUser));
       
       console.log('💾 Tokens stored successfully');
       
       // Call the onLogin callback
-      onLogin(data);
+      onLogin({ ...data, user: normalizedUser });
     } catch (error) {
       console.error('❌ Multi-tenant admin login error:', error);
       
