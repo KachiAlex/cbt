@@ -1028,12 +1028,12 @@ function StudentsTab({ onBackToExams, institution, user }) {
           >
             Create Student
           </button>
-          <button
-            onClick={onBackToExams}
-            className="px-4 py-2 bg-gray-600 text-white rounded-xl hover:bg-gray-700 text-sm"
-          >
-            ← Back to Exams
-          </button>
+        <button
+          onClick={onBackToExams}
+          className="px-4 py-2 bg-gray-600 text-white rounded-xl hover:bg-gray-700 text-sm"
+        >
+          ← Back to Exams
+        </button>
         </div>
       </div>
       
@@ -1239,6 +1239,73 @@ function SettingsTab({ onBackToExams, institution, user }) {
     email: ''
   });
   const [createStudentError, setCreateStudentError] = useState('');
+  
+  // Admin creation state (Super Admin only)
+  const [createAdminModalOpen, setCreateAdminModalOpen] = useState(false);
+  const [newAdmin, setNewAdmin] = useState({
+    username: '',
+    password: '',
+    fullName: '',
+    email: '',
+    role: 'admin'
+  });
+  const [createAdminError, setCreateAdminError] = useState('');
+
+  // Create admin function (Super Admin only)
+  const createAdmin = async () => {
+    try {
+      setCreateAdminError('');
+      
+      // Validate required fields
+      if (!newAdmin.username || !newAdmin.password || !newAdmin.fullName || !newAdmin.email || !newAdmin.role) {
+        setCreateAdminError('All fields are required');
+        return;
+      }
+
+      if (newAdmin.password.length < 6) {
+        setCreateAdminError('Password must be at least 6 characters long');
+        return;
+      }
+
+      // Check if username or email already exists
+      const users = JSON.parse(localStorage.getItem('cbt_users_v1') || '[]');
+      const existingUser = users.find(u => 
+        (u.username && u.username.toLowerCase() === newAdmin.username.toLowerCase()) ||
+        (u.email && u.email.toLowerCase() === newAdmin.email.toLowerCase())
+      );
+
+      if (existingUser) {
+        setCreateAdminError('Username or email already exists');
+        return;
+      }
+
+      // Create new admin
+      const adminData = {
+        username: newAdmin.username,
+        password: newAdmin.password,
+        fullName: newAdmin.fullName,
+        email: newAdmin.email,
+        role: newAdmin.role,
+        institutionSlug: institution?.slug || null,
+        createdBy: user.username, // Track who created this admin
+        createdAt: new Date().toISOString()
+      };
+
+      // Add to users
+      users.push(adminData);
+      localStorage.setItem('cbt_users_v1', JSON.stringify(users));
+
+      // Reset form and close modal
+      setNewAdmin({ username: '', password: '', fullName: '', email: '', role: 'admin' });
+      setCreateAdminModalOpen(false);
+      
+      showToast('Admin created successfully', 'success');
+      console.log('✅ Admin created:', adminData);
+    } catch (error) {
+      console.error('Error creating admin:', error);
+      setCreateAdminError('Failed to create admin: ' + error.message);
+    }
+  };
 
   const updateLogo = async (logoUrl) => {
     try {
@@ -1566,6 +1633,14 @@ function SettingsTab({ onBackToExams, institution, user }) {
               >
                 Manage Students
               </button>
+              {isSuperAdmin && (
+                <button
+                  onClick={() => setCreateAdminModalOpen(true)}
+                  className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 text-sm"
+                >
+                  Create Admin
+                </button>
+              )}
               </>
             )}
             <button
@@ -2101,6 +2176,117 @@ function SettingsTab({ onBackToExams, institution, user }) {
                   setCreateStudentModalOpen(false);
                   setNewStudent({ username: '', password: '', fullName: '', email: '' });
                   setCreateStudentError('');
+                }}
+                className="flex-1 px-4 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 text-sm font-medium"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Create Admin Modal */}
+      {createAdminModalOpen && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-xl p-6 w-full max-w-md mx-4">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-lg font-bold">Create New Admin</h3>
+              <button 
+                onClick={() => {
+                  setCreateAdminModalOpen(false);
+                  setNewAdmin({ username: '', password: '', fullName: '', email: '', role: 'admin' });
+                  setCreateAdminError('');
+                }} 
+                className="text-gray-500 hover:text-gray-700 text-xl"
+              >
+                ×
+              </button>
+            </div>
+            
+            {createAdminError && (
+              <div className="mb-4 p-3 bg-red-100 border border-red-300 text-red-700 rounded-lg text-sm">
+                {createAdminError}
+              </div>
+            )}
+            
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Full Name</label>
+                <input
+                  type="text"
+                  value={newAdmin.fullName}
+                  onChange={(e) => setNewAdmin({...newAdmin, fullName: e.target.value})}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                  placeholder="Enter full name"
+                  autoComplete="name"
+                />
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Username</label>
+                <input
+                  type="text"
+                  value={newAdmin.username}
+                  onChange={(e) => setNewAdmin({...newAdmin, username: e.target.value})}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                  placeholder="Enter username"
+                  autoComplete="username"
+                />
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+                <input
+                  type="email"
+                  value={newAdmin.email}
+                  onChange={(e) => setNewAdmin({...newAdmin, email: e.target.value})}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                  placeholder="Enter email address"
+                  autoComplete="email"
+                />
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Password</label>
+                <input
+                  type="password"
+                  value={newAdmin.password}
+                  onChange={(e) => setNewAdmin({...newAdmin, password: e.target.value})}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                  placeholder="Enter password (min 6 characters)"
+                  autoComplete="new-password"
+                />
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Role</label>
+                <select
+                  value={newAdmin.role}
+                  onChange={(e) => setNewAdmin({...newAdmin, role: e.target.value})}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                >
+                  <option value="admin">Admin</option>
+                  <option value="managed_admin">Managed Admin</option>
+                </select>
+                <p className="text-xs text-gray-500 mt-1">
+                  Admin: Full access | Managed Admin: Limited access
+                </p>
+              </div>
+            </div>
+            
+            <div className="flex gap-3 mt-6">
+              <button
+                onClick={createAdmin}
+                className="flex-1 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 text-sm font-medium"
+              >
+                Create Admin
+              </button>
+              <button
+                onClick={() => {
+                  setCreateAdminModalOpen(false);
+                  setNewAdmin({ username: '', password: '', fullName: '', email: '', role: 'admin' });
+                  setCreateAdminError('');
                 }}
                 className="flex-1 px-4 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 text-sm font-medium"
               >
