@@ -23,11 +23,11 @@ class DataService {
   async saveUsers(users) {
     try {
       localStorage.setItem(this.storageKeys.users, JSON.stringify(users));
-      return true;
+    return true;
     } catch (error) {
       console.error('Error saving users:', error);
-      return false;
-    }
+    return false;
+  }
   }
 
   async createUser(userData) {
@@ -62,7 +62,7 @@ class DataService {
     try {
       localStorage.setItem(this.storageKeys.exams, JSON.stringify(exams));
       return true;
-    } catch (error) {
+  } catch (error) {
       console.error('Error saving exams:', error);
       return false;
     }
@@ -96,7 +96,7 @@ class DataService {
         return exams[examIndex];
       }
       return null;
-    } catch (error) {
+      } catch (error) {
       console.error('Error updating exam:', error);
       return null;
     }
@@ -107,8 +107,8 @@ class DataService {
       const exams = await this.getExams();
       const filteredExams = exams.filter(e => e.id !== examId);
       await this.saveExams(filteredExams);
-      return true;
-    } catch (error) {
+          return true;
+      } catch (error) {
       console.error('Error deleting exam:', error);
       return false;
     }
@@ -120,7 +120,7 @@ class DataService {
       const questions = localStorage.getItem(this.storageKeys.questions);
       const allQuestions = questions ? JSON.parse(questions) : [];
       return allQuestions.filter(q => q.examId === examId);
-    } catch (error) {
+      } catch (error) {
       console.error('Error getting questions:', error);
       return [];
     }
@@ -155,14 +155,14 @@ class DataService {
       console.error('Error adding questions:', error);
       return [];
     }
-  }
+    }
 
   // Results management
   async getResults() {
     try {
       const results = localStorage.getItem(this.storageKeys.results);
       return results ? JSON.parse(results) : [];
-    } catch (error) {
+      } catch (error) {
       console.error('Error getting results:', error);
       return [];
     }
@@ -199,7 +199,7 @@ class DataService {
     try {
       const results = await this.getResults();
       return results.filter(r => r.examId === examId);
-    } catch (error) {
+      } catch (error) {
       console.error('Error getting results by exam:', error);
       return [];
     }
@@ -209,7 +209,7 @@ class DataService {
     try {
       const results = await this.getResults();
       return results.filter(r => r.userId === userId);
-    } catch (error) {
+      } catch (error) {
       console.error('Error getting results by user:', error);
       return [];
     }
@@ -222,7 +222,7 @@ class DataService {
         localStorage.removeItem(key);
       });
       return true;
-    } catch (error) {
+      } catch (error) {
       console.error('Error clearing data:', error);
       return false;
     }
@@ -235,7 +235,7 @@ class DataService {
         data[key] = localStorage.getItem(storageKey);
       });
       return data;
-    } catch (error) {
+      } catch (error) {
       console.error('Error exporting data:', error);
       return null;
     }

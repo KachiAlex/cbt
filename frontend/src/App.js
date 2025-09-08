@@ -5,6 +5,7 @@ import LoginPage from './components/LoginPage';
 import ExamInterface from './components/ExamInterface';
 import MultiTenantAdmin from './components/MultiTenantAdmin';
 import { dataService } from './services/dataService';
+import { testFirebaseConnection } from './firebase/testConnection';
 
 function App() {
   const [user, setUser] = useState(null);
@@ -13,6 +14,15 @@ function App() {
   const [showMultiTenantAdmin, setShowMultiTenantAdmin] = useState(false);
 
   useEffect(() => {
+    // Test Firebase connection on app start
+    testFirebaseConnection().then(result => {
+      if (result.success) {
+        console.log('🔥 Firebase connected successfully!');
+      } else {
+        console.error('❌ Firebase connection failed:', result.error);
+      }
+    });
+
     // Check URL parameters for multi-tenant admin access
     const urlParams = new URLSearchParams(window.location.search);
     const isAdminMode = urlParams.get('admin') === 'true';
@@ -78,7 +88,7 @@ function App() {
       } else {
         return { success: false, message: 'Invalid credentials' };
       }
-    } catch (error) {
+      } catch (error) {
       console.error('Login error:', error);
       return { success: false, message: 'Login failed' };
     }
@@ -134,8 +144,8 @@ function App() {
     }
   };
 
-  return (
-    <div className="min-h-screen bg-gray-50">
+    return (
+      <div className="min-h-screen bg-gray-50">
       {renderCurrentView()}
     </div>
   );

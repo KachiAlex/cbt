@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import firebaseDataService from '../firebase/dataService';
 import firebaseAuthService from '../firebase/authService';
+import FirebaseStatus from './FirebaseStatus';
 
 export default function MultiTenantAdmin() {
   // Main state
@@ -208,7 +209,7 @@ export default function MultiTenantAdmin() {
     loadInstitutions();
   }, [loadInstitutions]);
 
-  return (
+    return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
       <div className="bg-white shadow-sm border-b">
@@ -217,6 +218,9 @@ export default function MultiTenantAdmin() {
             <div>
               <h1 className="text-3xl font-bold text-gray-900">Multi-Tenant Admin</h1>
               <p className="text-gray-600 mt-1">Manage institutions and administrators</p>
+              <div className="mt-2">
+                <FirebaseStatus />
+              </div>
             </div>
             <button
               onClick={() => setShowCreateInstitution(true)}
@@ -269,7 +273,7 @@ export default function MultiTenantAdmin() {
                     <p><span className="font-medium">Email:</span> {institution.adminEmail}</p>
                     <p><span className="font-medium">Users:</span> {institution.totalUsers || 0}</p>
                     <p><span className="font-medium">Created:</span> {institution.createdAt ? new Date(institution.createdAt.seconds * 1000).toLocaleDateString() : 'Unknown'}</p>
-                  </div>
+            </div>
 
                   {/* Action Buttons */}
                   <div className="mt-6 space-y-3">
@@ -290,10 +294,10 @@ export default function MultiTenantAdmin() {
                       }}
                       className="w-full bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium transition-colors"
                     >
-                      Manage Admins
-                    </button>
-                  </div>
-                </div>
+                  Manage Admins
+          </button>
+        </div>
+      </div>
               </div>
             ))}
           </div>
@@ -322,7 +326,7 @@ export default function MultiTenantAdmin() {
               <h2 className="text-2xl font-bold text-gray-900">Create New Institution</h2>
               <p className="text-gray-600 mt-1">Set up a new institution with administrator details</p>
             </div>
-            
+
             <form onSubmit={createInstitution} className="p-6 space-y-6">
               {/* Institution Name */}
               <div>
@@ -460,9 +464,9 @@ export default function MultiTenantAdmin() {
                 </button>
               </div>
             </form>
-          </div>
-        </div>
-      )}
+              </div>
+            </div>
+          )}
 
       {/* Manage Admins Modal */}
       {showManageAdmins && selectedInstitution && (
@@ -471,16 +475,16 @@ export default function MultiTenantAdmin() {
             <div className="p-6 border-b">
               <h2 className="text-2xl font-bold text-gray-900">Manage Admins - {selectedInstitution.name}</h2>
               <p className="text-gray-600 mt-1">View, reset passwords, and manage administrators</p>
-            </div>
-            
+                    </div>
+                    
             <div className="p-6">
-              {loadingAdmins ? (
+            {loadingAdmins ? (
                 <div className="flex justify-center py-8">
                   <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
                 </div>
               ) : (
                 <div className="space-y-4">
-                  {admins.map((admin) => (
+                {admins.map((admin) => (
                     <div key={admin.id} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
                       <div className="flex items-center space-x-4">
                         <div className="h-10 w-10 rounded-full bg-blue-500 flex items-center justify-center">
@@ -488,12 +492,12 @@ export default function MultiTenantAdmin() {
                             {(admin.fullName || admin.username || 'A').charAt(0).toUpperCase()}
                           </span>
                         </div>
-                        <div>
+                    <div>
                           <h4 className="font-medium text-gray-900">{admin.fullName || admin.name || 'Unknown'}</h4>
                           <p className="text-sm text-gray-600">{admin.email || admin.username}</p>
                           <p className="text-xs text-blue-600 font-medium">Super Admin</p>
                         </div>
-                      </div>
+                    </div>
                       <div className="flex space-x-2">
                         <button
                           onClick={() => {
@@ -504,15 +508,15 @@ export default function MultiTenantAdmin() {
                         >
                           Reset Password
                         </button>
-                        <button
+                      <button
                           onClick={() => deleteAdmin(admin)}
                           className="px-3 py-1 bg-red-100 hover:bg-red-200 text-red-800 rounded text-sm font-medium transition-colors"
-                        >
+                      >
                           Delete
-                        </button>
-                      </div>
+                      </button>
                     </div>
-                  ))}
+                  </div>
+                ))}
                   
                   {admins.length === 0 && (
                     <div className="text-center py-8 text-gray-500">
@@ -520,7 +524,7 @@ export default function MultiTenantAdmin() {
                     </div>
                   )}
                 </div>
-              )}
+            )}
 
               <div className="flex justify-end pt-6 border-t mt-6">
                 <button
@@ -535,8 +539,8 @@ export default function MultiTenantAdmin() {
                 </button>
               </div>
             </div>
-          </div>
-        </div>
+                    </div>
+                    </div>
       )}
 
       {/* Password Reset Modal */}
@@ -549,33 +553,33 @@ export default function MultiTenantAdmin() {
             </div>
             
             <form onSubmit={resetAdminPassword} className="p-6 space-y-4">
-              <div>
+                    <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   New Password *
                 </label>
-                <input
+                      <input
                   type="password"
-                  required
+                        required
                   value={passwordResetForm.newPassword}
                   onChange={(e) => setPasswordResetForm(prev => ({ ...prev, newPassword: e.target.value }))}
                   className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   placeholder="Enter new password"
-                />
-              </div>
+                      />
+                    </div>
               
-              <div>
+                    <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Confirm New Password *
                 </label>
-                <input
+                      <input
                   type="password"
-                  required
+                          required
                   value={passwordResetForm.confirmPassword}
                   onChange={(e) => setPasswordResetForm(prev => ({ ...prev, confirmPassword: e.target.value }))}
                   className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   placeholder="Confirm new password"
                 />
-              </div>
+                      </div>
 
               <div className="flex justify-end space-x-4 pt-4">
                 <button
@@ -596,11 +600,11 @@ export default function MultiTenantAdmin() {
                 >
                   {loading ? 'Resetting...' : 'Reset Password'}
                 </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
+                </div>
+              </form>
+            </div>
+                </div>
+              )}
 
       {/* View Institution Modal */}
       {showViewInstitution && selectedInstitution && (
@@ -626,7 +630,7 @@ export default function MultiTenantAdmin() {
                     </span>
                   </div>
                 )}
-                <div>
+                  <div>
                   <h3 className="text-lg font-semibold text-gray-900">{selectedInstitution.name}</h3>
                   <p className="text-gray-600">Institution ID: {selectedInstitution.id}</p>
                 </div>
@@ -642,7 +646,7 @@ export default function MultiTenantAdmin() {
                   </div>
                 </div>
                 
-                <div>
+                  <div>
                   <h4 className="font-medium text-gray-900 mb-3">Institution Stats</h4>
                   <div className="space-y-2 text-sm">
                     <p><span className="font-medium">Total Users:</span> {selectedInstitution.totalUsers || 0}</p>
@@ -663,10 +667,10 @@ export default function MultiTenantAdmin() {
               >
                 Close
               </button>
-            </div>
+                </div>
           </div>
         </div>
       )}
-    </div>
+            </div>
   );
 }
