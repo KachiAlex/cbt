@@ -147,12 +147,16 @@ export class ExcelQuestionParser {
   mapColumns(headers) {
     const columnMap = {};
     
+    // Debug: Log the headers we're working with
+    console.log('🔍 Parser: Excel headers found:', headers);
+    
     Object.keys(this.rules.columns).forEach(key => {
       const possibleNames = this.rules.columns[key];
       for (const name of possibleNames) {
         const index = headers.findIndex(h => h.includes(name.toLowerCase()));
         if (index !== -1) {
           columnMap[key] = index;
+          console.log(`🔍 Parser: Mapped column "${headers[index]}" to "${key}"`);
           break;
         }
       }
@@ -167,10 +171,12 @@ export class ExcelQuestionParser {
         if (optionMatch) {
           const optionLetter = optionMatch[1] || optionMatch[2] || optionMatch[3];
           columnMap[`option_${optionLetter}`] = index;
+          console.log(`🔍 Parser: Mapped option column "${header}" to "option_${optionLetter}"`);
         }
       }
     });
     
+    console.log('🔍 Parser: Final column mapping:', columnMap);
     return columnMap;
   }
 
@@ -192,35 +198,47 @@ export class ExcelQuestionParser {
   parseOptions(row, columnMap) {
     const options = [];
     
+    console.log('🔍 Parser: Parsing options for row:', row);
+    console.log('🔍 Parser: Column map for options:', columnMap);
+    
     // Try to find options in separate columns (Option A, Option B, etc.)
     const optionColumns = ['option_a', 'option_b', 'option_c', 'option_d', 'option_e'];
     for (const optionKey of optionColumns) {
       if (columnMap[optionKey] !== undefined) {
         const value = this.getCellValue(row, columnMap[optionKey]);
+        console.log(`🔍 Parser: Found ${optionKey} at column ${columnMap[optionKey]}: "${value}"`);
         if (value && value.trim()) {
           options.push(value.trim());
         }
       }
     }
     
+    console.log('🔍 Parser: Options from separate columns:', options);
+    
     // If no separate option columns found, try to parse from options column
     if (options.length === 0 && columnMap.options !== undefined) {
       const optionsText = this.getCellValue(row, columnMap.options);
+      console.log('🔍 Parser: Options text from combined column:', optionsText);
       if (optionsText) {
-        return this.parseOptionsFromText(optionsText);
+        const parsedOptions = this.parseOptionsFromText(optionsText);
+        console.log('🔍 Parser: Parsed options from text:', parsedOptions);
+        return parsedOptions;
       }
     }
     
     // If still no options, try to find any column that might contain options
     if (options.length === 0) {
+      console.log('🔍 Parser: Scanning all columns for option-like content...');
       for (let i = 0; i < row.length; i++) {
         const cellValue = this.getCellValue(row, i);
+        console.log(`🔍 Parser: Column ${i}: "${cellValue}" - looks like option: ${this.looksLikeOption(cellValue)}`);
         if (cellValue && this.looksLikeOption(cellValue)) {
           options.push(cellValue.trim());
         }
       }
     }
     
+    console.log('🔍 Parser: Final parsed options:', options);
     return options;
   }
 
