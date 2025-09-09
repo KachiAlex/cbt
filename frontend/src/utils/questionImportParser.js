@@ -439,16 +439,25 @@ export class QuestionImportParser {
   async parseFile(file) {
     const extension = file.name.split('.').pop().toLowerCase();
     
+    let questions;
     switch (extension) {
       case 'xlsx':
       case 'xls':
-        return await this.excelParser.parseFile(file);
+        questions = await this.excelParser.parseFile(file);
+        break;
       case 'docx':
       case 'doc':
-        return await this.wordParser.parseFile(file);
+        questions = await this.wordParser.parseFile(file);
+        break;
       default:
         throw new Error(`Unsupported file format: ${extension}`);
     }
+    
+    // Debug: Log parsed questions
+    console.log('🔍 Parser: Parsed questions from file:', questions);
+    console.log('🔍 Parser: First question structure:', questions[0]);
+    
+    return questions;
   }
 
   // Generate template files

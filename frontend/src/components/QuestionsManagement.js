@@ -107,6 +107,11 @@ const QuestionsManagement = ({ institution, onStatsUpdate }) => {
         alert('Please select an exam to import questions into.');
         return;
       }
+      
+      // Debug: Log the questions being imported
+      console.log('🔍 Questions being imported:', questionsToImport);
+      console.log('🔍 First question structure:', questionsToImport[0]);
+      
       const importPromises = questionsToImport.map(question => 
         firebaseDataService.createQuestion({ ...question, examId: selectedExam })
       );
