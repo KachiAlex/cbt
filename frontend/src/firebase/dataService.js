@@ -175,14 +175,19 @@ class FirebaseDataService {
   // User Management (for institution users)
   async getInstitutionUsers(institutionId) {
     try {
+      console.log('🔍 FirebaseDataService: Getting users for institution:', institutionId);
       const usersRef = collection(db, this.collections.users);
       const q = query(usersRef, where('institutionId', '==', institutionId));
       const snapshot = await getDocs(q);
+      
+      console.log('🔍 FirebaseDataService: Query snapshot size:', snapshot.size);
       
       const users = snapshot.docs.map(doc => ({
         id: doc.id,
         ...doc.data()
       }));
+      
+      console.log('🔍 FirebaseDataService: Mapped users:', users);
       
       // Sort by createdAt in JavaScript to avoid composite index requirement
       return users.sort((a, b) => {
@@ -199,13 +204,16 @@ class FirebaseDataService {
 
   async createUser(userData) {
     try {
+      console.log('🔍 FirebaseDataService: Creating user with data:', userData);
       const usersRef = collection(db, this.collections.users);
       const docRef = await addDoc(usersRef, {
         ...userData,
         createdAt: serverTimestamp()
       });
       
-      return { id: docRef.id, ...userData };
+      const result = { id: docRef.id, ...userData };
+      console.log('🔍 FirebaseDataService: Created user result:', result);
+      return result;
     } catch (error) {
       console.error('Error creating user:', error);
       throw error;
@@ -219,6 +227,26 @@ class FirebaseDataService {
       return true;
     } catch (error) {
       console.error('Error deleting user:', error);
+      throw error;
+    }
+  }
+
+  // Debug function to get all users
+  async getAllUsers() {
+    try {
+      console.log('🔍 FirebaseDataService: Getting ALL users for debugging...');
+      const usersRef = collection(db, this.collections.users);
+      const snapshot = await getDocs(usersRef);
+      
+      const allUsers = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      }));
+      
+      console.log('🔍 FirebaseDataService: ALL users in database:', allUsers);
+      return allUsers;
+    } catch (error) {
+      console.error('Error getting all users:', error);
       throw error;
     }
   }

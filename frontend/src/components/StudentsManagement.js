@@ -26,6 +26,10 @@ const StudentsManagement = ({ institution, onStatsUpdate }) => {
     try {
       setLoading(true);
       console.log('🔍 StudentsManagement: Loading students for institution:', institution.id);
+      
+      // Debug: Get all users to see what's in the database
+      await firebaseDataService.getAllUsers();
+      
       const studentsData = await firebaseDataService.getInstitutionUsers(institution.id);
       console.log('🔍 StudentsManagement: Loaded students:', studentsData);
       setStudents(studentsData);
