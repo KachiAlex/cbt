@@ -1,39 +1,23 @@
 {
-  "name": "cbt-app",
+  "name": "new-cbt-frontend",
   "version": "1.0.0",
+  "description": "New CBT Frontend Application",
   "private": true,
-  "dependencies": {
-    "@testing-library/jest-dom": "^6.1.0",
-    "@testing-library/react": "^14.1.0",
-    "@testing-library/user-event": "^14.5.0",
-    "autoprefixer": "^10.4.16",
-    "axios": "^1.6.0",
-    "docx": "^8.5.0",
-    "exceljs": "^4.4.0",
-    "file-saver": "^2.0.5",
-    "firebase": "^12.2.1",
-    "mammoth": "^1.10.0",
-    "postcss": "^8.4.31",
-    "react": "^18.2.0",
-    "react-dom": "^18.2.0",
-    "react-modal": "^3.16.3",
-    "react-scripts": "^5.0.1",
-    "tailwindcss": "^3.3.5",
-    "web-vitals": "^3.5.0"
-  },
   "scripts": {
     "start": "react-scripts start",
     "build": "react-scripts build",
     "test": "react-scripts test",
-    "eject": "react-scripts eject",
-    "postinstall": "echo 'Frontend dependencies installed successfully'",
-    "build:netlify": "react-scripts build"
+    "eject": "react-scripts eject"
   },
-  "eslintConfig": {
-    "extends": [
-      "react-app",
-      "react-app/jest"
-    ]
+  "dependencies": {
+    "ajv": "^8.17.1",
+    "file-saver": "^2.0.5",
+    "firebase": "^12.2.1",
+    "mammoth": "^1.10.0",
+    "react": "^19.1.1",
+    "react-dom": "^19.1.1",
+    "react-scripts": "^5.0.1",
+    "xlsx": "^0.18.5"
   },
   "browserslist": {
     "production": [
@@ -46,9 +30,5 @@
       "last 1 firefox version",
       "last 1 safari version"
     ]
-  },
-  "engines": {
-    "node": "18.x",
-    "npm": ">=8.0.0"
   }
 }

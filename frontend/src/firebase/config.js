@@ -3,14 +3,14 @@ import { getFirestore } from 'firebase/firestore';
 import { getAuth } from 'firebase/auth';
 
 // Firebase configuration for cbt-multitenant-admin project
-// You'll need to replace these with your actual Firebase project config
 const firebaseConfig = {
-  apiKey: "your-api-key",
-  authDomain: "cbt-multitenant-admin.firebaseapp.com",
-  projectId: "cbt-multitenant-admin",
-  storageBucket: "cbt-multitenant-admin.appspot.com",
-  messagingSenderId: "123456789",
-  appId: "your-app-id"
+  apiKey: "AIzaSyB5oUy7N8G633FCjmu34FrLBZvjsm1tdVc",
+  authDomain: "cbt-91a97.firebaseapp.com",
+  projectId: "cbt-91a97",
+  storageBucket: "cbt-91a97.firebasestorage.app",
+  messagingSenderId: "273021677586",
+  appId: "1:273021677586:web:f1170c3a9a9f25493028cb",
+  measurementId: "G-PMMHZEBZ92"
 };
 
 

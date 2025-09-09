@@ -1,35 +1,26 @@
 {
-  "name": "cbt-system",
+  "name": "cbt-local-app",
   "version": "1.0.0",
-  "description": "CBT System with Hierarchical Admin Management",
+  "description": "Modern CBT Local Application with React TypeScript",
   "private": true,
-  "workspaces": [
-    "frontend",
-    "backend"
-  ],
   "scripts": {
-    "build:frontend": "cd frontend && npm ci --audit-level=moderate && npm run build",
-    "build:backend": "cd backend && npm install --omit=dev",
-    "start:frontend": "cd frontend && npm start",
-    "start:backend": "cd backend && npm start",
+    "start": "cd frontend && npm start",
+    "build": "cd frontend && npm run build",
+    "test": "cd frontend && npm test",
     "install:frontend": "cd frontend && npm install",
-    "install:backend": "cd backend && npm install"
+    "dev": "cd frontend && npm start"
   },
   "engines": {
     "node": ">=18.0.0",
     "npm": ">=8.0.0"
-  },
-  "repository": {
-    "type": "git",
-    "url": "https://github.com/your-username/cbt-system.git"
   },
   "keywords": [
     "cbt",
     "exam",
     "education",
     "react",
-    "nodejs"
+    "typescript"
   ],
-  "author": "CBT System Team",
+  "author": "CBT Team",
   "license": "MIT"
-} 
+}

@@ -18,7 +18,10 @@ class FirebaseDataService {
     this.collections = {
       institutions: 'institutions',
       admins: 'admins',
-      users: 'users'
+      users: 'users',
+      exams: 'exams',
+      questions: 'questions',
+      results: 'results'
     };
   }
 
@@ -26,13 +29,20 @@ class FirebaseDataService {
   async getInstitutions() {
     try {
       const institutionsRef = collection(db, this.collections.institutions);
-      const q = query(institutionsRef, orderBy('createdAt', 'desc'));
-      const snapshot = await getDocs(q);
+      const snapshot = await getDocs(institutionsRef);
       
-      return snapshot.docs.map(doc => ({
+      const institutions = snapshot.docs.map(doc => ({
         id: doc.id,
         ...doc.data()
       }));
+      
+      // Sort by createdAt in JavaScript to avoid index requirement
+      return institutions.sort((a, b) => {
+        if (a.createdAt && b.createdAt) {
+          return b.createdAt.toDate() - a.createdAt.toDate();
+        }
+        return 0;
+      });
     } catch (error) {
       console.error('Error getting institutions:', error);
       throw error;
@@ -88,17 +98,21 @@ class FirebaseDataService {
   async getInstitutionAdmins(institutionId) {
     try {
       const adminsRef = collection(db, this.collections.admins);
-      const q = query(
-        adminsRef, 
-        where('institutionId', '==', institutionId),
-        orderBy('createdAt', 'desc')
-      );
+      const q = query(adminsRef, where('institutionId', '==', institutionId));
       const snapshot = await getDocs(q);
       
-      return snapshot.docs.map(doc => ({
+      const admins = snapshot.docs.map(doc => ({
         id: doc.id,
         ...doc.data()
       }));
+      
+      // Sort by createdAt in JavaScript to avoid composite index requirement
+      return admins.sort((a, b) => {
+        if (a.createdAt && b.createdAt) {
+          return b.createdAt.toDate() - a.createdAt.toDate();
+        }
+        return 0;
+      });
     } catch (error) {
       console.error('Error getting admins:', error);
       throw error;
@@ -162,17 +176,21 @@ class FirebaseDataService {
   async getInstitutionUsers(institutionId) {
     try {
       const usersRef = collection(db, this.collections.users);
-      const q = query(
-        usersRef, 
-        where('institutionId', '==', institutionId),
-        orderBy('createdAt', 'desc')
-      );
+      const q = query(usersRef, where('institutionId', '==', institutionId));
       const snapshot = await getDocs(q);
       
-      return snapshot.docs.map(doc => ({
+      const users = snapshot.docs.map(doc => ({
         id: doc.id,
         ...doc.data()
       }));
+      
+      // Sort by createdAt in JavaScript to avoid composite index requirement
+      return users.sort((a, b) => {
+        if (a.createdAt && b.createdAt) {
+          return b.createdAt.toDate() - a.createdAt.toDate();
+        }
+        return 0;
+      });
     } catch (error) {
       console.error('Error getting users:', error);
       throw error;
@@ -213,6 +231,228 @@ class FirebaseDataService {
       return users.length;
     } catch (error) {
       console.error('Error updating user count:', error);
+      throw error;
+    }
+  }
+
+  async getInstitution(institutionId) {
+    try {
+      const institutionRef = doc(db, this.collections.institutions, institutionId);
+      const docSnap = await getDoc(institutionRef);
+      
+      if (docSnap.exists()) {
+        return { id: docSnap.id, ...docSnap.data() };
+      } else {
+        throw new Error('Institution not found');
+      }
+    } catch (error) {
+      console.error('Error getting institution:', error);
+      throw error;
+    }
+  }
+
+  async updateUser(userId, updateData) {
+    try {
+      const userRef = doc(db, this.collections.users, userId);
+      await updateDoc(userRef, {
+        ...updateData,
+        updatedAt: serverTimestamp()
+      });
+      return true;
+    } catch (error) {
+      console.error('Error updating user:', error);
+      throw error;
+    }
+  }
+
+  // Exam Management
+  async getInstitutionExams(institutionId) {
+    try {
+      const examsRef = collection(db, this.collections.exams);
+      const q = query(examsRef, where('institutionId', '==', institutionId));
+      const snapshot = await getDocs(q);
+      
+      const exams = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      }));
+      
+      return exams.sort((a, b) => {
+        if (a.createdAt && b.createdAt) {
+          return b.createdAt.toDate() - a.createdAt.toDate();
+        }
+        return 0;
+      });
+    } catch (error) {
+      console.error('Error getting exams:', error);
+      throw error;
+    }
+  }
+
+  async createExam(examData) {
+    try {
+      const examsRef = collection(db, this.collections.exams);
+      const docRef = await addDoc(examsRef, {
+        ...examData,
+        createdAt: serverTimestamp()
+      });
+      
+      return { id: docRef.id, ...examData };
+    } catch (error) {
+      console.error('Error creating exam:', error);
+      throw error;
+    }
+  }
+
+  async updateExam(examId, updateData) {
+    try {
+      const examRef = doc(db, this.collections.exams, examId);
+      await updateDoc(examRef, {
+        ...updateData,
+        updatedAt: serverTimestamp()
+      });
+      return true;
+    } catch (error) {
+      console.error('Error updating exam:', error);
+      throw error;
+    }
+  }
+
+  async deleteExam(examId) {
+    try {
+      const examRef = doc(db, this.collections.exams, examId);
+      await deleteDoc(examRef);
+      return true;
+    } catch (error) {
+      console.error('Error deleting exam:', error);
+      throw error;
+    }
+  }
+
+  // Question Management
+  async getInstitutionQuestions(institutionId) {
+    try {
+      const questionsRef = collection(db, this.collections.questions);
+      const q = query(questionsRef, where('institutionId', '==', institutionId));
+      const snapshot = await getDocs(q);
+      
+      const questions = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      }));
+      
+      return questions.sort((a, b) => {
+        if (a.createdAt && b.createdAt) {
+          return b.createdAt.toDate() - a.createdAt.toDate();
+        }
+        return 0;
+      });
+    } catch (error) {
+      console.error('Error getting questions:', error);
+      throw error;
+    }
+  }
+
+  async createQuestion(questionData) {
+    try {
+      const questionsRef = collection(db, this.collections.questions);
+      const docRef = await addDoc(questionsRef, {
+        ...questionData,
+        createdAt: serverTimestamp()
+      });
+      
+      return { id: docRef.id, ...questionData };
+    } catch (error) {
+      console.error('Error creating question:', error);
+      throw error;
+    }
+  }
+
+  async updateQuestion(questionId, updateData) {
+    try {
+      const questionRef = doc(db, this.collections.questions, questionId);
+      await updateDoc(questionRef, {
+        ...updateData,
+        updatedAt: serverTimestamp()
+      });
+      return true;
+    } catch (error) {
+      console.error('Error updating question:', error);
+      throw error;
+    }
+  }
+
+  async deleteQuestion(questionId) {
+    try {
+      const questionRef = doc(db, this.collections.questions, questionId);
+      await deleteDoc(questionRef);
+      return true;
+    } catch (error) {
+      console.error('Error deleting question:', error);
+      throw error;
+    }
+  }
+
+  // Results Management
+  async getInstitutionResults(institutionId) {
+    try {
+      const resultsRef = collection(db, this.collections.results);
+      const q = query(resultsRef, where('institutionId', '==', institutionId));
+      const snapshot = await getDocs(q);
+      
+      const results = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      }));
+      
+      return results.sort((a, b) => {
+        if (a.completedAt && b.completedAt) {
+          return b.completedAt.toDate() - a.completedAt.toDate();
+        }
+        return 0;
+      });
+    } catch (error) {
+      console.error('Error getting results:', error);
+      throw error;
+    }
+  }
+
+  async createResult(resultData) {
+    try {
+      const resultsRef = collection(db, this.collections.results);
+      const docRef = await addDoc(resultsRef, {
+        ...resultData,
+        completedAt: serverTimestamp()
+      });
+      
+      return { id: docRef.id, ...resultData };
+    } catch (error) {
+      console.error('Error creating result:', error);
+      throw error;
+    }
+  }
+
+  async updateResult(resultId, updateData) {
+    try {
+      const resultRef = doc(db, this.collections.results, resultId);
+      await updateDoc(resultRef, {
+        ...updateData,
+        updatedAt: serverTimestamp()
+      });
+      return true;
+    } catch (error) {
+      console.error('Error updating result:', error);
+      throw error;
+    }
+  }
+
+  async deleteResult(resultId) {
+    try {
+      const resultRef = doc(db, this.collections.results, resultId);
+      await deleteDoc(resultRef);
+      return true;
+    } catch (error) {
+      console.error('Error deleting result:', error);
       throw error;
     }
   }

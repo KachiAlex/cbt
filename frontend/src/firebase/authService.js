@@ -3,7 +3,8 @@ import {
   createUserWithEmailAndPassword,
   signOut,
   onAuthStateChanged,
-  updatePassword
+  updatePassword,
+  updateProfile
 } from 'firebase/auth';
 import { auth } from './config';
 
@@ -43,7 +44,7 @@ class FirebaseAuthService {
       
       // Update display name if provided
       if (displayName) {
-        await userCredential.user.updateProfile({ displayName });
+        await updateProfile(userCredential.user, { displayName });
       }
       
       return {

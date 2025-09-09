@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import firebaseDataService from '../firebase/dataService';
-import AdminDashboard from './AdminDashboard';
+import CBTAdminDashboard from './CBTAdminDashboard';
 import StudentPortal from './StudentPortal';
-import LoginPage from './LoginPage';
+import InstitutionLoginPage from './InstitutionLoginPage';
 import ExamInterface from './ExamInterface';
 
 const InstitutionCBT = () => {
@@ -42,8 +42,10 @@ const InstitutionCBT = () => {
       // Check for saved user
       const savedUser = localStorage.getItem(`cbt_user_${institutionSlug}`);
       if (savedUser) {
-        setUser(JSON.parse(savedUser));
-        setCurrentView('dashboard');
+        const userData = JSON.parse(savedUser);
+        setUser(userData);
+        // Set view based on user role
+        setCurrentView(userData.role === 'admin' ? 'dashboard' : 'student');
       }
     } catch (err) {
       console.error('Error loading institution:', err);
@@ -55,8 +57,25 @@ const InstitutionCBT = () => {
 
   const handleLogin = async (credentials) => {
     try {
-      // For now, we'll use a simple check against institution admins
-      // In a real implementation, you'd use Firebase Auth
+      // Check for hardcoded admin credentials first
+      if (credentials.username === 'admin' && credentials.password === 'admin123') {
+        const userData = {
+          id: 'admin_default',
+          username: 'admin',
+          email: 'admin@institution.com',
+          fullName: 'Institution Administrator',
+          role: 'admin',
+          institutionId: institution.id,
+          institutionName: institution.name
+        };
+
+        setUser(userData);
+        localStorage.setItem(`cbt_user_${institution.slug}`, JSON.stringify(userData));
+        setCurrentView('dashboard');
+        return { success: true };
+      }
+
+      // Check against institution admins from Firebase
       const admins = await firebaseDataService.getInstitutionAdmins(institution.id);
       const admin = admins.find(a => 
         (a.username === credentials.username || a.email === credentials.username) &&
@@ -76,20 +95,36 @@ const InstitutionCBT = () => {
 
         setUser(userData);
         localStorage.setItem(`cbt_user_${institution.slug}`, JSON.stringify(userData));
-        
-        if (admin.role === 'admin') {
-          setCurrentView('dashboard');
-        } else {
-          setCurrentView('student');
-        }
+        setCurrentView('dashboard');
         return { success: true };
-      } else {
-        return { success: false, message: 'Invalid credentials' };
       }
+
+      // If not an admin, treat as student login
+      // For now, we'll create a simple student user
+      // In a real implementation, you'd check against a student database
+      const userData = {
+        id: `student_${Date.now()}`,
+        username: credentials.username,
+        email: credentials.username,
+        fullName: credentials.username,
+        role: 'student',
+        institutionId: institution.id,
+        institutionName: institution.name
+      };
+
+      setUser(userData);
+      localStorage.setItem(`cbt_user_${institution.slug}`, JSON.stringify(userData));
+      setCurrentView('student');
+      return { success: true };
     } catch (error) {
       console.error('Login error:', error);
       return { success: false, message: 'Login failed' };
     }
+  };
+
+  const handleAdminAccess = () => {
+    // Direct admin access - show admin login form
+    setCurrentView('admin-login');
   };
 
   const handleLogout = () => {
@@ -113,26 +148,44 @@ const InstitutionCBT = () => {
     switch (currentView) {
       case 'login':
         return (
-          <div>
-            <div className="bg-white shadow-sm border-b">
-              <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-                <div className="text-center">
-                  <h1 className="text-3xl font-bold text-gray-900">{institution?.name}</h1>
-                  <p className="text-gray-600 mt-1">Computer-Based Test System</p>
+          <InstitutionLoginPage 
+            institution={institution}
+            onLogin={handleLogin}
+            onAdminAccess={handleAdminAccess}
+          />
+        );
+      case 'admin-login':
+        return (
+          <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+            <div className="max-w-md w-full space-y-8">
+              <div className="text-center">
+                <h2 className="text-2xl font-bold text-gray-900 mb-6">Admin Login</h2>
+                <div className="bg-white rounded-lg shadow-lg p-8">
+                  <p className="text-gray-600 mb-4">Please enter your admin credentials:</p>
+                  <InstitutionLoginPage 
+                    institution={institution}
+                    onLogin={handleLogin}
+                    onAdminAccess={handleAdminAccess}
+                  />
                 </div>
               </div>
             </div>
-            <LoginPage onLogin={handleLogin} />
           </div>
         );
       case 'dashboard':
-        return <AdminDashboard user={user} onLogout={handleLogout} />;
+        return <CBTAdminDashboard institution={institution} user={user} onLogout={handleLogout} />;
       case 'student':
         return <StudentPortal user={user} onLogout={handleLogout} onStartExam={startExam} />;
       case 'exam':
         return <ExamInterface user={user} exam={currentExam} onComplete={completeExam} />;
       default:
-        return <LoginPage onLogin={handleLogin} />;
+        return (
+          <InstitutionLoginPage 
+            institution={institution}
+            onLogin={handleLogin}
+            onAdminAccess={handleAdminAccess}
+          />
+        );
     }
   };
 

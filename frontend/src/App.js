@@ -8,6 +8,7 @@ import MultiTenantAdminLogin from './components/MultiTenantAdminLogin';
 import InstitutionCBT from './components/InstitutionCBT';
 import { dataService } from './services/dataService';
 import { testFirebaseConnection } from './firebase/testConnection';
+import './firebase/createAdmin';
 
 function App() {
   const [user, setUser] = useState(null);

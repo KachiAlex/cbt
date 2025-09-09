@@ -1,0 +1,18 @@
+.question-bank {
+  background: white;
+  border-radius: 12px;
+  padding: 30px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+}
+
+.question-bank h2 {
+  color: #333;
+  margin: 0 0 20px 0;
+  font-size: 1.8rem;
+  font-weight: 600;
+}
+
+.question-bank p {
+  color: #666;
+  font-size: 1.1rem;
+}

@@ -174,7 +174,7 @@ export default function MultiTenantAdmin() {
 
   // Delete admin
   const deleteAdmin = async (admin) => {
-    if (!confirm(`Are you sure you want to delete admin ${admin.fullName || admin.username}?`)) {
+    if (!window.confirm(`Are you sure you want to delete admin ${admin.fullName || admin.username}?`)) {
       return;
     }
 
