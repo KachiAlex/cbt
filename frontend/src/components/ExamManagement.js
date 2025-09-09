@@ -316,7 +316,7 @@ const ExamManagement = ({ institution, onStatsUpdate }) => {
                   <label htmlFor="isActive" className="ml-2 block text-sm text-gray-900">
                     Active
                   </label>
-                </div>
+            </div>
             
             <div className="flex justify-end space-x-3 pt-4">
               <button
@@ -340,7 +340,7 @@ const ExamManagement = ({ institution, onStatsUpdate }) => {
             </div>
           </form>
         </div>
-          </div>
+      </div>
           </div>
         )}
     </div>

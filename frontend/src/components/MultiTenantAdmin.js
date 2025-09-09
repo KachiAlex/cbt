@@ -304,9 +304,9 @@ export default function MultiTenantAdmin() {
                       }}
                       className="w-full bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium transition-colors"
                     >
-                      Manage Admins
-                    </button>
-                  </div>
+                  Manage Admins
+          </button>
+        </div>
       </div>
               </div>
             ))}
@@ -665,7 +665,7 @@ export default function MultiTenantAdmin() {
                     <div className="mt-3">
                       <p className="font-medium text-gray-900 mb-2">CBT App Link:</p>
                       <div className="flex items-center space-x-2">
-                        <input
+                    <input
                           type="text"
                           readOnly
                           value={`${window.location.origin}/?institution=${selectedInstitution.slug}`}

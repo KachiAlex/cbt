@@ -28,12 +28,18 @@ const SettingsManagement = ({ institution, user, onLogout }) => {
   const [loading, setLoading] = useState(false);
   const [activeTab, setActiveTab] = useState('general');
   const [showCreateAdminModal, setShowCreateAdminModal] = useState(false);
+  const [showChangePasswordModal, setShowChangePasswordModal] = useState(false);
   const [adminFormData, setAdminFormData] = useState({
     fullName: '',
     username: '',
     email: '',
     password: '',
     role: 'admin'
+  });
+  const [passwordFormData, setPasswordFormData] = useState({
+    currentPassword: '',
+    newPassword: '',
+    confirmPassword: ''
   });
 
   useEffect(() => {
@@ -92,6 +98,50 @@ const SettingsManagement = ({ institution, user, onLogout }) => {
     } catch (error) {
       console.error('Error creating admin:', error);
       alert('Error creating admin. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleChangePassword = async (e) => {
+    e.preventDefault();
+    
+    if (passwordFormData.newPassword !== passwordFormData.confirmPassword) {
+      alert('New passwords do not match!');
+      return;
+    }
+
+    if (passwordFormData.newPassword.length < 6) {
+      alert('New password must be at least 6 characters long!');
+      return;
+    }
+
+    try {
+      setLoading(true);
+      
+      // Verify current password by checking against stored admin data
+      const admins = await firebaseDataService.getInstitutionAdmins(institution.id);
+      const currentAdmin = admins.find(admin => admin.id === user.id);
+      
+      if (!currentAdmin || currentAdmin.password !== passwordFormData.currentPassword) {
+        alert('Current password is incorrect!');
+        setLoading(false);
+        return;
+      }
+
+      // Update password
+      await firebaseDataService.updateAdminPassword(user.id, passwordFormData.newPassword);
+      
+      setShowChangePasswordModal(false);
+      setPasswordFormData({
+        currentPassword: '',
+        newPassword: '',
+        confirmPassword: ''
+      });
+      alert('Password changed successfully!');
+    } catch (error) {
+      console.error('Error changing password:', error);
+      alert('Error changing password. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -208,6 +258,24 @@ const SettingsManagement = ({ institution, user, onLogout }) => {
             <label htmlFor="requireEmailVerification" className="ml-2 block text-sm text-gray-900">
               Require email verification for registration
             </label>
+          </div>
+        </div>
+      </div>
+
+      <div>
+        <h3 className="text-lg font-medium text-gray-900 mb-4">Account Security</h3>
+        <div className="bg-gray-50 rounded-lg p-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <h4 className="text-sm font-medium text-gray-900">Change Password</h4>
+              <p className="text-sm text-gray-600">Update your admin account password</p>
+            </div>
+            <button
+              onClick={() => setShowChangePasswordModal(true)}
+              className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition-colors text-sm"
+            >
+              Change Password
+            </button>
           </div>
         </div>
       </div>
@@ -585,6 +653,108 @@ const SettingsManagement = ({ institution, user, onLogout }) => {
                     className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 disabled:opacity-50"
                   >
                     {loading ? 'Creating...' : 'Create Admin'}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Change Password Modal */}
+      {showChangePasswordModal && (
+        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+          <div className="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
+            <div className="mt-3">
+              <h3 className="text-lg font-medium text-gray-900 mb-4">Change Password</h3>
+              
+              <form onSubmit={handleChangePassword} className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Current Password
+                  </label>
+                  <input
+                    type="password"
+                    required
+                    value={passwordFormData.currentPassword}
+                    onChange={(e) => setPasswordFormData({ ...passwordFormData, currentPassword: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                    placeholder="Enter your current password"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    New Password
+                  </label>
+                  <input
+                    type="password"
+                    required
+                    value={passwordFormData.newPassword}
+                    onChange={(e) => setPasswordFormData({ ...passwordFormData, newPassword: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                    placeholder="Enter your new password"
+                    minLength={6}
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Confirm New Password
+                  </label>
+                  <input
+                    type="password"
+                    required
+                    value={passwordFormData.confirmPassword}
+                    onChange={(e) => setPasswordFormData({ ...passwordFormData, confirmPassword: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                    placeholder="Confirm your new password"
+                    minLength={6}
+                  />
+                </div>
+
+                <div className="bg-blue-50 border border-blue-200 rounded-md p-3">
+                  <div className="flex">
+                    <div className="flex-shrink-0">
+                      <svg className="h-5 w-5 text-blue-400" viewBox="0 0 20 20" fill="currentColor">
+                        <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                      </svg>
+                    </div>
+                    <div className="ml-3">
+                      <h3 className="text-sm font-medium text-blue-800">
+                        Password Requirements
+                      </h3>
+                      <div className="mt-2 text-sm text-blue-700">
+                        <ul className="list-disc list-inside space-y-1">
+                          <li>At least 6 characters long</li>
+                          <li>Must match the confirmation password</li>
+                        </ul>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex justify-end space-x-3 pt-4">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowChangePasswordModal(false);
+                      setPasswordFormData({
+                        currentPassword: '',
+                        newPassword: '',
+                        confirmPassword: ''
+                      });
+                    }}
+                    className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={loading}
+                    className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 disabled:opacity-50"
+                  >
+                    {loading ? 'Changing...' : 'Change Password'}
                   </button>
                 </div>
               </form>
