@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { dataService } from '../services/dataService';
 
-const StudentPortal = ({ user, onLogout, onStartExam, onAdminAccess }) => {
+const StudentPortal = ({ user, onLogout, onStartExam }) => {
   const [availableExams, setAvailableExams] = useState([]);
   const [userResults, setUserResults] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -17,8 +17,26 @@ const StudentPortal = ({ user, onLogout, onStartExam, onAdminAccess }) => {
         dataService.getResultsByUser(user.id)
       ]);
 
-      // Filter active exams
-      const activeExams = exams.filter(exam => exam.isActive);
+      // Filter exams: institution match, active flag, and within schedule window when provided
+      const now = new Date();
+      const isWithinWindow = (exam) => {
+        const startsOk = !exam.startDate || new Date(exam.startDate) <= now;
+        const endsOk = !exam.endDate || new Date(exam.endDate) >= now;
+        return startsOk && endsOk;
+      };
+
+      const normalize = (val) => (val === undefined || val === null) ? '' : String(val).trim();
+      const userInstitutionId = normalize(user?.institutionId || user?.tenantId);
+
+      const activeExams = exams
+        .filter(exam => {
+          const examInstitutionId = normalize(exam.institutionId || exam.tenantId);
+          // Show if no institution scoping on exam, or user has no institution, or they match
+          return !examInstitutionId || !userInstitutionId || examInstitutionId === userInstitutionId;
+        })
+        .filter(exam => exam.isActive)
+        .filter(isWithinWindow);
+
       setAvailableExams(activeExams);
       setUserResults(results);
       setLoading(false);
@@ -58,12 +76,6 @@ const StudentPortal = ({ user, onLogout, onStartExam, onAdminAccess }) => {
               <p className="text-gray-600">Welcome, {user?.fullName || user?.username}</p>
             </div>
             <div className="flex space-x-3">
-              <button
-                onClick={onAdminAccess}
-                className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700"
-              >
-                Multi-Tenant Admin
-              </button>
               <button
                 onClick={onLogout}
                 className="bg-red-600 text-white px-4 py-2 rounded-md hover:bg-red-700"

@@ -40,6 +40,10 @@ const QuestionImportModal = ({ isOpen, onClose, onImport, examId, institutionId 
   };
 
   const handleImport = async () => {
+    if (!examId) {
+      setError('Please select an exam before importing questions.');
+      return;
+    }
     setImporting(true);
     try {
       const validQuestions = parsedQuestions.filter(q => q.question && q.question.trim().length > 0);

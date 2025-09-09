@@ -320,6 +320,14 @@ class FirebaseDataService {
 
   async deleteExam(examId) {
     try {
+      // Cascade delete: remove questions linked to this exam
+      const questionsRef = collection(db, this.collections.questions);
+      const q = query(questionsRef, where('examId', '==', examId));
+      const qs = await getDocs(q);
+      const deletions = qs.docs.map(d => deleteDoc(doc(db, this.collections.questions, d.id)));
+      await Promise.all(deletions);
+
+      // Delete the exam itself
       const examRef = doc(db, this.collections.exams, examId);
       await deleteDoc(examRef);
       return true;
@@ -389,6 +397,33 @@ class FirebaseDataService {
       return true;
     } catch (error) {
       console.error('Error deleting question:', error);
+      throw error;
+    }
+  }
+
+  // Utility: count and bulk delete questions for a specific exam
+  async countQuestionsByExam(examId) {
+    try {
+      const questionsRef = collection(db, this.collections.questions);
+      const qy = query(questionsRef, where('examId', '==', examId));
+      const snap = await getDocs(qy);
+      return snap.size;
+    } catch (error) {
+      console.error('Error counting questions by exam:', error);
+      throw error;
+    }
+  }
+
+  async deleteQuestionsByExam(examId) {
+    try {
+      const questionsRef = collection(db, this.collections.questions);
+      const qy = query(questionsRef, where('examId', '==', examId));
+      const snap = await getDocs(qy);
+      const deletions = snap.docs.map(d => deleteDoc(doc(db, this.collections.questions, d.id)));
+      await Promise.all(deletions);
+      return true;
+    } catch (error) {
+      console.error('Error deleting questions by exam:', error);
       throw error;
     }
   }

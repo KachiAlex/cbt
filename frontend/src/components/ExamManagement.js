@@ -26,7 +26,12 @@ const ExamManagement = ({ institution, onStatsUpdate }) => {
     try {
       setLoading(true);
       const examData = await firebaseDataService.getInstitutionExams(institution.id);
-      setExams(examData);
+      // Fetch live question counts
+      const counts = await Promise.all(
+        examData.map((e) => firebaseDataService.countQuestionsByExam(e.id))
+      );
+      const withCounts = examData.map((e, idx) => ({ ...e, totalQuestions: counts[idx] }));
+      setExams(withCounts);
     } catch (error) {
       console.error('Error loading exams:', error);
     } finally {
@@ -115,18 +120,18 @@ const ExamManagement = ({ institution, onStatsUpdate }) => {
       return <span className="px-2 py-1 text-xs font-medium bg-gray-100 text-gray-800 rounded-full">Inactive</span>;
     }
     
-    if (now < startDate) {
+    if (exam.startDate && now < startDate) {
       return <span className="px-2 py-1 text-xs font-medium bg-yellow-100 text-yellow-800 rounded-full">Scheduled</span>;
     }
     
-    if (now > endDate) {
+    if (exam.endDate && now > endDate) {
       return <span className="px-2 py-1 text-xs font-medium bg-red-100 text-red-800 rounded-full">Expired</span>;
     }
     
     return <span className="px-2 py-1 text-xs font-medium bg-green-100 text-green-800 rounded-full">Active</span>;
   };
 
-  return (
+    return (
     <div>
       <div className="flex justify-between items-center mb-6">
         <h2 className="text-2xl font-bold text-gray-900">Exam Management</h2>
@@ -173,7 +178,7 @@ const ExamManagement = ({ institution, onStatsUpdate }) => {
                   {exam.duration} minutes
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                  {exam.totalQuestions}
+                  {typeof exam.totalQuestions === 'number' ? exam.totalQuestions : 0}
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap">
                   {getStatusBadge(exam)}
@@ -185,19 +190,19 @@ const ExamManagement = ({ institution, onStatsUpdate }) => {
                   >
                     Edit
                   </button>
-                  <button
+            <button
                     onClick={() => handleDelete(exam.id)}
                     className="text-red-600 hover:text-red-900"
-                  >
+            >
                     Delete
-                  </button>
+            </button>
                 </td>
               </tr>
             ))}
           </tbody>
         </table>
-      </div>
-
+          </div>
+          
       {/* Create/Edit Modal */}
       {showModal && (
         <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
@@ -208,20 +213,20 @@ const ExamManagement = ({ institution, onStatsUpdate }) => {
               </h3>
               
               <form onSubmit={handleSubmit} className="space-y-4">
-                <div>
+              <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     Exam Title
-                  </label>
-                  <input
-                    type="text"
-                    required
+                </label>
+                <input
+                  type="text"
+                  required
                     value={formData.title}
                     onChange={(e) => setFormData({ ...formData, title: e.target.value })}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                  />
-                </div>
-
-                <div>
+                />
+              </div>
+              
+              <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     Description
                   </label>
@@ -237,17 +242,17 @@ const ExamManagement = ({ institution, onStatsUpdate }) => {
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
                       Duration (minutes)
-                    </label>
-                    <input
-                      type="number"
-                      required
+                </label>
+                <input
+                  type="number"
+                  required
                       value={formData.duration}
                       onChange={(e) => setFormData({ ...formData, duration: parseInt(e.target.value) })}
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                    />
-                  </div>
-
-                  <div>
+                />
+              </div>
+              
+              <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
                       Passing Score (%)
                     </label>
@@ -264,41 +269,41 @@ const ExamManagement = ({ institution, onStatsUpdate }) => {
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Start Date
-                    </label>
-                    <input
-                      type="datetime-local"
+                  Start Date
+                </label>
+                <input
+                  type="datetime-local"
                       value={formData.startDate}
                       onChange={(e) => setFormData({ ...formData, startDate: e.target.value })}
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                    />
-                  </div>
-
-                  <div>
+                />
+              </div>
+              
+              <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
-                      End Date
-                    </label>
-                    <input
-                      type="datetime-local"
+                  End Date
+                </label>
+                <input
+                  type="datetime-local"
                       value={formData.endDate}
                       onChange={(e) => setFormData({ ...formData, endDate: e.target.value })}
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                    />
-                  </div>
-                </div>
-
-                <div>
+                />
+              </div>
+            </div>
+            
+            <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     Instructions
-                  </label>
-                  <textarea
+              </label>
+              <textarea
                     value={formData.instructions}
                     onChange={(e) => setFormData({ ...formData, instructions: e.target.value })}
                     rows={3}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
                     placeholder="Enter exam instructions for students..."
-                  />
-                </div>
+              />
+            </div>
 
                 <div className="flex items-center">
                   <input
@@ -312,32 +317,32 @@ const ExamManagement = ({ institution, onStatsUpdate }) => {
                     Active
                   </label>
                 </div>
-
-                <div className="flex justify-end space-x-3 pt-4">
-                  <button
-                    type="button"
+            
+            <div className="flex justify-end space-x-3 pt-4">
+              <button
+                type="button"
                     onClick={() => {
                       setShowModal(false);
                       setEditingExam(null);
                       resetForm();
                     }}
                     className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="submit"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
                     disabled={loading}
                     className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 disabled:opacity-50"
-                  >
+              >
                     {loading ? 'Saving...' : editingExam ? 'Update' : 'Create'}
-                  </button>
-                </div>
-              </form>
+              </button>
             </div>
-          </div>
+          </form>
         </div>
-      )}
+          </div>
+          </div>
+        )}
     </div>
   );
 };

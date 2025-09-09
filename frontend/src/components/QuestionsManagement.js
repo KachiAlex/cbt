@@ -103,8 +103,12 @@ const QuestionsManagement = ({ institution, onStatsUpdate }) => {
   const handleImportQuestions = async (questionsToImport) => {
     try {
       setLoading(true);
+      if (!selectedExam) {
+        alert('Please select an exam to import questions into.');
+        return;
+      }
       const importPromises = questionsToImport.map(question => 
-        firebaseDataService.createQuestion(question)
+        firebaseDataService.createQuestion({ ...question, examId: selectedExam })
       );
       await Promise.all(importPromises);
       await loadData();
@@ -112,6 +116,26 @@ const QuestionsManagement = ({ institution, onStatsUpdate }) => {
     } catch (error) {
       console.error('Error importing questions:', error);
       throw error;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleClearQuestions = async () => {
+    if (!selectedExam) {
+      alert('Please select an exam first.');
+      return;
+    }
+    if (!window.confirm('This will delete ALL questions for the selected exam. Continue?')) {
+      return;
+    }
+    try {
+      setLoading(true);
+      await firebaseDataService.deleteQuestionsByExam(selectedExam);
+      await loadData();
+      onStatsUpdate();
+    } catch (error) {
+      console.error('Error clearing questions:', error);
     } finally {
       setLoading(false);
     }
@@ -194,6 +218,13 @@ const QuestionsManagement = ({ institution, onStatsUpdate }) => {
             className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition-colors"
           >
             Add New Question
+          </button>
+          <button
+            onClick={handleClearQuestions}
+            className="bg-red-600 text-white px-4 py-2 rounded-md hover:bg-red-700 transition-colors disabled:opacity-50"
+            disabled={!selectedExam || loading}
+          >
+            Clear Questions
           </button>
         </div>
       </div>

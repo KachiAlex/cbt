@@ -1,85 +1,75 @@
-// Clean data service for CBTLocal app - localStorage only
-class DataService {
-  constructor() {
-    this.storageKeys = {
-      users: 'cbt_users',
-      exams: 'cbt_exams',
-      questions: 'cbt_questions',
-      results: 'cbt_results'
-    };
-  }
+// Firestore-backed data service
+import { db } from '../firebase/config';
+import {
+  collection,
+  doc,
+  addDoc,
+  getDoc,
+  getDocs,
+  setDoc,
+  updateDoc,
+  deleteDoc,
+  query,
+  where,
+  serverTimestamp
+} from 'firebase/firestore';
 
-  // User management
+class DataService {
+  // Users
   async getUsers() {
     try {
-      const users = localStorage.getItem(this.storageKeys.users);
-      return users ? JSON.parse(users) : [];
+      const snapshot = await getDocs(collection(db, 'users'));
+      return snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
     } catch (error) {
       console.error('Error getting users:', error);
       return [];
     }
   }
 
-  async saveUsers(users) {
-    try {
-      localStorage.setItem(this.storageKeys.users, JSON.stringify(users));
+  async saveUsers(_users) {
+    // Not used in Firestore approach; keep as no-op to preserve API
     return true;
-    } catch (error) {
-      console.error('Error saving users:', error);
-    return false;
-  }
   }
 
   async createUser(userData) {
     try {
-      const users = await this.getUsers();
-      const newUser = {
-        id: `user-${Date.now()}`,
+      const docRef = await addDoc(collection(db, 'users'), {
         ...userData,
-        createdAt: new Date().toISOString()
-      };
-      users.push(newUser);
-      await this.saveUsers(users);
-      return newUser;
+        createdAt: serverTimestamp(),
+      });
+      const docSnap = await getDoc(docRef);
+      return { id: docRef.id, ...docSnap.data() };
     } catch (error) {
       console.error('Error creating user:', error);
       return null;
     }
   }
 
-  // Exam management
+  // Exams
   async getExams() {
     try {
-      const exams = localStorage.getItem(this.storageKeys.exams);
-      return exams ? JSON.parse(exams) : [];
+      const snapshot = await getDocs(collection(db, 'exams'));
+      return snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
     } catch (error) {
       console.error('Error getting exams:', error);
       return [];
     }
   }
 
-  async saveExams(exams) {
-    try {
-      localStorage.setItem(this.storageKeys.exams, JSON.stringify(exams));
-      return true;
-  } catch (error) {
-      console.error('Error saving exams:', error);
-      return false;
-    }
+  async saveExams(_exams) {
+    // Not used in Firestore approach; keep as no-op
+    return true;
   }
 
   async createExam(examData) {
     try {
-      const exams = await this.getExams();
-      const newExam = {
-        id: `exam-${Date.now()}`,
+      const docRef = await addDoc(collection(db, 'exams'), {
+        isActive: true,
+        createdAt: serverTimestamp(),
         ...examData,
-        createdAt: new Date().toISOString(),
-        isActive: true
-      };
-      exams.push(newExam);
-      await this.saveExams(exams);
-      return newExam;
+      });
+      const docSnap = await getDoc(docRef);
+      return { id: docRef.id, ...docSnap.data() };
     } catch (error) {
       console.error('Error creating exam:', error);
       return null;
@@ -88,15 +78,11 @@ class DataService {
 
   async updateExam(examId, updates) {
     try {
-      const exams = await this.getExams();
-      const examIndex = exams.findIndex(e => e.id === examId);
-      if (examIndex !== -1) {
-        exams[examIndex] = { ...exams[examIndex], ...updates };
-        await this.saveExams(exams);
-        return exams[examIndex];
-      }
-      return null;
-      } catch (error) {
+      const ref = doc(db, 'exams', examId);
+      await updateDoc(ref, { ...updates, updatedAt: serverTimestamp() });
+      const snap = await getDoc(ref);
+      return { id: snap.id, ...snap.data() };
+    } catch (error) {
       console.error('Error updating exam:', error);
       return null;
     }
@@ -104,91 +90,74 @@ class DataService {
 
   async deleteExam(examId) {
     try {
-      const exams = await this.getExams();
-      const filteredExams = exams.filter(e => e.id !== examId);
-      await this.saveExams(filteredExams);
-          return true;
-      } catch (error) {
+      await deleteDoc(doc(db, 'exams', examId));
+      return true;
+    } catch (error) {
       console.error('Error deleting exam:', error);
       return false;
     }
   }
 
-  // Question management
+  // Questions
   async getQuestions(examId) {
     try {
-      const questions = localStorage.getItem(this.storageKeys.questions);
-      const allQuestions = questions ? JSON.parse(questions) : [];
-      return allQuestions.filter(q => q.examId === examId);
-      } catch (error) {
+      const q = query(collection(db, 'questions'), where('examId', '==', examId));
+      const snapshot = await getDocs(q);
+      return snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+    } catch (error) {
       console.error('Error getting questions:', error);
       return [];
     }
   }
 
-  async saveQuestions(questions) {
-    try {
-      localStorage.setItem(this.storageKeys.questions, JSON.stringify(questions));
-      return true;
-    } catch (error) {
-      console.error('Error saving questions:', error);
-      return false;
-    }
+  async saveQuestions(_questions) {
+    // Not used; per-question writes handled in addQuestions
+    return true;
   }
 
   async addQuestions(examId, questionsData) {
     try {
-      const allQuestions = localStorage.getItem(this.storageKeys.questions);
-      const questions = allQuestions ? JSON.parse(allQuestions) : [];
-      
-      const newQuestions = questionsData.map((q, index) => ({
-        id: `q-${examId}-${Date.now()}-${index}`,
-        examId,
-        ...q,
-        createdAt: new Date().toISOString()
-      }));
-      
-      questions.push(...newQuestions);
-      await this.saveQuestions(questions);
-      return newQuestions;
+      const created = [];
+      for (const qd of questionsData) {
+        const docRef = await addDoc(collection(db, 'questions'), {
+          examId,
+          createdAt: serverTimestamp(),
+          ...qd,
+        });
+        const snap = await getDoc(docRef);
+        created.push({ id: docRef.id, ...snap.data() });
+      }
+      return created;
     } catch (error) {
       console.error('Error adding questions:', error);
       return [];
     }
-    }
+  }
 
-  // Results management
+  // Results
   async getResults() {
     try {
-      const results = localStorage.getItem(this.storageKeys.results);
-      return results ? JSON.parse(results) : [];
-      } catch (error) {
+      const snapshot = await getDocs(collection(db, 'results'));
+      return snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+    } catch (error) {
       console.error('Error getting results:', error);
       return [];
     }
   }
 
-  async saveResults(results) {
-    try {
-      localStorage.setItem(this.storageKeys.results, JSON.stringify(results));
-      return true;
-    } catch (error) {
-      console.error('Error saving results:', error);
-      return false;
-    }
+  async saveResults(_results) {
+    // Not used in Firestore approach
+    return true;
   }
 
   async saveExamResult(resultData) {
     try {
-      const results = await this.getResults();
-      const newResult = {
-        id: `result-${Date.now()}`,
+      const docRef = await addDoc(collection(db, 'results'), {
         ...resultData,
-        submittedAt: new Date().toISOString()
-      };
-      results.push(newResult);
-      await this.saveResults(results);
-      return newResult;
+        submittedAt: serverTimestamp(),
+      });
+      const snap = await getDoc(docRef);
+      return { id: docRef.id, ...snap.data() };
     } catch (error) {
       console.error('Error saving exam result:', error);
       return null;
@@ -197,9 +166,10 @@ class DataService {
 
   async getResultsByExam(examId) {
     try {
-      const results = await this.getResults();
-      return results.filter(r => r.examId === examId);
-      } catch (error) {
+      const q = query(collection(db, 'results'), where('examId', '==', examId));
+      const snapshot = await getDocs(q);
+      return snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+    } catch (error) {
       console.error('Error getting results by exam:', error);
       return [];
     }
@@ -207,53 +177,19 @@ class DataService {
 
   async getResultsByUser(userId) {
     try {
-      const results = await this.getResults();
-      return results.filter(r => r.userId === userId);
-      } catch (error) {
+      const q = query(collection(db, 'results'), where('userId', '==', userId));
+      const snapshot = await getDocs(q);
+      return snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+    } catch (error) {
       console.error('Error getting results by user:', error);
       return [];
     }
   }
 
-  // Utility methods
-  clearAllData() {
-    try {
-      Object.values(this.storageKeys).forEach(key => {
-        localStorage.removeItem(key);
-      });
-      return true;
-      } catch (error) {
-      console.error('Error clearing data:', error);
-      return false;
-    }
-  }
-
-  exportData() {
-    try {
-      const data = {};
-      Object.entries(this.storageKeys).forEach(([key, storageKey]) => {
-        data[key] = localStorage.getItem(storageKey);
-      });
-      return data;
-      } catch (error) {
-      console.error('Error exporting data:', error);
-      return null;
-    }
-  }
-
-  importData(data) {
-    try {
-      Object.entries(data).forEach(([key, value]) => {
-        if (this.storageKeys[key]) {
-          localStorage.setItem(this.storageKeys[key], value);
-        }
-      });
-      return true;
-    } catch (error) {
-      console.error('Error importing data:', error);
-      return false;
-    }
-  }
+  // Utilities (no-ops in Firestore mode)
+  clearAllData() { return false; }
+  exportData() { return null; }
+  importData(_data) { return false; }
 }
 
 export const dataService = new DataService();

@@ -10,6 +10,103 @@ const ExamInterface = ({ user, exam, onComplete }) => {
   const [examCompleted, setExamCompleted] = useState(false);
   const [loading, setLoading] = useState(true);
 
+  // Deterministic PRNG based on seed (mulberry32)
+  const mulberry32 = (seed) => {
+    let t = seed >>> 0;
+    return () => {
+      t += 0x6D2B79F5;
+      let r = Math.imul(t ^ (t >>> 15), t | 1);
+      r ^= r + Math.imul(r ^ (r >>> 7), r | 61);
+      return ((r ^ (r >>> 14)) >>> 0) / 4294967296;
+    };
+  };
+
+  const stringToSeed = (str) => {
+    let h = 2166136261;
+    for (let i = 0; i < str.length; i++) {
+      h ^= str.charCodeAt(i);
+      h += (h << 1) + (h << 4) + (h << 7) + (h << 8) + (h << 24);
+    }
+    return h >>> 0;
+  };
+
+  const shuffleArray = (array, rand) => {
+    const arr = array.slice();
+    for (let i = arr.length - 1; i > 0; i--) {
+      const j = Math.floor(rand() * (i + 1));
+      [arr[i], arr[j]] = [arr[j], arr[i]];
+    }
+    return arr;
+  };
+
+  const getPersistKey = () => `cbt_order_${exam.id}_${user.id}`;
+
+  const applyRandomization = (loadedQuestions) => {
+    // Flags could come from exam or institution settings; default to true for both
+    const randomizeQuestions = exam?.randomizeQuestions !== false;
+    const randomizeOptions = exam?.randomizeOptions !== false;
+
+    const persistKey = getPersistKey();
+    const persisted = localStorage.getItem(persistKey);
+
+    if (persisted) {
+      try {
+        const saved = JSON.parse(persisted);
+        const idToQuestion = new Map(loadedQuestions.map(q => [q.id, q]));
+        const reordered = saved.questionOrder
+          .map(qid => idToQuestion.get(qid))
+          .filter(Boolean);
+        // Fallback if mismatch
+        const baseQuestions = reordered.length ? reordered : loadedQuestions;
+        const withOptionOrders = baseQuestions.map(q => {
+          const order = saved.optionOrders?.[q.id];
+          if (randomizeOptions && Array.isArray(order) && q.options) {
+            const opts = order.map(idx => q.options[idx]).filter(v => v !== undefined);
+            return { ...q, options: opts };
+          }
+          return q;
+        });
+        return withOptionOrders;
+      } catch (_) {
+        // fall through to fresh generation
+      }
+    }
+
+    // Generate deterministic per-student order
+    const seed = stringToSeed(`${exam.id}::${user.id}`);
+    const rand = mulberry32(seed);
+
+    let questionOrder = loadedQuestions.slice();
+    if (randomizeQuestions) {
+      questionOrder = shuffleArray(questionOrder, rand);
+    }
+
+    const optionOrders = {};
+    const randomized = questionOrder.map(q => {
+      if (randomizeOptions && Array.isArray(q.options)) {
+        const indices = q.options.map((_, idx) => idx);
+        const shuffledIdx = shuffleArray(indices, rand);
+        optionOrders[q.id] = shuffledIdx;
+        const newOptions = shuffledIdx.map(i => q.options[i]);
+        return { ...q, options: newOptions };
+      }
+      return q;
+    });
+
+    // Persist mapping to ensure consistency for this attempt
+    try {
+      const saved = {
+        questionOrder: randomized.map(q => q.id),
+        optionOrders
+      };
+      localStorage.setItem(persistKey, JSON.stringify(saved));
+    } catch (_) {
+      // ignore persistence failures
+    }
+
+    return randomized;
+  };
+
   useEffect(() => {
     loadExamQuestions();
   }, [exam.id]);
@@ -33,7 +130,8 @@ const ExamInterface = ({ user, exam, onComplete }) => {
   const loadExamQuestions = async () => {
     try {
       const examQuestions = await dataService.getQuestions(exam.id);
-      setQuestions(examQuestions);
+      const randomized = applyRandomization(examQuestions || []);
+      setQuestions(randomized);
       setLoading(false);
     } catch (error) {
       console.error('Error loading questions:', error);
@@ -67,6 +165,8 @@ const ExamInterface = ({ user, exam, onComplete }) => {
   const handleSubmitExam = async () => {
     try {
       setExamCompleted(true);
+      // Clear persisted order for a fresh start on next attempt
+      try { localStorage.removeItem(getPersistKey()); } catch (_) {}
       
       // Calculate score
       let correctAnswers = 0;

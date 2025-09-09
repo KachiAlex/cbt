@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import firebaseDataService from '../firebase/dataService';
 
 const InstitutionLoginPage = ({ institution, onLogin, onAdminAccess }) => {
   const [formData, setFormData] = useState({
@@ -95,20 +96,20 @@ const InstitutionLoginPage = ({ institution, onLogin, onAdminAccess }) => {
     }
 
     try {
-      // For now, we'll create a simple student registration
-      // In a real implementation, you'd save this to a database
       const studentData = {
-        id: `student_${Date.now()}`,
         fullName: registerData.fullName,
         email: registerData.email,
         username: registerData.username,
         password: registerData.password,
         role: 'student',
+        isActive: true,
         institutionId: institution.id,
-        institutionName: institution.name
+        institutionName: institution.name,
+        createdAt: new Date().toISOString()
       };
 
-      // Simulate successful registration
+      await firebaseDataService.createUser(studentData);
+
       setFormData({
         username: registerData.username,
         password: registerData.password
