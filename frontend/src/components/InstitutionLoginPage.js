@@ -108,7 +108,8 @@ const InstitutionLoginPage = ({ institution, onLogin, onAdminAccess }) => {
         createdAt: new Date().toISOString()
       };
 
-      await firebaseDataService.createUser(studentData);
+      const newUser = await firebaseDataService.createUser(studentData);
+      console.log('🔍 InstitutionLoginPage: Created new student:', newUser);
 
       setFormData({
         username: registerData.username,
