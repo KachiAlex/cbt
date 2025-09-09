@@ -130,6 +130,8 @@ const ExamInterface = ({ user, exam, onComplete }) => {
   const loadExamQuestions = async () => {
     try {
       const examQuestions = await dataService.getQuestions(exam.id);
+      console.log('🔍 Loaded questions from Firestore:', examQuestions);
+      console.log('🔍 First question structure:', examQuestions[0]);
       const randomized = applyRandomization(examQuestions || []);
       setQuestions(randomized);
       setLoading(false);
@@ -316,6 +318,9 @@ const ExamInterface = ({ user, exam, onComplete }) => {
 
   const currentQuestion = questions[currentQuestionIndex];
   const progress = ((currentQuestionIndex + 1) / questions.length) * 100;
+  
+  console.log('🔍 Current question:', currentQuestion);
+  console.log('🔍 Current question options:', currentQuestion?.options);
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -353,19 +358,26 @@ const ExamInterface = ({ user, exam, onComplete }) => {
             </h2>
             
             <div className="space-y-3">
-              {currentQuestion.options.map((option, index) => (
-                <label key={index} className="flex items-center p-3 border border-gray-200 rounded-md hover:bg-gray-50 cursor-pointer">
-                  <input
-                    type="radio"
-                    name={`question-${currentQuestion.id}`}
-                    value={option}
-                    checked={answers[currentQuestion.id] === option}
-                    onChange={(e) => handleAnswerChange(currentQuestion.id, e.target.value)}
-                    className="mr-3 text-indigo-600 focus:ring-indigo-500"
-                  />
-                  <span className="text-gray-700">{option}</span>
-                </label>
-              ))}
+              {currentQuestion.options && currentQuestion.options.length > 0 ? (
+                currentQuestion.options.map((option, index) => (
+                  <label key={index} className="flex items-center p-3 border border-gray-200 rounded-md hover:bg-gray-50 cursor-pointer">
+                    <input
+                      type="radio"
+                      name={`question-${currentQuestion.id}`}
+                      value={option}
+                      checked={answers[currentQuestion.id] === option}
+                      onChange={(e) => handleAnswerChange(currentQuestion.id, e.target.value)}
+                      className="mr-3 text-indigo-600 focus:ring-indigo-500"
+                    />
+                    <span className="text-gray-700">{option}</span>
+                  </label>
+                ))
+              ) : (
+                <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-md">
+                  <p className="text-yellow-800">⚠️ No options available for this question. Please contact your instructor.</p>
+                  <p className="text-sm text-yellow-700 mt-1">Question ID: {currentQuestion.id}</p>
+                </div>
+              )}
             </div>
           </div>
           
