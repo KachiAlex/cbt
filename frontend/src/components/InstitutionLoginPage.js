@@ -96,6 +96,58 @@ const InstitutionLoginPage = ({ institution, onLogin, onAdminAccess }) => {
     }
 
     try {
+      // Check if user already exists in Firestore
+      const existingUsers = await firebaseDataService.getInstitutionUsers(institution.id);
+      const userExists = existingUsers.some(user => 
+        user.email === registerData.email || user.username === registerData.username
+      );
+      
+      if (userExists) {
+        setError('A user with this email or username already exists.');
+        setLoading(false);
+        return;
+      }
+
+      // Check if user exists in localStorage (migration check)
+      const oldUsers = JSON.parse(localStorage.getItem('cbt_users_v1') || '[]');
+      const oldUserExists = oldUsers.some(user => 
+        user.email === registerData.email || user.username === registerData.username
+      );
+      
+      if (oldUserExists) {
+        console.log('🔍 Found user in localStorage, migrating to Firestore...');
+        // Migrate the user from localStorage to Firestore
+        const oldUser = oldUsers.find(user => 
+          user.email === registerData.email || user.username === registerData.username
+        );
+        
+        const migratedUserData = {
+          ...oldUser,
+          institutionId: institution.id,
+          institutionName: institution.name,
+          role: 'student',
+          isActive: true,
+          createdAt: new Date().toISOString()
+        };
+        
+        const migratedUser = await firebaseDataService.createUser(migratedUserData);
+        console.log('🔍 Successfully migrated user:', migratedUser);
+        
+        // Remove from localStorage
+        const updatedOldUsers = oldUsers.filter(user => user.id !== oldUser.id);
+        localStorage.setItem('cbt_users_v1', JSON.stringify(updatedOldUsers));
+        
+        setFormData({
+          username: registerData.username,
+          password: registerData.password
+        });
+        setShowRegister(false);
+        setError('');
+        alert('User migrated successfully! You can now sign in.');
+        setLoading(false);
+        return;
+      }
+
       const studentData = {
         fullName: registerData.fullName,
         email: registerData.email,
@@ -108,8 +160,9 @@ const InstitutionLoginPage = ({ institution, onLogin, onAdminAccess }) => {
         createdAt: new Date().toISOString()
       };
 
+      console.log('🔍 InstitutionLoginPage: Attempting to create student with data:', studentData);
       const newUser = await firebaseDataService.createUser(studentData);
-      console.log('🔍 InstitutionLoginPage: Created new student:', newUser);
+      console.log('🔍 InstitutionLoginPage: Successfully created new student:', newUser);
 
       setFormData({
         username: registerData.username,
@@ -119,7 +172,8 @@ const InstitutionLoginPage = ({ institution, onLogin, onAdminAccess }) => {
       setError('');
       alert('Registration successful! You can now sign in.');
     } catch (err) {
-      setError('Registration failed. Please try again.');
+      console.error('🔍 InstitutionLoginPage: Registration failed with error:', err);
+      setError(`Registration failed: ${err.message || 'Please try again.'}`);
     } finally {
       setLoading(false);
     }
