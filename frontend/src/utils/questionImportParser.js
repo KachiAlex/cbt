@@ -158,6 +158,19 @@ export class ExcelQuestionParser {
       }
     });
     
+    // Also look for option columns with different naming patterns
+    headers.forEach((header, index) => {
+      const lowerHeader = header.toLowerCase();
+      if (lowerHeader.includes('option') || lowerHeader.includes('choice') || lowerHeader.includes('answer')) {
+        // Check if it's a specific option (A, B, C, D)
+        const optionMatch = lowerHeader.match(/option\s*([a-e])|choice\s*([a-e])|answer\s*([a-e])/);
+        if (optionMatch) {
+          const optionLetter = optionMatch[1] || optionMatch[2] || optionMatch[3];
+          columnMap[`option_${optionLetter}`] = index;
+        }
+      }
+    });
+    
     return columnMap;
   }
 
@@ -179,20 +192,32 @@ export class ExcelQuestionParser {
   parseOptions(row, columnMap) {
     const options = [];
     
-    // Try to find options in separate columns
-    for (let i = 0; i < 10; i++) {
-      const optionKey = `option_${String.fromCharCode(97 + i)}`; // a, b, c, d, etc.
-      const value = this.getCellValue(row, columnMap[optionKey]);
-      if (value) {
-        options.push(value);
+    // Try to find options in separate columns (Option A, Option B, etc.)
+    const optionColumns = ['option_a', 'option_b', 'option_c', 'option_d', 'option_e'];
+    for (const optionKey of optionColumns) {
+      if (columnMap[optionKey] !== undefined) {
+        const value = this.getCellValue(row, columnMap[optionKey]);
+        if (value && value.trim()) {
+          options.push(value.trim());
+        }
       }
     }
     
-    // If no separate option columns, try to parse from options column
+    // If no separate option columns found, try to parse from options column
     if (options.length === 0 && columnMap.options !== undefined) {
       const optionsText = this.getCellValue(row, columnMap.options);
       if (optionsText) {
         return this.parseOptionsFromText(optionsText);
+      }
+    }
+    
+    // If still no options, try to find any column that might contain options
+    if (options.length === 0) {
+      for (let i = 0; i < row.length; i++) {
+        const cellValue = this.getCellValue(row, i);
+        if (cellValue && this.looksLikeOption(cellValue)) {
+          options.push(cellValue.trim());
+        }
       }
     }
     
@@ -202,19 +227,38 @@ export class ExcelQuestionParser {
   parseOptionsFromText(text) {
     // Flexible parsing of options from text
     const patterns = [
-      /([A-D])[\.\)\-\s]+([^\n]+)/g,
-      /([A-D])[\s]+([^\n]+)/g,
-      /([A-D])[\.\)]([^\n]+)/g
+      /([A-E])[\.\)\-\s]+([^\n]+)/g,
+      /([A-E])[\s]+([^\n]+)/g,
+      /([A-E])[\.\)]([^\n]+)/g,
+      /([A-E])[\s]*([^\n]+)/g
     ];
     
     for (const pattern of patterns) {
       const matches = [...text.matchAll(pattern)];
       if (matches.length > 0) {
-        return matches.map(match => match[2].trim());
+        return matches.map(match => match[2].trim()).filter(opt => opt.length > 0);
       }
     }
     
-    // Fallback: split by common separators
+    // Try to parse options separated by newlines or semicolons
+    const lines = text.split(/[\n;]/).map(line => line.trim()).filter(line => line.length > 0);
+    const options = [];
+    
+    for (const line of lines) {
+      if (this.looksLikeOption(line)) {
+        // Remove the A), B), etc. prefix
+        const optionText = line.replace(/^[A-E][\.\)\-\s]+/, '').trim();
+        if (optionText) {
+          options.push(optionText);
+        }
+      }
+    }
+    
+    if (options.length > 0) {
+      return options;
+    }
+    
+    // Final fallback: split by common separators
     return text.split(/[;\n]/).map(opt => opt.trim()).filter(opt => opt.length > 0);
   }
 
@@ -244,6 +288,14 @@ export class ExcelQuestionParser {
 
   isEmptyRow(row) {
     return !row.some(cell => cell && cell.toString().trim().length > 0);
+  }
+
+  looksLikeOption(text) {
+    if (!text || text.length < 2) return false;
+    
+    // Check if it looks like an option (starts with A, B, C, D, E followed by punctuation)
+    const optionPattern = /^[A-E][\.\)\-\s]+/;
+    return optionPattern.test(text.trim());
   }
 }
 
