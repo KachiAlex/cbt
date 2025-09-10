@@ -208,19 +208,7 @@ const InstitutionLoginPage = ({ institution, onLogin, onAdminAccess }) => {
                    Admin Access
                  </h2>
                  
-                 <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-md">
-                   <h3 className="text-sm font-medium text-blue-800 mb-2">Admin Credentials</h3>
-                   <div className="space-y-2 text-sm">
-                     <div className="flex justify-between">
-                       <span className="text-blue-700">Username:</span>
-                       <span className="font-mono text-blue-900">admin</span>
-                     </div>
-                     <div className="flex justify-between">
-                       <span className="text-blue-700">Password:</span>
-                       <span className="font-mono text-blue-900">admin123</span>
-                     </div>
-                   </div>
-                 </div>
+                 {/* Admin credential hints removed for security */}
 
                  {error && (
                    <div className="mb-4 p-3 bg-red-100 border border-red-400 text-red-700 rounded">
