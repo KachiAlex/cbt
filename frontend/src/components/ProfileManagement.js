@@ -3,7 +3,6 @@ import axios from 'axios';
 
 const ProfileManagement = ({ user, tenant }) => {
     const [profile, setProfile] = useState({});
-    const [admins, setAdmins] = useState([]);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
     const [success, setSuccess] = useState('');
@@ -17,18 +16,11 @@ const ProfileManagement = ({ user, tenant }) => {
         contact_phone: ''
     });
     
-    const [newAdminForm, setNewAdminForm] = useState({
-        username: '',
-        email: '',
-        fullName: '',
-        phone: '',
-        password: ''
-    });
+    // Single-admin flow: remove multi-admin creation UI
 
     useEffect(() => {
         if (tenant?.slug) {
             fetchProfile();
-            fetchAdmins();
         }
     }, [tenant]);
 
@@ -47,14 +39,7 @@ const ProfileManagement = ({ user, tenant }) => {
         }
     };
 
-    const fetchAdmins = async () => {
-        try {
-            const response = await axios.get(`https://cbt-rew7.onrender.com/api/tenant/${tenant.slug}/admins`);
-            setAdmins(response.data);
-        } catch (error) {
-            console.error('Error fetching admins:', error);
-        }
-    };
+    // Single-admin flow: no admins list
 
     const handleProfileUpdate = async (e) => {
         e.preventDefault();
@@ -73,48 +58,11 @@ const ProfileManagement = ({ user, tenant }) => {
         }
     };
 
-    const handleCreateAdmin = async (e) => {
-        e.preventDefault();
-        setLoading(true);
-        setError('');
-        setSuccess('');
+    // Single-admin flow: no admin creation
 
-        try {
-            await axios.post(`https://cbt-rew7.onrender.com/api/tenant/${tenant.slug}/admins`, {
-                ...newAdminForm,
-                requesting_user_id: user._id
-            });
-            setSuccess('Admin created successfully!');
-            setNewAdminForm({
-                username: '',
-                email: '',
-                fullName: '',
-                phone: '',
-                password: ''
-            });
-            fetchAdmins();
-        } catch (error) {
-            setError(error.response?.data?.error || 'Failed to create admin');
-        } finally {
-            setLoading(false);
-        }
-    };
+    // Single-admin flow: no admin removal
 
-    const handleRemoveAdmin = async (adminId) => {
-        if (!window.confirm('Are you sure you want to remove this admin?')) return;
-
-        try {
-            await axios.delete(`https://cbt-rew7.onrender.com/api/tenant/${tenant.slug}/admins/${adminId}`, {
-                data: { requesting_user_id: user._id }
-            });
-            setSuccess('Admin removed successfully!');
-            fetchAdmins();
-        } catch (error) {
-            setError(error.response?.data?.error || 'Failed to remove admin');
-        }
-    };
-
-    const isDefaultAdmin = user?.is_default_admin || user?.isDefaultAdmin || user?.role === 'super_admin';
+    const isDefaultAdmin = (user?.role === 'super_admin') || (user?.username === 'admin') || user?.is_default_admin || user?.isDefaultAdmin;
     if (!isDefaultAdmin) {
         return (
             <div className="p-6">
@@ -147,16 +95,7 @@ const ProfileManagement = ({ user, tenant }) => {
                     >
                         Institution Profile
                     </button>
-                    <button
-                        onClick={() => setActiveTab('admins')}
-                        className={`py-2 px-1 border-b-2 font-medium text-sm ${
-                            activeTab === 'admins'
-                                ? 'border-indigo-500 text-indigo-600'
-                                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                        }`}
-                    >
-                        Admin Management
-                    </button>
+                    {/* Single-admin flow: Admin Management disabled */}
                 </nav>
             </div>
 
@@ -233,136 +172,7 @@ const ProfileManagement = ({ user, tenant }) => {
                 </div>
             )}
 
-            {/* Admins Tab */}
-            {activeTab === 'admins' && (
-                <div className="space-y-6">
-                    {/* Create New Admin */}
-                    <div className="bg-white shadow rounded-lg p-6">
-                        <h3 className="text-lg font-medium text-gray-900 mb-4">Create New Admin</h3>
-                        
-                        <form onSubmit={handleCreateAdmin} className="space-y-4">
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700">Username</label>
-                                    <input
-                                        type="text"
-                                        value={newAdminForm.username}
-                                        onChange={(e) => setNewAdminForm({...newAdminForm, username: e.target.value})}
-                                        className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-                                        required
-                                    />
-                                </div>
-                                
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700">Email</label>
-                                    <input
-                                        type="email"
-                                        value={newAdminForm.email}
-                                        onChange={(e) => setNewAdminForm({...newAdminForm, email: e.target.value})}
-                                        className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-                                        required
-                                    />
-                                </div>
-                                
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700">Full Name</label>
-                                    <input
-                                        type="text"
-                                        value={newAdminForm.fullName}
-                                        onChange={(e) => setNewAdminForm({...newAdminForm, fullName: e.target.value})}
-                                        className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-                                        required
-                                    />
-                                </div>
-                                
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700">Phone</label>
-                                    <input
-                                        type="tel"
-                                        value={newAdminForm.phone}
-                                        onChange={(e) => setNewAdminForm({...newAdminForm, phone: e.target.value})}
-                                        className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-                                    />
-                                </div>
-                                
-                                <div className="md:col-span-2">
-                                    <label className="block text-sm font-medium text-gray-700">Password</label>
-                                    <input
-                                        type="password"
-                                        value={newAdminForm.password}
-                                        onChange={(e) => setNewAdminForm({...newAdminForm, password: e.target.value})}
-                                        className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-                                        required
-                                    />
-                                </div>
-                            </div>
-                            
-                            <div className="flex justify-end">
-                                <button
-                                    type="submit"
-                                    disabled={loading}
-                                    className="bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 disabled:opacity-50"
-                                >
-                                    {loading ? 'Creating...' : 'Create Admin'}
-                                </button>
-                            </div>
-                        </form>
-                    </div>
-
-                    {/* Admin List */}
-                    <div className="bg-white shadow rounded-lg p-6">
-                        <h3 className="text-lg font-medium text-gray-900 mb-4">Current Admins</h3>
-                        
-                        <div className="overflow-x-auto">
-                            <table className="min-w-full divide-y divide-gray-200">
-                                <thead className="bg-gray-50">
-                                    <tr>
-                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
-                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Username</th>
-                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email</th>
-                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Role</th>
-                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
-                                    </tr>
-                                </thead>
-                                <tbody className="bg-white divide-y divide-gray-200">
-                                    {admins.map((admin) => (
-                                        <tr key={admin._id}>
-                                            <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                                                {admin.fullName}
-                                            </td>
-                                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                                {admin.username}
-                                            </td>
-                                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                                {admin.email}
-                                            </td>
-                                            <td className="px-6 py-4 whitespace-nowrap">
-                                                <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                                                    (admin.is_default_admin || admin.isDefaultAdmin) 
-                                                        ? 'bg-purple-100 text-purple-800' 
-                                                        : 'bg-green-100 text-green-800'
-                                                }`}>
-                                                    {(admin.is_default_admin || admin.isDefaultAdmin) ? 'Default Admin' : 'Admin'}
-                                                </span>
-                                            </td>
-                                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                                {!(admin.is_default_admin || admin.isDefaultAdmin) && (
-                                                    <button
-                                                        onClick={() => handleRemoveAdmin(admin._id)}
-                                                        className="text-red-600 hover:text-red-900"
-                                                    >
-                                                        Remove
-                                                    </button>
-                                                )}
-                                            </td>
-                                        </tr>
-                                    ))}
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
-                </div>
-            )}
+            {/* Single-admin flow: Admins Tab disabled */}
         </div>
     );
 };
