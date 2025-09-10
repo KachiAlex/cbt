@@ -114,7 +114,8 @@ const ProfileManagement = ({ user, tenant }) => {
         }
     };
 
-    if (!user?.is_default_admin) {
+    const isDefaultAdmin = user?.is_default_admin || user?.isDefaultAdmin || user?.role === 'super_admin';
+    if (!isDefaultAdmin) {
         return (
             <div className="p-6">
                 <div className="bg-yellow-50 border border-yellow-200 rounded-md p-4">
@@ -337,15 +338,15 @@ const ProfileManagement = ({ user, tenant }) => {
                                             </td>
                                             <td className="px-6 py-4 whitespace-nowrap">
                                                 <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                                                    admin.is_default_admin 
+                                                    (admin.is_default_admin || admin.isDefaultAdmin) 
                                                         ? 'bg-purple-100 text-purple-800' 
                                                         : 'bg-green-100 text-green-800'
                                                 }`}>
-                                                    {admin.is_default_admin ? 'Default Admin' : 'Admin'}
+                                                    {(admin.is_default_admin || admin.isDefaultAdmin) ? 'Default Admin' : 'Admin'}
                                                 </span>
                                             </td>
                                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                                {!admin.is_default_admin && (
+                                                {!(admin.is_default_admin || admin.isDefaultAdmin) && (
                                                     <button
                                                         onClick={() => handleRemoveAdmin(admin._id)}
                                                         className="text-red-600 hover:text-red-900"

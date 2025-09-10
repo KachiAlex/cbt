@@ -85,7 +85,7 @@ const Settings = ({ user, tenant }) => {
                     <div>
                         <label className="block text-sm font-medium text-gray-700">Role</label>
                         <p className="mt-1 text-sm text-gray-900">
-                            {user?.is_default_admin ? 'Default Admin' : 'Admin'}
+                            {(user?.is_default_admin || user?.isDefaultAdmin || user?.role === 'super_admin') ? 'Default Admin' : 'Admin'}
                         </p>
                     </div>
                 </div>
