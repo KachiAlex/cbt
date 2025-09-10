@@ -127,8 +127,8 @@ const StudentPortal = ({ user, onLogout, onStartExam }) => {
                         </div>
                         {hasTaken && (
                           <div className="flex justify-between text-sm">
-                            <span className="text-gray-500">Score:</span>
-                            <span className="font-medium">{result.score}%</span>
+                            <span className="text-gray-500">Status:</span>
+                            <span className="font-medium text-gray-700">Result will be communicated by the school</span>
                           </div>
                         )}
                       </div>
@@ -185,7 +185,7 @@ const StudentPortal = ({ user, onLogout, onStartExam }) => {
                         Exam
                       </th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Score
+                        Result
                       </th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Status
@@ -202,7 +202,7 @@ const StudentPortal = ({ user, onLogout, onStartExam }) => {
                           {result.examTitle}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                          {result.score}%
+                          To be communicated by the school
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
                           <span className={`px-2 py-1 text-xs rounded-full ${

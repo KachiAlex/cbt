@@ -276,41 +276,21 @@ const ExamInterface = ({ user, exam, onComplete }) => {
   }
 
   if (examCompleted) {
-    const result = questions.reduce((acc, question) => {
-      if (answers[question.id] === question.correctAnswer) {
-        acc.correct++;
-      }
-      return acc;
-    }, { correct: 0 });
-    
-    const score = Math.round((result.correct / questions.length) * 100);
-    
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="max-w-2xl mx-auto bg-white rounded-lg shadow-lg p-8 text-center">
-          <h2 className="text-3xl font-bold text-gray-900 mb-6">Exam Completed!</h2>
-          
-          <div className="space-y-4 mb-8">
-            <div className="text-6xl mb-4">
-              {score >= 70 ? '🎉' : '📝'}
-            </div>
-            <div className="text-4xl font-bold text-gray-900">
-              {score}%
-            </div>
-            <div className={`text-xl font-medium ${score >= 70 ? 'text-green-600' : 'text-red-600'}`}>
-              {score >= 70 ? 'Congratulations! You passed!' : 'You need to improve. Keep studying!'}
-            </div>
-            <div className="text-gray-600">
-              {result.correct} out of {questions.length} questions correct
-            </div>
+          <h2 className="text-3xl font-bold text-gray-900 mb-6">Exam Submitted</h2>
+          <div className="text-6xl mb-4">📬</div>
+          <p className="text-lg text-gray-700 mb-2">Thank you for completing the exam.</p>
+          <p className="text-gray-600">Your result will be communicated by the school authorities.</p>
+          <div className="mt-8">
+            <button
+              onClick={onComplete}
+              className="bg-indigo-600 text-white px-8 py-3 rounded-md hover:bg-indigo-700 text-lg font-medium"
+            >
+              Return to Portal
+            </button>
           </div>
-          
-          <button
-            onClick={onComplete}
-            className="bg-indigo-600 text-white px-8 py-3 rounded-md hover:bg-indigo-700 text-lg font-medium"
-          >
-            Return to Portal
-          </button>
         </div>
       </div>
     );
