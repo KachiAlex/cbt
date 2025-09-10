@@ -9,6 +9,9 @@ const ResultsManagement = ({ institution, onStatsUpdate }) => {
   const [selectedExam, setSelectedExam] = useState('');
   const [selectedStudent, setSelectedStudent] = useState('');
   const [showDetails, setShowDetails] = useState(null);
+  const [finalizeTarget, setFinalizeTarget] = useState(null);
+  const [finalizeScore, setFinalizeScore] = useState('');
+  const [finalizeNote, setFinalizeNote] = useState('');
 
   useEffect(() => {
     loadData();
@@ -56,7 +59,9 @@ const ResultsManagement = ({ institution, onStatsUpdate }) => {
     const colors = {
       completed: 'bg-green-100 text-green-800',
       in_progress: 'bg-yellow-100 text-yellow-800',
-      abandoned: 'bg-red-100 text-red-800'
+      abandoned: 'bg-red-100 text-red-800',
+      pending_review: 'bg-yellow-100 text-yellow-800',
+      provisional: 'bg-blue-100 text-blue-800'
     };
     return (
       <span className={`px-2 py-1 text-xs font-medium rounded-full ${colors[status] || 'bg-gray-100 text-gray-800'}`}>
@@ -73,6 +78,42 @@ const ResultsManagement = ({ institution, onStatsUpdate }) => {
   const getExamTitle = (examId) => {
     const exam = exams.find(e => e.id === examId);
     return exam ? exam.title : 'Unknown Exam';
+  };
+
+  const getPercent = (r) => {
+    if (typeof r.percentage === 'number') return r.percentage;
+    if (typeof r.score === 'number' && (r.totalQuestions === undefined || r.score <= 100)) return r.score;
+    return null;
+  };
+
+  const finalizeResult = async () => {
+    if (!finalizeTarget) return;
+    const parsed = parseInt(finalizeScore, 10);
+    if (isNaN(parsed) || parsed < 0 || parsed > 100) {
+      alert('Enter a valid percentage between 0 and 100');
+      return;
+    }
+    try {
+      setLoading(true);
+      await firebaseDataService.updateResult(finalizeTarget.id, {
+        percentage: parsed,
+        score: parsed,
+        status: 'completed',
+        finalized: true,
+        finalizedAt: new Date().toISOString(),
+        finalizeNote: finalizeNote || ''
+      });
+      setFinalizeTarget(null);
+      setFinalizeScore('');
+      setFinalizeNote('');
+      await loadData();
+      onStatsUpdate && onStatsUpdate();
+    } catch (e) {
+      console.error('Error finalizing result:', e);
+      alert('Failed to finalize result.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const exportResults = () => {
@@ -245,12 +286,15 @@ const ResultsManagement = ({ institution, onStatsUpdate }) => {
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap">
                   <div className="text-sm text-gray-900">
-                    {result.score} / {result.totalQuestions}
+                    {getPercent(result) !== null ? `${getPercent(result)}%` : (result.totalQuestions ? `${result.score} / {result.totalQuestions}` : '-')}
+                    {result.status === 'provisional' && (
+                      <span className="ml-2 text-xs px-2 py-0.5 rounded bg-blue-50 text-blue-700">Provisional</span>
+                    )}
                   </div>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap">
-                  <div className={`text-sm font-medium ${getGradeColor(result.percentage)}`}>
-                    {result.percentage}% ({getGradeLabel(result.percentage)})
+                  <div className={`text-sm font-medium ${getGradeColor(getPercent(result) ?? 0)}`}>
+                    {getPercent(result) !== null ? `${getPercent(result)}% (${getGradeLabel(getPercent(result))})` : '-'}
                   </div>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap">
@@ -266,6 +310,17 @@ const ResultsManagement = ({ institution, onStatsUpdate }) => {
                   >
                     View Details
                   </button>
+                  {(result.status === 'pending_review' || result.status === 'provisional') && (
+                    <button
+                      onClick={() => {
+                        setFinalizeTarget(result);
+                        setFinalizeScore(String(getPercent(result) ?? ''));
+                      }}
+                      className="ml-3 text-green-600 hover:text-green-800"
+                    >
+                      Finalize
+                    </button>
+                  )}
                 </td>
               </tr>
             ))}

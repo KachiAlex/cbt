@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { dataService } from '../services/dataService';
+import { scoreEssayAnswer, aggregateEssayScores } from '../utils/essayScorer';
 
 const ExamInterface = ({ user, exam, onComplete }) => {
   const [questions, setQuestions] = useState([]);
@@ -170,15 +171,29 @@ const ExamInterface = ({ user, exam, onComplete }) => {
       // Clear persisted order for a fresh start on next attempt
       try { localStorage.removeItem(getPersistKey()); } catch (_) {}
       
-      // Calculate score
-      let correctAnswers = 0;
-      questions.forEach(question => {
-        if (answers[question.id] === question.correctAnswer) {
-          correctAnswers++;
-        }
-      });
+      const isEssayExam = String(exam?.type || '').toLowerCase() === 'essay';
       
-      const score = Math.round((correctAnswers / questions.length) * 100);
+      // Calculate score for non-essay; for essay mark as pending
+      let correctAnswers = 0;
+      let essayAggregate = null;
+      if (!isEssayExam) {
+        questions.forEach(question => {
+          if (answers[question.id] === question.correctAnswer) {
+            correctAnswers++;
+          }
+        });
+      } else {
+        // Essay: compute heuristic per-question provisional scores
+        const perQuestion = questions.map(q => {
+          const answerText = answers[q.id] || '';
+          const rubricKeywords = q.rubricKeywords || '';
+          const minWords = q.minWords || 50;
+          const modelAnswer = q.modelAnswer || '';
+          return scoreEssayAnswer(answerText, rubricKeywords, minWords, modelAnswer);
+        });
+        essayAggregate = aggregateEssayScores(perQuestion);
+      }
+      const score = isEssayExam ? (essayAggregate?.percent ?? null) : Math.round((correctAnswers / questions.length) * 100);
       
       // Save result
       const result = {
@@ -190,7 +205,9 @@ const ExamInterface = ({ user, exam, onComplete }) => {
         score: score,
         totalQuestions: questions.length,
         correctAnswers: correctAnswers,
-        timeSpent: (exam.duration * 60) - timeLeft
+        timeSpent: (exam.duration * 60) - timeLeft,
+        status: isEssayExam ? (essayAggregate && essayAggregate.confidence >= 0.7 ? 'provisional' : 'pending_review') : 'completed',
+        provisional: isEssayExam ? { percent: essayAggregate?.percent ?? null, confidence: essayAggregate?.confidence ?? 0 } : undefined
       };
       
       await dataService.saveExamResult(result);

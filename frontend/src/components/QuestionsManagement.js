@@ -20,7 +20,10 @@ const QuestionsManagement = ({ institution, onStatsUpdate }) => {
     correctAnswer: '',
     explanation: '',
     points: 1,
-    difficulty: 'medium'
+    difficulty: 'medium',
+    rubricKeywords: '',
+    minWords: 50,
+    modelAnswer: ''
   });
 
   useEffect(() => {
@@ -83,7 +86,10 @@ const QuestionsManagement = ({ institution, onStatsUpdate }) => {
       correctAnswer: question.correctAnswer,
       explanation: question.explanation,
       points: question.points,
-      difficulty: question.difficulty
+      difficulty: question.difficulty,
+      rubricKeywords: question.rubricKeywords || '',
+      minWords: question.minWords || 50,
+      modelAnswer: question.modelAnswer || ''
     });
     setShowModal(true);
   };
@@ -155,7 +161,10 @@ const QuestionsManagement = ({ institution, onStatsUpdate }) => {
       correctAnswer: '',
       explanation: '',
       points: 1,
-      difficulty: 'medium'
+      difficulty: 'medium',
+      rubricKeywords: '',
+      minWords: 50,
+      modelAnswer: ''
     });
   };
 
@@ -420,6 +429,47 @@ const QuestionsManagement = ({ institution, onStatsUpdate }) => {
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
                     />
                   </div>
+                )}
+
+                {formData.type === 'essay' && (
+                  <>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Rubric Keywords (comma-separated)
+                      </label>
+                      <input
+                        type="text"
+                        value={formData.rubricKeywords}
+                        onChange={(e) => setFormData({ ...formData, rubricKeywords: e.target.value })}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                        placeholder="e.g., introduction, methodology, conclusion"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Minimum Word Count
+                      </label>
+                      <input
+                        type="number"
+                        min="0"
+                        value={formData.minWords}
+                        onChange={(e) => setFormData({ ...formData, minWords: parseInt(e.target.value) || 0 })}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Model Answer (Optional)
+                      </label>
+                      <textarea
+                        rows={4}
+                        value={formData.modelAnswer}
+                        onChange={(e) => setFormData({ ...formData, modelAnswer: e.target.value })}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                        placeholder="Provide an ideal answer to help auto-scoring"
+                      />
+                    </div>
+                  </>
                 )}
 
                 <div className="grid grid-cols-2 gap-4">
