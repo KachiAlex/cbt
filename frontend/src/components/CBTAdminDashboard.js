@@ -43,69 +43,30 @@ const CBTAdminDashboard = ({ institution, user, onLogout }) => {
     }
   };
 
-  // Role-based tabs - Super Admins see all, regular Admins only see exam-related tabs
+  // Single-admin model: show all tabs to admin users
   const getTabsForRole = () => {
-    const baseTabs = [
+    return [
       { id: 'exams', name: 'Exam Management', icon: '📝' },
-      { id: 'questions', name: 'Questions', icon: '❓' }
+      { id: 'questions', name: 'Questions', icon: '❓' },
+      { id: 'students', name: 'Students', icon: '👥' },
+      { id: 'results', name: 'Results', icon: '📊' },
+      { id: 'settings', name: 'Settings', icon: '⚙️' }
     ];
-
-    // Only Super Admins can access Students, Results, and Settings
-    if (user?.role === 'super_admin') {
-      return [
-        ...baseTabs,
-        { id: 'students', name: 'Students', icon: '👥' },
-        { id: 'results', name: 'Results', icon: '📊' },
-        { id: 'settings', name: 'Settings', icon: '⚙️' }
-      ];
-    }
-
-    return baseTabs;
   };
 
   const tabs = getTabsForRole();
 
   const renderTabContent = () => {
-    // Role-based access control
-    const isSuperAdmin = user?.role === 'super_admin';
-    
     switch (activeTab) {
       case 'exams':
         return <ExamManagement institution={institution} onStatsUpdate={loadDashboardStats} />;
       case 'questions':
         return <QuestionsManagement institution={institution} onStatsUpdate={loadDashboardStats} />;
       case 'students':
-        if (!isSuperAdmin) {
-          return (
-            <div className="text-center py-12">
-              <div className="text-red-500 text-6xl mb-4">🚫</div>
-              <h3 className="text-xl font-medium text-gray-900 mb-2">Access Denied</h3>
-              <p className="text-gray-600">You need Super Admin privileges to access student management.</p>
-            </div>
-          );
-        }
         return <StudentsManagement institution={institution} onStatsUpdate={loadDashboardStats} />;
       case 'results':
-        if (!isSuperAdmin) {
-          return (
-            <div className="text-center py-12">
-              <div className="text-red-500 text-6xl mb-4">🚫</div>
-              <h3 className="text-xl font-medium text-gray-900 mb-2">Access Denied</h3>
-              <p className="text-gray-600">You need Super Admin privileges to access exam results.</p>
-            </div>
-          );
-        }
         return <ResultsManagement institution={institution} onStatsUpdate={loadDashboardStats} />;
       case 'settings':
-        if (!isSuperAdmin) {
-          return (
-            <div className="text-center py-12">
-              <div className="text-red-500 text-6xl mb-4">🚫</div>
-              <h3 className="text-xl font-medium text-gray-900 mb-2">Access Denied</h3>
-              <p className="text-gray-600">You need Super Admin privileges to access system settings.</p>
-            </div>
-          );
-        }
         return <SettingsManagement institution={institution} user={user} onLogout={onLogout} />;
       default:
         return <ExamManagement institution={institution} onStatsUpdate={loadDashboardStats} />;
