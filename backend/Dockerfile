@@ -14,11 +14,10 @@ RUN npm install
 COPY . .
 
 # Expose port
-EXPOSE 10000
+EXPOSE 8080
 
 # Set environment variables
 ENV NODE_ENV=production
-ENV PORT=10000
 
 # Start the application
 CMD ["npm", "start"] 

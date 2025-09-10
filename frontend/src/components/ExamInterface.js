@@ -177,11 +177,11 @@ const ExamInterface = ({ user, exam, onComplete }) => {
       let correctAnswers = 0;
       let essayAggregate = null;
       if (!isEssayExam) {
-        questions.forEach(question => {
-          if (answers[question.id] === question.correctAnswer) {
-            correctAnswers++;
-          }
-        });
+      questions.forEach(question => {
+        if (answers[question.id] === question.correctAnswer) {
+          correctAnswers++;
+        }
+      });
       } else {
         // Essay: compute heuristic per-question provisional scores
         const perQuestion = questions.map(q => {
@@ -314,7 +314,7 @@ const ExamInterface = ({ user, exam, onComplete }) => {
         </div>
       );
     }
-
+    
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="max-w-2xl mx-auto bg-white rounded-lg shadow-lg p-8 text-center">
@@ -323,12 +323,12 @@ const ExamInterface = ({ user, exam, onComplete }) => {
           <p className="text-lg text-gray-700 mb-2">Thank you for completing the exam.</p>
           <p className="text-gray-600">Your result will be communicated by the school authorities.</p>
           <div className="mt-8">
-            <button
-              onClick={onComplete}
-              className="bg-indigo-600 text-white px-8 py-3 rounded-md hover:bg-indigo-700 text-lg font-medium"
-            >
-              Return to Portal
-            </button>
+          <button
+            onClick={onComplete}
+            className="bg-indigo-600 text-white px-8 py-3 rounded-md hover:bg-indigo-700 text-lg font-medium"
+          >
+            Return to Portal
+          </button>
           </div>
         </div>
       </div>
