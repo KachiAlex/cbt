@@ -154,10 +154,7 @@ const AdminLogin = ({ onLogin, onBack, institutionData }) => {
         </button>
       </div>
 
-      <div className="mt-4 text-center text-xs text-gray-500">
-        <p>Default admin credentials:</p>
-        <p>Username: admin | Password: admin123</p>
-      </div>
+      {/* Removed inline default credentials for security */}
     </div>
   );
 };
