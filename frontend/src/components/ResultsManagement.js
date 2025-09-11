@@ -98,32 +98,47 @@ const ResultsManagement = ({ institution, onStatsUpdate }) => {
     );
   };
 
-  const getStudentName = (studentId) => {
-    console.log('🔍 Looking for student with ID:', studentId);
-    console.log('🔍 Available students:', students.map(s => ({ 
-      id: s.id, 
-      fullName: s.fullName, 
-      username: s.username,
-      studentId: s.studentId,
-      userId: s.userId 
-    })));
-    
-    // Try multiple ID fields
-    const student = students.find(s => 
-      s.id === studentId || 
-      s.userId === studentId || 
-      s.username === studentId ||
-      s.studentId === studentId
-    );
-    
-    if (student) {
-      console.log('✅ Found student:', student);
-      return student.fullName || student.username || 'Unknown Name';
-    } else {
-      console.log('❌ Student not found for ID:', studentId);
-      return `Unknown Student (ID: ${studentId})`;
-    }
-  };
+    const getStudentName = (studentId) => {
+      console.log('🔍 Looking for student with ID:', studentId);
+      console.log('🔍 Available students:', students.map(s => ({
+        id: s.id,
+        fullName: s.fullName,
+        username: s.username,
+        studentId: s.studentId,
+        userId: s.userId
+      })));
+
+      // Try multiple matching strategies
+      let student = students.find(s =>
+        s.id === studentId ||
+        s.userId === studentId ||
+        s.username === studentId ||
+        s.studentId === studentId
+      );
+
+      // If no direct match, try matching by studentName from results
+      if (!student) {
+        console.log('🔍 No direct ID match, trying to find by result data...');
+        // Get the result that contains this studentId
+        const result = results.find(r => r.studentId === studentId);
+        if (result && result.studentName) {
+          console.log('🔍 Looking for student with name:', result.studentName);
+          // Try matching by fullName or username (case insensitive)
+          student = students.find(s => 
+            (s.fullName && s.fullName.toLowerCase() === result.studentName.toLowerCase()) ||
+            (s.username && s.username.toLowerCase() === result.studentName.toLowerCase())
+          );
+        }
+      }
+
+      if (student) {
+        console.log('✅ Found student:', student);
+        return student.fullName || student.username || 'Unknown Name';
+      } else {
+        console.log('❌ Student not found for ID:', studentId);
+        return `Unknown Student (ID: ${studentId})`;
+      }
+    };
 
   const getExamTitle = (examId) => {
     const exam = exams.find(e => e.id === examId);
@@ -332,12 +347,26 @@ const ResultsManagement = ({ institution, onStatsUpdate }) => {
                     ID: {result.studentId || result.userId || 'N/A'}
                   </div>
                   {(() => {
-                    const student = students.find(s => 
-                      s.id === result.studentId || 
-                      s.userId === result.studentId || 
-                      s.username === result.studentId
+                    // Use the same matching logic as getStudentName
+                    let student = students.find(s =>
+                      s.id === result.studentId ||
+                      s.userId === result.studentId ||
+                      s.username === result.studentId ||
+                      s.studentId === result.studentId
                     );
-                    return student?.username ? (
+
+                    // If no direct match, try matching by studentName
+                    if (!student) {
+                      const resultData = results.find(r => r.studentId === result.studentId);
+                      if (resultData && resultData.studentName) {
+                        student = students.find(s => 
+                          (s.fullName && s.fullName.toLowerCase() === resultData.studentName.toLowerCase()) ||
+                          (s.username && s.username.toLowerCase() === resultData.studentName.toLowerCase())
+                        );
+                      }
+                    }
+
+                    return student ? (
                       <div className="text-xs text-gray-500">
                         Username: {student.username}
                       </div>
