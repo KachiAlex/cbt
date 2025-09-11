@@ -108,6 +108,10 @@ const ResultsManagement = ({ institution, onStatsUpdate }) => {
         userId: s.userId
       })));
 
+      // Get the result that contains this studentId to access studentName
+      const result = results.find(r => r.studentId === studentId);
+      const resultStudentName = result?.studentName;
+
       // Try multiple matching strategies
       let student = students.find(s =>
         s.id === studentId ||
@@ -117,18 +121,26 @@ const ResultsManagement = ({ institution, onStatsUpdate }) => {
       );
 
       // If no direct match, try matching by studentName from results
-      if (!student) {
+      if (!student && resultStudentName) {
         console.log('🔍 No direct ID match, trying to find by result data...');
-        // Get the result that contains this studentId
-        const result = results.find(r => r.studentId === studentId);
-        if (result && result.studentName) {
-          console.log('🔍 Looking for student with name:', result.studentName);
-          // Try matching by fullName or username (case insensitive)
-          student = students.find(s => 
-            (s.fullName && s.fullName.toLowerCase() === result.studentName.toLowerCase()) ||
-            (s.username && s.username.toLowerCase() === result.studentName.toLowerCase())
-          );
-        }
+        console.log('🔍 Looking for student with name:', resultStudentName);
+        
+        // Try matching by fullName, username, or email (case insensitive)
+        student = students.find(s => 
+          (s.fullName && s.fullName.toLowerCase() === resultStudentName.toLowerCase()) ||
+          (s.username && s.username.toLowerCase() === resultStudentName.toLowerCase()) ||
+          (s.email && s.email.toLowerCase() === resultStudentName.toLowerCase())
+        );
+      }
+
+      // If still no match, try partial matching for email-like names
+      if (!student && resultStudentName && resultStudentName.includes('@')) {
+        console.log('🔍 Trying email-based partial matching...');
+        const emailPrefix = resultStudentName.split('@')[0];
+        student = students.find(s => 
+          (s.username && s.username.toLowerCase().includes(emailPrefix.toLowerCase())) ||
+          (s.fullName && s.fullName.toLowerCase().includes(emailPrefix.toLowerCase()))
+        );
       }
 
       if (student) {
@@ -136,7 +148,8 @@ const ResultsManagement = ({ institution, onStatsUpdate }) => {
         return student.fullName || student.username || 'Unknown Name';
       } else {
         console.log('❌ Student not found for ID:', studentId);
-        return `Unknown Student (ID: ${studentId})`;
+        // Return the studentName from result if available, otherwise fallback
+        return resultStudentName || `Unknown Student (ID: ${studentId})`;
       }
     };
 
@@ -398,6 +411,7 @@ const ResultsManagement = ({ institution, onStatsUpdate }) => {
                   </div>
                   {(() => {
                     // Use the same matching logic as getStudentName
+                    const resultStudentName = result.studentName;
                     let student = students.find(s =>
                       s.id === result.studentId ||
                       s.userId === result.studentId ||
@@ -406,21 +420,32 @@ const ResultsManagement = ({ institution, onStatsUpdate }) => {
                     );
 
                     // If no direct match, try matching by studentName
-                    if (!student) {
-                      const resultData = results.find(r => r.studentId === result.studentId);
-                      if (resultData && resultData.studentName) {
-                        student = students.find(s => 
-                          (s.fullName && s.fullName.toLowerCase() === resultData.studentName.toLowerCase()) ||
-                          (s.username && s.username.toLowerCase() === resultData.studentName.toLowerCase())
-                        );
-                      }
+                    if (!student && resultStudentName) {
+                      student = students.find(s => 
+                        (s.fullName && s.fullName.toLowerCase() === resultStudentName.toLowerCase()) ||
+                        (s.username && s.username.toLowerCase() === resultStudentName.toLowerCase()) ||
+                        (s.email && s.email.toLowerCase() === resultStudentName.toLowerCase())
+                      );
+                    }
+
+                    // If still no match, try partial matching for email-like names
+                    if (!student && resultStudentName && resultStudentName.includes('@')) {
+                      const emailPrefix = resultStudentName.split('@')[0];
+                      student = students.find(s => 
+                        (s.username && s.username.toLowerCase().includes(emailPrefix.toLowerCase())) ||
+                        (s.fullName && s.fullName.toLowerCase().includes(emailPrefix.toLowerCase()))
+                      );
                     }
 
                     return student ? (
                       <div className="text-xs text-gray-500">
                         Username: {student.username}
                       </div>
-                    ) : null;
+                    ) : (
+                      <div className="text-xs text-gray-500">
+                        {resultStudentName || 'Unknown'}
+                      </div>
+                    );
                   })()}
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap">
