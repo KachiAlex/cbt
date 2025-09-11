@@ -238,6 +238,32 @@ const ResultsManagement = ({ institution, onStatsUpdate }) => {
     }
   };
 
+  const normalizeAnswers = (answers) => {
+    if (!answers) return [];
+    if (Array.isArray(answers)) return answers;
+    if (typeof answers === 'string') {
+      try {
+        const parsed = JSON.parse(answers);
+        return Array.isArray(parsed) ? parsed : [];
+      } catch (_) {
+        return [];
+      }
+    }
+    if (typeof answers === 'object') {
+      try {
+        const values = Object.values(answers);
+        return values.map((entry) => (
+          typeof entry === 'object' && entry !== null
+            ? entry
+            : { selectedAnswer: String(entry) }
+        ));
+      } catch (_) {
+        return [];
+      }
+    }
+    return [];
+  };
+
   return (
     <div>
       <div className="flex justify-between items-center mb-6">
@@ -478,18 +504,21 @@ const ResultsManagement = ({ institution, onStatsUpdate }) => {
                 <div className="grid grid-cols-3 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700">Score</label>
-                    <p className="text-sm text-gray-900">{showDetails.score} / {showDetails.totalQuestions}</p>
+                    <p className="text-sm text-gray-900">
+                      {typeof showDetails.score === 'number' ? showDetails.score : '-'}
+                      {showDetails.totalQuestions ? ` / ${showDetails.totalQuestions}` : ''}
+                    </p>
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700">Percentage</label>
-                    <p className={`text-sm font-medium ${getGradeColor(showDetails.percentage)}`}>
-                      {showDetails.percentage}%
+                    <p className={`text-sm font-medium ${getGradeColor(getPercent(showDetails) ?? 0)}`}>
+                      {getPercent(showDetails) !== null ? `${getPercent(showDetails)}%` : '-'}
                     </p>
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700">Grade</label>
-                    <p className={`text-sm font-medium ${getGradeColor(showDetails.percentage)}`}>
-                      {getGradeLabel(showDetails.percentage)}
+                    <p className={`text-sm font-medium ${getGradeColor(getPercent(showDetails) ?? 0)}`}>
+                      {getPercent(showDetails) !== null ? getGradeLabel(getPercent(showDetails)) : '-'}
                     </p>
                   </div>
                 </div>
@@ -514,11 +543,11 @@ const ResultsManagement = ({ institution, onStatsUpdate }) => {
                   </div>
                 )}
 
-                {showDetails.answers && (
+                {normalizeAnswers(showDetails.answers).length > 0 && (
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">Answers</label>
                     <div className="space-y-2 max-h-60 overflow-y-auto">
-                      {showDetails.answers.map((answer, index) => (
+                      {normalizeAnswers(showDetails.answers).map((answer, index) => (
                         <div key={index} className="p-3 border rounded-md">
                           <div className="text-sm font-medium text-gray-900">
                             Question {index + 1}
