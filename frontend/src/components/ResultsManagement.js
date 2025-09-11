@@ -29,6 +29,30 @@ const ResultsManagement = ({ institution, onStatsUpdate }) => {
       console.log('🔍 ResultsManagement: Loaded results:', resultsData);
       console.log('🔍 ResultsManagement: Loaded students:', studentsData);
       
+      // Log detailed results structure
+      resultsData.forEach((result, index) => {
+        console.log(`🔍 Result ${index}:`, {
+          id: result.id,
+          studentId: result.studentId,
+          userId: result.userId,
+          studentName: result.studentName,
+          examId: result.examId,
+          examTitle: result.examTitle
+        });
+      });
+      
+      // Log detailed students structure
+      studentsData.forEach((student, index) => {
+        console.log(`🔍 Student ${index}:`, {
+          id: student.id,
+          studentId: student.studentId,
+          userId: student.userId,
+          username: student.username,
+          fullName: student.fullName,
+          email: student.email
+        });
+      });
+      
       setResults(resultsData);
       setExams(examsData);
       setStudents(studentsData);
