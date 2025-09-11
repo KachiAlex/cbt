@@ -214,6 +214,30 @@ const ResultsManagement = ({ institution, onStatsUpdate }) => {
 
   const analytics = getAnalytics();
 
+  // Ensure we load full result details if needed before showing modal
+  const openDetails = async (result) => {
+    try {
+      // If result already appears detailed, just show it
+      if (result && (result.answers || result.totalQuestions || result.percentage !== undefined)) {
+        setShowDetails(result);
+        return;
+      }
+      // Try to fetch full result by id from backend
+      if (result && result.id && typeof firebaseDataService.getResultById === 'function') {
+        setLoading(true);
+        const full = await firebaseDataService.getResultById(result.id);
+        setShowDetails(full || result);
+      } else {
+        setShowDetails(result);
+      }
+    } catch (e) {
+      console.error('Error loading result details:', e);
+      setShowDetails(result);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <div>
       <div className="flex justify-between items-center mb-6">
@@ -380,7 +404,7 @@ const ResultsManagement = ({ institution, onStatsUpdate }) => {
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap">
                   <div className="text-sm text-gray-900">
-                    {getPercent(result) !== null ? `${getPercent(result)}%` : (result.totalQuestions ? `${result.score} / {result.totalQuestions}` : '-')}
+                    {getPercent(result) !== null ? `${getPercent(result)}%` : (result.totalQuestions ? `${result.score} / ${result.totalQuestions}` : '-')}
                     {result.status === 'provisional' && (
                       <span className="ml-2 text-xs px-2 py-0.5 rounded bg-blue-50 text-blue-700">Provisional</span>
                     )}
@@ -399,7 +423,7 @@ const ResultsManagement = ({ institution, onStatsUpdate }) => {
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                   <button
-                    onClick={() => setShowDetails(result)}
+                    onClick={() => openDetails(result)}
                     className="text-blue-600 hover:text-blue-900"
                   >
                     View Details
