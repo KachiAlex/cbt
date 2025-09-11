@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import StudentExam from './StudentExam';
 import EnhancedExam from './EnhancedExam';
 import dataService from '../services/dataService';
+import { migrateLocalStorageToFirebase, checkMigrationStatus, hasLocalStorageData } from '../utils/dataMigration';
 
 const LS_KEYS = {
   QUESTIONS: "cbt_questions_v1",
@@ -15,10 +16,22 @@ const StudentPanel = ({ user, tenant, onLogoClick, onAdminAccess }) => {
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('dashboard');
   const [showExam, setShowExam] = useState(false);
+  const [showMigrationPrompt, setShowMigrationPrompt] = useState(false);
+  const [migrating, setMigrating] = useState(false);
 
   useEffect(() => {
     loadData();
+    checkForMigration();
   }, []);
+
+  const checkForMigration = () => {
+    const migrationStatus = checkMigrationStatus();
+    const hasLocalData = hasLocalStorageData();
+    
+    if (hasLocalData && !migrationStatus.completed) {
+      setShowMigrationPrompt(true);
+    }
+  };
 
   const loadData = async () => {
     try {
@@ -55,6 +68,29 @@ const StudentPanel = ({ user, tenant, onLogoClick, onAdminAccess }) => {
     loadData(); // Reload data to show new results
   };
 
+  const handleMigration = async () => {
+    setMigrating(true);
+    try {
+      const result = await migrateLocalStorageToFirebase(user);
+      if (result.success) {
+        alert(`✅ Migration successful! Migrated ${result.migrated} exam results.`);
+        setShowMigrationPrompt(false);
+        loadData(); // Reload to show migrated data
+      } else {
+        alert(`❌ Migration failed: ${result.error}`);
+      }
+    } catch (error) {
+      alert(`❌ Migration failed: ${error.message}`);
+    } finally {
+      setMigrating(false);
+    }
+  };
+
+  const dismissMigration = () => {
+    setShowMigrationPrompt(false);
+    localStorage.setItem('migration_dismissed', 'true');
+  };
+
   if (showExam) {
     return <EnhancedExam user={user} tenant={tenant} onComplete={backToDashboard} />;
   }
@@ -65,6 +101,45 @@ const StudentPanel = ({ user, tenant, onLogoClick, onAdminAccess }) => {
         <div className="text-center">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
           <p className="mt-2 text-gray-600">Loading student panel...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Migration prompt
+  if (showMigrationPrompt) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
+        <div className="max-w-md bg-white rounded-lg shadow-lg p-6">
+          <div className="text-center mb-6">
+            <div className="text-4xl mb-4">🔄</div>
+            <h2 className="text-xl font-bold text-gray-900 mb-2">Data Migration Available</h2>
+            <p className="text-gray-600">
+              We found your previous exam results stored locally. Would you like to migrate them to the new system?
+            </p>
+          </div>
+          
+          <div className="space-y-3">
+            <button
+              onClick={handleMigration}
+              disabled={migrating}
+              className="w-full bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {migrating ? 'Migrating...' : 'Migrate My Data'}
+            </button>
+            
+            <button
+              onClick={dismissMigration}
+              disabled={migrating}
+              className="w-full bg-gray-200 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-300 disabled:opacity-50"
+            >
+              Skip Migration
+            </button>
+          </div>
+          
+          <p className="text-xs text-gray-500 mt-4 text-center">
+            This is a one-time process. Your old data will remain in your browser.
+          </p>
         </div>
       </div>
     );
