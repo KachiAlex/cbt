@@ -2,14 +2,29 @@ import React, { useState, useEffect } from 'react';
 import { dataService } from '../services/dataService';
 import { scoreEssayAnswer, aggregateEssayScores } from '../utils/essayScorer';
 
-const ExamInterface = ({ user, exam, onComplete }) => {
+const ExamInterface = ({ user, exam: propExam, onComplete }) => {
+  const [exam, setExam] = useState(propExam);
   const [questions, setQuestions] = useState([]);
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [answers, setAnswers] = useState({});
-  const [timeLeft, setTimeLeft] = useState(exam.duration * 60); // Convert to seconds
+  const [timeLeft, setTimeLeft] = useState(0);
   const [examStarted, setExamStarted] = useState(false);
   const [examCompleted, setExamCompleted] = useState(false);
   const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    // Load exam from localStorage if not provided as prop
+    if (!exam) {
+      const storedExam = localStorage.getItem('selected_exam');
+      if (storedExam) {
+        const parsedExam = JSON.parse(storedExam);
+        setExam(parsedExam);
+        setTimeLeft(parsedExam.duration * 60);
+      }
+    } else {
+      setTimeLeft(exam.duration * 60);
+    }
+  }, [exam]);
 
   // Deterministic PRNG based on seed (mulberry32)
   const mulberry32 = (seed) => {
@@ -110,7 +125,7 @@ const ExamInterface = ({ user, exam, onComplete }) => {
 
   useEffect(() => {
     loadExamQuestions();
-  }, [exam.id]);
+  }, [exam]);
 
   useEffect(() => {
     let timer;
@@ -129,6 +144,11 @@ const ExamInterface = ({ user, exam, onComplete }) => {
   }, [examStarted, timeLeft, examCompleted]);
 
   const loadExamQuestions = async () => {
+    if (!exam || !exam.id) {
+      setLoading(false);
+      return;
+    }
+    
     try {
       const examQuestions = await dataService.getQuestions(exam.id);
       console.log('🔍 Loaded questions from Firestore:', examQuestions);

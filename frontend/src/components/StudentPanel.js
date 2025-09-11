@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import StudentExam from './StudentExam';
 import EnhancedExam from './EnhancedExam';
+import dataService from '../services/dataService';
 
 const LS_KEYS = {
   QUESTIONS: "cbt_questions_v1",
@@ -21,13 +22,16 @@ const StudentPanel = ({ user, tenant, onLogoClick, onAdminAccess }) => {
 
   const loadData = async () => {
     try {
-      // Load questions and results from localStorage
-      const questions = JSON.parse(localStorage.getItem(LS_KEYS.QUESTIONS) || '[]');
-      const results = JSON.parse(localStorage.getItem(LS_KEYS.RESULTS) || '[]');
-      const examTitle = localStorage.getItem(LS_KEYS.ACTIVE_EXAM) || 'Institution CBT – 12 Questions';
+      // Load exams and results from Firebase
+      const [examsData, resultsData] = await Promise.all([
+        dataService.getExams(),
+        dataService.getResultsByUser(user.id)
+      ]);
       
-      setExams(questions.length > 0 ? [{ id: 1, title: examTitle, questionCount: questions.length }] : []);
-      setResults(results.filter(r => r.username === user.username));
+      // Filter active exams
+      const activeExams = examsData.filter(exam => exam.isActive);
+      setExams(activeExams);
+      setResults(resultsData);
     } catch (error) {
       console.error('Error loading data:', error);
     } finally {
@@ -35,13 +39,15 @@ const StudentPanel = ({ user, tenant, onLogoClick, onAdminAccess }) => {
     }
   };
 
-  const userResults = results.filter(r => r.username === user.username);
+  const userResults = results.filter(r => r.userId === user.id);
   const availableExams = exams.filter(exam => 
-    !userResults.some(result => result.examTitle === exam.title)
+    !userResults.some(result => result.examId === exam.id)
   );
 
-  const startExam = () => {
+  const startExam = (exam) => {
     setShowExam(true);
+    // Store the selected exam for the exam interface
+    localStorage.setItem('selected_exam', JSON.stringify(exam));
   };
 
   const backToDashboard = () => {
@@ -168,13 +174,13 @@ const StudentPanel = ({ user, tenant, onLogoClick, onAdminAccess }) => {
                 <div className="flex items-center justify-between">
                   <div>
                     <h4 className="font-medium text-lg">{exam.title}</h4>
-                    <p className="text-gray-600">{exam.questionCount} questions</p>
+                    <p className="text-gray-600">{exam.questions?.length || 0} questions</p>
                     <p className="text-sm text-gray-500">
-                      Estimated time: {exam.questionCount} minutes
+                      Duration: {exam.duration || 30} minutes
                     </p>
                   </div>
                   <button
-                    onClick={startExam}
+                    onClick={() => startExam(exam)}
                     className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition-colors"
                   >
                     Start Exam
@@ -218,10 +224,10 @@ const StudentPanel = ({ user, tenant, onLogoClick, onAdminAccess }) => {
                 {userResults.slice(0, 5).map((result, idx) => (
                   <tr key={idx} className="border-t">
                     <td className="p-2">{result.examTitle}</td>
-                    <td className="p-2">{result.score}/{result.total}</td>
-                    <td className="p-2">{result.percent}%</td>
+                    <td className="p-2">{result.score}/{result.totalQuestions}</td>
+                    <td className="p-2">{result.percentage || result.percent}%</td>
                     <td className="p-2">
-                      {new Date(result.submittedAt).toLocaleDateString()}
+                      {result.submittedAt ? new Date(result.submittedAt.seconds * 1000).toLocaleDateString() : 'N/A'}
                     </td>
                   </tr>
                 ))}
@@ -236,7 +242,7 @@ const StudentPanel = ({ user, tenant, onLogoClick, onAdminAccess }) => {
         <h3 className="text-lg font-semibold mb-4">Quick Actions</h3>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <button
-            onClick={startExam}
+            onClick={() => availableExams.length > 0 && startExam(availableExams[0])}
             disabled={availableExams.length === 0}
             className="flex items-center justify-center p-4 border-2 border-dashed border-gray-300 rounded-lg hover:border-blue-400 hover:bg-blue-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
