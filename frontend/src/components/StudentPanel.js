@@ -230,9 +230,35 @@ const StudentPanel = ({ user, tenant, onLogoClick, onAdminAccess }) => {
             <div className="ml-3 sm:ml-4 min-w-0">
               <p className="text-xs sm:text-sm font-medium text-gray-600 truncate">Average Score</p>
               <p className="text-xl sm:text-2xl font-semibold text-gray-900">
-                {userResults.length > 0 
-                  ? Math.round(userResults.reduce((sum, r) => sum + (r.percent || 0), 0) / userResults.length)
-                  : 0}%
+                {(() => {
+                  if (userResults.length === 0) return '0%';
+                  
+                  // Debug: Log the results structure
+                  console.log('🔍 StudentPanel: Calculating average from results:', userResults.map(r => ({
+                    score: r.score,
+                    totalQuestions: r.totalQuestions,
+                    percentage: r.percentage,
+                    percent: r.percent
+                  })));
+                  
+                  const average = Math.round(userResults.reduce((sum, r) => {
+                    // Try multiple percentage field names and calculate if needed
+                    let percentage = r.percentage || r.percent;
+                    
+                    // If no percentage field, calculate it from score and total
+                    if (!percentage && r.score !== undefined && r.totalQuestions) {
+                      percentage = (r.score / r.totalQuestions) * 100;
+                    }
+                    
+                    // Ensure we have a valid number
+                    const validPercentage = isNaN(percentage) ? 0 : percentage;
+                    console.log(`🔍 Result: score=${r.score}, total=${r.totalQuestions}, percentage=${percentage}, valid=${validPercentage}`);
+                    return sum + validPercentage;
+                  }, 0) / userResults.length);
+                  
+                  console.log('🔍 Calculated average:', average);
+                  return `${average}%`;
+                })()}
               </p>
             </div>
           </div>
