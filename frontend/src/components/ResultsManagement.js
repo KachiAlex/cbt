@@ -71,8 +71,23 @@ const ResultsManagement = ({ institution, onStatsUpdate }) => {
   };
 
   const getStudentName = (studentId) => {
-    const student = students.find(s => s.id === studentId);
-    return student ? student.fullName : 'Unknown Student';
+    console.log('🔍 Looking for student with ID:', studentId);
+    console.log('🔍 Available students:', students.map(s => ({ id: s.id, fullName: s.fullName, username: s.username })));
+    
+    // Try multiple ID fields
+    const student = students.find(s => 
+      s.id === studentId || 
+      s.userId === studentId || 
+      s.username === studentId
+    );
+    
+    if (student) {
+      console.log('✅ Found student:', student);
+      return student.fullName || student.username || 'Unknown Name';
+    } else {
+      console.log('❌ Student not found for ID:', studentId);
+      return `Unknown Student (ID: ${studentId})`;
+    }
   };
 
   const getExamTitle = (examId) => {
@@ -278,6 +293,21 @@ const ResultsManagement = ({ institution, onStatsUpdate }) => {
                   <div className="text-sm font-medium text-gray-900">
                     {getStudentName(result.studentId)}
                   </div>
+                  <div className="text-xs text-gray-500">
+                    ID: {result.studentId || result.userId || 'N/A'}
+                  </div>
+                  {(() => {
+                    const student = students.find(s => 
+                      s.id === result.studentId || 
+                      s.userId === result.studentId || 
+                      s.username === result.studentId
+                    );
+                    return student?.username ? (
+                      <div className="text-xs text-gray-500">
+                        Username: {student.username}
+                      </div>
+                    ) : null;
+                  })()}
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap">
                   <div className="text-sm text-gray-900">

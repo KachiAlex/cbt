@@ -189,6 +189,8 @@ const StudentsManagement = ({ institution, onStatsUpdate }) => {
                     <div className="ml-4">
                       <div className="text-sm font-medium text-gray-900">{student.fullName}</div>
                       <div className="text-sm text-gray-500">{student.email}</div>
+                      <div className="text-xs text-gray-400">Username: {student.username}</div>
+                      <div className="text-xs text-gray-400">Firebase ID: {student.id}</div>
                     </div>
                   </div>
                 </td>
