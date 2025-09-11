@@ -1,225 +1,234 @@
-# CBT Local - Modern Computer Based Testing Application
+# CBT Local Institution
 
-A modern, responsive Computer Based Testing (CBT) application built with React 18 and TypeScript. This application provides a complete solution for creating, managing, and taking online exams with a clean, intuitive interface.
+[![Node.js](https://img.shields.io/badge/Node.js-18+-green.svg)](https://nodejs.org/)
+[![MongoDB](https://img.shields.io/badge/MongoDB-Community-blue.svg)](https://www.mongodb.com/)
+[![Windows](https://img.shields.io/badge/Platform-Windows-blue.svg)](https://www.microsoft.com/windows)
+[![License](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+
+A single-institution Computer-Based Testing (CBT) application designed for local Windows server deployment. This package provides a complete CBT solution without multi-tenant complexity, perfect for individual schools or institutions that prefer on-premises hosting.
 
 ## 🚀 Features
 
-### 🔐 Authentication System
-- Role-based access control (Admin/Student)
-- Secure login with session persistence
-- Demo credentials included for testing
-
-### 👨‍💼 Admin Dashboard
-- Create and manage exams
-- Question bank management
-- Student results tracking
-- Modern tabbed interface
-
-### 🎓 Student Portal
-- View available exams
-- Take exams with built-in timer
-- Track completed exams
-- View detailed results with analytics
-
-### 📊 Exam System
-- Full exam interface with question navigation
-- Timer countdown with visual warnings
-- Answer selection and auto-save
-- Comprehensive results analysis
-
-### 🎨 Modern Design
-- Responsive design for all devices
-- Clean, professional UI with smooth animations
-- Color-coded status indicators
-- Accessibility features
+- **Institution-Only Design**: No multi-tenant admin features - clean, focused solution
+- **Windows-Optimized**: Designed specifically for Windows Server environments
+- **One-Click Setup**: Automated PowerShell installer for quick deployment
+- **Local Database**: Uses MongoDB Community Server for data storage
+- **Admin & Student Portals**: Complete web interface for both administrators and students
+- **Exam Management**: Create, manage, and conduct online examinations
+- **Result Management**: Track and analyze student performance
+- **Service Integration**: Runs as a Windows service with PM2
+- **Essay Auto-Scoring**: Hybrid auto-scoring for essay questions with admin finalization
 
 ## 🛠️ Technology Stack
 
-- **Frontend**: React 18 + TypeScript
-- **Routing**: React Router v6
-- **State Management**: React Context API
-- **Styling**: Modern CSS with responsive design
-- **Data Storage**: Local Storage (browser-based)
-- **Build Tool**: Create React App
+- **Backend**: Node.js + Express
+- **Database**: MongoDB Community Server
+- **Authentication**: JWT-based with bcrypt password hashing
+- **Process Management**: PM2 for Windows service
+- **Frontend**: Static HTML/JS served from backend
+- **Platform**: Windows Server 2019/2022
+
+## 📋 Prerequisites
+
+- Windows Server 2019/2022 or Windows 10/11
+- Administrator privileges
+- Internet access (for initial setup)
+- MongoDB Community Server
 
 ## 🚀 Quick Start
 
-### Prerequisites
-- Node.js 18+ 
-- npm 8+
+### Option 1: One-Click Installer (Recommended)
 
-### Installation
-
-1. **Clone the repository**
-   ```bash
-   git clone https://github.com/KachiAlex/cbtlocal.git
-   cd cbtlocal
+1. **Download and extract** this repository to your server
+2. **Open PowerShell as Administrator**
+3. **Navigate to the scripts folder**:
+   ```powershell
+   cd C:\path\to\cbt-local-institution\scripts
+   ```
+4. **Run the installer**:
+   ```powershell
+   powershell -ExecutionPolicy Bypass -NoProfile -File .\install-windows.ps1
    ```
 
-2. **Install dependencies**
-   ```bash
-   npm run install:frontend
+The installer will automatically:
+- Install Node.js LTS (if missing)
+- Install PM2 globally
+- Verify MongoDB service
+- Create environment configuration
+- Install dependencies
+- Start the application as a Windows service
+
+### Option 2: Manual Installation
+
+1. **Install Node.js LTS**
+   ```powershell
+   winget install OpenJS.NodeJS.LTS
    ```
 
-3. **Start development server**
-   ```bash
-   npm start
+2. **Install MongoDB Community Server**
+   - Download from: https://www.mongodb.com/try/download/community
+   - Install with default settings
+
+3. **Install PM2**
+   ```powershell
+   npm install -g pm2
    ```
 
-4. **Open your browser**
-   Navigate to `http://localhost:3000`
+4. **Configure Environment**
+   ```powershell
+   cd C:\path\to\cbt-local-institution\backend
+   copy env.example .env
+   notepad .env
+   ```
 
-### Demo Credentials
+5. **Install Dependencies**
+   ```powershell
+   npm ci
+   ```
 
-**Admin Access:**
-- Username: `admin`
-- Password: `admin123`
+6. **Start the Application**
+   ```powershell
+   pm2 start src/server.js --name cbt-local
+   pm2 save
+   pm2 startup windows
+   ```
 
-**Student Access:**
-- Username: `student`
-- Password: `student123`
+## 🌐 Access Points
+
+After installation, access your CBT system at:
+
+- **Admin Portal**: `http://localhost:5000/admin`
+- **Student Portal**: `http://localhost:5000/student`
+- **Health Check**: `http://localhost:5000/health`
+- **API Base**: `http://localhost:5000/api`
+
+For network access, replace `localhost` with your server's IP address.
 
 ## 📁 Project Structure
 
 ```
-cbtlocal/
-├── frontend/                 # React TypeScript application
+cbt-local-institution/
+├── backend/                    # Node.js backend application
 │   ├── src/
-│   │   ├── components/      # React components
-│   │   │   ├── Login.tsx
-│   │   │   ├── AdminDashboard.tsx
-│   │   │   ├── StudentDashboard.tsx
-│   │   │   ├── ExamInterface.tsx
-│   │   │   └── ExamResults.tsx
-│   │   ├── contexts/        # React Context providers
-│   │   │   └── AuthContext.tsx
-│   │   ├── App.tsx          # Main application component
-│   │   └── index.tsx        # Application entry point
-│   ├── public/              # Static assets
-│   ├── package.json         # Frontend dependencies
-│   └── tsconfig.json        # TypeScript configuration
-├── package.json             # Root package configuration
-├── netlify.toml             # Netlify deployment configuration
+│   │   ├── config/            # Database and JWT configuration
+│   │   ├── middleware/        # Authentication and validation
+│   │   ├── models/           # MongoDB data models
+│   │   └── server.js         # Main application server
+│   ├── public/               # Static web pages
+│   │   ├── admin.html        # Admin dashboard
+│   │   └── student-dashboard.html
+│   ├── env.example           # Environment configuration template
+│   └── package.json          # Backend dependencies
+├── scripts/                  # Deployment scripts
+│   ├── install-windows.ps1   # One-click installer
+│   └── README.md            # Installation guide
 └── README.md                # This file
 ```
+
+## 🔧 Configuration
+
+### Environment Variables
+
+Key configuration options in `.env`:
+
+```env
+NODE_ENV=production
+PORT=5000
+MONGODB_URI=mongodb://localhost:27017/cbt_local
+JWT_SECRET=your-secure-secret-key
+```
+
+### Default Admin Account
+
+After first installation, create an admin account:
+
+1. Access the admin portal
+2. Use the registration form to create the first admin user
+3. Set role to "admin" for full access
+
+## 📊 Management
+
+### PM2 Commands
+
+```powershell
+pm2 status                    # Check application status
+pm2 logs cbt-local           # View application logs
+pm2 restart cbt-local        # Restart the application
+pm2 stop cbt-local           # Stop the application
+pm2 delete cbt-local         # Remove from PM2
+```
+
+### Database Backup
+
+```powershell
+# Backup database
+mongodump --db cbt_local --out C:\backups\cbt_$(Get-Date -Format yyyyMMdd)
+
+# Restore database
+mongorestore --db cbt_local C:\backups\cbt_20250101\cbt_local
+```
+
+## 🔒 Security Features
+
+- **JWT Authentication**: Secure token-based authentication
+- **Password Hashing**: bcrypt with configurable rounds
+- **Role-Based Access**: Admin and Student roles
+- **Input Validation**: Comprehensive request validation
+- **Rate Limiting**: Protection against abuse
+- **CORS Configuration**: Configurable cross-origin policies
 
 ## 🎯 Usage Guide
 
 ### For Administrators
 
-1. **Login** with admin credentials
-2. **Create Exams** in the Exam Management tab
-3. **Add Questions** to your exams
-4. **Activate Exams** to make them available to students
-5. **View Results** in the Student Results tab
+1. **Access Admin Portal** at `/admin`
+2. **Create User Accounts** for students and staff
+3. **Create Exams** with questions and time limits
+4. **Monitor Results** and student performance
+5. **Manage System Settings** and configurations
 
 ### For Students
 
-1. **Login** with student credentials
-2. **View Available Exams** on the dashboard
-3. **Start an Exam** by clicking "Start Exam"
-4. **Answer Questions** using the exam interface
-5. **Submit Exam** when complete
-6. **View Results** with detailed analytics
+1. **Access Student Portal** at `/student`
+2. **View Available Exams** assigned to you
+3. **Take Exams** with built-in timer and navigation
+4. **View Results** (if enabled by admin)
 
-## 🌐 Deployment
+## 🔧 Troubleshooting
 
-### Netlify (Recommended)
+### Common Issues
 
-1. **Connect Repository** to Netlify
-2. **Build Settings**:
-   - Build command: `npm run build`
-   - Publish directory: `frontend/build`
-3. **Deploy** - Netlify will automatically build and deploy
+**Application won't start:**
+- Check MongoDB service is running
+- Verify `.env` configuration
+- Check PM2 logs: `pm2 logs cbt-local`
 
-### Vercel
+**Database connection errors:**
+- Ensure MongoDB is installed and running
+- Check `MONGODB_URI` in `.env`
+- Verify MongoDB service status
 
-1. **Import Project** from GitHub
-2. **Framework Preset**: Create React App
-3. **Root Directory**: `frontend`
-4. **Deploy**
+**Port conflicts:**
+- Change `PORT` in `.env` if 5000 is in use
+- Update firewall rules for new port
 
-### Manual Deployment
+### Logs and Monitoring
 
-```bash
-# Build the application
-npm run build
+- **Application Logs**: `pm2 logs cbt-local`
+- **MongoDB Logs**: Check Windows Event Viewer
+- **Health Check**: Visit `/health` endpoint
 
-# The build folder will be created in frontend/build
-# Upload this folder to your web server
-```
+## 🤝 Support
 
-## 🔧 Development
-
-### Available Scripts
-
-- `npm start` - Start development server
-- `npm run build` - Build for production
-- `npm test` - Run tests
-- `npm run install:frontend` - Install frontend dependencies
-
-### Adding New Features
-
-1. **Components**: Add new components in `frontend/src/components/`
-2. **Context**: Add new contexts in `frontend/src/contexts/`
-3. **Styling**: Use CSS modules or add styles in component directories
-
-## 📊 Data Storage
-
-The application uses browser localStorage for data persistence:
-
-- **Exams**: Stored as `cbt_exams`
-- **Results**: Stored as `cbt_results`
-- **User Sessions**: Stored as `cbt_user`
-- **Completed Exams**: Stored as `cbt_completed_{userId}`
-
-## 🔒 Security Features
-
-- **Role-based Access Control**: Admin and Student roles
-- **Session Management**: Secure login/logout
-- **Input Validation**: Form validation and sanitization
-- **Local Storage**: Data stored securely in browser
-
-## 🎨 Customization
-
-### Styling
-- Modify CSS files in component directories
-- Update global styles in `App.css`
-- Customize color scheme and branding
-
-### Authentication
-- Update user credentials in `AuthContext.tsx`
-- Add new user roles as needed
-- Integrate with external authentication services
-
-## 🤝 Contributing
-
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Test thoroughly
-5. Submit a pull request
+For support and questions:
+- Check the troubleshooting section above
+- Review the installation logs
+- Create an issue on GitHub
 
 ## 📝 License
 
 This project is licensed under the MIT License - see the LICENSE file for details.
 
-## 🆘 Support
-
-For support and questions:
-- Create an issue on GitHub
-- Check the documentation
-- Review the demo credentials for testing
-
-## 🎯 Roadmap
-
-- [ ] Question bank with categories
-- [ ] Advanced analytics and reporting
-- [ ] Multi-language support
-- [ ] Offline exam capability
-- [ ] Integration with external LMS
-- [ ] Mobile app development
-
 ---
 
-**Built with ❤️ using React, TypeScript, and modern web technologies.**
+**Built with ❤️ for educational institutions that prefer local hosting.**
