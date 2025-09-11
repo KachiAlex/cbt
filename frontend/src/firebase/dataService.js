@@ -25,6 +25,21 @@ class FirebaseDataService {
     };
   }
 
+  // Helper function to safely convert timestamps to Date objects
+  safeToDate(timestamp) {
+    if (!timestamp) return null;
+    if (timestamp.toDate && typeof timestamp.toDate === 'function') {
+      return timestamp.toDate();
+    }
+    if (timestamp instanceof Date) {
+      return timestamp;
+    }
+    if (typeof timestamp === 'string') {
+      return new Date(timestamp);
+    }
+    return null;
+  }
+
   // Institution Management
   async getInstitutions() {
     try {
@@ -38,8 +53,10 @@ class FirebaseDataService {
       
       // Sort by createdAt in JavaScript to avoid index requirement
       return institutions.sort((a, b) => {
-        if (a.createdAt && b.createdAt) {
-          return b.createdAt.toDate() - a.createdAt.toDate();
+        const dateA = this.safeToDate(a.createdAt);
+        const dateB = this.safeToDate(b.createdAt);
+        if (dateA && dateB) {
+          return dateB - dateA;
         }
         return 0;
       });
@@ -108,8 +125,10 @@ class FirebaseDataService {
       
       // Sort by createdAt in JavaScript to avoid composite index requirement
       return admins.sort((a, b) => {
-        if (a.createdAt && b.createdAt) {
-          return b.createdAt.toDate() - a.createdAt.toDate();
+        const dateA = this.safeToDate(a.createdAt);
+        const dateB = this.safeToDate(b.createdAt);
+        if (dateA && dateB) {
+          return dateB - dateA;
         }
         return 0;
       });
@@ -191,8 +210,10 @@ class FirebaseDataService {
       
       // Sort by createdAt in JavaScript to avoid composite index requirement
       return users.sort((a, b) => {
-        if (a.createdAt && b.createdAt) {
-          return b.createdAt.toDate() - a.createdAt.toDate();
+        const dateA = this.safeToDate(a.createdAt);
+        const dateB = this.safeToDate(b.createdAt);
+        if (dateA && dateB) {
+          return dateB - dateA;
         }
         return 0;
       });
@@ -306,8 +327,10 @@ class FirebaseDataService {
       }));
       
       return exams.sort((a, b) => {
-        if (a.createdAt && b.createdAt) {
-          return b.createdAt.toDate() - a.createdAt.toDate();
+        const dateA = this.safeToDate(a.createdAt);
+        const dateB = this.safeToDate(b.createdAt);
+        if (dateA && dateB) {
+          return dateB - dateA;
         }
         return 0;
       });
@@ -378,8 +401,10 @@ class FirebaseDataService {
       }));
       
       return questions.sort((a, b) => {
-        if (a.createdAt && b.createdAt) {
-          return b.createdAt.toDate() - a.createdAt.toDate();
+        const dateA = this.safeToDate(a.createdAt);
+        const dateB = this.safeToDate(b.createdAt);
+        if (dateA && dateB) {
+          return dateB - dateA;
         }
         return 0;
       });
@@ -469,8 +494,10 @@ class FirebaseDataService {
       }));
       
       return results.sort((a, b) => {
-        if (a.completedAt && b.completedAt) {
-          return b.completedAt.toDate() - a.completedAt.toDate();
+        const dateA = this.safeToDate(a.completedAt);
+        const dateB = this.safeToDate(b.completedAt);
+        if (dateA && dateB) {
+          return dateB - dateA;
         }
         return 0;
       });
