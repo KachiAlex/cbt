@@ -47,13 +47,17 @@ const authenticateMultiTenantAdmin = async (req, res, next) => {
     // Verify JWT token
     const decoded = verifyToken(token);
     
-    // For multi-tenant admin, we can trust the token payload
-    if (decoded.type === 'multi_tenant_admin') {
+    // For multi-tenant admin (super admin), we can trust the token payload completely
+    if (decoded.type === 'multi_tenant_admin' || decoded.role === 'super_admin') {
+      // Ensure super admin tokens always have the correct type
+      if (decoded.role === 'super_admin' && decoded.type !== 'multi_tenant_admin') {
+        decoded.type = 'multi_tenant_admin';
+      }
       req.user = decoded;
       return next();
     }
     
-    // For regular users, verify against database
+    // For regular users, verify against database but preserve JWT role
     const user = await User.findById(decoded.userId).populate('tenant_id');
     if (!user) {
       return res.status(401).json({ 
@@ -77,8 +81,11 @@ const authenticateMultiTenantAdmin = async (req, res, next) => {
       });
     }
     
+    // Preserve JWT role and add database user info
     req.user = {
       ...decoded,
+      // Keep the role from JWT token, don't override with database role
+      role: decoded.role,
       user: user,
       tenant: user.tenant_id
     };
