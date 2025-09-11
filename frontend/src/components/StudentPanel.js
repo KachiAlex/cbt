@@ -148,87 +148,91 @@ const StudentPanel = ({ user, tenant, onLogoClick, onAdminAccess }) => {
   return (
     <div>
       {/* Header with Logo Click */}
-      <div className="bg-white border-b shadow-sm mb-6">
-        <div className="max-w-5xl mx-auto flex items-center justify-between p-4">
-          <div className="flex items-center gap-3">
+      <div className="bg-white border-b shadow-sm mb-4 sm:mb-6">
+        <div className="max-w-5xl mx-auto flex flex-col sm:flex-row items-start sm:items-center justify-between p-3 sm:p-4 gap-3 sm:gap-0">
+          <div className="flex items-center gap-2 sm:gap-3">
             <button 
               onClick={onLogoClick}
-              className="h-10 w-10 bg-blue-600 rounded-lg flex items-center justify-center cursor-pointer hover:scale-105 hover:bg-blue-700 transition-all"
+              className="h-8 w-8 sm:h-10 sm:w-10 bg-blue-600 rounded-lg flex items-center justify-center cursor-pointer hover:scale-105 hover:bg-blue-700 transition-all"
               title="Click to switch to Admin Panel"
             >
-              <span className="text-white font-bold text-lg">CBT</span>
+              <span className="text-white font-bold text-sm sm:text-lg">CBT</span>
             </button>
-              <div>
-                <h1 className="text-xl font-bold text-gray-800">Student Portal</h1>
-                <p className="text-sm text-gray-600">Computer-Based Testing System</p>
-              </div>
+            <div>
+              <h1 className="text-lg sm:text-xl font-bold text-gray-800">Student Portal</h1>
+              <p className="text-xs sm:text-sm text-gray-600 hidden sm:block">Computer-Based Testing System</p>
             </div>
-            <div className="flex items-center gap-3">
-              {/* Hidden Admin Access Button */}
-              <button
-                onClick={onAdminAccess}
-                className="text-xs text-gray-400 hover:text-gray-600 transition-colors opacity-30 hover:opacity-70"
-                title="Admin Access (Ctrl+Alt+A)"
-              >
-                ⚙️
-              </button>
-              <span className="text-sm text-gray-600">Welcome, <b>{user.fullName || user.username}</b></span>
+          </div>
+          <div className="flex items-center gap-2 sm:gap-3 w-full sm:w-auto justify-between sm:justify-end">
+            {/* Hidden Admin Access Button */}
+            <button
+              onClick={onAdminAccess}
+              className="text-xs text-gray-400 hover:text-gray-600 transition-colors opacity-30 hover:opacity-70"
+              title="Admin Access (Ctrl+Alt+A)"
+            >
+              ⚙️
+            </button>
+            <div className="flex flex-col sm:flex-row items-end sm:items-center gap-1 sm:gap-3">
+              <span className="text-xs sm:text-sm text-gray-600">
+                <span className="hidden sm:inline">Welcome, </span><b>{user.fullName || user.username}</b>
+              </span>
               <span className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded-full">Student</span>
             </div>
+          </div>
         </div>
       </div>
       
-      <div className="space-y-6">
+      <div className="space-y-4 sm:space-y-6 px-3 sm:px-0">
         {/* Welcome Section */}
-      <div className="bg-gradient-to-r from-green-600 to-green-700 rounded-lg p-6 text-white">
-        <h1 className="text-2xl font-bold mb-2">Student Dashboard</h1>
-        <p className="opacity-90">
-          Welcome back, {user.fullName || user.username}! Ready to take your exams?
-        </p>
-        <p className="text-sm opacity-75 mt-1">
-          Institution: {tenant?.name || 'Unknown Institution'}
-        </p>
-      </div>
-
-      {/* Stats Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 mb-6 sm:mb-8">
-        <div className="bg-white rounded-lg shadow p-4 sm:p-6">
-          <div className="flex items-center">
-            <div className="p-2 bg-blue-100 rounded-lg flex-shrink-0">
-              <svg className="w-5 h-5 sm:w-6 sm:h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-              </svg>
-            </div>
-            <div className="ml-3 sm:ml-4 min-w-0">
-              <p className="text-xs sm:text-sm font-medium text-gray-600 truncate">Available Exams</p>
-              <p className="text-xl sm:text-2xl font-semibold text-gray-900">{availableExams.length}</p>
-            </div>
-          </div>
+        <div className="bg-gradient-to-r from-green-600 to-green-700 rounded-lg p-4 sm:p-6 text-white">
+          <h1 className="text-xl sm:text-2xl font-bold mb-2">Student Dashboard</h1>
+          <p className="opacity-90 text-sm sm:text-base">
+            Welcome back, {user.fullName || user.username}! Ready to take your exams?
+          </p>
+          <p className="text-xs sm:text-sm opacity-75 mt-1">
+            Institution: {tenant?.name || 'Unknown Institution'}
+          </p>
         </div>
 
-        <div className="bg-white rounded-lg shadow p-4 sm:p-6">
-          <div className="flex items-center">
-            <div className="p-2 bg-green-100 rounded-lg flex-shrink-0">
-              <svg className="w-5 h-5 sm:w-6 sm:h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-            </div>
-            <div className="ml-3 sm:ml-4 min-w-0">
-              <p className="text-xs sm:text-sm font-medium text-gray-600 truncate">Completed Exams</p>
-              <p className="text-xl sm:text-2xl font-semibold text-gray-900">{userResults.length}</p>
+        {/* Stats Cards */}
+        <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-6 mb-4 sm:mb-8">
+          <div className="bg-white rounded-lg shadow p-3 sm:p-6">
+            <div className="flex items-center">
+              <div className="p-1.5 sm:p-2 bg-blue-100 rounded-lg flex-shrink-0">
+                <svg className="w-4 h-4 sm:w-6 sm:h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                </svg>
+              </div>
+              <div className="ml-2 sm:ml-4 min-w-0">
+                <p className="text-xs font-medium text-gray-600 truncate">Available</p>
+                <p className="text-lg sm:text-2xl font-semibold text-gray-900">{availableExams.length}</p>
+              </div>
             </div>
           </div>
-        </div>
 
-        <div className="bg-white rounded-lg shadow p-4 sm:p-6 sm:col-span-2 lg:col-span-1">
-          <div className="flex items-center">
-            <div className="p-2 bg-purple-100 rounded-lg flex-shrink-0">
-              <svg className="w-5 h-5 sm:w-6 sm:h-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
-              </svg>
+          <div className="bg-white rounded-lg shadow p-3 sm:p-6">
+            <div className="flex items-center">
+              <div className="p-1.5 sm:p-2 bg-green-100 rounded-lg flex-shrink-0">
+                <svg className="w-4 h-4 sm:w-6 sm:h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+              </div>
+              <div className="ml-2 sm:ml-4 min-w-0">
+                <p className="text-xs font-medium text-gray-600 truncate">Completed</p>
+                <p className="text-lg sm:text-2xl font-semibold text-gray-900">{userResults.length}</p>
+              </div>
             </div>
-            <div className="ml-3 sm:ml-4 min-w-0">
-              <p className="text-xs sm:text-sm font-medium text-gray-600 truncate">Average Score</p>
+          </div>
+
+          <div className="bg-white rounded-lg shadow p-3 sm:p-6 col-span-2 sm:col-span-1">
+            <div className="flex items-center">
+              <div className="p-1.5 sm:p-2 bg-purple-100 rounded-lg flex-shrink-0">
+                <svg className="w-4 h-4 sm:w-6 sm:h-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
+                </svg>
+              </div>
+              <div className="ml-2 sm:ml-4 min-w-0">
+                <p className="text-xs font-medium text-gray-600 truncate">Average</p>
               <p className="text-xl sm:text-2xl font-semibold text-gray-900">
                 {(() => {
                   if (userResults.length === 0) return '0%';
@@ -265,33 +269,35 @@ const StudentPanel = ({ user, tenant, onLogoClick, onAdminAccess }) => {
         </div>
       </div>
 
-      {/* Available Exams */}
-      {availableExams.length > 0 && (
-        <div className="bg-white rounded-lg shadow p-4 sm:p-6 mb-6 sm:mb-8">
-          <h3 className="text-lg font-semibold mb-4">Available Exams</h3>
-          <div className="space-y-4">
-            {availableExams.map((exam) => (
-              <div key={exam.id} className="border rounded-lg p-4">
-                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                  <div className="flex-1 min-w-0">
-                    <h4 className="font-medium text-lg truncate">{exam.title}</h4>
-                    <p className="text-gray-600 text-sm sm:text-base">{exam.questions?.length || 0} questions</p>
-                    <p className="text-sm text-gray-500">
-                      Duration: {exam.duration || 30} minutes
-                    </p>
+        {/* Available Exams */}
+        {availableExams.length > 0 && (
+          <div className="bg-white rounded-lg shadow p-4 sm:p-6 mb-4 sm:mb-8">
+            <h3 className="text-lg font-semibold mb-4">Available Exams</h3>
+            <div className="space-y-3 sm:space-y-4">
+              {availableExams.map((exam) => (
+                <div key={exam.id} className="border rounded-lg p-3 sm:p-4">
+                  <div className="flex flex-col gap-3 sm:gap-4">
+                    <div className="flex-1 min-w-0">
+                      <h4 className="font-medium text-base sm:text-lg truncate">{exam.title}</h4>
+                      <div className="flex flex-col sm:flex-row sm:gap-4 mt-1">
+                        <p className="text-gray-600 text-sm">{exam.questions?.length || 0} questions</p>
+                        <p className="text-sm text-gray-500">
+                          Duration: {exam.duration || 30} minutes
+                        </p>
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => startExam(exam)}
+                      className="bg-blue-600 text-white px-4 sm:px-6 py-2.5 sm:py-3 rounded-lg hover:bg-blue-700 transition-colors w-full text-center font-medium text-sm sm:text-base"
+                    >
+                      Start Exam
+                    </button>
                   </div>
-                  <button
-                    onClick={() => startExam(exam)}
-                    className="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition-colors w-full sm:w-auto text-center font-medium"
-                  >
-                    Start Exam
-                  </button>
                 </div>
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
-        </div>
-      )}
+        )}
 
       {/* No Exams Available */}
       {availableExams.length === 0 && exams.length === 0 && (
@@ -307,65 +313,65 @@ const StudentPanel = ({ user, tenant, onLogoClick, onAdminAccess }) => {
         </div>
       )}
 
-      {/* Recent Results */}
-      {userResults.length > 0 && (
-        <div className="bg-white rounded-lg shadow p-6">
-          <h3 className="text-lg font-semibold mb-4">Recent Results</h3>
-          <div className="overflow-x-auto">
-            <table className="min-w-full text-sm">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="text-left p-2 font-medium">Exam</th>
-                  <th className="text-left p-2 font-medium">Score</th>
-                  <th className="text-left p-2 font-medium">Percentage</th>
-                  <th className="text-left p-2 font-medium">Date</th>
-                </tr>
-              </thead>
-              <tbody>
-                {userResults.slice(0, 5).map((result, idx) => (
-                  <tr key={idx} className="border-t">
-                    <td className="p-2">{result.examTitle}</td>
-                    <td className="p-2">{result.score}/{result.totalQuestions}</td>
-                    <td className="p-2">{result.percentage || result.percent}%</td>
-                    <td className="p-2">
-                      {result.submittedAt ? new Date(result.submittedAt.seconds * 1000).toLocaleDateString() : 'N/A'}
-                    </td>
+        {/* Recent Results */}
+        {userResults.length > 0 && (
+          <div className="bg-white rounded-lg shadow p-4 sm:p-6">
+            <h3 className="text-lg font-semibold mb-4">Recent Results</h3>
+            <div className="overflow-x-auto">
+              <table className="min-w-full text-xs sm:text-sm">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="text-left p-2 font-medium">Exam</th>
+                    <th className="text-left p-2 font-medium hidden sm:table-cell">Score</th>
+                    <th className="text-left p-2 font-medium">%</th>
+                    <th className="text-left p-2 font-medium hidden sm:table-cell">Date</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {userResults.slice(0, 5).map((result, idx) => (
+                    <tr key={idx} className="border-t">
+                      <td className="p-2 font-medium">{result.examTitle}</td>
+                      <td className="p-2 hidden sm:table-cell">{result.score}/{result.totalQuestions}</td>
+                      <td className="p-2 font-semibold">{result.percentage || result.percent}%</td>
+                      <td className="p-2 hidden sm:table-cell">
+                        {result.submittedAt ? new Date(result.submittedAt.seconds * 1000).toLocaleDateString() : 'N/A'}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
-        </div>
-      )}
+        )}
 
-      {/* Quick Actions */}
-      <div className="bg-white rounded-lg shadow p-4 sm:p-6">
-        <h3 className="text-lg font-semibold mb-4">Quick Actions</h3>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <button
-            onClick={() => availableExams.length > 0 && startExam(availableExams[0])}
-            disabled={availableExams.length === 0}
-            className="flex items-center justify-center p-4 sm:p-6 border-2 border-dashed border-gray-300 rounded-lg hover:border-blue-400 hover:bg-blue-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed min-h-[120px]"
-          >
-            <div className="text-center">
-              <div className="text-2xl sm:text-3xl mb-2">🎯</div>
-              <div className="font-medium text-sm sm:text-base">Take Exam</div>
-              <div className="text-xs sm:text-sm text-gray-500 mt-1">
-                {availableExams.length > 0 ? 'Start your exam now' : 'No exams available'}
+        {/* Quick Actions */}
+        <div className="bg-white rounded-lg shadow p-4 sm:p-6">
+          <h3 className="text-lg font-semibold mb-4">Quick Actions</h3>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+            <button
+              onClick={() => availableExams.length > 0 && startExam(availableExams[0])}
+              disabled={availableExams.length === 0}
+              className="flex items-center justify-center p-3 sm:p-6 border-2 border-dashed border-gray-300 rounded-lg hover:border-blue-400 hover:bg-blue-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed min-h-[100px] sm:min-h-[120px]"
+            >
+              <div className="text-center">
+                <div className="text-xl sm:text-3xl mb-2">🎯</div>
+                <div className="font-medium text-sm sm:text-base">Take Exam</div>
+                <div className="text-xs sm:text-sm text-gray-500 mt-1">
+                  {availableExams.length > 0 ? 'Start your exam now' : 'No exams available'}
+                </div>
               </div>
-            </div>
-          </button>
+            </button>
 
-          <button
-            onClick={() => setActiveTab('profile')}
-            className="flex items-center justify-center p-4 sm:p-6 border-2 border-dashed border-gray-300 rounded-lg hover:border-green-400 hover:bg-green-50 transition-colors min-h-[120px]"
-          >
-            <div className="text-center">
-              <div className="text-2xl sm:text-3xl mb-2">👤</div>
-              <div className="font-medium text-sm sm:text-base">View Profile</div>
-              <div className="text-xs sm:text-sm text-gray-500 mt-1">Update your information</div>
-            </div>
-          </button>
+            <button
+              onClick={() => setActiveTab('profile')}
+              className="flex items-center justify-center p-3 sm:p-6 border-2 border-dashed border-gray-300 rounded-lg hover:border-green-400 hover:bg-green-50 transition-colors min-h-[100px] sm:min-h-[120px]"
+            >
+              <div className="text-center">
+                <div className="text-xl sm:text-3xl mb-2">👤</div>
+                <div className="font-medium text-sm sm:text-base">View Profile</div>
+                <div className="text-xs sm:text-sm text-gray-500 mt-1">Update your information</div>
+              </div>
+            </button>
         </div>
       </div>
       </div>
