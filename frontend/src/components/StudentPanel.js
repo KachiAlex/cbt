@@ -71,7 +71,7 @@ const StudentPanel = ({ user, tenant, onLogoClick, onAdminAccess }) => {
   const handleMigration = async () => {
     setMigrating(true);
     try {
-      const result = await migrateLocalStorageToFirebase(user);
+      const result = await migrateLocalStorageToFirebase(user, tenant);
       if (result.success) {
         alert(`✅ Migration successful! Migrated ${result.migrated} exam results.`);
         setShowMigrationPrompt(false);

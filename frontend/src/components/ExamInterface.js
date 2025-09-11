@@ -220,7 +220,9 @@ const ExamInterface = ({ user, exam: propExam, onComplete }) => {
         examId: exam.id,
         examTitle: exam.title,
         userId: user.id,
+        studentId: user.id, // Add studentId for admin panel compatibility
         studentName: user.fullName || user.username,
+        institutionId: user.institutionId || tenant?.id, // Add institutionId for admin panel
         answers: answers,
         score: score,
         totalQuestions: questions.length,

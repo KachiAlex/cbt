@@ -7,7 +7,7 @@ const LS_KEYS = {
   ACTIVE_EXAM: "cbt_active_exam_v1",
 };
 
-export const migrateLocalStorageToFirebase = async (user) => {
+export const migrateLocalStorageToFirebase = async (user, tenant) => {
   try {
     console.log('🔄 Starting localStorage to Firebase migration...');
     
@@ -63,7 +63,9 @@ export const migrateLocalStorageToFirebase = async (user) => {
           examId: examId || 'legacy_exam',
           examTitle: result.examTitle || activeExamTitle,
           userId: user.id,
+          studentId: user.id, // Add studentId for admin panel compatibility
           studentName: user.fullName || user.username,
+          institutionId: user.institutionId || tenant?.id, // Add institutionId for admin panel
           username: user.username,
           answers: result.answers || {},
           score: result.score || 0,
