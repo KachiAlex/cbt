@@ -366,16 +366,16 @@ const ExamInterface = ({ user, exam: propExam, onComplete }) => {
       {/* Header */}
       <header className="bg-white shadow">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center py-4">
-            <div>
-              <h1 className="text-2xl font-bold text-gray-900">{exam.title}</h1>
-              <p className="text-gray-600">Question {currentQuestionIndex + 1} of {questions.length}</p>
+          <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center py-4 gap-4">
+            <div className="flex-1 min-w-0">
+              <h1 className="text-lg sm:text-2xl font-bold text-gray-900 truncate">{exam.title}</h1>
+              <p className="text-sm sm:text-base text-gray-600">Question {currentQuestionIndex + 1} of {questions.length}</p>
             </div>
-            <div className="text-right">
-              <div className="text-2xl font-bold text-red-600">
+            <div className="text-left sm:text-right flex-shrink-0">
+              <div className="text-xl sm:text-2xl font-bold text-red-600">
                 {formatTime(timeLeft)}
               </div>
-              <div className="text-sm text-gray-500">Time Remaining</div>
+              <div className="text-xs sm:text-sm text-gray-500">Time Remaining</div>
             </div>
           </div>
           
@@ -389,52 +389,52 @@ const ExamInterface = ({ user, exam: propExam, onComplete }) => {
         </div>
       </header>
 
-      <div className="max-w-4xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
-        <div className="bg-white rounded-lg shadow-lg p-8">
-          <div className="mb-8">
-            <h2 className="text-xl font-semibold text-gray-900 mb-4">
+      <div className="max-w-4xl mx-auto py-4 sm:py-6 px-4 sm:px-6 lg:px-8">
+        <div className="bg-white rounded-lg shadow-lg p-4 sm:p-8">
+          <div className="mb-6 sm:mb-8">
+            <h2 className="text-lg sm:text-xl font-semibold text-gray-900 mb-4 leading-relaxed">
               {currentQuestion.question}
             </h2>
             
             <div className="space-y-3">
               {currentQuestion.options && currentQuestion.options.length > 0 ? (
                 currentQuestion.options.map((option, index) => (
-                  <label key={index} className="flex items-center p-3 border border-gray-200 rounded-md hover:bg-gray-50 cursor-pointer">
+                  <label key={index} className="flex items-start p-3 sm:p-4 border-2 border-gray-200 rounded-lg hover:bg-gray-50 cursor-pointer transition-colors">
                     <input
                       type="radio"
                       name={`question-${currentQuestion.id}`}
                       value={option}
                       checked={answers[currentQuestion.id] === option}
                       onChange={(e) => handleAnswerChange(currentQuestion.id, e.target.value)}
-                      className="mr-3 text-indigo-600 focus:ring-indigo-500"
+                      className="mr-3 mt-1 text-indigo-600 focus:ring-indigo-500 w-4 h-4 flex-shrink-0"
                     />
-                    <span className="text-gray-700">{option}</span>
+                    <span className="text-gray-700 text-sm sm:text-base leading-relaxed">{option}</span>
                   </label>
                 ))
               ) : (
                 <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-md">
-                  <p className="text-yellow-800">⚠️ No options available for this question. Please contact your instructor.</p>
-                  <p className="text-sm text-yellow-700 mt-1">Question ID: {currentQuestion.id}</p>
+                  <p className="text-yellow-800 text-sm sm:text-base">⚠️ No options available for this question. Please contact your instructor.</p>
+                  <p className="text-xs sm:text-sm text-yellow-700 mt-1">Question ID: {currentQuestion.id}</p>
                 </div>
               )}
             </div>
           </div>
           
-          <div className="flex justify-between items-center">
+          <div className="flex flex-col sm:flex-row justify-between items-center gap-4">
             <button
               onClick={handlePreviousQuestion}
               disabled={currentQuestionIndex === 0}
-              className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full sm:w-auto px-4 py-3 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed font-medium"
             >
               Previous
             </button>
             
-            <div className="flex space-x-2">
+            <div className="flex flex-wrap justify-center gap-2 max-w-full overflow-x-auto">
               {questions.map((_, index) => (
                 <button
                   key={index}
                   onClick={() => setCurrentQuestionIndex(index)}
-                  className={`w-8 h-8 rounded-full text-sm font-medium ${
+                  className={`w-8 h-8 sm:w-10 sm:h-10 rounded-full text-xs sm:text-sm font-medium flex-shrink-0 ${
                     index === currentQuestionIndex
                       ? 'bg-indigo-600 text-white'
                       : answers[questions[index].id]
@@ -450,14 +450,14 @@ const ExamInterface = ({ user, exam: propExam, onComplete }) => {
             {currentQuestionIndex === questions.length - 1 ? (
               <button
                 onClick={handleSubmitExam}
-                className="px-6 py-2 bg-green-600 text-white rounded-md hover:bg-green-700"
+                className="w-full sm:w-auto px-6 py-3 bg-green-600 text-white rounded-md hover:bg-green-700 font-medium"
               >
                 Submit Exam
               </button>
             ) : (
               <button
                 onClick={handleNextQuestion}
-                className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700"
+                className="w-full sm:w-auto px-4 py-3 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 font-medium"
               >
                 Next
               </button>

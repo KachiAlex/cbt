@@ -110,11 +110,11 @@ const StudentPanel = ({ user, tenant, onLogoClick, onAdminAccess }) => {
   if (showMigrationPrompt) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
-        <div className="max-w-md bg-white rounded-lg shadow-lg p-6">
+        <div className="max-w-md w-full bg-white rounded-lg shadow-lg p-6">
           <div className="text-center mb-6">
             <div className="text-4xl mb-4">🔄</div>
-            <h2 className="text-xl font-bold text-gray-900 mb-2">Data Migration Available</h2>
-            <p className="text-gray-600">
+            <h2 className="text-lg sm:text-xl font-bold text-gray-900 mb-2">Data Migration Available</h2>
+            <p className="text-sm sm:text-base text-gray-600 leading-relaxed">
               We found your previous exam results stored locally. Would you like to migrate them to the new system?
             </p>
           </div>
@@ -123,7 +123,7 @@ const StudentPanel = ({ user, tenant, onLogoClick, onAdminAccess }) => {
             <button
               onClick={handleMigration}
               disabled={migrating}
-              className="w-full bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full bg-blue-600 text-white px-4 py-3 rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed font-medium"
             >
               {migrating ? 'Migrating...' : 'Migrate My Data'}
             </button>
@@ -131,13 +131,13 @@ const StudentPanel = ({ user, tenant, onLogoClick, onAdminAccess }) => {
             <button
               onClick={dismissMigration}
               disabled={migrating}
-              className="w-full bg-gray-200 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-300 disabled:opacity-50"
+              className="w-full bg-gray-200 text-gray-700 px-4 py-3 rounded-lg hover:bg-gray-300 disabled:opacity-50 font-medium"
             >
               Skip Migration
             </button>
           </div>
           
-          <p className="text-xs text-gray-500 mt-4 text-center">
+          <p className="text-xs text-gray-500 mt-4 text-center leading-relaxed">
             This is a one-time process. Your old data will remain in your browser.
           </p>
         </div>
@@ -191,45 +191,45 @@ const StudentPanel = ({ user, tenant, onLogoClick, onAdminAccess }) => {
       </div>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="bg-white rounded-lg shadow p-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 mb-6 sm:mb-8">
+        <div className="bg-white rounded-lg shadow p-4 sm:p-6">
           <div className="flex items-center">
-            <div className="p-2 bg-blue-100 rounded-lg">
-              <svg className="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <div className="p-2 bg-blue-100 rounded-lg flex-shrink-0">
+              <svg className="w-5 h-5 sm:w-6 sm:h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
               </svg>
             </div>
-            <div className="ml-4">
-              <p className="text-sm font-medium text-gray-600">Available Exams</p>
-              <p className="text-2xl font-semibold text-gray-900">{availableExams.length}</p>
+            <div className="ml-3 sm:ml-4 min-w-0">
+              <p className="text-xs sm:text-sm font-medium text-gray-600 truncate">Available Exams</p>
+              <p className="text-xl sm:text-2xl font-semibold text-gray-900">{availableExams.length}</p>
             </div>
           </div>
         </div>
 
-        <div className="bg-white rounded-lg shadow p-6">
+        <div className="bg-white rounded-lg shadow p-4 sm:p-6">
           <div className="flex items-center">
-            <div className="p-2 bg-green-100 rounded-lg">
-              <svg className="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <div className="p-2 bg-green-100 rounded-lg flex-shrink-0">
+              <svg className="w-5 h-5 sm:w-6 sm:h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
             </div>
-            <div className="ml-4">
-              <p className="text-sm font-medium text-gray-600">Completed Exams</p>
-              <p className="text-2xl font-semibold text-gray-900">{userResults.length}</p>
+            <div className="ml-3 sm:ml-4 min-w-0">
+              <p className="text-xs sm:text-sm font-medium text-gray-600 truncate">Completed Exams</p>
+              <p className="text-xl sm:text-2xl font-semibold text-gray-900">{userResults.length}</p>
             </div>
           </div>
         </div>
 
-        <div className="bg-white rounded-lg shadow p-6">
+        <div className="bg-white rounded-lg shadow p-4 sm:p-6 sm:col-span-2 lg:col-span-1">
           <div className="flex items-center">
-            <div className="p-2 bg-purple-100 rounded-lg">
-              <svg className="w-6 h-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <div className="p-2 bg-purple-100 rounded-lg flex-shrink-0">
+              <svg className="w-5 h-5 sm:w-6 sm:h-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
               </svg>
             </div>
-            <div className="ml-4">
-              <p className="text-sm font-medium text-gray-600">Average Score</p>
-              <p className="text-2xl font-semibold text-gray-900">
+            <div className="ml-3 sm:ml-4 min-w-0">
+              <p className="text-xs sm:text-sm font-medium text-gray-600 truncate">Average Score</p>
+              <p className="text-xl sm:text-2xl font-semibold text-gray-900">
                 {userResults.length > 0 
                   ? Math.round(userResults.reduce((sum, r) => sum + (r.percent || 0), 0) / userResults.length)
                   : 0}%
@@ -241,22 +241,22 @@ const StudentPanel = ({ user, tenant, onLogoClick, onAdminAccess }) => {
 
       {/* Available Exams */}
       {availableExams.length > 0 && (
-        <div className="bg-white rounded-lg shadow p-6">
+        <div className="bg-white rounded-lg shadow p-4 sm:p-6 mb-6 sm:mb-8">
           <h3 className="text-lg font-semibold mb-4">Available Exams</h3>
           <div className="space-y-4">
             {availableExams.map((exam) => (
               <div key={exam.id} className="border rounded-lg p-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h4 className="font-medium text-lg">{exam.title}</h4>
-                    <p className="text-gray-600">{exam.questions?.length || 0} questions</p>
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                  <div className="flex-1 min-w-0">
+                    <h4 className="font-medium text-lg truncate">{exam.title}</h4>
+                    <p className="text-gray-600 text-sm sm:text-base">{exam.questions?.length || 0} questions</p>
                     <p className="text-sm text-gray-500">
                       Duration: {exam.duration || 30} minutes
                     </p>
                   </div>
                   <button
                     onClick={() => startExam(exam)}
-                    className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition-colors"
+                    className="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition-colors w-full sm:w-auto text-center font-medium"
                   >
                     Start Exam
                   </button>
@@ -313,18 +313,18 @@ const StudentPanel = ({ user, tenant, onLogoClick, onAdminAccess }) => {
       )}
 
       {/* Quick Actions */}
-      <div className="bg-white rounded-lg shadow p-6">
+      <div className="bg-white rounded-lg shadow p-4 sm:p-6">
         <h3 className="text-lg font-semibold mb-4">Quick Actions</h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <button
             onClick={() => availableExams.length > 0 && startExam(availableExams[0])}
             disabled={availableExams.length === 0}
-            className="flex items-center justify-center p-4 border-2 border-dashed border-gray-300 rounded-lg hover:border-blue-400 hover:bg-blue-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            className="flex items-center justify-center p-4 sm:p-6 border-2 border-dashed border-gray-300 rounded-lg hover:border-blue-400 hover:bg-blue-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed min-h-[120px]"
           >
             <div className="text-center">
-              <div className="text-3xl mb-2">🎯</div>
-              <div className="font-medium">Take Exam</div>
-              <div className="text-sm text-gray-500">
+              <div className="text-2xl sm:text-3xl mb-2">🎯</div>
+              <div className="font-medium text-sm sm:text-base">Take Exam</div>
+              <div className="text-xs sm:text-sm text-gray-500 mt-1">
                 {availableExams.length > 0 ? 'Start your exam now' : 'No exams available'}
               </div>
             </div>
@@ -332,12 +332,12 @@ const StudentPanel = ({ user, tenant, onLogoClick, onAdminAccess }) => {
 
           <button
             onClick={() => setActiveTab('profile')}
-            className="flex items-center justify-center p-4 border-2 border-dashed border-gray-300 rounded-lg hover:border-green-400 hover:bg-green-50 transition-colors"
+            className="flex items-center justify-center p-4 sm:p-6 border-2 border-dashed border-gray-300 rounded-lg hover:border-green-400 hover:bg-green-50 transition-colors min-h-[120px]"
           >
             <div className="text-center">
-              <div className="text-3xl mb-2">👤</div>
-              <div className="font-medium">View Profile</div>
-              <div className="text-sm text-gray-500">Update your information</div>
+              <div className="text-2xl sm:text-3xl mb-2">👤</div>
+              <div className="font-medium text-sm sm:text-base">View Profile</div>
+              <div className="text-xs sm:text-sm text-gray-500 mt-1">Update your information</div>
             </div>
           </button>
         </div>
