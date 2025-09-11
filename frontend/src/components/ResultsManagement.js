@@ -25,6 +25,10 @@ const ResultsManagement = ({ institution, onStatsUpdate }) => {
         firebaseDataService.getInstitutionExams(institution.id),
         firebaseDataService.getInstitutionUsers(institution.id)
       ]);
+      
+      console.log('🔍 ResultsManagement: Loaded results:', resultsData);
+      console.log('🔍 ResultsManagement: Loaded students:', studentsData);
+      
       setResults(resultsData);
       setExams(examsData);
       setStudents(studentsData);
@@ -72,13 +76,20 @@ const ResultsManagement = ({ institution, onStatsUpdate }) => {
 
   const getStudentName = (studentId) => {
     console.log('🔍 Looking for student with ID:', studentId);
-    console.log('🔍 Available students:', students.map(s => ({ id: s.id, fullName: s.fullName, username: s.username })));
+    console.log('🔍 Available students:', students.map(s => ({ 
+      id: s.id, 
+      fullName: s.fullName, 
+      username: s.username,
+      studentId: s.studentId,
+      userId: s.userId 
+    })));
     
     // Try multiple ID fields
     const student = students.find(s => 
       s.id === studentId || 
       s.userId === studentId || 
-      s.username === studentId
+      s.username === studentId ||
+      s.studentId === studentId
     );
     
     if (student) {
