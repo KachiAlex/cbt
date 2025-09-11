@@ -228,9 +228,16 @@ const ExamInterface = ({ user, exam: propExam, onComplete }) => {
         totalQuestions: questions.length,
         correctAnswers: correctAnswers,
         timeSpent: (exam.duration * 60) - timeLeft,
-        status: isEssayExam ? (essayAggregate && essayAggregate.confidence >= 0.7 ? 'provisional' : 'pending_review') : 'completed',
-        provisional: isEssayExam ? { percent: essayAggregate?.percent ?? null, confidence: essayAggregate?.confidence ?? 0 } : undefined
+        status: isEssayExam ? (essayAggregate && essayAggregate.confidence >= 0.7 ? 'provisional' : 'pending_review') : 'completed'
       };
+      
+      // Only add provisional field for essay exams
+      if (isEssayExam) {
+        result.provisional = { 
+          percent: essayAggregate?.percent ?? null, 
+          confidence: essayAggregate?.confidence ?? 0 
+        };
+      }
       
       await dataService.saveExamResult(result);
       
