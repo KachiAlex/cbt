@@ -12,7 +12,7 @@ const LandingPage = () => {
       title: "WAEC Goes Digital!",
       subtitle: "Be Ready for the Future of Examinations",
       description: "With WAEC transitioning to Computer-Based Testing, our platform ensures your institution is fully prepared for this digital transformation.",
-      image: "https://images.unsplash.com/photo-1434030216411-0b793f4b4173?ixlib=rb-4.0.3&auto=format&fit=crop&w=2070&q=80",
+      image: "https://images.unsplash.com/photo-1509062522246-3755977927d7?ixlib=rb-4.0.3&auto=format&fit=crop&w=2070&q=80",
       cta: "Get Started Today",
       bgGradient: "from-blue-600 to-purple-700"
     },
@@ -21,7 +21,7 @@ const LandingPage = () => {
       title: "Seamless Exam Management",
       subtitle: "From Creation to Results",
       description: "Create, manage, and grade exams effortlessly. Our comprehensive platform handles everything from question banks to detailed analytics.",
-      image: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?ixlib=rb-4.0.3&auto=format&fit=crop&w=2070&q=80",
+      image: "https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?ixlib=rb-4.0.3&auto=format&fit=crop&w=2070&q=80",
       cta: "Explore Features",
       bgGradient: "from-green-600 to-teal-700"
     },
@@ -30,7 +30,7 @@ const LandingPage = () => {
       title: "Real-time Analytics",
       subtitle: "Data-Driven Education",
       description: "Get instant insights into student performance, exam analytics, and institutional progress with our advanced reporting system.",
-      image: "https://images.unsplash.com/photo-1551288049-bebda4e38f71?ixlib=rb-4.0.3&auto=format&fit=crop&w=2070&q=80",
+      image: "https://images.unsplash.com/photo-1556075798-4825dfaaf498?ixlib=rb-4.0.3&auto=format&fit=crop&w=2070&q=80",
       cta: "View Demo",
       bgGradient: "from-purple-600 to-pink-700"
     }
@@ -45,7 +45,7 @@ const LandingPage = () => {
       date: "2024-01-15",
       category: "Education",
       readTime: "5 min read",
-      image: "https://images.unsplash.com/photo-1522202176988-66273c2fd55f?ixlib=rb-4.0.3&auto=format&fit=crop&w=1000&q=80"
+      image: "https://images.unsplash.com/photo-1509062522246-3755977927d7?ixlib=rb-4.0.3&auto=format&fit=crop&w=1000&q=80"
     },
     {
       id: 2,
@@ -54,7 +54,7 @@ const LandingPage = () => {
       date: "2024-01-10",
       category: "Technology",
       readTime: "4 min read",
-      image: "https://images.unsplash.com/photo-1516321318423-f06f85e504b3?ixlib=rb-4.0.3&auto=format&fit=crop&w=1000&q=80"
+      image: "https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?ixlib=rb-4.0.3&auto=format&fit=crop&w=1000&q=80"
     },
     {
       id: 3,
@@ -63,7 +63,7 @@ const LandingPage = () => {
       date: "2024-01-05",
       category: "Implementation",
       readTime: "7 min read",
-      image: "https://images.unsplash.com/photo-1523240798034-6c0b3b3b3b3b?ixlib=rb-4.0.3&auto=format&fit=crop&w=1000&q=80"
+      image: "https://images.unsplash.com/photo-1556075798-4825dfaaf498?ixlib=rb-4.0.3&auto=format&fit=crop&w=1000&q=80"
     }
   ];
 
@@ -207,32 +207,36 @@ const LandingPage = () => {
               index === currentSlide ? 'opacity-100' : 'opacity-0'
             }`}
           >
-            <div className={`absolute inset-0 bg-gradient-to-r ${slide.bgGradient} opacity-90`}></div>
+            <div className={`absolute inset-0 bg-gradient-to-r ${slide.bgGradient} opacity-80`}></div>
             <div
               className="absolute inset-0 bg-cover bg-center bg-no-repeat"
               style={{ backgroundImage: `url(${slide.image})` }}
             ></div>
             
+            {/* Dark overlay for better text readability */}
+            <div className="absolute inset-0 bg-black opacity-40"></div>
+            
             <div className="relative z-10 h-full flex items-center">
               <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                 <div className="max-w-3xl">
-                  <h1 className="text-5xl md:text-7xl font-bold text-white mb-6 leading-tight">
+                  <h1 className="text-5xl md:text-7xl font-bold text-white mb-6 leading-tight drop-shadow-2xl" style={{ textShadow: '2px 2px 4px rgba(0,0,0,0.8)' }}>
                     {slide.title}
                   </h1>
-                  <h2 className="text-2xl md:text-3xl font-semibold text-blue-100 mb-6">
+                  <h2 className="text-2xl md:text-3xl font-semibold text-yellow-200 mb-6 drop-shadow-xl" style={{ textShadow: '1px 1px 3px rgba(0,0,0,0.7)' }}>
                     {slide.subtitle}
                   </h2>
-                  <p className="text-xl text-gray-100 mb-8 leading-relaxed">
+                  <p className="text-xl text-gray-50 mb-8 leading-relaxed drop-shadow-lg" style={{ textShadow: '1px 1px 2px rgba(0,0,0,0.6)' }}>
                     {slide.description}
                   </p>
                   <div className="flex flex-col sm:flex-row gap-4">
                     <Link
                       to="/institution-login"
-                      className="bg-white text-blue-600 px-8 py-4 rounded-full text-lg font-semibold hover:bg-gray-100 transition-all duration-300 transform hover:scale-105 shadow-lg"
+                      className="bg-white text-blue-600 px-8 py-4 rounded-full text-lg font-semibold hover:bg-gray-100 transition-all duration-300 transform hover:scale-105 shadow-2xl border-2 border-white"
+                      style={{ textShadow: 'none' }}
                     >
                       {slide.cta}
                     </Link>
-                    <button className="border-2 border-white text-white px-8 py-4 rounded-full text-lg font-semibold hover:bg-white hover:text-blue-600 transition-all duration-300">
+                    <button className="border-2 border-yellow-300 text-yellow-200 px-8 py-4 rounded-full text-lg font-semibold hover:bg-yellow-300 hover:text-gray-900 transition-all duration-300 shadow-xl" style={{ textShadow: '1px 1px 2px rgba(0,0,0,0.7)' }}>
                       Watch Demo
                     </button>
                   </div>
