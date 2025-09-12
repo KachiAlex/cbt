@@ -1570,41 +1570,7 @@ app.delete('/api/tenants/:id', cors(), authenticateMultiTenantAdmin, async (req,
   }
 });
 
-// Delete tenant endpoint by slug
-      
-      // Hard delete all users associated with this tenant
-      try {
-        const userDeleteResult = await User.deleteMany({ tenant_id: tenant._id });
-        console.log(`Hard deleted ${userDeleteResult.deletedCount} users`);
-      } catch (userError) {
-        console.log(`Warning: Could not delete users: ${userError.message}`);
-      }
-      
-      // Hard delete all exams associated with this tenant
-      try {
-        const examDeleteResult = await Exam.deleteMany({ tenant_id: tenant._id });
-        console.log(`Hard deleted ${examDeleteResult.deletedCount} exams`);
-      } catch (examError) {
-        console.log(`Warning: Could not delete exams: ${examError.message}`);
-      }
-      
-      // Hard delete all questions associated with this tenant
-      try {
-        const questionDeleteResult = await Question.deleteMany({ tenant_id: tenant._id });
-        console.log(`Hard deleted ${questionDeleteResult.deletedCount} questions`);
-      } catch (examError) {
-        console.log(`Warning: Could not delete questions: ${examError.message}`);
-      }
-      
-      // Hard delete all results associated with this tenant
-      try {
-        const resultDeleteResult = await Result.deleteMany({ tenant_id: tenant._id });
-        console.log(`Hard deleted ${resultDeleteResult.deletedCount} results`);
-      } catch (resultError) {
-        console.log(`Warning: Could not delete results: ${resultError.message}`);
-      }
-      
-      // Hard delete the tenant itself
+// Note: hard-delete logic is implemented inside the authenticated route handler below.
       try {
         await Tenant.findByIdAndDelete(tenant._id);
         console.log(`Successfully hard-deleted tenant: ${tenant.name}`);
