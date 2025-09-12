@@ -15,6 +15,9 @@ const Exam = require('./models/Exam');
 const Result = require('./models/Result');
 const Question = require('./models/Question');
 
+// Middleware
+const { authenticateMultiTenantAdmin, requireRole, requireTenantAccess } = require('./middleware/auth');
+
 // Helper function to find tenant by ID or slug
 async function findTenantByIdOrSlug(idOrSlug) {
   let tenant = null;
@@ -2143,8 +2146,8 @@ app.get('/api/tenants/:slug/admins', cors(), authenticateMultiTenantAdmin, async
   }
 });
 
-// Create new admin for a tenant
-app.post('/api/tenants/:slug/admins', cors(), authenticateMultiTenantAdmin, async (req, res) => {
+// Create new admin for a tenant with RBAC validation
+app.post('/api/tenants/:slug/admins', cors(), authenticateMultiTenantAdmin, requireRole(['super_admin', 'tenant_admin']), requireTenantAccess, async (req, res) => {
   try {
     const { slug } = req.params;
     const { username, email, fullName, password, role = 'admin' } = req.body;
@@ -2155,6 +2158,17 @@ app.post('/api/tenants/:slug/admins', cors(), authenticateMultiTenantAdmin, asyn
     
     if (password.length < 6) {
       return res.status(400).json({ error: 'Password must be at least 6 characters' });
+    }
+    
+    // Validate role against RBAC permissions
+    const creatorRole = req.user.role;
+    const allowedRoles = getRolesUserCanCreate(creatorRole);
+    
+    if (!allowedRoles.includes(role)) {
+      return res.status(403).json({ 
+        error: 'Insufficient permissions',
+        message: `You can only create users with roles: ${allowedRoles.join(', ')}`
+      });
     }
     
     const tenant = await Tenant.findOne({ slug, deleted_at: null });
@@ -2182,19 +2196,44 @@ app.post('/api/tenants/:slug/admins', cors(), authenticateMultiTenantAdmin, asyn
       return res.status(400).json({ error: 'Email already exists in this institution' });
     }
     
+    // Hash password
+    const bcrypt = require('bcryptjs');
+    const hashedPassword = await bcrypt.hash(password, 10);
+    
     // Create new admin user
     const newAdmin = new User({
       tenant_id: tenant._id,
-      username: username,
-      email: email,
+      username: username.toLowerCase(),
+      email: email.toLowerCase(),
       fullName: fullName,
-      password: password,
+      password: hashedPassword,
       role: role,
       is_active: true,
       is_default_admin: false
     });
     
     await newAdmin.save();
+    
+    // Log the admin creation
+    try {
+      const AuditLog = require('./models/AuditLog');
+      await new AuditLog({
+        actor_user_id: req.user.userId || req.user.id,
+        actor_ip: req.ip,
+        actor_user_agent: req.get('User-Agent'),
+        action: 'admin.create',
+        resource_type: 'user',
+        resource_id: newAdmin._id,
+        details: { 
+          tenant_id: tenant._id, 
+          tenant_name: tenant.name, 
+          role: role,
+          created_by: creatorRole
+        }
+      }).save();
+    } catch (auditError) {
+      console.warn('Failed to log admin creation:', auditError);
+    }
     
     const { password: _, ...adminData } = newAdmin.toObject();
     res.status(201).json({
@@ -2206,6 +2245,20 @@ app.post('/api/tenants/:slug/admins', cors(), authenticateMultiTenantAdmin, asyn
     res.status(500).json({ error: 'Failed to create admin' });
   }
 });
+
+// Helper function to determine which roles a user can create
+function getRolesUserCanCreate(creatorRole) {
+  const roleHierarchy = {
+    'super_admin': ['managed_admin', 'tenant_admin', 'admin', 'teacher', 'student'],
+    'managed_admin': ['tenant_admin', 'admin', 'teacher', 'student'],
+    'tenant_admin': ['admin', 'teacher', 'student'],
+    'admin': ['teacher', 'student'],
+    'teacher': ['student'],
+    'student': []
+  };
+  
+  return roleHierarchy[creatorRole] || [];
+}
 
 // Update admin status (suspend/activate)
 app.patch('/api/tenants/:slug/admins/:username/status', cors(), authenticateMultiTenantAdmin, async (req, res) => {

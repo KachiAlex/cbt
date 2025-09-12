@@ -1,5 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
+import { storage } from '../firebase/config';
+import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
 
 const ProfileManagement = ({ user, tenant }) => {
     const [profile, setProfile] = useState({});
@@ -15,6 +17,12 @@ const ProfileManagement = ({ user, tenant }) => {
         address: '',
         contact_phone: ''
     });
+    
+    // Logo upload states
+    const [logoFile, setLogoFile] = useState(null);
+    const [logoPreview, setLogoPreview] = useState(null);
+    const [uploadingLogo, setUploadingLogo] = useState(false);
+    const fileInputRef = useRef(null);
     
     // Single-admin flow: remove multi-admin creation UI
 
