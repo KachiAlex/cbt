@@ -5,6 +5,7 @@ const morgan = require('morgan');
 const rateLimit = require('express-rate-limit');
 const path = require('path');
 const mongoose = require('mongoose');
+const multer = require('multer');
 const connectDB = require('./config/database');
 require('dotenv').config();
 
@@ -74,6 +75,40 @@ app.use(express.urlencoded({ extended: true }));
 
 // Serve static files from public directory
 app.use(express.static(path.join(__dirname, '../public')));
+
+// Configure multer for file uploads
+const storage = multer.diskStorage({
+  destination: function (req, file, cb) {
+    cb(null, path.join(__dirname, '../public/uploads/logos'))
+  },
+  filename: function (req, file, cb) {
+    // Generate unique filename with timestamp
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9)
+    cb(null, 'logo-' + uniqueSuffix + path.extname(file.originalname))
+  }
+});
+
+const upload = multer({
+  storage: storage,
+  limits: {
+    fileSize: 5 * 1024 * 1024 // 5MB limit
+  },
+  fileFilter: function (req, file, cb) {
+    // Check if file is an image
+    if (file.mimetype.startsWith('image/')) {
+      cb(null, true);
+    } else {
+      cb(new Error('Only image files are allowed!'), false);
+    }
+  }
+});
+
+// Ensure uploads directory exists
+const fs = require('fs');
+const uploadsDir = path.join(__dirname, '../public/uploads/logos');
+if (!fs.existsSync(uploadsDir)) {
+  fs.mkdirSync(uploadsDir, { recursive: true });
+}
 
 // Rate limiting
 const limiter = rateLimit({
@@ -1570,76 +1605,6 @@ app.delete('/api/tenants/:id', cors(), authenticateMultiTenantAdmin, async (req,
   }
 });
 
-// Note: hard-delete logic is implemented inside the authenticated route handler below.
-      try {
-        await Tenant.findByIdAndDelete(tenant._id);
-        console.log(`Successfully hard-deleted tenant: ${tenant.name}`);
-      } catch (tenantError) {
-        console.log(`Error hard-deleting tenant: ${tenantError.message}`);
-        throw tenantError;
-      }
-      
-      res.json({
-        message: 'Tenant and all associated data permanently deleted from database',
-        tenant: {
-          id: tenant._id,
-          name: tenant.name,
-          slug: tenant.slug
-        }
-      });
-      
-    } else {
-      // Soft delete (default behavior)
-      console.log(`Performing SOFT DELETE for tenant: ${tenant.name}`);
-      
-      // Try to soft delete all users associated with this tenant
-      try {
-        const userUpdateResult = await User.updateMany(
-          { tenant_id: tenant._id },
-          { 
-            is_active: false,
-            updatedAt: new Date()
-          }
-        );
-        console.log(`Updated ${userUpdateResult.modifiedCount} users`);
-      } catch (userError) {
-        console.log(`Warning: Could not delete users: ${userError.message}`);
-      }
-    
-      // Soft delete the tenant by setting deleted_at timestamp
-      try {
-        tenant.deleted_at = new Date();
-        await tenant.save();
-        console.log(`Successfully soft-deleted tenant: ${tenant.name}`);
-      } catch (saveError) {
-        console.log(`Error saving tenant: ${saveError.message}`);
-        // Try alternative approach - direct database update
-        try {
-          await Tenant.updateOne(
-            { _id: tenant._id },
-            { deleted_at: new Date() }
-          );
-          console.log(`Successfully soft-deleted tenant using direct update`);
-        } catch (updateError) {
-          console.log(`Error updating tenant: ${updateError.message}`);
-          throw updateError;
-        }
-      }
-      
-      res.json({
-        message: 'Tenant soft-deleted successfully',
-        tenant: {
-          id: tenant._id,
-          name: tenant.name,
-          slug: tenant.slug
-        }
-      });
-    }
-  } catch (error) {
-    console.error('Error deleting tenant:', error);
-    res.status(500).json({ error: 'Failed to delete tenant' });
-  }
-});
 
 // Delete tenant endpoint by slug
 app.delete('/api/tenants/:slug', cors(), authenticateMultiTenantAdmin, async (req, res) => {
@@ -2674,6 +2639,198 @@ app.put('/api/tenant/:slug/profile', cors(), async (req, res) => {
   } catch (error) {
     console.error('Error updating tenant profile:', error);
     res.status(500).json({ error: 'Failed to update profile' });
+  }
+});
+
+// Upload logo endpoint
+app.post('/api/tenant/:slug/upload-logo', cors(), upload.single('logo'), async (req, res) => {
+  try {
+    const { slug } = req.params;
+    
+    if (!req.file) {
+      return res.status(400).json({ error: 'No file uploaded' });
+    }
+    
+    const tenant = await Tenant.findOne({ 
+      slug: slug,
+      deleted_at: null,
+      suspended: false
+    });
+    
+    if (!tenant) {
+      // Clean up uploaded file if tenant not found
+      fs.unlinkSync(req.file.path);
+      return res.status(404).json({ error: 'Tenant not found' });
+    }
+    
+    // Generate the public URL for the uploaded file
+    const logoUrl = `${req.protocol}://${req.get('host')}/uploads/logos/${req.file.filename}`;
+    
+    // Update tenant with new logo URL
+    tenant.logo_url = logoUrl;
+    await tenant.save();
+    
+    res.json({
+      message: 'Logo uploaded successfully',
+      logo_url: logoUrl,
+      filename: req.file.filename
+    });
+  } catch (error) {
+    console.error('Error uploading logo:', error);
+    
+    // Clean up uploaded file on error
+    if (req.file && req.file.path) {
+      try {
+        fs.unlinkSync(req.file.path);
+      } catch (unlinkError) {
+        console.error('Error cleaning up uploaded file:', unlinkError);
+      }
+    }
+    
+    res.status(500).json({ error: 'Failed to upload logo' });
+  }
+});
+
+// Get tenant admins endpoint
+app.get('/api/tenant/:slug/admins', cors(), async (req, res) => {
+  try {
+    const { slug } = req.params;
+    
+    const tenant = await Tenant.findOne({ 
+      slug: slug,
+      deleted_at: null,
+      suspended: false
+    });
+    
+    if (!tenant) {
+      return res.status(404).json({ error: 'Tenant not found' });
+    }
+    
+    // Get all users for this tenant with admin roles
+    const admins = await User.find({
+      tenant_id: tenant._id,
+      role: { $in: ['super_admin', 'admin', 'teacher'] },
+      is_active: true
+    }).select('-password');
+    
+    res.json(admins);
+  } catch (error) {
+    console.error('Error fetching tenant admins:', error);
+    res.status(500).json({ error: 'Failed to fetch admins' });
+  }
+});
+
+// Create admin endpoint with RBAC safeguards
+app.post('/api/tenant/:slug/admins', cors(), async (req, res) => {
+  try {
+    const { slug } = req.params;
+    const { username, email, fullName, password, role } = req.body;
+    
+    // Validate required fields
+    if (!username || !email || !fullName || !password || !role) {
+      return res.status(400).json({ error: 'All fields are required' });
+    }
+    
+    // Validate role - only allow creating admin and teacher roles
+    if (!['admin', 'teacher'].includes(role)) {
+      return res.status(400).json({ error: 'Invalid role. Only admin and teacher roles can be created.' });
+    }
+    
+    const tenant = await Tenant.findOne({ 
+      slug: slug,
+      deleted_at: null,
+      suspended: false
+    });
+    
+    if (!tenant) {
+      return res.status(404).json({ error: 'Tenant not found' });
+    }
+    
+    // Check if username or email already exists in this tenant
+    const existingUser = await User.findOne({
+      tenant_id: tenant._id,
+      $or: [
+        { username: username.toLowerCase() },
+        { email: email.toLowerCase() }
+      ]
+    });
+    
+    if (existingUser) {
+      return res.status(400).json({ 
+        error: existingUser.username === username.toLowerCase() 
+          ? 'Username already exists' 
+          : 'Email already exists' 
+      });
+    }
+    
+    // Create new admin user
+    const newAdmin = new User({
+      tenant_id: tenant._id,
+      username: username.toLowerCase(),
+      email: email.toLowerCase(),
+      fullName: fullName.trim(),
+      password: password,
+      role: role,
+      is_active: true
+    });
+    
+    await newAdmin.save();
+    
+    // Return user without password
+    const { password: _, ...adminWithoutPassword } = newAdmin.toObject();
+    
+    res.status(201).json({
+      message: 'Admin created successfully',
+      admin: adminWithoutPassword
+    });
+  } catch (error) {
+    console.error('Error creating admin:', error);
+    res.status(500).json({ error: 'Failed to create admin' });
+  }
+});
+
+// Delete admin endpoint with safeguards
+app.delete('/api/tenant/:slug/admins/:adminId', cors(), async (req, res) => {
+  try {
+    const { slug, adminId } = req.params;
+    
+    const tenant = await Tenant.findOne({ 
+      slug: slug,
+      deleted_at: null,
+      suspended: false
+    });
+    
+    if (!tenant) {
+      return res.status(404).json({ error: 'Tenant not found' });
+    }
+    
+    const admin = await User.findOne({
+      _id: adminId,
+      tenant_id: tenant._id
+    });
+    
+    if (!admin) {
+      return res.status(404).json({ error: 'Admin not found' });
+    }
+    
+    // Prevent deletion of default admin
+    if (admin.is_default_admin) {
+      return res.status(400).json({ error: 'Cannot delete default admin' });
+    }
+    
+    // Prevent deletion of super_admin role
+    if (admin.role === 'super_admin') {
+      return res.status(400).json({ error: 'Cannot delete super admin' });
+    }
+    
+    // Soft delete by deactivating
+    admin.is_active = false;
+    await admin.save();
+    
+    res.json({ message: 'Admin deleted successfully' });
+  } catch (error) {
+    console.error('Error deleting admin:', error);
+    res.status(500).json({ error: 'Failed to delete admin' });
   }
 });
  
