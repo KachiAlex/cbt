@@ -1,4 +1,6 @@
 import React, { useState, useEffect } from 'react';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import LandingPage from './pages/LandingPage';
 import AdminDashboard from './components/AdminDashboard';
 import StudentPortal from './components/StudentPortal';
 import LoginPage from './components/LoginPage';
@@ -6,15 +8,14 @@ import ExamInterface from './components/ExamInterface';
 import MultiTenantAdmin from './components/MultiTenantAdmin';
 import MultiTenantAdminLogin from './components/MultiTenantAdminLogin';
 import InstitutionCBT from './components/InstitutionCBT';
+import InstitutionLogin from './components/InstitutionLogin';
 import { dataService } from './services/dataService';
 import { testFirebaseConnection } from './firebase/testConnection';
 import './firebase/createAdmin';
 
 function App() {
   const [user, setUser] = useState(null);
-  const [currentView, setCurrentView] = useState('login');
   const [currentExam, setCurrentExam] = useState(null);
-  const [showMultiTenantAdmin, setShowMultiTenantAdmin] = useState(false);
 
   useEffect(() => {
     // Test Firebase connection on app start
@@ -25,27 +26,6 @@ function App() {
         console.error('❌ Firebase connection failed:', result.error);
       }
     });
-
-    // Check URL parameters for institution access
-    const urlParams = new URLSearchParams(window.location.search);
-    const institutionSlug = urlParams.get('institution');
-    
-    if (institutionSlug) {
-      // Institution-specific CBT app
-      setCurrentView('institution-cbt');
-      return;
-    }
-
-    // Check for saved multi-tenant admin user
-    const savedAdminUser = localStorage.getItem('multi_tenant_admin_user');
-    if (savedAdminUser) {
-      setUser(JSON.parse(savedAdminUser));
-      setCurrentView('multi-tenant-admin');
-      return;
-    }
-
-    // Default to multi-tenant admin login
-    setCurrentView('multi-tenant-admin-login');
   }, []);
 
   const initializeDefaultAdmin = async () => {
@@ -101,50 +81,53 @@ function App() {
 
   const handleLogout = () => {
     setUser(null);
-    setCurrentView('multi-tenant-admin-login');
     setCurrentExam(null);
-    setShowMultiTenantAdmin(false);
     localStorage.removeItem('cbt_user');
     localStorage.removeItem('multi_tenant_admin_token');
     localStorage.removeItem('multi_tenant_admin_refresh_token');
     localStorage.removeItem('multi_tenant_admin_user');
-    
-    // Clear URL parameters
-    window.history.replaceState({}, document.title, window.location.pathname);
   };
 
   const startExam = (exam) => {
     setCurrentExam(exam);
-    setCurrentView('exam');
   };
 
   const completeExam = () => {
     setCurrentExam(null);
-    setCurrentView('student');
   };
 
   const handleMultiTenantAdminLogin = (user) => {
     setUser(user);
-    setCurrentView('multi-tenant-admin');
   };
 
-  const renderCurrentView = () => {
-    switch (currentView) {
-      case 'multi-tenant-admin-login':
-        return <MultiTenantAdminLogin onLoginSuccess={handleMultiTenantAdminLogin} />;
-      case 'multi-tenant-admin':
-        return <MultiTenantAdmin />;
-      case 'institution-cbt':
-        return <InstitutionCBT />;
-      default:
-        return <MultiTenantAdminLogin onLoginSuccess={handleMultiTenantAdminLogin} />;
-    }
-  };
-
-    return (
+  return (
+    <Router>
       <div className="min-h-screen bg-gray-50">
-      {renderCurrentView()}
-    </div>
+        <Routes>
+          {/* Landing Page - Default Route */}
+          <Route path="/" element={<LandingPage />} />
+          
+          {/* Institution Login */}
+          <Route path="/institution-login" element={<InstitutionLogin />} />
+          
+          {/* Multi-tenant Admin Routes */}
+          <Route path="/multi-tenant-admin/login" element={<MultiTenantAdminLogin onLoginSuccess={handleMultiTenantAdminLogin} />} />
+          <Route path="/multi-tenant-admin" element={<MultiTenantAdmin />} />
+          
+          {/* Institution CBT Routes */}
+          <Route path="/institution/:slug" element={<InstitutionCBT />} />
+          
+          {/* Legacy Routes for backward compatibility */}
+          <Route path="/admin-dashboard" element={<AdminDashboard />} />
+          <Route path="/student-dashboard" element={<StudentPortal />} />
+          <Route path="/login" element={<LoginPage />} />
+          <Route path="/exam" element={<ExamInterface exam={currentExam} onComplete={completeExam} />} />
+          
+          {/* Catch all route - redirect to landing page */}
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
+      </div>
+    </Router>
   );
 }
 
