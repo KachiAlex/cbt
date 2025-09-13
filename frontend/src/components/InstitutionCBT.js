@@ -57,6 +57,14 @@ const InstitutionCBT = () => {
 
   const handleLogin = async (credentials) => {
     try {
+      // Check if institution is suspended
+      if (institution.status === 'suspended') {
+        return { 
+          success: false, 
+          error: 'Your institution has been suspended. Contact your administrator.' 
+        };
+      }
+
       // Check for hardcoded admin credentials first
       if (credentials.username === 'admin' && credentials.password === 'admin123') {
         const userData = {

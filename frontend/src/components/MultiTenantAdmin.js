@@ -334,7 +334,18 @@ export default function MultiTenantAdmin() {
 
                 {/* Institution Info */}
                 <div className="p-6">
-                  <h3 className="text-xl font-semibold text-gray-900 mb-2">{institution.name}</h3>
+                  <div className="flex items-center justify-between mb-2">
+                    <h3 className="text-xl font-semibold text-gray-900">{institution.name}</h3>
+                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                      institution.status === 'active' 
+                        ? 'bg-green-100 text-green-800' 
+                        : institution.status === 'suspended'
+                        ? 'bg-red-100 text-red-800'
+                        : 'bg-gray-100 text-gray-800'
+                    }`}>
+                      {institution.status || 'active'}
+                    </span>
+                  </div>
                   <div className="space-y-2 text-sm text-gray-600">
                     <p><span className="font-medium">Admin:</span> {institution.adminFullName}</p>
                     <p><span className="font-medium">Email:</span> {institution.adminEmail}</p>
@@ -842,18 +853,7 @@ export default function MultiTenantAdmin() {
                 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {/* Suspend/Activate Button */}
-                  {selectedInstitution.status === 'active' ? (
-                    <button
-                      onClick={() => suspendInstitution(selectedInstitution)}
-                      disabled={loading}
-                      className="w-full bg-red-600 hover:bg-red-700 text-white px-4 py-3 rounded-lg font-medium transition-colors disabled:opacity-50 flex items-center justify-center space-x-2"
-                    >
-                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728L5.636 5.636m12.728 12.728L18.364 5.636M5.636 18.364l12.728-12.728" />
-                      </svg>
-                      <span>Suspend Institution</span>
-                    </button>
-                  ) : (
+                  {selectedInstitution.status === 'suspended' ? (
                     <button
                       onClick={() => activateInstitution(selectedInstitution)}
                       disabled={loading}
@@ -863,6 +863,17 @@ export default function MultiTenantAdmin() {
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                       </svg>
                       <span>Activate Institution</span>
+                    </button>
+                  ) : (
+                    <button
+                      onClick={() => suspendInstitution(selectedInstitution)}
+                      disabled={loading}
+                      className="w-full bg-red-600 hover:bg-red-700 text-white px-4 py-3 rounded-lg font-medium transition-colors disabled:opacity-50 flex items-center justify-center space-x-2"
+                    >
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728L5.636 5.636m12.728 12.728L18.364 5.636M5.636 18.364l12.728-12.728" />
+                      </svg>
+                      <span>Suspend Institution</span>
                     </button>
                   )}
 
