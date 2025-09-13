@@ -13,6 +13,7 @@ export default function MultiTenantAdmin() {
   const [showCreateInstitution, setShowCreateInstitution] = useState(false);
   const [showManageAdmins, setShowManageAdmins] = useState(false);
   const [showViewInstitution, setShowViewInstitution] = useState(false);
+  const [showManageInstitution, setShowManageInstitution] = useState(false);
   const [selectedInstitution, setSelectedInstitution] = useState(null);
 
   // Admin management
@@ -192,6 +193,72 @@ export default function MultiTenantAdmin() {
     }
   };
 
+  // Suspend institution
+  const suspendInstitution = async (institution) => {
+    if (!window.confirm(`Are you sure you want to suspend ${institution.name}? This will prevent all users from accessing the platform.`)) {
+      return;
+    }
+
+    try {
+      setLoading(true);
+      setError('');
+      
+      await firebaseDataService.updateInstitutionStatus(institution.id, 'suspended');
+      await loadInstitutions();
+      setShowManageInstitution(false);
+      setSelectedInstitution(null);
+    } catch (err) {
+      console.error('Failed to suspend institution:', err);
+      setError('Failed to suspend institution. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Activate institution
+  const activateInstitution = async (institution) => {
+    if (!window.confirm(`Are you sure you want to activate ${institution.name}? This will restore access for all users.`)) {
+      return;
+    }
+
+    try {
+      setLoading(true);
+      setError('');
+      
+      await firebaseDataService.updateInstitutionStatus(institution.id, 'active');
+      await loadInstitutions();
+      setShowManageInstitution(false);
+      setSelectedInstitution(null);
+    } catch (err) {
+      console.error('Failed to activate institution:', err);
+      setError('Failed to activate institution. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Delete institution
+  const deleteInstitution = async (institution) => {
+    if (!window.confirm(`Are you sure you want to permanently delete ${institution.name}? This action cannot be undone and will remove all data associated with this institution.`)) {
+      return;
+    }
+
+    try {
+      setLoading(true);
+      setError('');
+      
+      await firebaseDataService.deleteInstitution(institution.id);
+      await loadInstitutions();
+      setShowManageInstitution(false);
+      setSelectedInstitution(null);
+    } catch (err) {
+      console.error('Failed to delete institution:', err);
+      setError('Failed to delete institution. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   // Handle logo upload
   const handleLogoUpload = (e) => {
     const file = e.target.files[0];
@@ -304,8 +371,17 @@ export default function MultiTenantAdmin() {
                       }}
                       className="w-full bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium transition-colors"
                     >
-                  Manage Admins
-          </button>
+                      Manage Admins
+                    </button>
+                    <button
+                      onClick={() => {
+                        setSelectedInstitution(institution);
+                        setShowManageInstitution(true);
+                      }}
+                      className="w-full bg-orange-600 hover:bg-orange-700 text-white px-4 py-2 rounded-lg font-medium transition-colors"
+                    >
+                      Manage Institution
+                    </button>
         </div>
       </div>
               </div>
@@ -699,6 +775,140 @@ export default function MultiTenantAdmin() {
                 Close
               </button>
                 </div>
+          </div>
+        </div>
+      )}
+
+      {/* Manage Institution Modal */}
+      {showManageInstitution && selectedInstitution && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-xl max-w-2xl w-full">
+            <div className="p-6 border-b">
+              <h2 className="text-2xl font-bold text-gray-900">Manage Institution</h2>
+              <p className="text-gray-600 mt-1">{selectedInstitution.name}</p>
+            </div>
+            
+            <div className="p-6 space-y-6">
+              {/* Institution Status */}
+              <div className="flex items-center space-x-4">
+                {selectedInstitution.logo ? (
+                  <img 
+                    src={selectedInstitution.logo} 
+                    alt={selectedInstitution.name}
+                    className="h-16 w-16 rounded-full object-cover"
+                  />
+                ) : (
+                  <div className="h-16 w-16 rounded-full bg-blue-500 flex items-center justify-center">
+                    <span className="text-2xl font-bold text-white">
+                      {selectedInstitution.name.charAt(0).toUpperCase()}
+                    </span>
+                  </div>
+                )}
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900">{selectedInstitution.name}</h3>
+                  <div className="flex items-center space-x-2 mt-1">
+                    <span className="text-sm text-gray-600">Status:</span>
+                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                      selectedInstitution.status === 'active' 
+                        ? 'bg-green-100 text-green-800' 
+                        : selectedInstitution.status === 'suspended'
+                        ? 'bg-red-100 text-red-800'
+                        : 'bg-gray-100 text-gray-800'
+                    }`}>
+                      {selectedInstitution.status || 'active'}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Institution Details */}
+              <div className="bg-gray-50 rounded-lg p-4">
+                <h4 className="font-medium text-gray-900 mb-3">Institution Information</h4>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                  <div>
+                    <p><span className="font-medium">Admin:</span> {selectedInstitution.adminFullName}</p>
+                    <p><span className="font-medium">Email:</span> {selectedInstitution.adminEmail}</p>
+                  </div>
+                  <div>
+                    <p><span className="font-medium">Total Users:</span> {selectedInstitution.totalUsers || 0}</p>
+                    <p><span className="font-medium">Created:</span> {selectedInstitution.createdAt ? new Date(selectedInstitution.createdAt.seconds * 1000).toLocaleDateString() : 'Unknown'}</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Management Actions */}
+              <div className="space-y-4">
+                <h4 className="font-medium text-gray-900">Management Actions</h4>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {/* Suspend/Activate Button */}
+                  {selectedInstitution.status === 'active' ? (
+                    <button
+                      onClick={() => suspendInstitution(selectedInstitution)}
+                      disabled={loading}
+                      className="w-full bg-red-600 hover:bg-red-700 text-white px-4 py-3 rounded-lg font-medium transition-colors disabled:opacity-50 flex items-center justify-center space-x-2"
+                    >
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728L5.636 5.636m12.728 12.728L18.364 5.636M5.636 18.364l12.728-12.728" />
+                      </svg>
+                      <span>Suspend Institution</span>
+                    </button>
+                  ) : (
+                    <button
+                      onClick={() => activateInstitution(selectedInstitution)}
+                      disabled={loading}
+                      className="w-full bg-green-600 hover:bg-green-700 text-white px-4 py-3 rounded-lg font-medium transition-colors disabled:opacity-50 flex items-center justify-center space-x-2"
+                    >
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                      <span>Activate Institution</span>
+                    </button>
+                  )}
+
+                  {/* Delete Button */}
+                  <button
+                    onClick={() => deleteInstitution(selectedInstitution)}
+                    disabled={loading}
+                    className="w-full bg-red-800 hover:bg-red-900 text-white px-4 py-3 rounded-lg font-medium transition-colors disabled:opacity-50 flex items-center justify-center space-x-2"
+                  >
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                    </svg>
+                    <span>Delete Institution</span>
+                  </button>
+                </div>
+
+                {/* Warning Messages */}
+                <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+                  <div className="flex items-start space-x-3">
+                    <svg className="w-5 h-5 text-yellow-600 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
+                    </svg>
+                    <div className="text-sm text-yellow-800">
+                      <p className="font-medium">Important:</p>
+                      <ul className="mt-1 space-y-1 list-disc list-inside">
+                        <li>Suspending will prevent all users from accessing the platform</li>
+                        <li>Deleting will permanently remove all institution data</li>
+                        <li>These actions cannot be undone</li>
+                      </ul>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex justify-end p-6 border-t">
+              <button
+                onClick={() => {
+                  setShowManageInstitution(false);
+                  setSelectedInstitution(null);
+                }}
+                className="px-6 py-3 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg font-medium transition-colors"
+              >
+                Close
+              </button>
+            </div>
           </div>
         </div>
       )}

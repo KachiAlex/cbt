@@ -96,6 +96,20 @@ class FirebaseDataService {
     }
   }
 
+  async updateInstitutionStatus(institutionId, status) {
+    try {
+      const institutionRef = doc(db, this.collections.institutions, institutionId);
+      await updateDoc(institutionRef, {
+        status: status,
+        updatedAt: serverTimestamp()
+      });
+      return true;
+    } catch (error) {
+      console.error('Error updating institution status:', error);
+      throw error;
+    }
+  }
+
   async deleteInstitution(institutionId) {
     try {
       // First delete all admins for this institution
