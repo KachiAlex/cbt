@@ -255,7 +255,7 @@ const InstitutionCBT = () => {
           <h1 className="text-2xl font-bold text-gray-900 mb-2">Error</h1>
           <p className="text-gray-600 mb-6">{error}</p>
           <button
-            onClick={() => window.location.href = '/'}
+            onClick={() => window.location.href = '/admin'}
             className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg font-medium"
           >
             Go to Main Admin

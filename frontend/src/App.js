@@ -39,14 +39,15 @@ function App() {
       <div className="min-h-screen bg-gray-50">
         <Routes>
           {/* Landing page routes */}
-          <Route path="/home" element={<LandingPage />} />
+          <Route path="/" element={<LandingPage />} />
+          <Route path="/home" element={<Navigate to="/" replace />} />
           <Route path="/how-it-works" element={<HowItWorks />} />
           <Route path="/trial" element={<FreeTrial />} />
           <Route path="/blogs" element={<BlogList />} />
           <Route path="/blog/:id" element={<BlogDetail />} />
           
           {/* Multi-tenant admin routes */}
-          <Route path="/" element={<MultiTenantAdmin />} />
+          <Route path="/admin" element={<MultiTenantAdmin />} />
           <Route path="/admin-login" element={<MultiTenantAdminLogin onLoginSuccess={handleMultiTenantAdminLogin} />} />
           
           {/* Institution CBT route */}
