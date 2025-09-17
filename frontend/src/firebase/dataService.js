@@ -13,6 +13,19 @@ import {
 } from 'firebase/firestore';
 import { db } from './config';
 
+// Helper function to handle Firestore network errors
+const handleFirestoreError = (error, operation) => {
+  console.error(`Firestore ${operation} error:`, error);
+  
+  // Check for network-related errors
+  if (error.code === 'unavailable' || error.code === 'deadline-exceeded' || error.message?.includes('network')) {
+    console.warn(`Network issue detected during ${operation}. The operation may succeed on retry.`);
+  }
+  
+  // Re-throw the error to be handled by calling code
+  throw error;
+};
+
 class FirebaseDataService {
   constructor() {
     this.collections = {
@@ -61,8 +74,7 @@ class FirebaseDataService {
         return 0;
       });
     } catch (error) {
-      console.error('Error getting institutions:', error);
-      throw error;
+      handleFirestoreError(error, 'getInstitutions');
     }
   }
 
@@ -314,6 +326,53 @@ class FirebaseDataService {
     }
   }
 
+  async getInstitutionBySlug(slug) {
+    try {
+      const institutionsRef = collection(db, this.collections.institutions);
+      const q = query(institutionsRef, where('slug', '==', slug));
+      const snapshot = await getDocs(q);
+
+      if (!snapshot.empty) {
+        const doc = snapshot.docs[0];
+        return { id: doc.id, ...doc.data() };
+      } else {
+        throw new Error('Institution not found');
+      }
+    } catch (error) {
+      if (error.message === 'Institution not found') {
+        throw error; // Re-throw business logic errors as-is
+      }
+      handleFirestoreError(error, 'getInstitutionBySlug');
+    }
+  }
+
+  // Alias method for backward compatibility with student login
+  async getInstitutionStudents(institutionId) {
+    try {
+      // Students are stored as users with role 'student'
+      const usersRef = collection(db, this.collections.users);
+      const q = query(usersRef, where('institutionId', '==', institutionId), where('role', '==', 'student'));
+      const snapshot = await getDocs(q);
+      
+      const students = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      }));
+      
+      return students.sort((a, b) => {
+        const dateA = this.safeToDate(a.createdAt);
+        const dateB = this.safeToDate(b.createdAt);
+        if (dateA && dateB) {
+          return dateB - dateA;
+        }
+        return 0;
+      });
+    } catch (error) {
+      console.error('Error getting students:', error);
+      throw error;
+    }
+  }
+
   async updateUser(userId, updateData) {
     try {
       const userRef = doc(db, this.collections.users, userId);
@@ -521,6 +580,142 @@ class FirebaseDataService {
     }
   }
 
+  // Blog Management
+  async getBlogs() {
+    try {
+      const blogsRef = collection(db, 'blogs');
+      const q = query(blogsRef, where('published', '==', true));
+      const snapshot = await getDocs(q);
+      
+      const blogs = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      }));
+      
+      return blogs.sort((a, b) => {
+        const dateA = this.safeToDate(a.publishedAt);
+        const dateB = this.safeToDate(b.publishedAt);
+        if (dateA && dateB) {
+          return dateB - dateA;
+        }
+        return 0;
+      });
+    } catch (error) {
+      console.error('Error getting blogs:', error);
+      throw error;
+    }
+  }
+
+  async getAllBlogs() {
+    try {
+      const blogsRef = collection(db, 'blogs');
+      const snapshot = await getDocs(blogsRef);
+      
+      const blogs = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      }));
+      
+      return blogs.sort((a, b) => {
+        const dateA = this.safeToDate(a.createdAt);
+        const dateB = this.safeToDate(b.createdAt);
+        if (dateA && dateB) {
+          return dateB - dateA;
+        }
+        return 0;
+      });
+    } catch (error) {
+      console.error('Error getting all blogs:', error);
+      throw error;
+    }
+  }
+
+  async getBlog(blogId) {
+    try {
+      const blogRef = doc(db, 'blogs', blogId);
+      const docSnap = await getDoc(blogRef);
+      
+      if (docSnap.exists()) {
+        return { id: docSnap.id, ...docSnap.data() };
+      } else {
+        throw new Error('Blog not found');
+      }
+    } catch (error) {
+      console.error('Error getting blog:', error);
+      throw error;
+    }
+  }
+
+  async createBlog(blogData) {
+    try {
+      const blogsRef = collection(db, 'blogs');
+      const docRef = await addDoc(blogsRef, {
+        ...blogData,
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp()
+      });
+      
+      return { id: docRef.id, ...blogData };
+    } catch (error) {
+      console.error('Error creating blog:', error);
+      throw error;
+    }
+  }
+
+  async updateBlog(blogId, updateData) {
+    try {
+      const blogRef = doc(db, 'blogs', blogId);
+      await updateDoc(blogRef, {
+        ...updateData,
+        updatedAt: serverTimestamp()
+      });
+      return true;
+    } catch (error) {
+      console.error('Error updating blog:', error);
+      throw error;
+    }
+  }
+
+  async publishBlog(blogId) {
+    try {
+      const blogRef = doc(db, 'blogs', blogId);
+      await updateDoc(blogRef, {
+        published: true,
+        publishedAt: serverTimestamp(),
+        updatedAt: serverTimestamp()
+      });
+      return true;
+    } catch (error) {
+      console.error('Error publishing blog:', error);
+      throw error;
+    }
+  }
+
+  async unpublishBlog(blogId) {
+    try {
+      const blogRef = doc(db, 'blogs', blogId);
+      await updateDoc(blogRef, {
+        published: false,
+        updatedAt: serverTimestamp()
+      });
+      return true;
+    } catch (error) {
+      console.error('Error unpublishing blog:', error);
+      throw error;
+    }
+  }
+
+  async deleteBlog(blogId) {
+    try {
+      const blogRef = doc(db, 'blogs', blogId);
+      await deleteDoc(blogRef);
+      return true;
+    } catch (error) {
+      console.error('Error deleting blog:', error);
+      throw error;
+    }
+  }
+
   async createResult(resultData) {
     try {
       const resultsRef = collection(db, this.collections.results);
@@ -557,6 +752,22 @@ class FirebaseDataService {
       return true;
     } catch (error) {
       console.error('Error deleting result:', error);
+      throw error;
+    }
+  }
+
+  async getResultById(resultId) {
+    try {
+      const resultRef = doc(db, this.collections.results, resultId);
+      const docSnap = await getDoc(resultRef);
+      
+      if (docSnap.exists()) {
+        return { id: docSnap.id, ...docSnap.data() };
+      } else {
+        throw new Error('Result not found');
+      }
+    } catch (error) {
+      console.error('Error getting result by ID:', error);
       throw error;
     }
   }

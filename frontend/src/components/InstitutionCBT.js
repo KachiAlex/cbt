@@ -17,6 +17,32 @@ const InstitutionCBT = () => {
     loadInstitution();
   }, []);
 
+  // Check institution status periodically to handle suspensions while logged in
+  useEffect(() => {
+    if (!institution || !user) return;
+
+    const checkInstitutionStatus = async () => {
+      try {
+        const currentInstitution = await firebaseDataService.getInstitutionBySlug(institution.slug);
+        
+        if (currentInstitution && currentInstitution.status === 'suspended') {
+          // Institution was suspended, log out user
+          setUser(null);
+          setCurrentView('login');
+          setError('Your institution has been suspended. Contact your administrator.');
+          localStorage.removeItem(`cbt_user_${institution.slug}`);
+        }
+      } catch (err) {
+        console.error('Error checking institution status:', err);
+      }
+    };
+
+    // Check every 30 seconds
+    const interval = setInterval(checkInstitutionStatus, 30000);
+    
+    return () => clearInterval(interval);
+  }, [institution, user]);
+
   const loadInstitution = async () => {
     try {
       setLoading(true);
@@ -29,11 +55,13 @@ const InstitutionCBT = () => {
       }
 
       // Get institution data from Firebase
-      const institutions = await firebaseDataService.getInstitutions();
-      const foundInstitution = institutions.find(inst => inst.slug === institutionSlug);
-      
-      if (!foundInstitution) {
-        setError('Institution not found');
+      const foundInstitution = await firebaseDataService.getInstitutionBySlug(institutionSlug);
+
+      // Check if institution is suspended
+      if (foundInstitution.status === 'suspended') {
+        setError('Your institution has been suspended. Contact your administrator.');
+        localStorage.removeItem(`cbt_user_${institutionSlug}`);
+        setCurrentView('login');
         return;
       }
 
@@ -107,23 +135,34 @@ const InstitutionCBT = () => {
         return { success: true };
       }
 
-      // If not an admin, treat as student login
-      // For now, we'll create a simple student user
-      // In a real implementation, you'd check against a student database
-      const userData = {
-        id: `student_${Date.now()}`,
-        username: credentials.username,
-        email: credentials.username,
-        fullName: credentials.username,
-        role: 'student',
-        institutionId: institution.id,
-        institutionName: institution.name
-      };
+      // Check against students from Firebase
+      const students = await firebaseDataService.getInstitutionStudents(institution.id);
+      const student = students.find(s => 
+        (s.username === credentials.username || s.email === credentials.username) &&
+        s.password === credentials.password
+      );
 
-      setUser(userData);
-      localStorage.setItem(`cbt_user_${institution.slug}`, JSON.stringify(userData));
-      setCurrentView('student');
-      return { success: true };
+      if (student) {
+        const userData = {
+          id: student.id,
+          username: student.username,
+          email: student.email,
+          fullName: student.fullName,
+          role: 'student',
+          institutionId: institution.id,
+          institutionName: institution.name
+        };
+
+        setUser(userData);
+        localStorage.setItem(`cbt_user_${institution.slug}`, JSON.stringify(userData));
+        setCurrentView('student');
+        return { success: true };
+      }
+
+      return { 
+        success: false, 
+        error: 'Invalid username or password' 
+      };
     } catch (error) {
       console.error('Login error:', error);
       return { success: false, message: 'Login failed' };

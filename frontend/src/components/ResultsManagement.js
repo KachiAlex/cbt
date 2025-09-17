@@ -126,7 +126,7 @@ const ResultsManagement = ({ institution, onStatsUpdate }) => {
         console.log('🔍 Looking for student with name:', resultStudentName);
         
         // Try matching by fullName, username, or email (case insensitive)
-        student = students.find(s => 
+          student = students.find(s => 
           (s.fullName && s.fullName.toLowerCase() === resultStudentName.toLowerCase()) ||
           (s.username && s.username.toLowerCase() === resultStudentName.toLowerCase()) ||
           (s.email && s.email.toLowerCase() === resultStudentName.toLowerCase())
@@ -421,7 +421,7 @@ const ResultsManagement = ({ institution, onStatsUpdate }) => {
 
                     // If no direct match, try matching by studentName
                     if (!student && resultStudentName) {
-                      student = students.find(s => 
+                        student = students.find(s => 
                         (s.fullName && s.fullName.toLowerCase() === resultStudentName.toLowerCase()) ||
                         (s.username && s.username.toLowerCase() === resultStudentName.toLowerCase()) ||
                         (s.email && s.email.toLowerCase() === resultStudentName.toLowerCase())

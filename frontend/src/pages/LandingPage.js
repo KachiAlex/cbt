@@ -1,8 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
+import firebaseDataService from '../firebase/dataService';
 
 const LandingPage = () => {
   const [currentSlide, setCurrentSlide] = useState(0);
+  const [blogs, setBlogs] = useState([]);
+  const [loadingBlogs, setLoadingBlogs] = useState(true);
+  const navigate = useNavigate();
   
   // Banner slides data
   const slides = [
@@ -29,6 +33,46 @@ const LandingPage = () => {
     }
   ];
 
+  // Load blogs from Firebase
+  const loadBlogs = async () => {
+    try {
+      setLoadingBlogs(true);
+      const publishedBlogs = await firebaseDataService.getBlogs();
+      setBlogs(publishedBlogs.slice(0, 3)); // Get only the first 3 blogs
+    } catch (error) {
+      console.error('Error loading blogs:', error);
+      // Fallback to default blogs if Firebase fails
+      setBlogs([
+        {
+          id: '1',
+          title: 'WAEC Announces Full CBT Transition',
+          excerpt: 'The West African Examinations Council has announced the complete transition to Computer-Based Testing for all major examinations by 2025, creating opportunities for institutions to modernize.',
+          imageUrl: 'https://images.unsplash.com/photo-1503676260728-1c00da094a0b?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2022&q=80',
+          publishedAt: new Date('2024-12-15'),
+          author: 'CBTProMax Team'
+        },
+        {
+          id: '2',
+          title: 'Benefits of CBT for Students',
+          excerpt: 'Discover how Computer-Based Testing is revolutionizing education and improving student outcomes across West African institutions.',
+          imageUrl: 'https://images.unsplash.com/photo-1434030216411-0b793f4b4173?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2070&q=80',
+          publishedAt: new Date('2024-12-10'),
+          author: 'CBTProMax Team'
+        },
+        {
+          id: '3',
+          title: 'New Platform Features Released',
+          excerpt: 'Our latest platform update includes enhanced security features, improved user interface, and better analytics for institutions.',
+          imageUrl: 'https://images.unsplash.com/photo-1522202176988-66273c2fd55f?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2071&q=80',
+          publishedAt: new Date('2024-12-05'),
+          author: 'CBTProMax Team'
+        }
+      ]);
+    } finally {
+      setLoadingBlogs(false);
+    }
+  };
+
   // Auto-advance slides
   useEffect(() => {
     const timer = setInterval(() => {
@@ -36,6 +80,11 @@ const LandingPage = () => {
     }, 5000);
     return () => clearInterval(timer);
   }, [slides.length]);
+
+  // Load blogs on component mount
+  useEffect(() => {
+    loadBlogs();
+  }, []);
 
   const nextSlide = () => {
     setCurrentSlide((prev) => (prev + 1) % slides.length);
@@ -49,6 +98,22 @@ const LandingPage = () => {
     setCurrentSlide(index);
   };
 
+  const handleCTAClick = (cta) => {
+    switch(cta) {
+      case "Get Started Today":
+        navigate('/trial');
+        break;
+      case "Learn More":
+        navigate('/how-it-works');
+        break;
+      case "Start Free Trial":
+        navigate('/trial');
+        break;
+      default:
+        navigate('/trial');
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100">
       {/* Navigation */}
@@ -57,12 +122,24 @@ const LandingPage = () => {
           <div className="flex justify-between items-center h-16">
             <div className="flex items-center">
               <div className="flex items-center space-x-2">
-                <div className="w-8 h-8 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-lg flex items-center justify-center">
-                  <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
+                <img 
+                  src="/logo-cbtpromax.png" 
+                  alt="CBTProMax Logo" 
+                  className="h-10 w-auto"
+                  onError={(e) => {
+                    // Fallback to text logo if image fails to load
+                    e.target.style.display = 'none';
+                    e.target.nextElementSibling.style.display = 'flex';
+                  }}
+                />
+                <div className="hidden items-center space-x-2" id="fallback-logo">
+                  <div className="w-8 h-8 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-lg flex items-center justify-center">
+                    <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                  </div>
+                  <h1 className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">CBTProMax</h1>
                 </div>
-                <h1 className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">CBT Platform</h1>
               </div>
             </div>
             <div className="hidden md:block">
@@ -106,11 +183,11 @@ const LandingPage = () => {
                     {slide.subtitle}
                   </p>
                   <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
-                    <button className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white px-10 py-4 rounded-xl text-lg font-semibold hover:from-blue-700 hover:to-indigo-700 transition-all duration-300 shadow-2xl hover:shadow-blue-500/25 hover:scale-105 transform">
+                    <button 
+                      onClick={() => handleCTAClick(slide.cta)}
+                      className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white px-10 py-4 rounded-xl text-lg font-semibold hover:from-blue-700 hover:to-indigo-700 transition-all duration-300 shadow-2xl hover:shadow-blue-500/25 hover:scale-105 transform"
+                    >
                       {slide.cta}
-                    </button>
-                    <button className="border-2 border-white/80 text-white px-10 py-4 rounded-xl text-lg font-semibold hover:bg-white/10 transition-all duration-300 backdrop-blur-sm">
-                      Watch Demo
                     </button>
                   </div>
                 </div>
@@ -215,66 +292,63 @@ const LandingPage = () => {
             </p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-            <article className="group bg-white rounded-2xl shadow-lg overflow-hidden hover:shadow-2xl transition-all duration-300 hover:-translate-y-2 border border-gray-100">
-              <div className="relative overflow-hidden">
-                <img
-                  src="https://images.unsplash.com/photo-1503676260728-1c00da094a0b?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2022&q=80"
-                  alt="WAEC CBT Transition"
-                  className="w-full h-48 object-cover group-hover:scale-110 transition-transform duration-500"
-                />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent"></div>
-              </div>
-              <div className="p-6">
-                <h3 className="text-xl font-bold text-gray-900 mb-3 group-hover:text-blue-600 transition-colors">
-                  WAEC Announces Full CBT Transition
-                </h3>
-                <p className="text-gray-600 mb-4 leading-relaxed">
-                  The West African Examinations Council has announced the complete transition to Computer-Based Testing for all major examinations by 2025, creating opportunities for institutions to modernize.
-                </p>
-                <span className="text-sm text-blue-600 font-semibold">December 15, 2024</span>
-              </div>
-            </article>
-
-            <article className="group bg-white rounded-2xl shadow-lg overflow-hidden hover:shadow-2xl transition-all duration-300 hover:-translate-y-2 border border-gray-100">
-              <div className="relative overflow-hidden">
-                <img
-                  src="https://images.unsplash.com/photo-1434030216411-0b793f4b4173?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2070&q=80"
-                  alt="CBT Benefits for Students"
-                  className="w-full h-48 object-cover group-hover:scale-110 transition-transform duration-500"
-                />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent"></div>
-              </div>
-              <div className="p-6">
-                <h3 className="text-xl font-bold text-gray-900 mb-3 group-hover:text-blue-600 transition-colors">
-                  Benefits of CBT for Students
-                </h3>
-                <p className="text-gray-600 mb-4 leading-relaxed">
-                  Discover how Computer-Based Testing is revolutionizing education and improving student outcomes across West African institutions.
-                </p>
-                <span className="text-sm text-blue-600 font-semibold">December 10, 2024</span>
-              </div>
-            </article>
-
-            <article className="group bg-white rounded-2xl shadow-lg overflow-hidden hover:shadow-2xl transition-all duration-300 hover:-translate-y-2 border border-gray-100">
-              <div className="relative overflow-hidden">
-                <img
-                  src="https://images.unsplash.com/photo-1522202176988-66273c2fd55f?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2071&q=80"
-                  alt="Platform Features"
-                  className="w-full h-48 object-cover group-hover:scale-110 transition-transform duration-500"
-                />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent"></div>
-              </div>
-              <div className="p-6">
-                <h3 className="text-xl font-bold text-gray-900 mb-3 group-hover:text-blue-600 transition-colors">
-                  New Platform Features Released
-                </h3>
-                <p className="text-gray-600 mb-4 leading-relaxed">
-                  Our latest platform update includes enhanced security features, improved user interface, and better analytics for institutions.
-                </p>
-                <span className="text-sm text-blue-600 font-semibold">December 5, 2024</span>
-              </div>
-            </article>
+          {loadingBlogs ? (
+            <div className="flex justify-center items-center py-12">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+              {blogs.map((blog) => (
+                <Link key={blog.id} to={`/blog/${blog.id}`}>
+                  <article className="group bg-white rounded-2xl shadow-lg overflow-hidden hover:shadow-2xl transition-all duration-300 hover:-translate-y-2 border border-gray-100">
+                    <div className="relative overflow-hidden">
+                      <img
+                        src={blog.imageUrl || 'https://images.unsplash.com/photo-1503676260728-1c00da094a0b?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2022&q=80'}
+                        alt={blog.title}
+                        className="w-full h-48 object-cover group-hover:scale-110 transition-transform duration-500"
+                      />
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent"></div>
+                    </div>
+                    <div className="p-6">
+                      <h3 className="text-xl font-bold text-gray-900 mb-3 group-hover:text-blue-600 transition-colors">
+                        {blog.title}
+                      </h3>
+                      <p className="text-gray-600 mb-4 leading-relaxed">
+                        {blog.excerpt || blog.content?.substring(0, 150) + '...'}
+                      </p>
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm text-blue-600 font-semibold">
+                          {blog.publishedAt ? 
+                            firebaseDataService.safeToDate(blog.publishedAt)?.toLocaleDateString('en-US', { 
+                              year: 'numeric', 
+                              month: 'long', 
+                              day: 'numeric' 
+                            }) || 'Recently'
+                            : 'Recently'
+                          }
+                        </span>
+                        <span className="text-sm text-gray-500">
+                          By {blog.author || 'CBTProMax Team'}
+                        </span>
+                      </div>
+                    </div>
+                  </article>
+                </Link>
+              ))}
+            </div>
+          )}
+          
+          {/* View All Blogs Button */}
+          <div className="text-center mt-12">
+            <Link
+              to="/blogs"
+              className="inline-flex items-center px-8 py-4 bg-blue-600 text-white font-semibold rounded-xl hover:bg-blue-700 transition-all duration-300 hover:shadow-lg hover:-translate-y-1"
+            >
+              View All Blog Posts
+              <svg className="ml-2 w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" />
+              </svg>
+            </Link>
           </div>
         </div>
       </section>
@@ -292,14 +366,11 @@ const LandingPage = () => {
           </p>
           <div className="flex flex-col sm:flex-row gap-6 justify-center items-center">
             <Link
-              to="/"
+              to="/trial"
               className="bg-white text-blue-600 px-10 py-4 rounded-xl text-lg font-bold hover:bg-gray-100 transition-all duration-300 shadow-2xl hover:shadow-white/25 hover:scale-105 transform"
             >
-              Get Started Now
+              Start Free Trial Today
             </Link>
-            <button className="border-2 border-white/80 text-white px-10 py-4 rounded-xl text-lg font-bold hover:bg-white/10 transition-all duration-300 backdrop-blur-sm hover:scale-105 transform">
-              Schedule Demo
-            </button>
           </div>
         </div>
       </section>
@@ -310,12 +381,14 @@ const LandingPage = () => {
           <div className="grid grid-cols-1 md:grid-cols-4 gap-8 lg:gap-12">
             <div className="md:col-span-1">
               <div className="flex items-center space-x-2 mb-6">
-                <div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-indigo-600 rounded-lg flex items-center justify-center">
-                  <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
+                <div className="flex items-center space-x-2">
+                  <div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-indigo-600 rounded-lg flex items-center justify-center">
+                    <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                  </div>
+                  <h3 className="text-xl font-bold bg-gradient-to-r from-blue-400 to-indigo-400 bg-clip-text text-transparent">CBTProMax</h3>
                 </div>
-                <h3 className="text-xl font-bold bg-gradient-to-r from-blue-400 to-indigo-400 bg-clip-text text-transparent">CBT Platform</h3>
               </div>
               <p className="text-gray-300 leading-relaxed">
                 Empowering educational institutions across West Africa with modern Computer-Based Testing solutions that meet WAEC standards.
@@ -348,20 +421,20 @@ const LandingPage = () => {
                   <svg className="w-4 h-4 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 4.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
                   </svg>
-                  <span>support@cbtplatform.com</span>
+                  <span>info@cbtpromax.com</span>
                 </li>
                 <li className="flex items-center space-x-2">
                   <svg className="w-4 h-4 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
                   </svg>
-                  <span>+234 800 000 0000</span>
+                  <span>+2347039612627</span>
                 </li>
                 <li className="flex items-center space-x-2">
                   <svg className="w-4 h-4 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
                   </svg>
-                  <span>Lagos, Nigeria</span>
+                  <span>90 Allen Avenue, Ikeja</span>
                 </li>
               </ul>
             </div>
@@ -369,7 +442,7 @@ const LandingPage = () => {
           <div className="border-t border-gray-700 mt-12 pt-8">
             <div className="flex flex-col md:flex-row justify-between items-center">
               <p className="text-gray-400 text-center md:text-left">
-                &copy; 2024 CBT Platform. All rights reserved. Helping institutions transition to modern digital examinations.
+                &copy; 2024 CBTProMax. All rights reserved. Helping institutions transition to modern digital examinations.
               </p>
               <div className="flex space-x-6 mt-4 md:mt-0">
                 <a href="#" className="text-gray-400 hover:text-blue-400 transition-colors">

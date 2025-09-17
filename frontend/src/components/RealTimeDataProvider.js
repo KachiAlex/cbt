@@ -22,7 +22,7 @@ export const RealTimeDataProvider = ({ children }) => {
     error: null
   });
 
-  const [refreshInterval, setRefreshInterval] = useState(60000); // 60 seconds default to reduce API calls
+  const [refreshInterval, setRefreshInterval] = useState(300000); // 60 seconds default to reduce API calls
 
   const loadData = useCallback(async () => {
     try {
@@ -51,12 +51,15 @@ export const RealTimeDataProvider = ({ children }) => {
         return; // Don't set up intervals for localStorage mode
       }
       
-      const [exams, questions, users, results] = await Promise.all([
-        dataService.loadExams(),
-        dataService.loadQuestions(),
-        dataService.loadUsers(),
-        dataService.loadResults()
-      ]);
+      const sleep = (ms) => new Promise(r => setTimeout(r, ms));
+      const exams = await dataService.loadExams();
+      await sleep(200);
+      const questions = await dataService.loadQuestions();
+      await sleep(200);
+      const users = await dataService.loadUsers();
+      await sleep(200);
+      const results = await dataService.loadResults();
+    ]);
 
       setData({
         exams: Array.isArray(exams) ? exams : [],
@@ -92,7 +95,7 @@ export const RealTimeDataProvider = ({ children }) => {
 
     // Only set up interval for automatic refresh if API is enabled
     const apiConfig = dataService.getApiConfig();
-    if (apiConfig.USE_API) {
+    if (apiConfig.USE_API && hasToken) {
       const interval = setInterval(loadData, refreshInterval);
       return () => clearInterval(interval);
     }

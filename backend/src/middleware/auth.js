@@ -53,7 +53,7 @@ const authenticateMultiTenantAdmin = async (req, res, next) => {
       if (decoded.role === 'super_admin' && decoded.type !== 'multi_tenant_admin') {
         decoded.type = 'multi_tenant_admin';
       }
-      req.user = decoded;
+    req.user = decoded;
       return next();
     }
     

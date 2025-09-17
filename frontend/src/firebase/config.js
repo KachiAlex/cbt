@@ -1,5 +1,5 @@
 import { initializeApp } from 'firebase/app';
-import { getFirestore } from 'firebase/firestore';
+import { getFirestore, connectFirestoreEmulator } from 'firebase/firestore';
 import { getAuth } from 'firebase/auth';
 
 // Firebase configuration for cbt-multitenant-admin project
@@ -13,12 +13,13 @@ const firebaseConfig = {
   measurementId: "G-PMMHZEBZ92"
 };
 
-
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
 
-// Initialize Firebase services
+// Initialize Firestore with standard configuration
 export const db = getFirestore(app);
+
+// Initialize Firebase Auth
 export const auth = getAuth(app);
 
 export default app;

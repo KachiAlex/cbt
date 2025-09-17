@@ -2,9 +2,11 @@ import React, { useState, useEffect, useCallback } from 'react';
 import firebaseDataService from '../firebase/dataService';
 import firebaseAuthService from '../firebase/authService';
 import FirebaseStatus from './FirebaseStatus';
+import BlogManagement from './BlogManagement';
 
 export default function MultiTenantAdmin() {
   // Main state
+  const [activeTab, setActiveTab] = useState('institutions');
   const [institutions, setInstitutions] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -284,37 +286,74 @@ export default function MultiTenantAdmin() {
           <div className="flex justify-between items-center py-6">
             <div>
               <h1 className="text-3xl font-bold text-gray-900">Multi-Tenant Admin</h1>
-              <p className="text-gray-600 mt-1">Manage institutions and administrators</p>
+              <p className="text-gray-600 mt-1">Manage institutions, administrators, and content</p>
               <div className="mt-2">
                 <FirebaseStatus />
               </div>
             </div>
-            <button
-              onClick={() => setShowCreateInstitution(true)}
-              className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg font-medium transition-colors"
-            >
-              + Create Institution
-            </button>
+            {activeTab === 'institutions' && (
+              <button
+                onClick={() => setShowCreateInstitution(true)}
+                className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg font-medium transition-colors"
+              >
+                + Create Institution
+              </button>
+            )}
+          </div>
+          
+          {/* Tab Navigation */}
+          <div className="border-t border-gray-200">
+            <nav className="-mb-px flex space-x-8">
+              <button
+                onClick={() => setActiveTab('institutions')}
+                className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors duration-200 ${
+                  activeTab === 'institutions'
+                    ? 'border-blue-500 text-blue-600'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                }`}
+              >
+                Institutions ({institutions.length})
+              </button>
+              <button
+                onClick={() => setActiveTab('blogs')}
+                className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors duration-200 ${
+                  activeTab === 'blogs'
+                    ? 'border-blue-500 text-blue-600'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                }`}
+              >
+                Blog Management
+              </button>
+            </nav>
           </div>
         </div>
       </div>
 
       {/* Main Content */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {error && (
+        {activeTab === 'institutions' && error && (
           <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg mb-6">
             {error}
           </div>
         )}
 
-        {loading ? (
-          <div className="flex justify-center items-center py-12">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {institutions.map((institution) => (
-              <div key={institution.id} className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden hover:shadow-md transition-shadow">
+        {activeTab === 'institutions' && (
+          <>
+            {loading ? (
+              <div className="flex justify-center items-center py-12">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {institutions.map((institution) => (
+              <div 
+                key={institution.id} 
+                className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden hover:shadow-md transition-shadow cursor-pointer"
+                onClick={() => {
+                  const institutionUrl = `${window.location.origin}/institution-login?institution=${institution.slug}`;
+                  window.open(institutionUrl, '_blank');
+                }}
+              >
                 {/* Institution Logo/Header */}
                 <div className="h-32 bg-gradient-to-r from-blue-500 to-purple-600 flex items-center justify-center">
                   {institution.logo ? (
@@ -354,10 +393,10 @@ export default function MultiTenantAdmin() {
             </div>
 
                   {/* Action Buttons */}
-                  <div className="mt-6 space-y-3">
+                  <div className="mt-6 space-y-3" onClick={(e) => e.stopPropagation()}>
                     <button
                       onClick={() => {
-                        const institutionUrl = `${window.location.origin}/?institution=${institution.slug}`;
+                        const institutionUrl = `${window.location.origin}/institution-login?institution=${institution.slug}`;
                         navigator.clipboard.writeText(institutionUrl);
                         alert('Institution link copied to clipboard!');
                       }}
@@ -393,25 +432,31 @@ export default function MultiTenantAdmin() {
                     >
                       Manage Institution
                     </button>
-        </div>
+                  </div>
       </div>
               </div>
             ))}
           </div>
+            )}
+
+            {institutions.length === 0 && !loading && (
+              <div className="text-center py-12">
+                <div className="text-gray-400 text-6xl mb-4">🏢</div>
+                <h3 className="text-xl font-medium text-gray-900 mb-2">No institutions yet</h3>
+                <p className="text-gray-600 mb-6">Create your first institution to get started</p>
+                <button
+                  onClick={() => setShowCreateInstitution(true)}
+                  className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg font-medium transition-colors"
+                >
+                  Create Institution
+                </button>
+              </div>
+            )}
+          </>
         )}
 
-        {institutions.length === 0 && !loading && (
-          <div className="text-center py-12">
-            <div className="text-gray-400 text-6xl mb-4">🏢</div>
-            <h3 className="text-xl font-medium text-gray-900 mb-2">No institutions yet</h3>
-            <p className="text-gray-600 mb-6">Create your first institution to get started</p>
-            <button
-              onClick={() => setShowCreateInstitution(true)}
-              className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg font-medium transition-colors"
-            >
-              Create Institution
-            </button>
-          </div>
+        {activeTab === 'blogs' && (
+          <BlogManagement />
         )}
       </div>
 
@@ -755,12 +800,12 @@ export default function MultiTenantAdmin() {
                     <input
                           type="text"
                           readOnly
-                          value={`${window.location.origin}/?institution=${selectedInstitution.slug}`}
+                          value={`${window.location.origin}/institution-login?institution=${selectedInstitution.slug}`}
                           className="flex-1 px-3 py-2 border border-gray-300 rounded text-sm bg-gray-50"
                         />
                         <button
                           onClick={() => {
-                            const institutionUrl = `${window.location.origin}/?institution=${selectedInstitution.slug}`;
+                            const institutionUrl = `${window.location.origin}/institution-login?institution=${selectedInstitution.slug}`;
                             navigator.clipboard.writeText(institutionUrl);
                             alert('Link copied to clipboard!');
                           }}

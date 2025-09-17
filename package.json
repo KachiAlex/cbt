@@ -22,5 +22,8 @@
     "typescript"
   ],
   "author": "CBT Team",
-  "license": "MIT"
+  "license": "MIT",
+  "dependencies": {
+    "lucide-react": "^0.544.0"
+  }
 }

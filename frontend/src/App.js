@@ -8,6 +8,10 @@ import MultiTenantAdmin from './components/MultiTenantAdmin';
 import MultiTenantAdminLogin from './components/MultiTenantAdminLogin';
 import InstitutionCBT from './components/InstitutionCBT';
 import LandingPage from './pages/LandingPage';
+import HowItWorks from './pages/HowItWorks';
+import FreeTrial from './pages/FreeTrial';
+import BlogList from './pages/BlogList';
+import BlogDetail from './pages/BlogDetail';
 import { dataService } from './services/dataService';
 import { testFirebaseConnection } from './firebase/testConnection';
 import './firebase/createAdmin';
@@ -34,8 +38,12 @@ function App() {
     <Router>
       <div className="min-h-screen bg-gray-50">
         <Routes>
-          {/* Landing page route */}
+          {/* Landing page routes */}
           <Route path="/home" element={<LandingPage />} />
+          <Route path="/how-it-works" element={<HowItWorks />} />
+          <Route path="/trial" element={<FreeTrial />} />
+          <Route path="/blogs" element={<BlogList />} />
+          <Route path="/blog/:id" element={<BlogDetail />} />
           
           {/* Multi-tenant admin routes */}
           <Route path="/" element={<MultiTenantAdmin />} />
