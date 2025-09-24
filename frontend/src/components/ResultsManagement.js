@@ -65,7 +65,13 @@ const ResultsManagement = ({ institution, onStatsUpdate }) => {
 
   const filteredResults = results.filter(result => {
     const examMatch = !selectedExam || result.examId === selectedExam;
-    const studentMatch = !selectedStudent || result.studentId === selectedStudent;
+    
+    // Enhanced student matching - try multiple ID fields
+    const studentMatch = !selectedStudent || 
+      result.studentId === selectedStudent ||
+      result.userId === selectedStudent ||
+      result.studentName === selectedStudent;
+    
     return examMatch && studentMatch;
   });
 
@@ -159,9 +165,51 @@ const ResultsManagement = ({ institution, onStatsUpdate }) => {
   };
 
   const getPercent = (r) => {
+    // Prioritize percentage field if available
     if (typeof r.percentage === 'number') return r.percentage;
-    if (typeof r.score === 'number' && (r.totalQuestions === undefined || r.score <= 100)) return r.score;
+    
+    // If score is a percentage (0-100), use it
+    if (typeof r.score === 'number' && r.score <= 100 && r.totalQuestions === undefined) return r.score;
+    
+    // If score is raw count and we have totalQuestions, calculate percentage
+    if (typeof r.score === 'number' && typeof r.totalQuestions === 'number' && r.totalQuestions > 0) {
+      return Math.round((r.score / r.totalQuestions) * 100);
+    }
+    
+    // If we have correctAnswers and totalQuestions, calculate percentage
+    if (typeof r.correctAnswers === 'number' && typeof r.totalQuestions === 'number' && r.totalQuestions > 0) {
+      return Math.round((r.correctAnswers / r.totalQuestions) * 100);
+    }
+    
     return null;
+  };
+
+  const getScoreFormat = (result) => {
+    const percentage = getPercent(result);
+    
+    // Determine the correct score (number of correct answers)
+    let correctScore = 0;
+    if (result.correctAnswers !== undefined) {
+      correctScore = result.correctAnswers;
+    } else if (result.score !== undefined && result.totalQuestions && result.score <= result.totalQuestions) {
+      correctScore = result.score;
+    } else if (result.score !== undefined && result.totalQuestions && result.score > result.totalQuestions) {
+      // If score is percentage, calculate correct answers
+      correctScore = Math.round((result.score / 100) * result.totalQuestions);
+    }
+    
+    // Get total questions
+    const totalQuestions = result.totalQuestions || 0;
+    
+    if (totalQuestions > 0 && percentage !== null) {
+      return `${correctScore}/${totalQuestions} (${percentage}%)`;
+    } else if (totalQuestions > 0) {
+      return `${correctScore}/${totalQuestions}`;
+    } else if (percentage !== null) {
+      return `${percentage}%`;
+    }
+    
+    return '-';
   };
 
   const finalizeResult = async () => {
@@ -197,15 +245,20 @@ const ResultsManagement = ({ institution, onStatsUpdate }) => {
   const exportResults = () => {
     const csvContent = [
       ['Student Name', 'Exam', 'Score', 'Percentage', 'Grade', 'Status', 'Date'],
-      ...filteredResults.map(result => [
-        getStudentName(result.studentId),
-        getExamTitle(result.examId),
-        result.score,
-        result.percentage,
-        getGradeLabel(result.percentage),
-        result.status,
-        new Date(result.completedAt).toLocaleDateString()
-      ])
+      ...filteredResults.map(result => {
+        const percentage = getPercent(result);
+        const scoreFormat = getScoreFormat(result);
+        
+        return [
+          getStudentName(result.studentId),
+          getExamTitle(result.examId),
+          scoreFormat,
+          percentage !== null ? `${percentage}%` : '-',
+          percentage !== null ? getGradeLabel(percentage) : '-',
+          result.status,
+          new Date(result.completedAt).toLocaleDateString()
+        ];
+      })
     ].map(row => row.join(',')).join('\n');
 
     const blob = new Blob([csvContent], { type: 'text/csv' });
@@ -364,8 +417,21 @@ const ResultsManagement = ({ institution, onStatsUpdate }) => {
             >
               <option value="">All Students</option>
               {students.map(student => (
-                <option key={student.id} value={student.id}>{student.fullName}</option>
+                <option key={student.id} value={student.id}>
+                  {student.fullName} ({student.username})
+                </option>
               ))}
+              {/* Add options for students found in results but not in students list */}
+              {results
+                .filter(result => !students.find(s => s.id === result.studentId || s.id === result.userId))
+                .map(result => (
+                  <option key={`result-${result.id}`} value={result.studentId || result.userId}>
+                    {result.studentName} (from results)
+                  </option>
+                ))
+                .filter((option, index, self) => 
+                  index === self.findIndex(o => o.props.value === option.props.value)
+                )}
             </select>
           </div>
         </div>
@@ -455,7 +521,7 @@ const ResultsManagement = ({ institution, onStatsUpdate }) => {
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap">
                   <div className="text-sm text-gray-900">
-                    {getPercent(result) !== null ? `${getPercent(result)}%` : (result.totalQuestions ? `${result.score} / ${result.totalQuestions}` : '-')}
+                    {getScoreFormat(result)}
                     {result.status === 'provisional' && (
                       <span className="ml-2 text-xs px-2 py-0.5 rounded bg-blue-50 text-blue-700">Provisional</span>
                     )}
@@ -530,8 +596,7 @@ const ResultsManagement = ({ institution, onStatsUpdate }) => {
                   <div>
                     <label className="block text-sm font-medium text-gray-700">Score</label>
                     <p className="text-sm text-gray-900">
-                      {typeof showDetails.score === 'number' ? showDetails.score : '-'}
-                      {showDetails.totalQuestions ? ` / ${showDetails.totalQuestions}` : ''}
+                      {getScoreFormat(showDetails)}
                     </p>
                   </div>
                   <div>
@@ -561,10 +626,13 @@ const ResultsManagement = ({ institution, onStatsUpdate }) => {
                   </div>
                 </div>
 
-                {showDetails.timeSpent && (
+                {showDetails.timeSpent !== undefined && (
                   <div>
                     <label className="block text-sm font-medium text-gray-700">Time Spent</label>
-                    <p className="text-sm text-gray-900">{showDetails.timeSpent} minutes</p>
+                    <p className="text-sm text-gray-900">
+                      {showDetails.timeSpent} minutes
+                      {showDetails.timeSpent < 1 && ' (< 1 minute)'}
+                    </p>
                   </div>
                 )}
 

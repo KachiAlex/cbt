@@ -331,7 +331,22 @@ const StudentPanel = ({ user, tenant, onLogoClick, onAdminAccess }) => {
                   {userResults.slice(0, 5).map((result, idx) => (
                     <tr key={idx} className="border-t">
                       <td className="p-2 font-medium">{result.examTitle}</td>
-                      <td className="p-2 hidden sm:table-cell">{result.score}/{result.totalQuestions}</td>
+                      <td className="p-2 hidden sm:table-cell">
+                        {(() => {
+                          const percentage = result.percentage || result.percent;
+                          const correctScore = result.correctAnswers !== undefined ? result.correctAnswers : result.score;
+                          const totalQuestions = result.totalQuestions;
+                          
+                          if (totalQuestions > 0 && percentage !== undefined) {
+                            return `${correctScore}/${totalQuestions} (${percentage}%)`;
+                          } else if (totalQuestions > 0) {
+                            return `${correctScore}/${totalQuestions}`;
+                          } else if (percentage !== undefined) {
+                            return `${percentage}%`;
+                          }
+                          return '-';
+                        })()}
+                      </td>
                       <td className="p-2 font-semibold">{result.percentage || result.percent}%</td>
                       <td className="p-2 hidden sm:table-cell">
                         {result.submittedAt ? new Date(result.submittedAt.seconds * 1000).toLocaleDateString() : 'N/A'}

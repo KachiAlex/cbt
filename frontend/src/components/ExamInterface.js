@@ -214,6 +214,7 @@ const ExamInterface = ({ user, exam: propExam, onComplete }) => {
         essayAggregate = aggregateEssayScores(perQuestion);
       }
       const score = isEssayExam ? (essayAggregate?.percent ?? null) : Math.round((correctAnswers / questions.length) * 100);
+      const percentage = score; // Ensure percentage is consistent with score
       
       // Save result
       const result = {
@@ -224,10 +225,11 @@ const ExamInterface = ({ user, exam: propExam, onComplete }) => {
         studentName: user.fullName || user.username,
         institutionId: user.institutionId || tenant?.id, // Add institutionId for admin panel
         answers: answers,
-        score: score,
+        score: correctAnswers, // Raw score (number of correct answers)
+        percentage: percentage, // Percentage score
         totalQuestions: questions.length,
         correctAnswers: correctAnswers,
-        timeSpent: (exam.duration * 60) - timeLeft,
+        timeSpent: Math.round(((exam.duration * 60) - timeLeft) / 60), // Convert to minutes
         status: isEssayExam ? (essayAggregate && essayAggregate.confidence >= 0.7 ? 'provisional' : 'pending_review') : 'completed'
       };
       
