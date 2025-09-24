@@ -68,22 +68,38 @@ const ExamInterface = ({ user, exam: propExam, onComplete }) => {
     if (persisted) {
       try {
         const saved = JSON.parse(persisted);
+        
+        // Validate that we have the same questions as before
+        const currentQuestionIds = new Set(loadedQuestions.map(q => q.id));
+        const savedQuestionIds = new Set(saved.questionOrder);
+        
+        // If question set has changed, regenerate randomization
+        if (currentQuestionIds.size !== savedQuestionIds.size || 
+            ![...currentQuestionIds].every(id => savedQuestionIds.has(id))) {
+          console.log('🔍 Question set changed, regenerating randomization');
+          localStorage.removeItem(persistKey);
+          return applyRandomization(loadedQuestions);
+        }
+        
         const idToQuestion = new Map(loadedQuestions.map(q => [q.id, q]));
         const reordered = saved.questionOrder
           .map(qid => idToQuestion.get(qid))
           .filter(Boolean);
+        
         // Fallback if mismatch
         const baseQuestions = reordered.length ? reordered : loadedQuestions;
         const withOptionOrders = baseQuestions.map(q => {
           const order = saved.optionOrders?.[q.id];
-          if (randomizeOptions && Array.isArray(order) && q.options) {
+          if (randomizeOptions && Array.isArray(order) && q.options && order.length === q.options.length) {
             const opts = order.map(idx => q.options[idx]).filter(v => v !== undefined);
             return { ...q, options: opts };
           }
           return q;
         });
         return withOptionOrders;
-      } catch (_) {
+      } catch (error) {
+        console.warn('🔍 Error parsing persisted randomization, regenerating:', error);
+        localStorage.removeItem(persistKey);
         // fall through to fresh generation
       }
     }
@@ -113,11 +129,13 @@ const ExamInterface = ({ user, exam: propExam, onComplete }) => {
     try {
       const saved = {
         questionOrder: randomized.map(q => q.id),
-        optionOrders
+        optionOrders,
+        timestamp: Date.now() // Add timestamp for debugging
       };
       localStorage.setItem(persistKey, JSON.stringify(saved));
-    } catch (_) {
-      // ignore persistence failures
+      console.log('🔍 Saved randomization:', saved);
+    } catch (error) {
+      console.warn('🔍 Failed to persist randomization:', error);
     }
 
     return randomized;
@@ -167,21 +185,35 @@ const ExamInterface = ({ user, exam: propExam, onComplete }) => {
   };
 
   const handleAnswerChange = (questionId, answer) => {
-    setAnswers(prev => ({
-      ...prev,
-      [questionId]: answer
-    }));
+    console.log('🔍 Answer changed:', { questionId, answer, currentQuestion: currentQuestion.id });
+    
+    setAnswers(prev => {
+      const newAnswers = {
+        ...prev,
+        [questionId]: answer
+      };
+      console.log('🔍 Updated answers:', newAnswers);
+      return newAnswers;
+    });
   };
 
   const handleNextQuestion = () => {
     if (currentQuestionIndex < questions.length - 1) {
-      setCurrentQuestionIndex(prev => prev + 1);
+      setCurrentQuestionIndex(prev => {
+        const newIndex = prev + 1;
+        console.log('🔍 Moving to next question:', { from: prev, to: newIndex, questionId: questions[newIndex]?.id });
+        return newIndex;
+      });
     }
   };
 
   const handlePreviousQuestion = () => {
     if (currentQuestionIndex > 0) {
-      setCurrentQuestionIndex(prev => prev - 1);
+      setCurrentQuestionIndex(prev => {
+        const newIndex = prev - 1;
+        console.log('🔍 Moving to previous question:', { from: prev, to: newIndex, questionId: questions[newIndex]?.id });
+        return newIndex;
+      });
     }
   };
 
@@ -371,6 +403,27 @@ const ExamInterface = ({ user, exam: propExam, onComplete }) => {
   
   console.log('🔍 Current question:', currentQuestion);
   console.log('🔍 Current question options:', currentQuestion?.options);
+  console.log('🔍 Current answers:', answers);
+  console.log('🔍 Current question answer:', currentQuestion?.id ? answers[currentQuestion.id] : 'No answer');
+  
+  // Safety check - ensure current question exists
+  if (!currentQuestion) {
+    console.error('🔍 Current question is undefined!', { currentQuestionIndex, questionsLength: questions.length });
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <h2 className="text-2xl font-bold text-gray-900 mb-4">Error Loading Question</h2>
+          <p className="text-gray-600 mb-6">There was an issue loading the current question. Please refresh the page.</p>
+          <button
+            onClick={() => window.location.reload()}
+            className="bg-indigo-600 text-white px-4 py-2 rounded-md hover:bg-indigo-700"
+          >
+            Refresh Page
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -410,7 +463,7 @@ const ExamInterface = ({ user, exam: propExam, onComplete }) => {
             <div className="space-y-3">
               {currentQuestion.options && currentQuestion.options.length > 0 ? (
                 currentQuestion.options.map((option, index) => (
-                  <label key={index} className="flex items-start p-3 sm:p-4 border-2 border-gray-200 rounded-lg hover:bg-gray-50 cursor-pointer transition-colors">
+                  <label key={`${currentQuestion.id}-${index}-${option}`} className="flex items-start p-3 sm:p-4 border-2 border-gray-200 rounded-lg hover:bg-gray-50 cursor-pointer transition-colors">
                     <input
                       type="radio"
                       name={`question-${currentQuestion.id}`}
