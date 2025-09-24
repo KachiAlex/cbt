@@ -165,20 +165,41 @@ const ResultsManagement = ({ institution, onStatsUpdate }) => {
   };
 
   const getPercent = (r) => {
-    // Prioritize percentage field if available
-    if (typeof r.percentage === 'number') return r.percentage;
+    // Debug logging for problematic calculations
+    if (r.score && r.totalQuestions && r.score > r.totalQuestions) {
+      console.warn('🚨 Potential percentage calculation issue:', {
+        score: r.score,
+        totalQuestions: r.totalQuestions,
+        percentage: r.percentage,
+        correctAnswers: r.correctAnswers,
+        resultId: r.id
+      });
+    }
     
-    // If score is a percentage (0-100), use it
-    if (typeof r.score === 'number' && r.score <= 100 && r.totalQuestions === undefined) return r.score;
+    // Prioritize percentage field if available and valid (0-100)
+    if (typeof r.percentage === 'number' && r.percentage >= 0 && r.percentage <= 100) {
+      return r.percentage;
+    }
     
-    // If score is raw count and we have totalQuestions, calculate percentage
-    if (typeof r.score === 'number' && typeof r.totalQuestions === 'number' && r.totalQuestions > 0) {
+    // If score appears to be a percentage (0-100) and no totalQuestions, use it
+    if (typeof r.score === 'number' && r.score >= 0 && r.score <= 100 && !r.totalQuestions) {
+      return r.score;
+    }
+    
+    // If score is a raw count and we have totalQuestions, calculate percentage
+    if (typeof r.score === 'number' && typeof r.totalQuestions === 'number' && r.totalQuestions > 0 && r.score <= r.totalQuestions) {
       return Math.round((r.score / r.totalQuestions) * 100);
     }
     
     // If we have correctAnswers and totalQuestions, calculate percentage
     if (typeof r.correctAnswers === 'number' && typeof r.totalQuestions === 'number' && r.totalQuestions > 0) {
       return Math.round((r.correctAnswers / r.totalQuestions) * 100);
+    }
+    
+    // If score is greater than 100, it might be a percentage stored incorrectly
+    if (typeof r.score === 'number' && r.score > 100 && r.score <= 10000) {
+      // Assume it's a percentage (e.g., 70 instead of 0.7)
+      return Math.min(100, r.score);
     }
     
     return null;
@@ -189,13 +210,23 @@ const ResultsManagement = ({ institution, onStatsUpdate }) => {
     
     // Determine the correct score (number of correct answers)
     let correctScore = 0;
+    
+    // Prioritize correctAnswers field (most reliable)
     if (result.correctAnswers !== undefined) {
       correctScore = result.correctAnswers;
-    } else if (result.score !== undefined && result.totalQuestions && result.score <= result.totalQuestions) {
+    } 
+    // If score is a raw count (should be <= totalQuestions)
+    else if (result.score !== undefined && result.totalQuestions && result.score <= result.totalQuestions) {
       correctScore = result.score;
-    } else if (result.score !== undefined && result.totalQuestions && result.score > result.totalQuestions) {
-      // If score is percentage, calculate correct answers
+    }
+    // If score appears to be a percentage (> 100), calculate correct answers
+    else if (result.score !== undefined && result.totalQuestions && result.score > 100) {
+      // This is a percentage, calculate correct answers
       correctScore = Math.round((result.score / 100) * result.totalQuestions);
+    }
+    // If we have percentage and totalQuestions, calculate correct answers
+    else if (percentage !== null && result.totalQuestions) {
+      correctScore = Math.round((percentage / 100) * result.totalQuestions);
     }
     
     // Get total questions
