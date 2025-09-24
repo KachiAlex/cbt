@@ -17,6 +17,8 @@ const StudentsManagement = ({ institution, onStatsUpdate }) => {
     phoneNumber: '',
     isActive: true
   });
+  const [selectedStudents, setSelectedStudents] = useState([]);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   useEffect(() => {
     loadStudents();
@@ -99,6 +101,44 @@ const StudentsManagement = ({ institution, onStatsUpdate }) => {
     }
   };
 
+  const handleSelectStudent = (studentId, isSelected) => {
+    if (isSelected) {
+      setSelectedStudents(prev => [...prev, studentId]);
+    } else {
+      setSelectedStudents(prev => prev.filter(id => id !== studentId));
+    }
+  };
+
+  const handleSelectAll = (isSelected) => {
+    if (isSelected) {
+      setSelectedStudents(students.map(student => student.id));
+    } else {
+      setSelectedStudents([]);
+    }
+  };
+
+  const handleBulkDelete = async () => {
+    if (selectedStudents.length === 0) return;
+    
+    try {
+      setLoading(true);
+      const deletePromises = selectedStudents.map(studentId => 
+        firebaseDataService.deleteUser(studentId)
+      );
+      await Promise.all(deletePromises);
+      
+      setSelectedStudents([]);
+      setShowDeleteConfirm(false);
+      await loadStudents();
+      onStatsUpdate();
+    } catch (error) {
+      console.error('Error deleting students:', error);
+      alert('Failed to delete some students. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleSuspend = async (student) => {
     try {
       await firebaseDataService.updateUser(student.id, {
@@ -141,12 +181,22 @@ const StudentsManagement = ({ institution, onStatsUpdate }) => {
     <div>
       <div className="flex justify-between items-center mb-6">
         <h2 className="text-2xl font-bold text-gray-900">Students Management</h2>
-        <button
-          onClick={() => setShowModal(true)}
-          className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition-colors"
-        >
-          Add New Student
-        </button>
+        <div className="flex space-x-3">
+          {selectedStudents.length > 0 && (
+            <button
+              onClick={() => setShowDeleteConfirm(true)}
+              className="bg-red-600 text-white px-4 py-2 rounded-md hover:bg-red-700 transition-colors"
+            >
+              Delete Selected ({selectedStudents.length})
+            </button>
+          )}
+          <button
+            onClick={() => setShowModal(true)}
+            className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition-colors"
+          >
+            Add New Student
+          </button>
+        </div>
       </div>
 
       {/* Students Table */}
@@ -154,6 +204,14 @@ const StudentsManagement = ({ institution, onStatsUpdate }) => {
         <table className="min-w-full divide-y divide-gray-200">
           <thead className="bg-gray-50">
             <tr>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <input
+                  type="checkbox"
+                  checked={students.length > 0 && selectedStudents.length === students.length}
+                  onChange={(e) => handleSelectAll(e.target.checked)}
+                  className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                />
+              </th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                 Student
               </th>
@@ -176,7 +234,15 @@ const StudentsManagement = ({ institution, onStatsUpdate }) => {
           </thead>
           <tbody className="bg-white divide-y divide-gray-200">
             {students.map((student) => (
-              <tr key={student.id}>
+              <tr key={student.id} className={selectedStudents.includes(student.id) ? 'bg-blue-50' : ''}>
+                <td className="px-6 py-4 whitespace-nowrap">
+                  <input
+                    type="checkbox"
+                    checked={selectedStudents.includes(student.id)}
+                    onChange={(e) => handleSelectStudent(student.id, e.target.checked)}
+                    className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                  />
+                </td>
                 <td className="px-6 py-4 whitespace-nowrap">
                   <div className="flex items-center">
                     <div className="flex-shrink-0 h-10 w-10">
@@ -390,6 +456,43 @@ const StudentsManagement = ({ institution, onStatsUpdate }) => {
                   </button>
                 </div>
               </form>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {showDeleteConfirm && (
+        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+          <div className="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
+            <div className="mt-3 text-center">
+              <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-red-100">
+                <svg className="h-6 w-6 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z" />
+                </svg>
+              </div>
+              <h3 className="text-lg font-medium text-gray-900 mt-4">Delete Students</h3>
+              <div className="mt-2">
+                <p className="text-sm text-gray-500">
+                  Are you sure you want to delete {selectedStudents.length} selected student{selectedStudents.length > 1 ? 's' : ''}? 
+                  This action cannot be undone and will also delete all their exam results.
+                </p>
+              </div>
+              <div className="mt-6 flex justify-center space-x-3">
+                <button
+                  onClick={() => setShowDeleteConfirm(false)}
+                  className="px-4 py-2 bg-gray-300 text-gray-700 rounded-md hover:bg-gray-400 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleBulkDelete}
+                  disabled={loading}
+                  className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 disabled:opacity-50 transition-colors"
+                >
+                  {loading ? 'Deleting...' : 'Delete'}
+                </button>
+              </div>
             </div>
           </div>
         </div>

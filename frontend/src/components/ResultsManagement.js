@@ -12,6 +12,8 @@ const ResultsManagement = ({ institution, onStatsUpdate }) => {
   const [finalizeTarget, setFinalizeTarget] = useState(null);
   const [finalizeScore, setFinalizeScore] = useState('');
   const [finalizeNote, setFinalizeNote] = useState('');
+  const [selectedResults, setSelectedResults] = useState([]);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   useEffect(() => {
     loadData();
@@ -273,6 +275,44 @@ const ResultsManagement = ({ institution, onStatsUpdate }) => {
     }
   };
 
+  const handleSelectResult = (resultId, isSelected) => {
+    if (isSelected) {
+      setSelectedResults(prev => [...prev, resultId]);
+    } else {
+      setSelectedResults(prev => prev.filter(id => id !== resultId));
+    }
+  };
+
+  const handleSelectAll = (isSelected) => {
+    if (isSelected) {
+      setSelectedResults(filteredResults.map(result => result.id));
+    } else {
+      setSelectedResults([]);
+    }
+  };
+
+  const handleBulkDelete = async () => {
+    if (selectedResults.length === 0) return;
+    
+    try {
+      setLoading(true);
+      const deletePromises = selectedResults.map(resultId => 
+        firebaseDataService.deleteResult(resultId)
+      );
+      await Promise.all(deletePromises);
+      
+      setSelectedResults([]);
+      setShowDeleteConfirm(false);
+      await loadData();
+      onStatsUpdate && onStatsUpdate();
+    } catch (error) {
+      console.error('Error deleting results:', error);
+      alert('Failed to delete some results. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const exportResults = () => {
     const csvContent = [
       ['Student Name', 'Exam', 'Score', 'Percentage', 'Grade', 'Status', 'Date'],
@@ -365,12 +405,22 @@ const ResultsManagement = ({ institution, onStatsUpdate }) => {
     <div>
       <div className="flex justify-between items-center mb-6">
         <h2 className="text-2xl font-bold text-gray-900">Results Management</h2>
-        <button
-          onClick={exportResults}
-          className="bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 transition-colors"
-        >
-          Export Results
-        </button>
+        <div className="flex space-x-3">
+          {selectedResults.length > 0 && (
+            <button
+              onClick={() => setShowDeleteConfirm(true)}
+              className="bg-red-600 text-white px-4 py-2 rounded-md hover:bg-red-700 transition-colors"
+            >
+              Delete Selected ({selectedResults.length})
+            </button>
+          )}
+          <button
+            onClick={exportResults}
+            className="bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 transition-colors"
+          >
+            Export Results
+          </button>
+        </div>
       </div>
 
       {/* Analytics Cards */}
@@ -474,6 +524,14 @@ const ResultsManagement = ({ institution, onStatsUpdate }) => {
           <thead className="bg-gray-50">
             <tr>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <input
+                  type="checkbox"
+                  checked={filteredResults.length > 0 && selectedResults.length === filteredResults.length}
+                  onChange={(e) => handleSelectAll(e.target.checked)}
+                  className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                />
+              </th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                 Student
               </th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -498,7 +556,15 @@ const ResultsManagement = ({ institution, onStatsUpdate }) => {
           </thead>
           <tbody className="bg-white divide-y divide-gray-200">
             {filteredResults.map((result) => (
-              <tr key={result.id}>
+              <tr key={result.id} className={selectedResults.includes(result.id) ? 'bg-blue-50' : ''}>
+                <td className="px-6 py-4 whitespace-nowrap">
+                  <input
+                    type="checkbox"
+                    checked={selectedResults.includes(result.id)}
+                    onChange={(e) => handleSelectResult(result.id, e.target.checked)}
+                    className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                  />
+                </td>
                 <td className="px-6 py-4 whitespace-nowrap">
                   <div className="text-sm font-medium text-gray-900">
                     {getStudentName(result.studentId)}
@@ -697,6 +763,43 @@ const ResultsManagement = ({ institution, onStatsUpdate }) => {
                   className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200"
                 >
                   Close
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {showDeleteConfirm && (
+        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+          <div className="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
+            <div className="mt-3 text-center">
+              <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-red-100">
+                <svg className="h-6 w-6 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z" />
+                </svg>
+              </div>
+              <h3 className="text-lg font-medium text-gray-900 mt-4">Delete Results</h3>
+              <div className="mt-2">
+                <p className="text-sm text-gray-500">
+                  Are you sure you want to delete {selectedResults.length} selected result{selectedResults.length > 1 ? 's' : ''}? 
+                  This action cannot be undone.
+                </p>
+              </div>
+              <div className="mt-6 flex justify-center space-x-3">
+                <button
+                  onClick={() => setShowDeleteConfirm(false)}
+                  className="px-4 py-2 bg-gray-300 text-gray-700 rounded-md hover:bg-gray-400 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleBulkDelete}
+                  disabled={loading}
+                  className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 disabled:opacity-50 transition-colors"
+                >
+                  {loading ? 'Deleting...' : 'Delete'}
                 </button>
               </div>
             </div>
