@@ -58,6 +58,9 @@ function App() {
           } />
           <Route path="/admin-login" element={<MultiTenantAdminLogin onLoginSuccess={handleMultiTenantAdminLogin} />} />
           
+          {/* Direct admin redirect for clarity */}
+          <Route path="/admin/" element={<Navigate to="/admin" replace />} />
+          
           {/* Institution CBT route */}
           <Route path="/institution-login" element={<InstitutionCBT />} />
           <Route path="/institution-login/:slug" element={<InstitutionCBT />} />

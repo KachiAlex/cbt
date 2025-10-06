@@ -7,9 +7,20 @@ const AuthGuard = ({ children }) => {
 
   useEffect(() => {
     const checkAuth = () => {
+      // Check for admin user in localStorage
       const adminUser = localStorage.getItem('multi_tenant_admin_user');
-      setIsAuthenticated(!!adminUser);
+      const hasAdminUser = !!adminUser;
+      
+      console.log('🔐 AuthGuard: Checking authentication...', { hasAdminUser });
+      
+      setIsAuthenticated(hasAdminUser);
       setLoading(false);
+      
+      if (!hasAdminUser) {
+        console.log('🔐 AuthGuard: Not authenticated, redirecting to login');
+      } else {
+        console.log('🔐 AuthGuard: Authenticated, allowing access');
+      }
     };
 
     checkAuth();
@@ -21,12 +32,14 @@ const AuthGuard = ({ children }) => {
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
           <p className="mt-4 text-gray-600">Checking authentication...</p>
+          <p className="text-sm text-gray-500 mt-2">Redirecting to login if needed</p>
         </div>
       </div>
     );
   }
 
   if (!isAuthenticated) {
+    console.log('🔐 AuthGuard: Redirecting to /admin-login');
     return <Navigate to="/admin-login" replace />;
   }
 
