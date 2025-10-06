@@ -16,9 +16,8 @@ const firebaseConfig = {
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
 
-// Initialize Firestore - Use production database for live app
-// To switch back to test database, change 'production' to '(default)'
-export const db = getFirestore(app, 'production'); // Production database
+// Initialize Firestore with standard configuration
+export const db = getFirestore(app);
 
 // Initialize Firebase Auth (same for all databases)
 export const auth = getAuth(app);
