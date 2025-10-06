@@ -22,8 +22,12 @@ function App() {
   const [user, setUser] = useState(null);
 
   useEffect(() => {
-    // Test Firebase connection on app start (only if not in admin route)
-    if (!window.location.pathname.startsWith('/admin')) {
+    // Test Firebase connection on app start (only for non-admin, non-login routes)
+    const currentPath = window.location.pathname;
+    const isAdminRoute = currentPath.startsWith('/admin');
+    const isLoginRoute = currentPath === '/admin-login';
+    
+    if (!isAdminRoute && !isLoginRoute) {
       testFirebaseConnection().then(result => {
         if (result.success) {
           console.log('🔥 Firebase connected successfully!');
