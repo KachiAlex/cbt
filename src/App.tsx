@@ -7,6 +7,8 @@ import StudentDashboard from './components/StudentDashboard';
 import ExamInterface from './components/ExamInterface';
 import ExamResults from './components/ExamResults';
 import './App.css';
+// Import utility to fix exam results (makes fixExamResults available in console)
+import './utils/fixExamResults';
 
 // Protected Route Component
 const ProtectedRoute: React.FC<{ children: React.ReactNode; requiredRole: 'admin' | 'student' }> = ({ 
@@ -33,6 +35,7 @@ function App() {
         <div className="App">
           <Routes>
             <Route path="/login" element={<Login />} />
+            <Route path="/admin-login" element={<Navigate to="/login" replace />} />
             <Route 
               path="/admin" 
               element={
@@ -66,6 +69,7 @@ function App() {
               } 
             />
             <Route path="/" element={<Navigate to="/login" replace />} />
+            <Route path="*" element={<Navigate to="/login" replace />} />
           </Routes>
         </div>
       </Router>

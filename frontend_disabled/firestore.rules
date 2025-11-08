@@ -1,0 +1,93 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Super Admin Collection - Only authenticated super admins
+    match /super_admins/{adminId} {
+      allow read, write: if request.auth != null && 
+        exists(/databases/$(database)/documents/super_admins/$(request.auth.uid));
+    }
+    
+    // Institutions Collection - Public access for institution users (auth handled at app level)
+    match /institutions/{institutionId} {
+      // Allow anyone to read/write institution data
+      // Note: Institution-level authentication is handled in the application, not Firebase Auth
+      allow read, write: if true;
+      
+      // Institution Admins subcollection
+      match /admins/{adminId} {
+        allow read, write: if true;
+      }
+      
+      // Institution Users subcollection
+      match /users/{userId} {
+        allow read, write: if true;
+      }
+      
+      // Institution Exams subcollection
+      match /exams/{examId} {
+        allow read, write: if true;
+        
+        // Questions subcollection
+        match /questions/{questionId} {
+          allow read, write: if true;
+        }
+      }
+      
+      // Institution Results subcollection
+      match /results/{resultId} {
+        allow read, write: if true;
+      }
+    }
+    
+    // Global Admins Collection - For institution admins
+    match /admins/{adminId} {
+      allow read, write: if true;
+    }
+    
+    // Global Users Collection - For all users
+    match /users/{userId} {
+      allow read, write: if true;
+    }
+    
+    // Global Exams Collection - For all exams
+    match /exams/{examId} {
+      allow read, write: if true;
+      
+      // Questions subcollection
+      match /questions/{questionId} {
+        allow read, write: if true;
+      }
+    }
+    
+    // Global Results Collection - For all results
+    match /results/{resultId} {
+      allow read, write: if true;
+    }
+    
+    // Global Questions Collection - For all questions
+    match /questions/{questionId} {
+      allow read, write: if true;
+    }
+    
+    // Blog Posts Collection - Public read, authenticated write
+    match /blogs/{blogId} {
+      allow read: if true; // Public read access
+      allow write: if request.auth != null; // Authenticated write access
+    }
+    
+    // Analytics Collection - Authenticated users only
+    match /analytics/{analyticsId} {
+      allow read, write: if request.auth != null;
+    }
+    
+    // Settings Collection - Authenticated users only
+    match /settings/{settingId} {
+      allow read, write: if request.auth != null;
+    }
+    
+    // Notifications Collection - Authenticated users only
+    match /notifications/{notificationId} {
+      allow read, write: if request.auth != null;
+    }
+  }
+}

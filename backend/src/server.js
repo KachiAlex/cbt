@@ -8,6 +8,7 @@ const mongoose = require('mongoose');
 const multer = require('multer');
 const connectDB = require('./config/database');
 require('dotenv').config();
+const nodemailer = require('nodemailer');
 
 // Models
 const User = require('./models/User');
@@ -3178,3 +3179,85 @@ app.listen(PORT, () => {
 });
 
 module.exports = app; 
+
+// Contact and Schedule Demo email endpoints
+app.post('/api/contact', cors(), async (req, res) => {
+	try {
+		const { name, email, phone, subject, message } = req.body || {};
+		if (!name || !email || !message) {
+			return res.status(400).json({ error: 'Missing required fields' });
+		}
+
+		const transporter = nodemailer.createTransport({
+			host: process.env.SMTP_HOST,
+			port: Number(process.env.SMTP_PORT || 587),
+			secure: false,
+			auth: {
+				user: process.env.SMTP_USER,
+				pass: process.env.SMTP_PASS
+			}
+		});
+
+		await transporter.sendMail({
+			from: `CBTProMax Website <no-reply@cbtpromax.com>`,
+			to: 'sales@cbtpromax.com',
+			replyTo: email,
+			subject: subject || 'New Contact Form Submission',
+			text: [
+				`Name: ${name}`,
+				`Email: ${email}`,
+				phone ? `Phone: ${phone}` : null,
+				'',
+				message
+			].filter(Boolean).join('\n')
+		});
+
+		return res.json({ ok: true });
+	} catch (err) {
+		console.error('Email send error (/api/contact):', err);
+		return res.status(500).json({ error: 'Failed to send message' });
+	}
+});
+
+app.post('/api/schedule-demo', cors(), async (req, res) => {
+	try {
+		const { name, school, email, phone, position, studentsCount, notes } = req.body || {};
+		if (!name || !email || !school) {
+			return res.status(400).json({ error: 'Missing required fields' });
+		}
+
+		const transporter = nodemailer.createTransport({
+			host: process.env.SMTP_HOST,
+			port: Number(process.env.SMTP_PORT || 587),
+			secure: false,
+			auth: {
+				user: process.env.SMTP_USER,
+				pass: process.env.SMTP_PASS
+			}
+		});
+
+		await transporter.sendMail({
+			from: `CBTProMax Website <no-reply@cbtpromax.com>`,
+			to: 'sales@cbtpromax.com',
+			replyTo: email,
+			subject: 'New Free Trial / Demo Request',
+			text: [
+				'New Free Trial / Demo Request',
+				'',
+				`Name: ${name}`,
+				`School/Institution: ${school}`,
+				`Email: ${email}`,
+				phone ? `Phone: ${phone}` : null,
+				position ? `Position: ${position}` : null,
+				studentsCount ? `Approx. Students: ${studentsCount}` : null,
+				notes ? '',
+				notes ? `Notes: ${notes}` : null
+			].filter(Boolean).join('\n')
+		});
+
+		return res.json({ ok: true });
+	} catch (err) {
+		console.error('Email send error (/api/schedule-demo):', err);
+		return res.status(500).json({ error: 'Failed to send request' });
+	}
+});

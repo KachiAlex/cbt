@@ -5,6 +5,9 @@ import StudentPortal from './components/StudentPortal';
 import LoginPage from './components/LoginPage';
 import ExamInterface from './components/ExamInterface';
 import MultiTenantAdmin from './components/MultiTenantAdmin';
+
+// Debug import
+console.log('🔥 MultiTenantAdmin import:', MultiTenantAdmin);
 import MultiTenantAdminLogin from './components/MultiTenantAdminLogin';
 import InstitutionCBT from './components/InstitutionCBT';
 import AuthGuard from './components/AuthGuard';
@@ -15,10 +18,9 @@ import BlogList from './pages/BlogList';
 import BlogDetail from './pages/BlogDetail';
 import { dataService } from './services/dataService';
 import { testFirebaseConnection } from './firebase/testConnection';
-import './firebase/createAdmin';
-import './firebase/testAdminLogin';
 
 function App() {
+  console.log('🔥 App component is rendering!');
   const [user, setUser] = useState(null);
 
   useEffect(() => {
@@ -28,13 +30,13 @@ function App() {
     const isLoginRoute = currentPath === '/admin-login';
     
     if (!isAdminRoute && !isLoginRoute) {
-      testFirebaseConnection().then(result => {
-        if (result.success) {
-          console.log('🔥 Firebase connected successfully!');
-        } else {
-          console.error('❌ Firebase connection failed:', result.error);
-        }
-      });
+    testFirebaseConnection().then(result => {
+      if (result.success) {
+        console.log('🔥 Firebase connected successfully!');
+      } else {
+        console.error('❌ Firebase connection failed:', result.error);
+      }
+    });
     }
   }, []);
 
@@ -54,12 +56,10 @@ function App() {
           <Route path="/blogs" element={<BlogList />} />
           <Route path="/blog/:id" element={<BlogDetail />} />
           
-          {/* Multi-tenant admin routes */}
-          <Route path="/admin" element={
-            <AuthGuard>
-              <MultiTenantAdmin />
-            </AuthGuard>
-          } />
+          {/* Multi-tenant admin routes - NO AuthGuard for now */}
+          <Route path="/admin" element={<MultiTenantAdmin />} />
+          <Route path="/test-admin" element={<MultiTenantAdmin />} />
+          <Route path="/super-admin" element={<MultiTenantAdmin />} />
           <Route path="/admin-login" element={<MultiTenantAdminLogin onLoginSuccess={handleMultiTenantAdminLogin} />} />
           
           {/* Direct admin redirect for clarity */}

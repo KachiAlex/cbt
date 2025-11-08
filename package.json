@@ -3,12 +3,13 @@
   "version": "1.0.0",
   "description": "Modern CBT Local Application with React TypeScript",
   "private": true,
+  "type": "module",
   "scripts": {
-    "start": "cd frontend && npm start",
-    "build": "cd frontend && npm run build",
-    "test": "cd frontend && npm test",
-    "install:frontend": "cd frontend && npm install",
-    "dev": "cd frontend && npm start"
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview",
+    "start": "vite",
+    "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0"
   },
   "engines": {
     "node": ">=18.0.0",
@@ -24,6 +25,20 @@
   "author": "CBT Team",
   "license": "MIT",
   "dependencies": {
-    "lucide-react": "^0.544.0"
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "react-router-dom": "^6.20.0"
+  },
+  "devDependencies": {
+    "@types/react": "^18.2.43",
+    "@types/react-dom": "^18.2.17",
+    "@typescript-eslint/eslint-plugin": "^6.14.0",
+    "@typescript-eslint/parser": "^6.14.0",
+    "@vitejs/plugin-react": "^4.2.1",
+    "eslint": "^8.55.0",
+    "eslint-plugin-react-hooks": "^4.6.0",
+    "eslint-plugin-react-refresh": "^0.4.5",
+    "typescript": "^5.2.2",
+    "vite": "^5.0.8"
   }
 }

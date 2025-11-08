@@ -5,54 +5,71 @@ import FirebaseStatus from './FirebaseStatus';
 import BlogManagement from './BlogManagement';
 
 export default function MultiTenantAdmin() {
-  // Main state
-  const [activeTab, setActiveTab] = useState('institutions');
-  const [institutions, setInstitutions] = useState([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
+  try {
+    console.log('🎨 MultiTenantAdmin component rendering - START');
+    
+    // Main state
+    const [activeTab, setActiveTab] = useState('institutions');
+    console.log('🎨 State 1 - activeTab set');
+    
+    const [institutions, setInstitutions] = useState([]);
+    console.log('🎨 State 2 - institutions set');
+    
+    const [loading, setLoading] = useState(false);
+    console.log('🎨 State 3 - loading set');
+    
+    const [error, setError] = useState('');
+    console.log('🎨 State 4 - error set');
+    
+    console.log('🎨 Component state:', { activeTab, institutions, loading, error });
 
   // Modals
   const [showCreateInstitution, setShowCreateInstitution] = useState(false);
   const [showManageAdmins, setShowManageAdmins] = useState(false);
   const [showViewInstitution, setShowViewInstitution] = useState(false);
   const [showManageInstitution, setShowManageInstitution] = useState(false);
+  const [showCreateBlog, setShowCreateBlog] = useState(false);
   const [selectedInstitution, setSelectedInstitution] = useState(null);
-
-  // Admin management
-  const [admins, setAdmins] = useState([]);
   const [loadingAdmins, setLoadingAdmins] = useState(false);
-  const [showPasswordReset, setShowPasswordReset] = useState(false);
-  const [selectedAdmin, setSelectedAdmin] = useState(null);
+  const [admins, setAdmins] = useState([]);
 
-  // Create institution form
-  const [createForm, setCreateForm] = useState({
+  // Form states
+  const [newInstitution, setNewInstitution] = useState({
     name: '',
-    adminFullName: '',
-    adminUsername: '',
-    adminEmail: '',
-    adminPassword: '',
-    confirmPassword: '',
+    slug: '',
+    description: '',
+    email: '',
+    phone: '',
+    address: '',
     logo: null
   });
 
-  // Password reset form
-  const [passwordResetForm, setPasswordResetForm] = useState({
-    newPassword: '',
+  const [newAdmin, setNewAdmin] = useState({
+    email: '',
+    password: '',
     confirmPassword: ''
   });
+
+  const [showCreateAdmin, setShowCreateAdmin] = useState(false);
+  console.log('🎨 All modal states set');
 
   // Load institutions
   const loadInstitutions = useCallback(async () => {
     try {
+      console.log('🔄 Starting to load institutions...');
       setLoading(true);
       setError('');
       const institutionsList = await firebaseDataService.getInstitutions();
-      setInstitutions(institutionsList);
+      console.log('📊 Loaded institutions:', institutionsList);
+      setInstitutions(institutionsList || []);
+      console.log('✅ Institutions state updated');
     } catch (err) {
-      console.error('Failed to load institutions:', err);
+      console.error('❌ Failed to load institutions:', err);
       setError('Failed to load institutions. Please try again.');
+      setInstitutions([]);
     } finally {
       setLoading(false);
+      console.log('🏁 Loading finished');
     }
   }, []);
 
@@ -61,215 +78,83 @@ export default function MultiTenantAdmin() {
     try {
       setLoadingAdmins(true);
       const adminsList = await firebaseDataService.getInstitutionAdmins(institution.id);
-      setAdmins(adminsList);
+      setAdmins(adminsList || []);
     } catch (err) {
       console.error('Failed to load admins:', err);
-      setAdmins([]);
+      setError('Failed to load admins. Please try again.');
     } finally {
       setLoadingAdmins(false);
     }
   }, []);
 
   // Create institution
-  const createInstitution = async (e) => {
+  const handleCreateInstitution = async (e) => {
     e.preventDefault();
-    
-    if (createForm.adminPassword !== createForm.confirmPassword) {
-      setError('Passwords do not match');
-      return;
-    }
-
     try {
-      setLoading(true);
       setError('');
       
-      // Create admin user in Firebase Auth first
-      const authResult = await firebaseAuthService.createUser(
-        createForm.adminEmail,
-        createForm.adminPassword,
-        createForm.adminFullName
-      );
-
-      if (!authResult.success) {
-        setError(authResult.error);
-        return;
-      }
-
-      // Create institution data
-      const institutionData = {
-        name: createForm.name,
-        slug: createForm.name.toLowerCase().replace(/[^a-z0-9]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, ''),
-        adminFullName: createForm.adminFullName,
-        adminUsername: createForm.adminUsername,
-        adminEmail: createForm.adminEmail,
-        logo: createForm.logo || '',
-        plan: 'basic'
-      };
-
-      // Create institution in Firestore
-      const institution = await firebaseDataService.createInstitution(institutionData);
-
-      // Create admin record in Firestore
-      await firebaseDataService.createAdmin({
-        institutionId: institution.id,
-        uid: authResult.user.uid,
-        username: createForm.adminUsername,
-        email: createForm.adminEmail,
-        fullName: createForm.adminFullName,
-        role: 'super_admin',
-        isDefaultAdmin: true
-      });
-      
-      setShowCreateInstitution(false);
-      setCreateForm({
+      await firebaseDataService.createInstitution(newInstitution);
+      setNewInstitution({
         name: '',
-        adminFullName: '',
-        adminUsername: '',
-        adminEmail: '',
-        adminPassword: '',
-        confirmPassword: '',
+        slug: '',
+        description: '',
+        email: '',
+        phone: '',
+        address: '',
         logo: null
       });
       await loadInstitutions();
+      setShowCreateInstitution(false);
     } catch (err) {
       console.error('Failed to create institution:', err);
       setError('Failed to create institution. Please try again.');
-    } finally {
-      setLoading(false);
     }
   };
 
-  // Reset admin password
-  const resetAdminPassword = async (e) => {
+  // Create admin
+  const handleCreateAdmin = async (e) => {
     e.preventDefault();
-    
-    if (passwordResetForm.newPassword !== passwordResetForm.confirmPassword) {
+    if (newAdmin.password !== newAdmin.confirmPassword) {
       setError('Passwords do not match');
       return;
     }
-
+    
     try {
-      setLoading(true);
       setError('');
       
-      // Update password in Firebase Auth
-      const authResult = await firebaseAuthService.updatePassword(passwordResetForm.newPassword);
-      
-      if (!authResult.success) {
-        setError(authResult.error);
-        return;
-      }
-
-      // Update password in Firestore
-      await firebaseDataService.updateAdminPassword(selectedAdmin.id, passwordResetForm.newPassword);
-      
-      setShowPasswordReset(false);
-      setPasswordResetForm({ newPassword: '', confirmPassword: '' });
-      setSelectedAdmin(null);
+      await firebaseDataService.createAdmin(selectedInstitution.id, {
+        email: newAdmin.email,
+        password: newAdmin.password
+      });
+      setNewAdmin({
+        email: '',
+        password: '',
+        confirmPassword: ''
+      });
       await loadAdmins(selectedInstitution);
+      setShowCreateAdmin(false);
     } catch (err) {
-      console.error('Failed to reset password:', err);
-      setError('Failed to reset password. Please try again.');
-    } finally {
-      setLoading(false);
+      console.error('Failed to create admin:', err);
+      setError('Failed to create admin. Please try again.');
     }
   };
 
-  // Delete admin
-  const deleteAdmin = async (admin) => {
-    if (!window.confirm(`Are you sure you want to delete admin ${admin.fullName || admin.username}?`)) {
-      return;
-    }
+  // Generate institution URL
+  const getInstitutionUrl = (institution) => {
+    // Use working Firebase hosting URL (cbt-91a97.web.app)
+    const baseUrl = 'https://cbt-91a97.web.app';
+    return `${baseUrl}/institution-login?institution=${institution.slug}`;
+  };
 
+  // Copy institution URL to clipboard
+  const copyInstitutionUrl = async (institution) => {
     try {
-      setLoading(true);
-      setError('');
-      
-      await firebaseDataService.deleteAdmin(admin.id);
-      await loadAdmins(selectedInstitution);
+      const url = getInstitutionUrl(institution);
+      await navigator.clipboard.writeText(url);
+      alert(`Institution URL copied to clipboard: ${url}`);
     } catch (err) {
-      console.error('Failed to delete admin:', err);
-      setError('Failed to delete admin. Please try again.');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // Suspend institution
-  const suspendInstitution = async (institution) => {
-    if (!window.confirm(`Are you sure you want to suspend ${institution.name}? This will prevent all users from accessing the platform.`)) {
-      return;
-    }
-
-    try {
-      setLoading(true);
-      setError('');
-      
-      await firebaseDataService.updateInstitutionStatus(institution.id, 'suspended');
-      await loadInstitutions();
-      setShowManageInstitution(false);
-      setSelectedInstitution(null);
-    } catch (err) {
-      console.error('Failed to suspend institution:', err);
-      setError('Failed to suspend institution. Please try again.');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // Activate institution
-  const activateInstitution = async (institution) => {
-    if (!window.confirm(`Are you sure you want to activate ${institution.name}? This will restore access for all users.`)) {
-      return;
-    }
-
-    try {
-      setLoading(true);
-      setError('');
-      
-      await firebaseDataService.updateInstitutionStatus(institution.id, 'active');
-      await loadInstitutions();
-      setShowManageInstitution(false);
-      setSelectedInstitution(null);
-    } catch (err) {
-      console.error('Failed to activate institution:', err);
-      setError('Failed to activate institution. Please try again.');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // Delete institution
-  const deleteInstitution = async (institution) => {
-    if (!window.confirm(`Are you sure you want to permanently delete ${institution.name}? This action cannot be undone and will remove all data associated with this institution.`)) {
-      return;
-    }
-
-    try {
-      setLoading(true);
-      setError('');
-      
-      await firebaseDataService.deleteInstitution(institution.id);
-      await loadInstitutions();
-      setShowManageInstitution(false);
-      setSelectedInstitution(null);
-    } catch (err) {
-      console.error('Failed to delete institution:', err);
-      setError('Failed to delete institution. Please try again.');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // Handle logo upload
-  const handleLogoUpload = (e) => {
-    const file = e.target.files[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        setCreateForm(prev => ({ ...prev, logo: event.target.result }));
-      };
-      reader.readAsDataURL(file);
+      console.error('Failed to copy URL:', err);
+      alert('Failed to copy URL to clipboard');
     }
   };
 
@@ -278,17 +163,30 @@ export default function MultiTenantAdmin() {
     try {
       await firebaseAuthService.signOut();
       localStorage.removeItem('multi_tenant_admin_user');
-      localStorage.removeItem('multi_tenant_admin_token');
       window.location.href = '/admin-login';
-    } catch (error) {
-      console.error('Logout error:', error);
+    } catch (err) {
+      console.error('Logout failed:', err);
     }
   };
 
-  // Initialize - load institutions on component mount
   useEffect(() => {
-    loadInstitutions();
-  }, [loadInstitutions]);
+    let isMounted = true;
+    
+    const loadData = async () => {
+      if (isMounted) {
+      await loadInstitutions();
+      }
+    };
+    
+    loadData();
+    
+    return () => {
+      isMounted = false;
+    };
+  }, []); // Removed loadInstitutions dependency to prevent re-renders
+
+  console.log('🎨 MultiTenantAdmin render - loading:', loading, 'institutions:', institutions.length, 'error:', error);
+  console.log('🎨 About to return JSX');
 
     return (
     <div className="min-h-screen bg-gray-50">
@@ -304,12 +202,20 @@ export default function MultiTenantAdmin() {
               </div>
             </div>
             <div className="flex items-center space-x-4">
-              {activeTab === 'institutions' && (
+            {activeTab === 'institutions' && (
+              <button
+                onClick={() => setShowCreateInstitution(true)}
+                className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg font-medium transition-colors"
+              >
+                + Create Institution
+              </button>
+            )}
+              {activeTab === 'blog' && (
                 <button
-                  onClick={() => setShowCreateInstitution(true)}
-                  className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg font-medium transition-colors"
+                  onClick={() => setShowCreateBlog(true)}
+                  className="bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-lg font-medium transition-colors"
                 >
-                  + Create Institution
+                  + Create Blog Post
                 </button>
               )}
               <button
@@ -320,24 +226,27 @@ export default function MultiTenantAdmin() {
               </button>
             </div>
           </div>
+        </div>
+          </div>
           
-          {/* Tab Navigation */}
-          <div className="border-t border-gray-200">
-            <nav className="-mb-px flex space-x-8">
+      {/* Navigation Tabs */}
+      <div className="bg-white border-b">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <nav className="flex space-x-8">
               <button
                 onClick={() => setActiveTab('institutions')}
-                className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors duration-200 ${
+              className={`py-4 px-1 border-b-2 font-medium text-sm ${
                   activeTab === 'institutions'
                     ? 'border-blue-500 text-blue-600'
                     : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                 }`}
               >
-                Institutions ({institutions.length})
+              Institutions
               </button>
               <button
-                onClick={() => setActiveTab('blogs')}
-                className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors duration-200 ${
-                  activeTab === 'blogs'
+              onClick={() => setActiveTab('blog')}
+              className={`py-4 px-1 border-b-2 font-medium text-sm ${
+                activeTab === 'blog'
                     ? 'border-blue-500 text-blue-600'
                     : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                 }`}
@@ -345,284 +254,214 @@ export default function MultiTenantAdmin() {
                 Blog Management
               </button>
             </nav>
-          </div>
         </div>
       </div>
 
       {/* Main Content */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {activeTab === 'institutions' && error && (
-          <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg mb-6">
-            {error}
+        {error && (
+          <div className="mb-6 bg-red-50 border border-red-200 rounded-md p-4">
+            <div className="flex">
+              <div className="flex-shrink-0">
+                <svg className="h-5 w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                </svg>
+              </div>
+              <div className="ml-3">
+                <h3 className="text-sm font-medium text-red-800">Error</h3>
+                <div className="mt-2 text-sm text-red-700">{error}</div>
+              </div>
+            </div>
           </div>
         )}
 
         {activeTab === 'institutions' && (
-          <>
+          <div>
+            <div className="mb-6">
+              <h2 className="text-2xl font-bold text-gray-900">Institutions</h2>
+              <p className="text-gray-600">Manage all institutions in the system</p>
+            </div>
+
             {loading ? (
               <div className="flex justify-center items-center py-12">
                 <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+                <span className="ml-3 text-gray-600">Loading institutions...</span>
               </div>
             ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {institutions.map((institution) => (
-              <div 
-                key={institution.id} 
-                className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden hover:shadow-md transition-shadow cursor-pointer"
-                onClick={() => {
-                  const institutionUrl = `${window.location.origin}/institution-login?institution=${institution.slug}`;
-                  window.open(institutionUrl, '_blank');
-                }}
-              >
-                {/* Institution Logo/Header */}
-                <div className="h-32 bg-gradient-to-r from-blue-500 to-purple-600 flex items-center justify-center">
-                  {institution.logo ? (
-                    <img 
-                      src={institution.logo} 
-                      alt={institution.name}
-                      className="h-16 w-16 rounded-full object-cover border-4 border-white"
-                    />
-                  ) : (
-                    <div className="h-16 w-16 rounded-full bg-white/20 flex items-center justify-center">
-                      <span className="text-2xl font-bold text-white">
-                        {institution.name.charAt(0).toUpperCase()}
-                      </span>
+              <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+                {institutions.length === 0 ? (
+                  <div className="col-span-full text-center py-12">
+                    <div className="text-gray-500">
+                      <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                      </svg>
+                      <h3 className="mt-2 text-sm font-medium text-gray-900">No institutions</h3>
+                      <p className="mt-1 text-sm text-gray-500">Get started by creating a new institution.</p>
                     </div>
-                  )}
                 </div>
-
-                {/* Institution Info */}
-                <div className="p-6">
-                  <div className="flex items-center justify-between mb-2">
-                    <h3 className="text-xl font-semibold text-gray-900">{institution.name}</h3>
-                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                ) : (
+                  institutions.map((institution) => (
+                    <div key={institution.id} className="bg-white rounded-lg shadow-md p-6">
+                      <div className="flex items-center justify-between mb-4">
+                        <h3 className="text-lg font-semibold text-gray-900">{institution.name}</h3>
+                        <span className={`px-2 py-1 text-xs font-medium rounded-full ${
                       institution.status === 'active' 
                         ? 'bg-green-100 text-green-800' 
-                        : institution.status === 'suspended'
-                        ? 'bg-red-100 text-red-800'
-                        : 'bg-gray-100 text-gray-800'
+                            : 'bg-red-100 text-red-800'
                     }`}>
-                      {institution.status || 'active'}
+                          {institution.status}
                     </span>
                   </div>
-                  <div className="space-y-2 text-sm text-gray-600">
-                    <p><span className="font-medium">Admin:</span> {institution.adminFullName}</p>
-                    <p><span className="font-medium">Email:</span> {institution.adminEmail}</p>
-                    <p><span className="font-medium">Users:</span> {institution.totalUsers || 0}</p>
-                    <p><span className="font-medium">Created:</span> {institution.createdAt ? new Date(institution.createdAt.seconds * 1000).toLocaleDateString() : 'Unknown'}</p>
-            </div>
-
-                  {/* Action Buttons */}
-                  <div className="mt-6 space-y-3" onClick={(e) => e.stopPropagation()}>
-                    <button
-                      onClick={() => {
-                        const institutionUrl = `${window.location.origin}/institution-login?institution=${institution.slug}`;
-                        navigator.clipboard.writeText(institutionUrl);
-                        alert('Institution link copied to clipboard!');
-                      }}
-                      className="w-full bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg font-medium transition-colors"
-                    >
-                      Copy CBT Link
-                    </button>
-                    <button
-                      onClick={() => {
-                        setSelectedInstitution(institution);
-                        setShowViewInstitution(true);
-                      }}
-                      className="w-full bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-2 rounded-lg font-medium transition-colors"
-                    >
-                      View Institution
-                    </button>
-                    <button
-                      onClick={() => {
-                        setSelectedInstitution(institution);
-                        loadAdmins(institution);
-                        setShowManageAdmins(true);
-                      }}
-                      className="w-full bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium transition-colors"
-                    >
-                      Manage Admins
-                    </button>
-                    <button
-                      onClick={() => {
-                        setSelectedInstitution(institution);
-                        setShowManageInstitution(true);
-                      }}
-                      className="w-full bg-orange-600 hover:bg-orange-700 text-white px-4 py-2 rounded-lg font-medium transition-colors"
-                    >
-                      Manage Institution
-                    </button>
-                  </div>
-      </div>
+                      <p className="text-gray-600 text-sm mb-4">{institution.description}</p>
+                      <div className="flex justify-between items-center mb-3">
+                        <span className="text-sm text-gray-500">
+                          {institution.totalUsers || 0} users
+                        </span>
+                        <div className="flex space-x-2">
+                          <button
+                            onClick={() => {
+                              setSelectedInstitution(institution);
+                              setShowViewInstitution(true);
+                            }}
+                            className="text-blue-600 hover:text-blue-800 text-sm font-medium"
+                          >
+                            View Details
+                          </button>
+                          <button
+                            onClick={() => {
+                              setSelectedInstitution(institution);
+                              loadAdmins(institution);
+                              setShowManageAdmins(true);
+                            }}
+                            className="text-green-600 hover:text-green-800 text-sm font-medium"
+                          >
+                            Manage Admins
+                          </button>
+                        </div>
+                      </div>
+                      
+                      {/* Institution Access Section */}
+                      <div className="border-t pt-3">
+                        <div className="flex items-center justify-between mb-2">
+                          <span className="text-xs font-medium text-gray-600">Institution Access</span>
+                          <span className="text-xs text-gray-500">Slug: {institution.slug}</span>
+                        </div>
+                        
+                        <div className="flex space-x-2">
+                          <button
+                            onClick={() => copyInstitutionUrl(institution)}
+                            className="flex-1 bg-blue-50 hover:bg-blue-100 text-blue-700 px-3 py-2 rounded text-xs font-medium transition-colors"
+                            title="Copy institution URL to clipboard"
+                          >
+                            📋 Copy URL
+                          </button>
+                          <button
+                            onClick={() => window.open(getInstitutionUrl(institution), '_blank')}
+                            className="flex-1 bg-green-50 hover:bg-green-100 text-green-700 px-3 py-2 rounded text-xs font-medium transition-colors"
+                            title="Open institution panel in new tab"
+                          >
+                            🚀 Open Panel
+                          </button>
+                        </div>
+                        
+                        <div className="mt-2 p-2 bg-gray-50 rounded text-xs text-gray-600 break-all">
+                          {getInstitutionUrl(institution)}
+                        </div>
+                      </div>
               </div>
-            ))}
+                  ))
+                )}
+              </div>
+            )}
           </div>
-            )}
-
-            {institutions.length === 0 && !loading && (
-              <div className="text-center py-12">
-                <div className="text-gray-400 text-6xl mb-4">🏢</div>
-                <h3 className="text-xl font-medium text-gray-900 mb-2">No institutions yet</h3>
-                <p className="text-gray-600 mb-6">Create your first institution to get started</p>
-                <button
-                  onClick={() => setShowCreateInstitution(true)}
-                  className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg font-medium transition-colors"
-                >
-                  Create Institution
-                </button>
-              </div>
-            )}
-          </>
         )}
 
-        {activeTab === 'blogs' && (
-          <BlogManagement />
-        )}
+        {activeTab === 'blog' && <BlogManagement />}
       </div>
 
       {/* Create Institution Modal */}
       {showCreateInstitution && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-            <div className="p-6 border-b">
-              <h2 className="text-2xl font-bold text-gray-900">Create New Institution</h2>
-              <p className="text-gray-600 mt-1">Set up a new institution with administrator details</p>
-            </div>
-
-            <form onSubmit={createInstitution} className="p-6 space-y-6">
-              {/* Institution Name */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Institution Name *
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={createForm.name}
-                  onChange={(e) => setCreateForm(prev => ({ ...prev, name: e.target.value }))}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  placeholder="e.g., College of Nursing Sciences"
-                />
-              </div>
-
-              {/* Administrator Details */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 w-full max-w-md">
+            <h3 className="text-lg font-semibold mb-4">Create New Institution</h3>
+            <form onSubmit={handleCreateInstitution}>
+              <div className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Administrator Full Name *
-                  </label>
+                  <label className="block text-sm font-medium text-gray-700">Name</label>
                   <input
                     type="text"
+                    value={newInstitution.name}
+                    onChange={(e) => {
+                      const name = e.target.value;
+                      const slug = name.toLowerCase().replace(/[^a-z0-9]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '');
+                      setNewInstitution({...newInstitution, name, slug});
+                    }}
+                    className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
                     required
-                    value={createForm.adminFullName}
-                    onChange={(e) => setCreateForm(prev => ({ ...prev, adminFullName: e.target.value }))}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    placeholder="e.g., John Doe"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Username *
-                  </label>
+                  <label className="block text-sm font-medium text-gray-700">URL Slug</label>
                   <input
                     type="text"
+                    value={newInstitution.slug}
+                    onChange={(e) => setNewInstitution({...newInstitution, slug: e.target.value})}
+                    className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
+                    placeholder="Auto-generated from name"
                     required
-                    value={createForm.adminUsername}
-                    onChange={(e) => setCreateForm(prev => ({ ...prev, adminUsername: e.target.value }))}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    placeholder="e.g., john.doe"
                   />
+                  <p className="mt-1 text-xs text-gray-500">This will be used in the institution URL</p>
                 </div>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Administrator Email *
-                </label>
-                <input
-                  type="email"
-                  required
-                  value={createForm.adminEmail}
-                  onChange={(e) => setCreateForm(prev => ({ ...prev, adminEmail: e.target.value }))}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  placeholder="e.g., john.doe@college.edu"
-                />
-              </div>
-
-              {/* Password Fields */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Password *
-                  </label>
-                  <input
-                    type="password"
-                    required
-                    value={createForm.adminPassword}
-                    onChange={(e) => setCreateForm(prev => ({ ...prev, adminPassword: e.target.value }))}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    placeholder="Enter password"
+                  <label className="block text-sm font-medium text-gray-700">Description</label>
+                  <textarea
+                    value={newInstitution.description}
+                    onChange={(e) => setNewInstitution({...newInstitution, description: e.target.value})}
+                    className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
+                    rows="3"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Confirm Password *
-                  </label>
+                  <label className="block text-sm font-medium text-gray-700">Email</label>
                   <input
-                    type="password"
-                    required
-                    value={createForm.confirmPassword}
-                    onChange={(e) => setCreateForm(prev => ({ ...prev, confirmPassword: e.target.value }))}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    placeholder="Confirm password"
+                    type="email"
+                    value={newInstitution.email}
+                    onChange={(e) => setNewInstitution({...newInstitution, email: e.target.value})}
+                    className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
                   />
                 </div>
-              </div>
-
-              {/* Logo Upload */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Phone</label>
+                  <input
+                    type="tel"
+                    value={newInstitution.phone}
+                    onChange={(e) => setNewInstitution({...newInstitution, phone: e.target.value})}
+                    className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
+                  />
+                </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Institution Logo
-                </label>
-                <div className="flex items-center space-x-4">
-                  <input
-                    type="file"
-                    accept="image/*"
-                    onChange={handleLogoUpload}
-                    className="hidden"
-                    id="logo-upload"
+                  <label className="block text-sm font-medium text-gray-700">Address</label>
+                  <textarea
+                    value={newInstitution.address}
+                    onChange={(e) => setNewInstitution({...newInstitution, address: e.target.value})}
+                    className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
+                    rows="2"
                   />
-                  <label
-                    htmlFor="logo-upload"
-                    className="cursor-pointer bg-gray-100 hover:bg-gray-200 px-4 py-3 rounded-lg border border-gray-300 transition-colors"
-                  >
-                    Choose Logo
-                  </label>
-                  {createForm.logo && (
-                    <img
-                      src={createForm.logo}
-                      alt="Logo preview"
-                      className="h-12 w-12 rounded-lg object-cover"
-                    />
-                  )}
                 </div>
               </div>
-
-              {/* Form Actions */}
-              <div className="flex justify-end space-x-4 pt-6 border-t">
+              <div className="mt-6 flex justify-end space-x-3">
                 <button
                   type="button"
                   onClick={() => setShowCreateInstitution(false)}
-                  className="px-6 py-3 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg font-medium transition-colors"
+                  className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  disabled={loading}
-                  className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors disabled:opacity-50"
+                  className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
                 >
-                  {loading ? 'Creating...' : 'Create Institution'}
+                  Create Institution
                 </button>
               </div>
             </form>
@@ -630,364 +469,191 @@ export default function MultiTenantAdmin() {
             </div>
           )}
 
-      {/* Manage Admins Modal */}
-      {showManageAdmins && selectedInstitution && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
-            <div className="p-6 border-b">
-              <h2 className="text-2xl font-bold text-gray-900">Manage Admins - {selectedInstitution.name}</h2>
-              <p className="text-gray-600 mt-1">View, reset passwords, and manage administrators</p>
+      {/* View Institution Modal */}
+      {showViewInstitution && selectedInstitution && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 w-full max-w-2xl">
+            <h3 className="text-lg font-semibold mb-4">Institution Details</h3>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700">Name</label>
+                <p className="mt-1 text-gray-900">{selectedInstitution.name}</p>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700">Description</label>
+                <p className="mt-1 text-gray-900">{selectedInstitution.description}</p>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700">Email</label>
+                <p className="mt-1 text-gray-900">{selectedInstitution.email}</p>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700">Phone</label>
+                <p className="mt-1 text-gray-900">{selectedInstitution.phone}</p>
                     </div>
-                    
-            <div className="p-6">
-            {loadingAdmins ? (
-                <div className="flex justify-center py-8">
-                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700">Address</label>
+                <p className="mt-1 text-gray-900">{selectedInstitution.address}</p>
                 </div>
-              ) : (
-                <div className="space-y-4">
-                {admins.map((admin) => (
-                    <div key={admin.id} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
-                      <div className="flex items-center space-x-4">
-                        <div className="h-10 w-10 rounded-full bg-blue-500 flex items-center justify-center">
-                          <span className="text-white font-medium">
-                            {(admin.fullName || admin.username || 'A').charAt(0).toUpperCase()}
+              <div>
+                <label className="block text-sm font-medium text-gray-700">Status</label>
+                <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${
+                  selectedInstitution.status === 'active' 
+                    ? 'bg-green-100 text-green-800' 
+                    : 'bg-red-100 text-red-800'
+                }`}>
+                  {selectedInstitution.status}
                           </span>
                         </div>
                     <div>
-                          <h4 className="font-medium text-gray-900">{admin.fullName || admin.name || 'Unknown'}</h4>
-                          <p className="text-sm text-gray-600">{admin.email || admin.username}</p>
-                          <p className="text-xs text-blue-600 font-medium">Super Admin</p>
+                <label className="block text-sm font-medium text-gray-700">Total Users</label>
+                <p className="mt-1 text-gray-900">{selectedInstitution.totalUsers || 0}</p>
                         </div>
                     </div>
-                      <div className="flex space-x-2">
+            <div className="mt-6 flex justify-end">
                         <button
-                          onClick={() => {
-                            setSelectedAdmin(admin);
-                            setShowPasswordReset(true);
-                          }}
-                          className="px-3 py-1 bg-yellow-100 hover:bg-yellow-200 text-yellow-800 rounded text-sm font-medium transition-colors"
-                        >
-                          Reset Password
-                        </button>
-                      <button
-                          onClick={() => deleteAdmin(admin)}
-                          className="px-3 py-1 bg-red-100 hover:bg-red-200 text-red-800 rounded text-sm font-medium transition-colors"
-                      >
-                          Delete
-                      </button>
-                    </div>
-                  </div>
-                ))}
-                  
-                  {admins.length === 0 && (
-                    <div className="text-center py-8 text-gray-500">
-                      No administrators found for this institution.
-                    </div>
-                  )}
-                </div>
-            )}
-
-              <div className="flex justify-end pt-6 border-t mt-6">
-                <button
-                  onClick={() => {
-                    setShowManageAdmins(false);
-                    setSelectedInstitution(null);
-                    setAdmins([]);
-                  }}
-                  className="px-6 py-3 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg font-medium transition-colors"
+                onClick={() => setShowViewInstitution(false)}
+                className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
                 >
                   Close
                 </button>
-              </div>
             </div>
                     </div>
                     </div>
       )}
 
-      {/* Password Reset Modal */}
-      {showPasswordReset && selectedAdmin && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-xl max-w-md w-full">
-            <div className="p-6 border-b">
-              <h2 className="text-xl font-bold text-gray-900">Reset Password</h2>
-              <p className="text-gray-600 mt-1">Reset password for {selectedAdmin.fullName || selectedAdmin.username}</p>
-            </div>
+      {/* Manage Admins Modal */}
+      {showManageAdmins && selectedInstitution && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 w-full max-w-4xl">
+            <h3 className="text-lg font-semibold mb-4">Manage Admins - {selectedInstitution.name}</h3>
             
-            <form onSubmit={resetAdminPassword} className="p-6 space-y-4">
-                    <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  New Password *
-                </label>
-                      <input
-                  type="password"
-                        required
-                  value={passwordResetForm.newPassword}
-                  onChange={(e) => setPasswordResetForm(prev => ({ ...prev, newPassword: e.target.value }))}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  placeholder="Enter new password"
-                      />
-                    </div>
-              
-                    <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Confirm New Password *
-                </label>
-                      <input
-                  type="password"
-                          required
-                  value={passwordResetForm.confirmPassword}
-                  onChange={(e) => setPasswordResetForm(prev => ({ ...prev, confirmPassword: e.target.value }))}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  placeholder="Confirm new password"
-                />
-                      </div>
+            <div className="mb-4 flex justify-between items-center">
+              <button
+                onClick={() => setShowCreateAdmin(true)}
+                className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-md text-sm"
+              >
+                + Add Admin
+              </button>
+              {admins.length === 0 && (
+                <span className="text-sm text-amber-600 bg-amber-50 px-3 py-1 rounded">
+                  ⚠️ No admins yet - create the first one
+                </span>
+              )}
+            </div>
 
-              <div className="flex justify-end space-x-4 pt-4">
-                <button
+            {loadingAdmins ? (
+              <div className="flex justify-center py-4">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+            </div>
+            ) : (
+              <div className="space-y-2">
+                {admins.length === 0 ? (
+                  <p className="text-gray-500 text-center py-4">No admins found</p>
+                ) : (
+                  admins.map((admin) => (
+                    <div key={admin.id} className="flex items-center justify-between p-3 border rounded-lg">
+                  <div>
+                        <p className="font-medium">{admin.email}</p>
+                        <p className="text-sm text-gray-500">Admin</p>
+                </div>
+                      <div className="flex space-x-2">
+                        <button className="text-blue-600 hover:text-blue-800 text-sm">Edit</button>
+                        <button className="text-red-600 hover:text-red-800 text-sm">Delete</button>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            )}
+
+            <div className="mt-6 flex justify-end">
+              <button
+                onClick={() => setShowManageAdmins(false)}
+                className="px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700"
+              >
+                Close
+              </button>
+                </div>
+          </div>
+        </div>
+      )}
+
+      {/* Create Admin Modal */}
+      {showCreateAdmin && selectedInstitution && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 w-full max-w-md">
+            <h3 className="text-lg font-semibold mb-4">Create Admin for {selectedInstitution.name}</h3>
+            <form onSubmit={handleCreateAdmin}>
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Email</label>
+                  <input
+                    type="email"
+                    value={newAdmin.email}
+                    onChange={(e) => setNewAdmin({...newAdmin, email: e.target.value})}
+                    className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
+                    required
+                  />
+                  </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Password</label>
+                  <input
+                    type="password"
+                    value={newAdmin.password}
+                    onChange={(e) => setNewAdmin({...newAdmin, password: e.target.value})}
+                    className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
+                    required
+                  />
+                </div>
+                  <div>
+                  <label className="block text-sm font-medium text-gray-700">Confirm Password</label>
+                  <input
+                    type="password"
+                    value={newAdmin.confirmPassword}
+                    onChange={(e) => setNewAdmin({...newAdmin, confirmPassword: e.target.value})}
+                    className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
+                    required
+                  />
+                </div>
+              </div>
+              <div className="mt-6 flex justify-end space-x-3">
+                    <button
                   type="button"
-                  onClick={() => {
-                    setShowPasswordReset(false);
-                    setSelectedAdmin(null);
-                    setPasswordResetForm({ newPassword: '', confirmPassword: '' });
-                  }}
-                  className="px-4 py-2 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg font-medium transition-colors"
+                  onClick={() => setShowCreateAdmin(false)}
+                  className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50"
                 >
                   Cancel
-                </button>
-                <button
+                    </button>
+                    <button
                   type="submit"
-                  disabled={loading}
-                  className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors disabled:opacity-50"
+                  className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
                 >
-                  {loading ? 'Resetting...' : 'Reset Password'}
-                </button>
-                </div>
-              </form>
-            </div>
-                </div>
-              )}
-
-      {/* View Institution Modal */}
-      {showViewInstitution && selectedInstitution && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-xl max-w-2xl w-full">
-            <div className="p-6 border-b">
-              <h2 className="text-2xl font-bold text-gray-900">{selectedInstitution.name}</h2>
-              <p className="text-gray-600 mt-1">Institution Details</p>
-            </div>
-            
-            <div className="p-6 space-y-6">
-              <div className="flex items-center space-x-4">
-                {selectedInstitution.logo ? (
-                  <img 
-                    src={selectedInstitution.logo} 
-                    alt={selectedInstitution.name}
-                    className="h-16 w-16 rounded-full object-cover"
-                  />
-                ) : (
-                  <div className="h-16 w-16 rounded-full bg-blue-500 flex items-center justify-center">
-                    <span className="text-2xl font-bold text-white">
-                      {selectedInstitution.name.charAt(0).toUpperCase()}
-                    </span>
-                  </div>
-                )}
-                  <div>
-                  <h3 className="text-lg font-semibold text-gray-900">{selectedInstitution.name}</h3>
-                  <p className="text-gray-600">Institution ID: {selectedInstitution.id}</p>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div>
-                  <h4 className="font-medium text-gray-900 mb-3">Administrator Details</h4>
-                  <div className="space-y-2 text-sm">
-                    <p><span className="font-medium">Name:</span> {selectedInstitution.adminFullName}</p>
-                    <p><span className="font-medium">Email:</span> {selectedInstitution.adminEmail}</p>
-                    <p><span className="font-medium">Username:</span> {selectedInstitution.adminUsername}</p>
-                  </div>
-                </div>
-                
-                  <div>
-                  <h4 className="font-medium text-gray-900 mb-3">Institution Stats</h4>
-                  <div className="space-y-2 text-sm">
-                    <p><span className="font-medium">Total Users:</span> {selectedInstitution.totalUsers || 0}</p>
-                    <p><span className="font-medium">Created:</span> {selectedInstitution.createdAt ? new Date(selectedInstitution.createdAt.seconds * 1000).toLocaleDateString() : 'Unknown'}</p>
-                    <p><span className="font-medium">Slug:</span> {selectedInstitution.slug}</p>
-                    <div className="mt-3">
-                      <p className="font-medium text-gray-900 mb-2">CBT App Link:</p>
-                      <div className="flex items-center space-x-2">
-                    <input
-                          type="text"
-                          readOnly
-                          value={`${window.location.origin}/institution-login?institution=${selectedInstitution.slug}`}
-                          className="flex-1 px-3 py-2 border border-gray-300 rounded text-sm bg-gray-50"
-                        />
-                        <button
-                          onClick={() => {
-                            const institutionUrl = `${window.location.origin}/institution-login?institution=${selectedInstitution.slug}`;
-                            navigator.clipboard.writeText(institutionUrl);
-                            alert('Link copied to clipboard!');
-                          }}
-                          className="px-3 py-2 bg-blue-600 text-white rounded text-sm hover:bg-blue-700"
-                        >
-                          Copy
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div className="flex justify-end p-6 border-t">
-              <button
-                onClick={() => {
-                  setShowViewInstitution(false);
-                  setSelectedInstitution(null);
-                }}
-                className="px-6 py-3 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg font-medium transition-colors"
-              >
-                Close
-              </button>
-                </div>
-          </div>
-        </div>
-      )}
-
-      {/* Manage Institution Modal */}
-      {showManageInstitution && selectedInstitution && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-xl max-w-2xl w-full">
-            <div className="p-6 border-b">
-              <h2 className="text-2xl font-bold text-gray-900">Manage Institution</h2>
-              <p className="text-gray-600 mt-1">{selectedInstitution.name}</p>
-            </div>
-            
-            <div className="p-6 space-y-6">
-              {/* Institution Status */}
-              <div className="flex items-center space-x-4">
-                {selectedInstitution.logo ? (
-                  <img 
-                    src={selectedInstitution.logo} 
-                    alt={selectedInstitution.name}
-                    className="h-16 w-16 rounded-full object-cover"
-                  />
-                ) : (
-                  <div className="h-16 w-16 rounded-full bg-blue-500 flex items-center justify-center">
-                    <span className="text-2xl font-bold text-white">
-                      {selectedInstitution.name.charAt(0).toUpperCase()}
-                    </span>
-                  </div>
-                )}
-                <div>
-                  <h3 className="text-lg font-semibold text-gray-900">{selectedInstitution.name}</h3>
-                  <div className="flex items-center space-x-2 mt-1">
-                    <span className="text-sm text-gray-600">Status:</span>
-                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                      selectedInstitution.status === 'active' 
-                        ? 'bg-green-100 text-green-800' 
-                        : selectedInstitution.status === 'suspended'
-                        ? 'bg-red-100 text-red-800'
-                        : 'bg-gray-100 text-gray-800'
-                    }`}>
-                      {selectedInstitution.status || 'active'}
-                    </span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Institution Details */}
-              <div className="bg-gray-50 rounded-lg p-4">
-                <h4 className="font-medium text-gray-900 mb-3">Institution Information</h4>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-                  <div>
-                    <p><span className="font-medium">Admin:</span> {selectedInstitution.adminFullName}</p>
-                    <p><span className="font-medium">Email:</span> {selectedInstitution.adminEmail}</p>
-                  </div>
-                  <div>
-                    <p><span className="font-medium">Total Users:</span> {selectedInstitution.totalUsers || 0}</p>
-                    <p><span className="font-medium">Created:</span> {selectedInstitution.createdAt ? new Date(selectedInstitution.createdAt.seconds * 1000).toLocaleDateString() : 'Unknown'}</p>
-                  </div>
-                </div>
-              </div>
-
-              {/* Management Actions */}
-              <div className="space-y-4">
-                <h4 className="font-medium text-gray-900">Management Actions</h4>
-                
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {/* Suspend/Activate Button */}
-                  {selectedInstitution.status === 'suspended' ? (
-                    <button
-                      onClick={() => activateInstitution(selectedInstitution)}
-                      disabled={loading}
-                      className="w-full bg-green-600 hover:bg-green-700 text-white px-4 py-3 rounded-lg font-medium transition-colors disabled:opacity-50 flex items-center justify-center space-x-2"
-                    >
-                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                      </svg>
-                      <span>Activate Institution</span>
-                    </button>
-                  ) : (
-                    <button
-                      onClick={() => suspendInstitution(selectedInstitution)}
-                      disabled={loading}
-                      className="w-full bg-red-600 hover:bg-red-700 text-white px-4 py-3 rounded-lg font-medium transition-colors disabled:opacity-50 flex items-center justify-center space-x-2"
-                    >
-                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728L5.636 5.636m12.728 12.728L18.364 5.636M5.636 18.364l12.728-12.728" />
-                      </svg>
-                      <span>Suspend Institution</span>
-                    </button>
-                  )}
-
-                  {/* Delete Button */}
-                  <button
-                    onClick={() => deleteInstitution(selectedInstitution)}
-                    disabled={loading}
-                    className="w-full bg-red-800 hover:bg-red-900 text-white px-4 py-3 rounded-lg font-medium transition-colors disabled:opacity-50 flex items-center justify-center space-x-2"
-                  >
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                    </svg>
-                    <span>Delete Institution</span>
+                  Create Admin
                   </button>
-                </div>
-
-                {/* Warning Messages */}
-                <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-                  <div className="flex items-start space-x-3">
-                    <svg className="w-5 h-5 text-yellow-600 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
-                    </svg>
-                    <div className="text-sm text-yellow-800">
-                      <p className="font-medium">Important:</p>
-                      <ul className="mt-1 space-y-1 list-disc list-inside">
-                        <li>Suspending will prevent all users from accessing the platform</li>
-                        <li>Deleting will permanently remove all institution data</li>
-                        <li>These actions cannot be undone</li>
-                      </ul>
-                    </div>
-                  </div>
-                </div>
               </div>
-            </div>
-
-            <div className="flex justify-end p-6 border-t">
-              <button
-                onClick={() => {
-                  setShowManageInstitution(false);
-                  setSelectedInstitution(null);
-                }}
-                className="px-6 py-3 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg font-medium transition-colors"
-              >
-                Close
-              </button>
-            </div>
+            </form>
           </div>
         </div>
       )}
-            </div>
+    </div>
   );
+  } catch (error) {
+    console.error('❌ MultiTenantAdmin rendering error:', error);
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <h1 className="text-2xl font-bold text-red-600 mb-4">Admin Panel Error</h1>
+          <p className="text-gray-600 mb-4">There was an error loading the admin panel.</p>
+          <p className="text-sm text-gray-500">Error: {error.message}</p>
+          <button 
+            onClick={() => window.location.reload()} 
+            className="mt-4 bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
+          >
+            Reload Page
+          </button>
+        </div>
+      </div>
+    );
+  }
 }

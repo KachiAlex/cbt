@@ -1,5 +1,17 @@
 {
   "projects": {
     "default": "cbt-91a97"
+  },
+  "targets": {
+    "cbt-91a97": {
+      "hosting": {
+        "cbtpromax": [
+          "cbtpromax"
+        ],
+        "cbt-91a97": [
+          "cbt-91a97"
+        ]
+      }
+    }
   }
 }

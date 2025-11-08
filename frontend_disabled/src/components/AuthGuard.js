@@ -11,16 +11,8 @@ const AuthGuard = ({ children }) => {
       const adminUser = localStorage.getItem('multi_tenant_admin_user');
       const hasAdminUser = !!adminUser;
       
-      console.log('🔐 AuthGuard: Checking authentication...', { hasAdminUser });
-      
       setIsAuthenticated(hasAdminUser);
       setLoading(false);
-      
-      if (!hasAdminUser) {
-        console.log('🔐 AuthGuard: Not authenticated, redirecting to login');
-      } else {
-        console.log('🔐 AuthGuard: Authenticated, allowing access');
-      }
     };
 
     checkAuth();

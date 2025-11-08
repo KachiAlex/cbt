@@ -1,0 +1,492 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🔧 Firebase Exam Results Fix Tool</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+        
+        .container {
+            background: white;
+            border-radius: 12px;
+            padding: 30px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+        }
+        
+        h1 {
+            color: #2d3748;
+            text-align: center;
+            margin-bottom: 30px;
+            font-size: 2.5rem;
+        }
+        
+        .status {
+            padding: 15px;
+            border-radius: 8px;
+            margin: 10px 0;
+            font-weight: 500;
+        }
+        
+        .status.info {
+            background: #e6f3ff;
+            color: #0066cc;
+            border: 1px solid #b3d9ff;
+        }
+        
+        .status.success {
+            background: #e6ffe6;
+            color: #006600;
+            border: 1px solid #b3ffb3;
+        }
+        
+        .status.error {
+            background: #ffe6e6;
+            color: #cc0000;
+            border: 1px solid #ffb3b3;
+        }
+        
+        .status.warning {
+            background: #fff3e6;
+            color: #cc6600;
+            border: 1px solid #ffd9b3;
+        }
+        
+        .btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: 600;
+            margin: 10px 5px;
+            transition: all 0.3s ease;
+        }
+        
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(102, 126, 234, 0.3);
+        }
+        
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        .result-item {
+            background: #f8f9fa;
+            border: 1px solid #e9ecef;
+            border-radius: 8px;
+            padding: 15px;
+            margin: 10px 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .result-info {
+            flex: 1;
+        }
+        
+        .result-score {
+            font-weight: bold;
+            font-size: 1.2rem;
+            margin: 5px 0;
+        }
+        
+        .score-before {
+            color: #dc3545;
+        }
+        
+        .score-after {
+            color: #28a745;
+        }
+        
+        .progress {
+            width: 100%;
+            height: 20px;
+            background: #e9ecef;
+            border-radius: 10px;
+            overflow: hidden;
+            margin: 10px 0;
+        }
+        
+        .progress-bar {
+            height: 100%;
+            background: linear-gradient(90deg, #28a745, #20c997);
+            transition: width 0.3s ease;
+        }
+        
+        .log {
+            background: #f8f9fa;
+            border: 1px solid #e9ecef;
+            border-radius: 8px;
+            padding: 15px;
+            margin: 20px 0;
+            max-height: 300px;
+            overflow-y: auto;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            line-height: 1.4;
+        }
+        
+        .hidden {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔧 Firebase Exam Results Fix Tool</h1>
+        
+        <div id="status" class="status info">
+            🔍 Ready to fix exam results. Click "Fix Nigeria Water Results" to start.
+        </div>
+        
+        <div style="text-align: center; margin: 30px 0;">
+            <button id="fixNigeriaBtn" class="btn" onclick="fixNigeriaWaterResults()">
+                🎯 Fix Nigeria Water Results
+            </button>
+            <button id="fixAllBtn" class="btn" onclick="fixAllResults()">
+                🔧 Fix All Results
+            </button>
+            <button id="checkBtn" class="btn" onclick="checkResults()">
+                📊 Check Current Results
+            </button>
+        </div>
+        
+        <div id="progress" class="hidden">
+            <div class="progress">
+                <div id="progressBar" class="progress-bar" style="width: 0%"></div>
+            </div>
+            <div id="progressText">Processing...</div>
+        </div>
+        
+        <div id="results" class="hidden">
+            <h3>📊 Results Summary</h3>
+            <div id="resultsList"></div>
+        </div>
+        
+        <div id="log" class="log hidden">
+            <h4>📝 Processing Log</h4>
+            <div id="logContent"></div>
+        </div>
+    </div>
+
+    <!-- Firebase SDK -->
+    <script type="module">
+        import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
+        import { 
+            getFirestore, 
+            collection, 
+            getDocs, 
+            updateDoc, 
+            doc, 
+            query, 
+            where,
+            serverTimestamp 
+        } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
+
+        // Firebase configuration
+        const firebaseConfig = {
+            apiKey: "AIzaSyB5oUy7N8G633FCjmu34FrLBZvjsm1tdVc",
+            authDomain: "cbt-91a97.firebaseapp.com",
+            projectId: "cbt-91a97",
+            storageBucket: "cbt-91a97.firebasestorage.app",
+            messagingSenderId: "273021677586",
+            appId: "1:273021677586:web:f1170c3a9a9f25493028cb",
+            measurementId: "G-PMMHZEBZ92"
+        };
+
+        // Initialize Firebase
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+
+        // Nigeria Water Works Corporation Exam ID
+        const NIGERIA_WATER_EXAM_ID = "db2a5a11-2976-4783-a7a8-12bf931899f4";
+
+        // Global variables
+        let currentProgress = 0;
+        let totalItems = 0;
+
+        /**
+         * Calculate correct score using the FIXED logic
+         */
+        function calculateCorrectScore(studentAnswers, questions) {
+            let correctCount = 0;
+            
+            questions.forEach(question => {
+                const studentAnswer = studentAnswers[question.id];
+                
+                // FIXED: Get the correct answer text using correctIndex
+                const correctOptionIndex = question.correctIndex;
+                const correctAnswerText = question.options[correctOptionIndex];
+                
+                // FIXED: Compare student answer with correct answer text
+                if (studentAnswer === correctAnswerText) {
+                    correctCount++;
+                }
+            });
+            
+            return correctCount;
+        }
+
+        /**
+         * Update status message
+         */
+        function updateStatus(message, type = 'info') {
+            const statusEl = document.getElementById('status');
+            statusEl.textContent = message;
+            statusEl.className = `status ${type}`;
+        }
+
+        /**
+         * Update progress bar
+         */
+        function updateProgress(current, total, text = '') {
+            const percentage = total > 0 ? Math.round((current / total) * 100) : 0;
+            document.getElementById('progressBar').style.width = `${percentage}%`;
+            document.getElementById('progressText').textContent = text || `${current}/${total} (${percentage}%)`;
+        }
+
+        /**
+         * Add log message
+         */
+        function addLog(message, type = 'info') {
+            const logEl = document.getElementById('logContent');
+            const timestamp = new Date().toLocaleTimeString();
+            const className = type === 'error' ? 'color: red;' : type === 'success' ? 'color: green;' : '';
+            logEl.innerHTML += `<div style="${className}">[${timestamp}] ${message}</div>`;
+            logEl.scrollTop = logEl.scrollHeight;
+        }
+
+        /**
+         * Get exam questions
+         */
+        async function getExamQuestions(examId) {
+            try {
+                const q = query(collection(db, 'questions'), where('examId', '==', examId));
+                const snapshot = await getDocs(q);
+                return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            } catch (error) {
+                addLog(`Error getting questions: ${error.message}`, 'error');
+                return [];
+            }
+        }
+
+        /**
+         * Get exam results
+         */
+        async function getExamResults(examId) {
+            try {
+                const q = query(collection(db, 'results'), where('examId', '==', examId));
+                const snapshot = await getDocs(q);
+                return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            } catch (error) {
+                addLog(`Error getting results: ${error.message}`, 'error');
+                return [];
+            }
+        }
+
+        /**
+         * Update result score
+         */
+        async function updateResultScore(resultId, correctAnswers, totalQuestions, percentage) {
+            try {
+                const resultRef = doc(db, 'results', resultId);
+                await updateDoc(resultRef, {
+                    score: correctAnswers,
+                    correctAnswers: correctAnswers,
+                    percentage: percentage,
+                    totalQuestions: totalQuestions,
+                    total: totalQuestions,
+                    recalculated: true,
+                    recalculatedAt: serverTimestamp(),
+                    recalculatedNote: 'Score recalculated due to scoring bug fix'
+                });
+                return true;
+            } catch (error) {
+                addLog(`Error updating result ${resultId}: ${error.message}`, 'error');
+                return false;
+            }
+        }
+
+        /**
+         * Fix Nigeria Water Works Corporation exam results
+         */
+        window.fixNigeriaWaterResults = async function() {
+            try {
+                document.getElementById('log').classList.remove('hidden');
+                document.getElementById('progress').classList.remove('hidden');
+                document.getElementById('fixNigeriaBtn').disabled = true;
+                document.getElementById('fixAllBtn').disabled = true;
+                
+                updateStatus('🔍 Loading exam questions...', 'info');
+                addLog('Starting fix for Nigeria Water Works Corporation exam results...');
+                
+                // Get questions
+                const questions = await getExamQuestions(NIGERIA_WATER_EXAM_ID);
+                
+                if (questions.length === 0) {
+                    updateStatus('❌ No questions found for the Nigeria Water Works Corporation exam', 'error');
+                    return;
+                }
+                
+                addLog(`Found ${questions.length} questions for the exam`);
+                
+                // Get results
+                updateStatus('📊 Loading exam results...', 'info');
+                const results = await getExamResults(NIGERIA_WATER_EXAM_ID);
+                
+                if (results.length === 0) {
+                    updateStatus('❌ No results found for the Nigeria Water Works Corporation exam', 'error');
+                    return;
+                }
+                
+                addLog(`Found ${results.length} results to process`);
+                totalItems = results.length;
+                currentProgress = 0;
+                
+                // Process results
+                updateStatus('🔧 Processing results...', 'info');
+                let fixedCount = 0;
+                let resultsList = '';
+                
+                for (let i = 0; i < results.length; i++) {
+                    const result = results[i];
+                    currentProgress = i + 1;
+                    
+                    const studentName = result.studentName || result.username || 'Unknown';
+                    addLog(`Processing ${studentName}...`);
+                    
+                    // Calculate correct score
+                    const correctAnswers = calculateCorrectScore(result.answers, questions);
+                    const percentage = Math.round((correctAnswers / questions.length) * 100);
+                    
+                    const currentScore = result.correctAnswers || result.score || 0;
+                    
+                    if (correctAnswers !== currentScore) {
+                        addLog(`Updating ${studentName}: ${currentScore} → ${correctAnswers}`, 'success');
+                        
+                        const updateSuccess = await updateResultScore(
+                            result.id, 
+                            correctAnswers, 
+                            questions.length, 
+                            percentage
+                        );
+                        
+                        if (updateSuccess) {
+                            fixedCount++;
+                            resultsList += `
+                                <div class="result-item">
+                                    <div class="result-info">
+                                        <strong>${studentName}</strong><br>
+                                        <span class="score-before">Before: ${currentScore}/${questions.length} (${Math.round((currentScore/questions.length)*100)}%)</span> → 
+                                        <span class="score-after">After: ${correctAnswers}/${questions.length} (${percentage}%)</span>
+                                    </div>
+                                </div>
+                            `;
+                        }
+                    } else {
+                        addLog(`${studentName}: Score already correct`);
+                    }
+                    
+                    updateProgress(currentProgress, totalItems, `Processing ${studentName}...`);
+                }
+                
+                // Show results
+                if (fixedCount > 0) {
+                    document.getElementById('results').classList.remove('hidden');
+                    document.getElementById('resultsList').innerHTML = resultsList;
+                    updateStatus(`✅ Fixed ${fixedCount} out of ${results.length} results!`, 'success');
+                    addLog(`Fix completed: ${fixedCount}/${results.length} results updated`, 'success');
+                } else {
+                    updateStatus('✅ All results were already correct!', 'success');
+                    addLog('All results were already correct', 'success');
+                }
+                
+            } catch (error) {
+                updateStatus(`❌ Error: ${error.message}`, 'error');
+                addLog(`Error: ${error.message}`, 'error');
+            } finally {
+                document.getElementById('fixNigeriaBtn').disabled = false;
+                document.getElementById('fixAllBtn').disabled = false;
+            }
+        };
+
+        /**
+         * Check current results without fixing
+         */
+        window.checkResults = async function() {
+            try {
+                document.getElementById('log').classList.remove('hidden');
+                updateStatus('🔍 Checking current results...', 'info');
+                addLog('Checking current results for Nigeria Water Works Corporation exam...');
+                
+                const questions = await getExamQuestions(NIGERIA_WATER_EXAM_ID);
+                const results = await getExamResults(NIGERIA_WATER_EXAM_ID);
+                
+                if (questions.length === 0 || results.length === 0) {
+                    updateStatus('❌ No data found', 'error');
+                    return;
+                }
+                
+                let resultsList = '';
+                let totalIncorrect = 0;
+                
+                results.forEach(result => {
+                    const studentName = result.studentName || result.username || 'Unknown';
+                    const currentScore = result.correctAnswers || result.score || 0;
+                    const correctAnswers = calculateCorrectScore(result.answers, questions);
+                    const percentage = Math.round((correctAnswers / questions.length) * 100);
+                    
+                    if (correctAnswers !== currentScore) {
+                        totalIncorrect++;
+                        resultsList += `
+                            <div class="result-item">
+                                <div class="result-info">
+                                    <strong>${studentName}</strong><br>
+                                    <span class="score-before">Current: ${currentScore}/${questions.length} (${Math.round((currentScore/questions.length)*100)}%)</span> → 
+                                    <span class="score-after">Should be: ${correctAnswers}/${questions.length} (${percentage}%)</span>
+                                </div>
+                            </div>
+                        `;
+                    }
+                });
+                
+                if (totalIncorrect > 0) {
+                    document.getElementById('results').classList.remove('hidden');
+                    document.getElementById('resultsList').innerHTML = resultsList;
+                    updateStatus(`⚠️ Found ${totalIncorrect} incorrect results out of ${results.length}`, 'warning');
+                    addLog(`Found ${totalIncorrect} results that need fixing`);
+                } else {
+                    updateStatus('✅ All results are correct!', 'success');
+                    addLog('All results are already correct');
+                }
+                
+            } catch (error) {
+                updateStatus(`❌ Error: ${error.message}`, 'error');
+                addLog(`Error: ${error.message}`, 'error');
+            }
+        };
+
+        /**
+         * Fix all exam results (placeholder)
+         */
+        window.fixAllResults = async function() {
+            updateStatus('⚠️ Fix All Results feature coming soon. Use "Fix Nigeria Water Results" for now.', 'warning');
+            addLog('Fix All Results feature not yet implemented');
+        };
+    </script>
+</body>
+</html>

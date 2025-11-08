@@ -1,0 +1,679 @@
+import React, { useState, useEffect } from 'react';
+import firebaseDataService from '../firebase/dataService';
+
+const InstitutionLoginPage = ({ institution, onLogin, onAdminAccess }) => {
+  const [formData, setFormData] = useState({
+    username: '',
+    password: ''
+  });
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [showAdminPanel, setShowAdminPanel] = useState(false);
+  const [secretClickCount, setSecretClickCount] = useState(0);
+  const [showRegister, setShowRegister] = useState(false);
+  const [registerData, setRegisterData] = useState({
+    fullName: '',
+    email: '',
+    username: '',
+    password: '',
+    confirmPassword: '',
+    studentId: '',
+    departmentId: '',
+    department: '',
+    level: '',
+    phoneNumber: ''
+  });
+  const [departments, setDepartments] = useState([]);
+  const [departmentsLoading, setDepartmentsLoading] = useState(false);
+
+  const hasDepartmentDefinitions = departments.length > 0;
+  const activeDepartments = departments.filter(dept => dept.isActive !== false);
+  const departmentOptions = activeDepartments.length ? activeDepartments : departments;
+  const selectedRegistrationDepartment = departmentOptions.find(dept => dept.id === registerData.departmentId) || null;
+  const configuredLevelOptions = selectedRegistrationDepartment?.levels || [];
+  const levelOptionsWithFallback = registerData.level && !configuredLevelOptions.includes(registerData.level)
+    ? [...configuredLevelOptions, registerData.level]
+    : configuredLevelOptions;
+
+  // Hidden admin access - click on logo 5 times quickly
+  const handleLogoClick = () => {
+    setSecretClickCount(prev => {
+      const newCount = prev + 1;
+      if (newCount >= 5) {
+        setShowAdminPanel(true);
+        setSecretClickCount(0);
+        return 0;
+      }
+      // Reset counter after 3 seconds
+      setTimeout(() => setSecretClickCount(0), 3000);
+      return newCount;
+    });
+  };
+
+  // Keyboard shortcut for admin access (Ctrl + Alt + A)
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.ctrlKey && e.altKey && e.key === 'a') {
+        e.preventDefault();
+        setShowAdminPanel(true);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
+
+  useEffect(() => {
+    if (!institution?.id) return;
+    const loadDepartments = async () => {
+      try {
+        setDepartmentsLoading(true);
+        const data = await firebaseDataService.getInstitutionDepartments(institution.id);
+        setDepartments(data || []);
+        setRegisterData(prev => {
+          if (prev.departmentId || !(data && data.length)) {
+            return prev;
+          }
+          const firstActive = data.find(dept => dept.isActive !== false) || data[0];
+          if (!firstActive) return prev;
+          return {
+            ...prev,
+            departmentId: firstActive.id,
+            department: firstActive.name,
+            level: firstActive.levels?.[0] || ''
+          };
+        });
+      } catch (error) {
+        console.error('Error loading departments:', error);
+      } finally {
+        setDepartmentsLoading(false);
+      }
+    };
+
+    loadDepartments();
+  }, [institution?.id]);
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setError('');
+    setLoading(true);
+
+    try {
+      const result = await onLogin(formData);
+      if (!result.success) {
+        setError(result.message || 'Login failed');
+      }
+    } catch (err) {
+      setError('An error occurred during login');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleAdminAccess = () => {
+    if (onAdminAccess) {
+      onAdminAccess();
+    }
+  };
+
+  const handleInputChange = (e) => {
+    setFormData({
+      ...formData,
+      [e.target.name]: e.target.value
+    });
+  };
+
+  const handleRegisterInputChange = (e) => {
+    setRegisterData({
+      ...registerData,
+      [e.target.name]: e.target.value
+    });
+  };
+
+  const handleDepartmentSelect = (event) => {
+    const departmentId = event.target.value;
+    const selectedDepartment = departments.find(dept => dept.id === departmentId);
+    setRegisterData(prev => ({
+      ...prev,
+      departmentId,
+      department: selectedDepartment?.name || '',
+      level: selectedDepartment?.levels?.[0] || ''
+    }));
+  };
+
+  const handleLevelSelect = (event) => {
+    setRegisterData(prev => ({
+      ...prev,
+      level: event.target.value
+    }));
+  };
+
+  const handleRegister = async (e) => {
+    e.preventDefault();
+    setError('');
+    setLoading(true);
+
+    if (registerData.password !== registerData.confirmPassword) {
+      setError('Passwords do not match');
+      setLoading(false);
+      return;
+    }
+
+    try {
+      // Check if user already exists in Firestore
+      const existingUsers = await firebaseDataService.getInstitutionUsers(institution.id);
+      const userExists = existingUsers.some(user => 
+        user.email === registerData.email || user.username === registerData.username
+      );
+      
+      if (userExists) {
+        setError('A user with this email or username already exists.');
+        setLoading(false);
+        return;
+      }
+
+      // Check if user exists in localStorage (migration check)
+      const oldUsers = JSON.parse(localStorage.getItem('cbt_users_v1') || '[]');
+      const oldUserExists = oldUsers.some(user => 
+        user.email === registerData.email || user.username === registerData.username
+      );
+      
+      if (oldUserExists) {
+        console.log('🔍 Found user in localStorage, migrating to Firestore...');
+        // Migrate the user from localStorage to Firestore
+        const oldUser = oldUsers.find(user => 
+          user.email === registerData.email || user.username === registerData.username
+        );
+        
+        const migratedUserData = {
+          ...oldUser,
+          institutionId: institution.id,
+          institutionName: institution.name,
+          role: 'student',
+          isActive: true,
+          createdAt: new Date().toISOString()
+        };
+        
+        const migratedUser = await firebaseDataService.createUser(migratedUserData);
+        console.log('🔍 Successfully migrated user:', migratedUser);
+        
+        // Remove from localStorage
+        const updatedOldUsers = oldUsers.filter(user => user.id !== oldUser.id);
+        localStorage.setItem('cbt_users_v1', JSON.stringify(updatedOldUsers));
+        
+        setFormData({
+          username: registerData.username,
+          password: registerData.password
+        });
+        setShowRegister(false);
+        setError('');
+        alert('User migrated successfully! You can now sign in.');
+        setLoading(false);
+        return;
+      }
+
+      const selectedDepartment = departments.find(dept => dept.id === registerData.departmentId);
+      if (hasDepartmentDefinitions && !selectedDepartment) {
+        setError('Please select your department.');
+        setLoading(false);
+        return;
+      }
+
+      if (!hasDepartmentDefinitions && !registerData.department.trim()) {
+        setError('Please enter your department.');
+        setLoading(false);
+        return;
+      }
+
+      const candidateLevel = registerData.level?.trim();
+      if (!candidateLevel) {
+        setError('Please select your level.');
+        setLoading(false);
+        return;
+      }
+
+      if (selectedDepartment && Array.isArray(selectedDepartment.levels) && selectedDepartment.levels.length) {
+        if (!selectedDepartment.levels.includes(candidateLevel)) {
+          setError('Please select a level associated with the chosen department.');
+          setLoading(false);
+          return;
+        }
+      }
+
+      const studentData = {
+        fullName: registerData.fullName,
+        email: registerData.email,
+        username: registerData.username,
+        password: registerData.password,
+        studentId: registerData.studentId,
+        departmentId: selectedDepartment?.id || '',
+        department: selectedDepartment?.name || registerData.department,
+        departmentCode: selectedDepartment?.code || null,
+        level: candidateLevel,
+        phoneNumber: registerData.phoneNumber,
+        role: 'student',
+        isActive: true,
+        institutionId: institution.id,
+        institutionName: institution.name,
+        createdAt: new Date().toISOString()
+      };
+
+      console.log('🔍 InstitutionLoginPage: Attempting to create student with data:', studentData);
+      const newUser = await firebaseDataService.createUser(studentData);
+      console.log('🔍 InstitutionLoginPage: Successfully created new student:', newUser);
+
+      setFormData({
+        username: registerData.username,
+        password: registerData.password
+      });
+      setShowRegister(false);
+      setError('');
+      alert('Registration successful! You can now sign in.');
+    } catch (err) {
+      console.error('🔍 InstitutionLoginPage: Registration failed with error:', err);
+      setError(`Registration failed: ${err.message || 'Please try again.'}`);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
+      <div className="max-w-md w-full space-y-8">
+        {/* Institution Header */}
+        <div className="text-center">
+          <div className="flex justify-center items-center space-x-4 mb-6">
+            {institution?.logo && (
+              <img
+                src={institution.logo}
+                alt={`${institution.name} Logo`}
+                className="h-16 w-16 object-contain cursor-pointer transition-transform hover:scale-105"
+                onClick={handleLogoClick}
+                title="Click 5 times quickly for admin access"
+              />
+            )}
+            <div>
+              <h1 className="text-3xl font-bold text-gray-900">{institution?.name}</h1>
+              <p className="text-gray-600 mt-1">Computer-Based Test System</p>
+            </div>
+          </div>
+          
+           <div className="bg-white rounded-lg shadow-lg p-8">
+             {showAdminPanel ? (
+               /* Admin Panel */
+               <div>
+                 <h2 className="text-2xl font-semibold text-gray-900 mb-6 text-center">
+                   Admin Access
+                 </h2>
+                 
+                 {/* Admin credential hints removed for security */}
+
+                 {error && (
+                   <div className="mb-4 p-3 bg-red-100 border border-red-400 text-red-700 rounded">
+                     {error}
+                   </div>
+                 )}
+
+                 <form onSubmit={handleSubmit} className="space-y-6">
+                   <div>
+                     <label htmlFor="admin-username" className="block text-sm font-medium text-gray-700 mb-2">
+                       Username
+                     </label>
+                     <input
+                       id="admin-username"
+                       name="username"
+                       type="text"
+                       required
+                       value={formData.username}
+                       onChange={handleInputChange}
+                       className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                       placeholder="Enter admin username"
+                     />
+                   </div>
+
+                   <div>
+                     <label htmlFor="admin-password" className="block text-sm font-medium text-gray-700 mb-2">
+                       Password
+                     </label>
+                     <input
+                       id="admin-password"
+                       name="password"
+                       type="password"
+                       required
+                       value={formData.password}
+                       onChange={handleInputChange}
+                       className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                       placeholder="Enter admin password"
+                     />
+                   </div>
+
+                   <button
+                     type="submit"
+                     disabled={loading}
+                     className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                   >
+                     {loading ? (
+                       <div className="flex items-center">
+                         <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                         Signing in...
+                       </div>
+                     ) : (
+                       'Admin Sign In'
+                     )}
+                   </button>
+                 </form>
+
+                 <div className="mt-6 text-center">
+                   <button
+                     onClick={() => setShowAdminPanel(false)}
+                     className="text-sm text-gray-500 hover:text-gray-700 underline"
+                   >
+                     Back to Student Access
+                   </button>
+                 </div>
+               </div>
+             ) : (
+               /* Student Access Panel */
+               <div>
+                 <h2 className="text-2xl font-semibold text-gray-900 mb-6 text-center">
+                   {showRegister ? 'Student Registration' : 'Student Login'}
+                 </h2>
+
+                 {error && (
+                   <div className="mb-4 p-3 bg-red-100 border border-red-400 text-red-700 rounded">
+                     {error}
+                   </div>
+                 )}
+
+                 {showRegister ? (
+                   /* Registration Form */
+                   <form onSubmit={handleRegister} className="space-y-4">
+                     <div>
+                       <label htmlFor="fullName" className="block text-sm font-medium text-gray-700 mb-2">
+                         Full Name
+                       </label>
+                       <input
+                         id="fullName"
+                         name="fullName"
+                         type="text"
+                         required
+                         value={registerData.fullName}
+                         onChange={handleRegisterInputChange}
+                         className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                         placeholder="Enter your full name"
+                       />
+                     </div>
+
+                     <div>
+                       <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
+                         Email
+                       </label>
+                       <input
+                         id="email"
+                         name="email"
+                         type="email"
+                         required
+                         value={registerData.email}
+                         onChange={handleRegisterInputChange}
+                         className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                         placeholder="Enter your email"
+                       />
+                     </div>
+
+                    <div>
+                      <label htmlFor="reg-username" className="block text-sm font-medium text-gray-700 mb-2">
+                        Username
+                      </label>
+                      <input
+                        id="reg-username"
+                        name="username"
+                        type="text"
+                        required
+                        value={registerData.username}
+                        onChange={handleRegisterInputChange}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                        placeholder="Choose a username"
+                      />
+                    </div>
+
+                    <div>
+                      <label htmlFor="studentId" className="block text-sm font-medium text-gray-700 mb-2">
+                        Student ID
+                      </label>
+                      <input
+                        id="studentId"
+                        name="studentId"
+                        type="text"
+                        required
+                        value={registerData.studentId}
+                        onChange={handleRegisterInputChange}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                        placeholder="Enter your student ID"
+                      />
+                    </div>
+
+                    <div>
+                      <label htmlFor="department" className="block text-sm font-medium text-gray-700 mb-2">
+                        Department
+                      </label>
+                      {hasDepartmentDefinitions ? (
+                        <select
+                          id="department"
+                          name="department"
+                          required
+                          value={registerData.departmentId}
+                          onChange={handleDepartmentSelect}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                        >
+                          <option value="">Select Department</option>
+                          {departmentOptions.map(dept => (
+                            <option key={dept.id} value={dept.id}>
+                              {dept.name}{dept.isActive === false ? ' (inactive)' : ''}
+                            </option>
+                          ))}
+                        </select>
+                      ) : (
+                        <input
+                          id="department"
+                          name="department"
+                          type="text"
+                          required
+                          value={registerData.department}
+                          onChange={handleRegisterInputChange}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                          placeholder="Enter your department"
+                        />
+                      )}
+                      {departmentsLoading && (
+                        <p className="mt-1 text-xs text-gray-500">Loading departments...</p>
+                      )}
+                    </div>
+
+                    <div>
+                      <label htmlFor="level" className="block text-sm font-medium text-gray-700 mb-2">
+                        Level
+                      </label>
+                      {hasDepartmentDefinitions ? (
+                        <select
+                          id="level"
+                          name="level"
+                          required
+                          value={registerData.level}
+                          onChange={handleLevelSelect}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                          disabled={!!selectedRegistrationDepartment && !(selectedRegistrationDepartment.levels || []).length}
+                        >
+                          <option value="">Select Level</option>
+                          {levelOptionsWithFallback.map(level => (
+                            <option key={level} value={level}>{level}</option>
+                          ))}
+                        </select>
+                      ) : (
+                        <input
+                          id="level"
+                          name="level"
+                          type="text"
+                          required
+                          value={registerData.level}
+                          onChange={handleRegisterInputChange}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                          placeholder="Enter your level"
+                        />
+                      )}
+                      {selectedRegistrationDepartment && !(selectedRegistrationDepartment.levels || []).length && hasDepartmentDefinitions && (
+                        <p className="mt-1 text-xs text-amber-600">No levels defined for this department yet. Ask your administrator to add them.</p>
+                      )}
+                    </div>
+
+                    <div>
+                      <label htmlFor="phoneNumber" className="block text-sm font-medium text-gray-700 mb-2">
+                        Phone Number (Optional)
+                      </label>
+                      <input
+                        id="phoneNumber"
+                        name="phoneNumber"
+                        type="tel"
+                        value={registerData.phoneNumber}
+                        onChange={handleRegisterInputChange}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                        placeholder="Enter your phone number"
+                      />
+                    </div>
+
+                    <div>
+                      <label htmlFor="reg-password" className="block text-sm font-medium text-gray-700 mb-2">
+                        Password
+                      </label>
+                       <input
+                         id="reg-password"
+                         name="password"
+                         type="password"
+                         required
+                         value={registerData.password}
+                         onChange={handleRegisterInputChange}
+                         className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                         placeholder="Choose a password"
+                       />
+                     </div>
+
+                     <div>
+                       <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700 mb-2">
+                         Confirm Password
+                       </label>
+                       <input
+                         id="confirmPassword"
+                         name="confirmPassword"
+                         type="password"
+                         required
+                         value={registerData.confirmPassword}
+                         onChange={handleRegisterInputChange}
+                         className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                         placeholder="Confirm your password"
+                       />
+                     </div>
+
+                     <button
+                       type="submit"
+                       disabled={loading}
+                       className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                     >
+                       {loading ? (
+                         <div className="flex items-center">
+                           <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                           Registering...
+                         </div>
+                       ) : (
+                         'Register'
+                       )}
+                     </button>
+                   </form>
+                 ) : (
+                   /* Login Form */
+                   <form onSubmit={handleSubmit} className="space-y-6">
+                     <div>
+                       <label htmlFor="username" className="block text-sm font-medium text-gray-700 mb-2">
+                         Username or Email
+                       </label>
+                       <input
+                         id="username"
+                         name="username"
+                         type="text"
+                         required
+                         value={formData.username}
+                         onChange={handleInputChange}
+                         className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                         placeholder="Enter your username or email"
+                       />
+                     </div>
+
+                     <div>
+                       <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-2">
+                         Password
+                       </label>
+                       <input
+                         id="password"
+                         name="password"
+                         type="password"
+                         required
+                         value={formData.password}
+                         onChange={handleInputChange}
+                         className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                         placeholder="Enter your password"
+                       />
+                     </div>
+
+                     <button
+                       type="submit"
+                       disabled={loading}
+                       className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                     >
+                       {loading ? (
+                         <div className="flex items-center">
+                           <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                           Signing in...
+                         </div>
+                       ) : (
+                         'Sign In'
+                       )}
+                     </button>
+                   </form>
+                 )}
+
+                 {/* Toggle between Login and Register */}
+                 <div className="mt-6 text-center">
+                   {showRegister ? (
+                     <button
+                       onClick={() => setShowRegister(false)}
+                       className="text-sm text-gray-500 hover:text-gray-700 underline"
+                     >
+                       Already have an account? Sign in
+                     </button>
+                   ) : (
+                     <button
+                       onClick={() => setShowRegister(true)}
+                       className="text-sm text-gray-500 hover:text-gray-700 underline"
+                     >
+                       Don't have an account? Register
+                     </button>
+                   )}
+                 </div>
+
+                 {/* Help Text */}
+                 <div className="mt-6 text-center">
+                   <p className="text-xs text-gray-500">
+                     Need help? Contact your institution administrator.
+                   </p>
+                   <p className="text-xs text-gray-400 mt-1">
+                     Admin access: Click logo 5 times or press Ctrl+Alt+A
+                   </p>
+                 </div>
+               </div>
+             )}
+           </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default InstitutionLoginPage;

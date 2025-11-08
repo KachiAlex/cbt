@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate, Link } from 'react-router-dom';
+import { useParams, Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import './ExamResults.css';
 
@@ -38,7 +38,6 @@ interface Exam {
 const ExamResults: React.FC = () => {
   const { examId } = useParams<{ examId: string }>();
   const { user } = useAuth();
-  const navigate = useNavigate();
   
   const [result, setResult] = useState<Result | null>(null);
   const [exam, setExam] = useState<Exam | null>(null);

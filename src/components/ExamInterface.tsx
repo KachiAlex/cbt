@@ -36,11 +36,27 @@ const ExamInterface: React.FC = () => {
     // Load exam data
     const savedExams = localStorage.getItem('cbt_exams');
     if (savedExams && examId) {
-      const exams: Exam[] = JSON.parse(savedExams);
-      const foundExam = exams.find(e => e.id === examId);
-      if (foundExam) {
-        setExam(foundExam);
-        setTimeLeft(foundExam.duration * 60); // Convert minutes to seconds
+      try {
+        const exams: Exam[] = JSON.parse(savedExams);
+        const foundExam = exams.find(e => e.id === examId);
+        if (foundExam) {
+          // Normalize exam data to ensure correctAnswer is always a number
+          const normalizedExam: Exam = {
+            ...foundExam,
+            questions: foundExam.questions.map(q => ({
+              ...q,
+              correctAnswer: Number(q.correctAnswer) || 0,
+              points: Number(q.points) || 1,
+              // Ensure options is an array
+              options: Array.isArray(q.options) ? q.options : []
+            })).filter(q => q.id && q.text && q.options.length > 0) // Filter out invalid questions
+          };
+          
+          setExam(normalizedExam);
+          setTimeLeft(normalizedExam.duration * 60); // Convert minutes to seconds
+        }
+      } catch (error) {
+        console.error('Error loading exam data:', error);
       }
     }
   }, [examId]);
@@ -48,13 +64,14 @@ const ExamInterface: React.FC = () => {
   useEffect(() => {
     if (timeLeft > 0 && !isSubmitted) {
       const timer = setTimeout(() => {
-        setTimeLeft(timeLeft - 1);
+        setTimeLeft(prev => prev - 1);
       }, 1000);
       return () => clearTimeout(timer);
-    } else if (timeLeft === 0 && !isSubmitted) {
+    } else if (timeLeft === 0 && !isSubmitted && exam && user) {
       handleSubmitExam();
     }
-  }, [timeLeft, isSubmitted]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [timeLeft, isSubmitted, exam, user]);
 
   const handleAnswerSelect = (questionId: string, answerIndex: number) => {
     setAnswers(prev => ({
@@ -76,19 +93,69 @@ const ExamInterface: React.FC = () => {
   };
 
   const handleSubmitExam = () => {
-    if (!exam || !user) return;
+    if (!exam || !user) {
+      console.error('Cannot submit exam: missing exam or user data');
+      return;
+    }
 
-    // Calculate score
+    // Validate exam has questions
+    if (!exam.questions || exam.questions.length === 0) {
+      console.error('Cannot submit exam: exam has no questions');
+      alert('Error: This exam has no questions. Please contact your administrator.');
+      return;
+    }
+
+    // Calculate score with proper type handling
     let totalScore = 0;
     let correctAnswers = 0;
+    const scoringDetails: Array<{ questionId: string; userAnswer: number | undefined; correctAnswer: number; isCorrect: boolean }> = [];
 
     exam.questions.forEach(question => {
+      // Ensure question has required fields
+      if (!question.id || question.correctAnswer === undefined || question.correctAnswer === null) {
+        console.warn(`Question missing required fields:`, question);
+        return;
+      }
+
       const userAnswer = answers[question.id];
-      if (userAnswer === question.correctAnswer) {
-        totalScore += question.points;
+      
+      // Convert both to numbers for comparison (handles string/number mismatches)
+      const userAnswerNum = userAnswer !== undefined && userAnswer !== null ? Number(userAnswer) : null;
+      const correctAnswerNum = Number(question.correctAnswer);
+      
+      // Check if answer is correct (only if user provided an answer)
+      const isCorrect = userAnswerNum !== null && userAnswerNum === correctAnswerNum;
+      
+      if (isCorrect) {
+        const points = Number(question.points) || 1;
+        totalScore += points;
         correctAnswers++;
       }
+
+      scoringDetails.push({
+        questionId: question.id,
+        userAnswer: userAnswerNum !== null ? userAnswerNum : undefined,
+        correctAnswer: correctAnswerNum,
+        isCorrect
+      });
     });
+
+    // Log scoring details for debugging
+    console.log('Exam Scoring Details:', {
+      examId: exam.id,
+      examTitle: exam.title,
+      totalQuestions: exam.questions.length,
+      answeredQuestions: Object.keys(answers).length,
+      correctAnswers,
+      totalScore,
+      scoringDetails
+    });
+
+    // Calculate max score
+    const maxScore = exam.questions.reduce((sum, q) => {
+      const points = Number(q.points) || 1;
+      return sum + points;
+    }, 0);
 
     const result = {
       examId: exam.id,
@@ -98,24 +165,41 @@ const ExamInterface: React.FC = () => {
       totalQuestions: exam.questions.length,
       correctAnswers,
       totalScore,
-      maxScore: exam.questions.reduce((sum, q) => sum + q.points, 0),
+      maxScore,
       answers,
       submittedAt: new Date().toISOString(),
       timeSpent: exam.duration * 60 - timeLeft
     };
 
+    // Validate result before saving
+    if (result.totalQuestions === 0) {
+      console.error('Invalid result: exam has no questions');
+      alert('Error: Unable to calculate score. Please contact your administrator.');
+      return;
+    }
+
     // Save result
-    const savedResults = localStorage.getItem('cbt_results');
-    const results = savedResults ? JSON.parse(savedResults) : [];
-    results.push(result);
-    localStorage.setItem('cbt_results', JSON.stringify(results));
+    try {
+      const savedResults = localStorage.getItem('cbt_results');
+      const results = savedResults ? JSON.parse(savedResults) : [];
+      results.push(result);
+      localStorage.setItem('cbt_results', JSON.stringify(results));
+    } catch (error) {
+      console.error('Error saving result to localStorage:', error);
+      alert('Error saving exam result. Please contact your administrator.');
+      return;
+    }
 
     // Mark exam as completed for this student
-    const completedKey = `cbt_completed_${user.id}`;
-    const completedExams = JSON.parse(localStorage.getItem(completedKey) || '[]');
-    if (!completedExams.includes(exam.id)) {
-      completedExams.push(exam.id);
-      localStorage.setItem(completedKey, JSON.stringify(completedExams));
+    try {
+      const completedKey = `cbt_completed_${user.id}`;
+      const completedExams = JSON.parse(localStorage.getItem(completedKey) || '[]');
+      if (!completedExams.includes(exam.id)) {
+        completedExams.push(exam.id);
+        localStorage.setItem(completedKey, JSON.stringify(completedExams));
+      }
+    } catch (error) {
+      console.error('Error marking exam as completed:', error);
     }
 
     setIsSubmitted(true);
