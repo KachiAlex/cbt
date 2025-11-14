@@ -509,6 +509,40 @@
                 <button class="btn" onclick="testConnection()">Test Connection</button>
                 <div id="configResult" class="response"></div>
             </div>
+
+            <!-- Create Admin Modal -->
+            <div id="createAdminModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; overflow-y: auto;">
+                <div style="max-width: 600px; margin: 50px auto; background: white; border-radius: 15px; padding: 30px; box-shadow: 0 20px 40px rgba(0,0,0,0.2);">
+                    <h2 style="margin-bottom: 20px; color: #2c3e50;">➕ Create Admin for <span id="modalInstitutionName"></span></h2>
+                    
+                    <div class="form-group">
+                        <label for="newAdminFullName">Full Name *</label>
+                        <input type="text" id="newAdminFullName" placeholder="e.g., John Doe">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="newAdminEmail">Email *</label>
+                        <input type="email" id="newAdminEmail" placeholder="admin@institution.edu.ng" onchange="generateNewAdminUsername()">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="newAdminUsername">Username *</label>
+                        <input type="text" id="newAdminUsername" placeholder="Will be auto-generated from email">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="newAdminPassword">Password *</label>
+                        <input type="password" id="newAdminPassword" placeholder="Enter secure password">
+                    </div>
+                    
+                    <div style="display: flex; gap: 10px; margin-top: 20px;">
+                        <button class="btn btn-success" onclick="createAdminForTenant()">Create Admin</button>
+                        <button class="btn btn-secondary" onclick="closeCreateAdminModal()">Cancel</button>
+                    </div>
+                    
+                    <div id="createAdminResult" class="response" style="margin-top: 20px;"></div>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -641,6 +675,92 @@
              }
          }
 
+         function generateNewAdminUsername() {
+             const email = document.getElementById('newAdminEmail').value;
+             if (email) {
+                 const username = email.split('@')[0];
+                 document.getElementById('newAdminUsername').value = username;
+             }
+         }
+
+         let currentTenantId = null;
+         let currentTenantSlug = null;
+
+         function showCreateAdminModal(tenantId, tenantName, tenantSlug) {
+             currentTenantId = tenantId;
+             currentTenantSlug = tenantSlug;
+             document.getElementById('modalInstitutionName').textContent = tenantName;
+             document.getElementById('createAdminModal').style.display = 'block';
+             // Clear form
+             document.getElementById('newAdminFullName').value = '';
+             document.getElementById('newAdminEmail').value = '';
+             document.getElementById('newAdminUsername').value = '';
+             document.getElementById('newAdminPassword').value = '';
+             document.getElementById('createAdminResult').innerHTML = '';
+         }
+
+         function closeCreateAdminModal() {
+             document.getElementById('createAdminModal').style.display = 'none';
+             currentTenantId = null;
+             currentTenantSlug = null;
+         }
+
+         async function createAdminForTenant() {
+             if (!currentTenantId) {
+                 showAlert('❌ No institution selected', 'error');
+                 return;
+             }
+
+             const fullName = document.getElementById('newAdminFullName').value;
+             const email = document.getElementById('newAdminEmail').value;
+             const username = document.getElementById('newAdminUsername').value;
+             const password = document.getElementById('newAdminPassword').value;
+
+             if (!fullName || !email || !username || !password) {
+                 showAlert('❌ Please fill in all required fields', 'error');
+                 return;
+             }
+
+             try {
+                 const data = await makeRequest(getApiUrl(`/api/v1/managed-admin/tenants/${currentTenantId}/admins`), {
+                     method: 'POST',
+                     body: JSON.stringify({
+                         fullName,
+                         email,
+                         username,
+                         password
+                     })
+                 });
+
+                 showAlert('✅ Admin created successfully!', 'success');
+                 showResponse('createAdminResult', data);
+                 
+                 // Clear form
+                 document.getElementById('newAdminFullName').value = '';
+                 document.getElementById('newAdminEmail').value = '';
+                 document.getElementById('newAdminUsername').value = '';
+                 document.getElementById('newAdminPassword').value = '';
+                 
+                 // Close modal after 2 seconds
+                 setTimeout(() => {
+                     closeCreateAdminModal();
+                     loadTenants(); // Refresh the list
+                 }, 2000);
+                 
+             } catch (error) {
+                 showAlert(`❌ Failed to create admin: ${error.message}`, 'error');
+                 showResponse('createAdminResult', { error: error.message }, true);
+             }
+         }
+
+         // Close modal when clicking outside
+         document.addEventListener('click', function(event) {
+             const modal = document.getElementById('createAdminModal');
+             if (event.target === modal) {
+                 closeCreateAdminModal();
+             }
+         });
+
         async function createTenant() {
             try {
                                  const tenantData = {
@@ -728,6 +848,7 @@
                              </div>
                                                          <div class="tenant-actions">
                                  <button class="btn btn-small" onclick="viewTenantDetails('${tenant._id}')">View Details</button>
+                                 <button class="btn btn-small" onclick="showCreateAdminModal('${tenant._id}', '${tenant.name}', '${tenant.slug}')">Create Admin</button>
                                                                    <button class="btn btn-small btn-success" onclick="window.open('https://cbt.netlify.app/?slug=${tenant.slug}', '_blank')">Visit Login Page</button>
                                  <button class="btn btn-small btn-warning" onclick="resetAdminPassword('${tenant._id}')">Reset Password</button>
                                  ${tenant.suspended ? 
