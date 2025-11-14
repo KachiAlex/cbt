@@ -45,6 +45,8 @@ export default function MultiTenantAdmin() {
   });
 
   const [newAdmin, setNewAdmin] = useState({
+    fullName: '',
+    username: '',
     email: '',
     password: '',
     confirmPassword: ''
@@ -56,12 +58,31 @@ export default function MultiTenantAdmin() {
   // Load institutions
   const loadInstitutions = useCallback(async () => {
     try {
-      console.log('🔄 Starting to load institutions...');
+      console.log('🔄 Starting to load institutions from Firestore...');
       setLoading(true);
       setError('');
+      
+      // Use Firestore directly to load institutions
       const institutionsList = await firebaseDataService.getInstitutions();
-      console.log('📊 Loaded institutions:', institutionsList);
-      setInstitutions(institutionsList || []);
+      console.log('📊 Loaded institutions from Firestore:', institutionsList);
+      
+      // Transform to match frontend expectations
+      const transformed = (institutionsList || []).map(inst => ({
+        id: inst.id || inst._id,
+        _id: inst.id || inst._id,
+        name: inst.name,
+        slug: inst.slug,
+        description: inst.description || '',
+        email: inst.email || inst.contact_email || '',
+        phone: inst.phone || inst.contact_phone || '',
+        address: inst.address || '',
+        status: inst.status || (inst.suspended ? 'suspended' : 'active'),
+        totalUsers: inst.totalUsers || 0,
+        createdAt: inst.createdAt || inst.created_at
+      }));
+      
+      console.log('📊 Transformed institutions:', transformed);
+      setInstitutions(transformed);
       console.log('✅ Institutions state updated');
     } catch (err) {
       console.error('❌ Failed to load institutions:', err);
@@ -77,11 +98,26 @@ export default function MultiTenantAdmin() {
   const loadAdmins = useCallback(async (institution) => {
     try {
       setLoadingAdmins(true);
-      const adminsList = await firebaseDataService.getInstitutionAdmins(institution.id);
-      setAdmins(adminsList || []);
+      setError('');
+      
+      // Use Firestore directly to fetch admins
+      const institutionId = institution.id || institution._id;
+      console.log('🔍 Loading admins for institution:', institutionId, institution);
+      
+      const adminsList = await firebaseDataService.getInstitutionAdmins(institutionId);
+      console.log('📊 Loaded admins from Firestore:', adminsList);
+      
+      // Filter to only admin roles
+      const adminUsers = (adminsList || []).filter(admin => 
+        ['super_admin', 'admin', 'tenant_admin'].includes(admin.role)
+      );
+      
+      console.log('✅ Filtered admin users:', adminUsers);
+      setAdmins(adminUsers || []);
     } catch (err) {
-      console.error('Failed to load admins:', err);
-      setError('Failed to load admins. Please try again.');
+      console.error('❌ Failed to load admins:', err);
+      setError(`Failed to load admins: ${err.message}`);
+      setAdmins([]);
     } finally {
       setLoadingAdmins(false);
     }
@@ -114,6 +150,13 @@ export default function MultiTenantAdmin() {
   // Create admin
   const handleCreateAdmin = async (e) => {
     e.preventDefault();
+    
+    // Validate required fields
+    if (!newAdmin.fullName || !newAdmin.username || !newAdmin.email || !newAdmin.password) {
+      setError('Please fill in all required fields');
+      return;
+    }
+    
     if (newAdmin.password !== newAdmin.confirmPassword) {
       setError('Passwords do not match');
       return;
@@ -122,20 +165,43 @@ export default function MultiTenantAdmin() {
     try {
       setError('');
       
-      await firebaseDataService.createAdmin(selectedInstitution.id, {
+      // Use Firestore directly to create admin
+      const institutionId = selectedInstitution.id || selectedInstitution._id;
+      console.log('🔍 Creating admin for institution:', institutionId, selectedInstitution);
+      
+      const adminData = {
+        institutionId: institutionId,
+        fullName: newAdmin.fullName,
+        username: newAdmin.username,
         email: newAdmin.email,
-        password: newAdmin.password
-      });
+        password: newAdmin.password,
+        role: 'super_admin'
+      };
+      console.log('📤 Creating admin with data:', { ...adminData, password: '***' });
+      
+      const createdAdmin = await firebaseDataService.createAdmin(adminData);
+      console.log('✅ Admin created successfully in Firestore:', createdAdmin);
+      
+      // Show success message
+      setError(''); // Clear any previous errors
+      alert('✅ Admin created successfully!');
+      
+      // Reset form
       setNewAdmin({
+        fullName: '',
+        username: '',
         email: '',
         password: '',
         confirmPassword: ''
       });
+      
+      // Reload admins list
       await loadAdmins(selectedInstitution);
       setShowCreateAdmin(false);
     } catch (err) {
       console.error('Failed to create admin:', err);
-      setError('Failed to create admin. Please try again.');
+      const errorMessage = err.message || 'Failed to create admin. Please try again.';
+      setError(errorMessage);
     }
   };
 
@@ -552,14 +618,16 @@ export default function MultiTenantAdmin() {
                   <p className="text-gray-500 text-center py-4">No admins found</p>
                 ) : (
                   admins.map((admin) => (
-                    <div key={admin.id} className="flex items-center justify-between p-3 border rounded-lg">
+                    <div key={admin._id || admin.id} className="flex items-center justify-between p-3 border rounded-lg">
                   <div>
-                        <p className="font-medium">{admin.email}</p>
-                        <p className="text-sm text-gray-500">Admin</p>
+                        <p className="font-medium">{admin.fullName || admin.email}</p>
+                        <p className="text-sm text-gray-500">{admin.email}</p>
+                        <p className="text-xs text-gray-400">Username: {admin.username} | Role: {admin.role || 'admin'}</p>
                 </div>
                       <div className="flex space-x-2">
-                        <button className="text-blue-600 hover:text-blue-800 text-sm">Edit</button>
-                        <button className="text-red-600 hover:text-red-800 text-sm">Delete</button>
+                        {admin.is_default_admin && (
+                          <span className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded">Default Admin</span>
+                        )}
                       </div>
                     </div>
                   ))
@@ -587,17 +655,49 @@ export default function MultiTenantAdmin() {
             <form onSubmit={handleCreateAdmin}>
               <div className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700">Email</label>
+                  <label className="block text-sm font-medium text-gray-700">Full Name *</label>
+                  <input
+                    type="text"
+                    value={newAdmin.fullName}
+                    onChange={(e) => setNewAdmin({...newAdmin, fullName: e.target.value})}
+                    className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
+                    placeholder="e.g., John Doe"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Username *</label>
+                  <input
+                    type="text"
+                    value={newAdmin.username}
+                    onChange={(e) => setNewAdmin({...newAdmin, username: e.target.value})}
+                    className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
+                    placeholder="e.g., johndoe"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Email *</label>
                   <input
                     type="email"
                     value={newAdmin.email}
-                    onChange={(e) => setNewAdmin({...newAdmin, email: e.target.value})}
+                    onChange={(e) => {
+                      const email = e.target.value;
+                      // Auto-generate username from email if username is empty
+                      if (!newAdmin.username && email) {
+                        const username = email.split('@')[0];
+                        setNewAdmin({...newAdmin, email, username});
+                      } else {
+                        setNewAdmin({...newAdmin, email});
+                      }
+                    }}
                     className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
+                    placeholder="admin@institution.edu.ng"
                     required
                   />
                   </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700">Password</label>
+                  <label className="block text-sm font-medium text-gray-700">Password *</label>
                   <input
                     type="password"
                     value={newAdmin.password}
@@ -607,7 +707,7 @@ export default function MultiTenantAdmin() {
                   />
                 </div>
                   <div>
-                  <label className="block text-sm font-medium text-gray-700">Confirm Password</label>
+                  <label className="block text-sm font-medium text-gray-700">Confirm Password *</label>
                   <input
                     type="password"
                     value={newAdmin.confirmPassword}

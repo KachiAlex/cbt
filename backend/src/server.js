@@ -18,22 +18,14 @@ const Result = require('./models/Result');
 const Question = require('./models/Question');
 
 // Middleware
-const { authenticateMultiTenantAdmin, requireRole, requireTenantAccess } = require('./middleware/auth');
+const { authenticateMultiTenantAdmin, loginMultiTenantAdmin, requireRole, requireTenantAccess } = require('./middleware/auth');
 
-// Helper function to find tenant by ID or slug
+// Helper function to find tenant by ID or slug (kept for backward compatibility with old routes)
 async function findTenantByIdOrSlug(idOrSlug) {
-  let tenant = null;
-  try { 
-    tenant = await Tenant.findById(idOrSlug); 
-  } catch (_) {}
-  if (!tenant) { 
-    tenant = await Tenant.findOne({ slug: idOrSlug }); 
-  }
-  return tenant;
+  // This function is now handled by TenantService, but kept here for routes that still use it
+  const TenantService = require('./services/firestore/TenantService');
+  return await TenantService.findByIdOrSlug(idOrSlug);
 }
-
-// Middleware
-const { authenticateMultiTenantAdmin, loginMultiTenantAdmin } = require('./middleware/auth');
 const { 
   validateUserRegistration, 
   validateUserLogin, 
@@ -52,8 +44,16 @@ const PORT = process.env.PORT || 5000;
 // Trust proxy for rate limiting behind Render
 app.set('trust proxy', 1);
 
-// Connect to database
-connectDB();
+// Connect to database (MongoDB - kept for backward compatibility)
+// Note: We're migrating to Firestore, but keeping MongoDB connection for now
+// Set DB_TYPE=firestore in .env to use Firestore exclusively
+if (process.env.DB_TYPE !== 'firestore') {
+  connectDB();
+} else {
+  // Initialize Firestore
+  require('./config/firestore');
+  console.log('✅ Using Firestore as database');
+}
 
 // Middleware
 app.use(helmet());
@@ -300,8 +300,8 @@ app.get('/api', (req, res) => {
 	});
 });
 
-// Import new routes (commented out for now)
-// const managedAdminRoutes = require('./routes/managedAdmin');
+// Import new routes
+const managedAdminRoutes = require('./routes/managedAdmin');
 // const databaseRoutes = require('./routes/database');
 
 // Multi-tenant admin authentication middleware (already imported above)
@@ -2835,8 +2835,8 @@ app.delete('/api/tenant/:slug/admins/:adminId', cors(), async (req, res) => {
   }
 });
  
- // Mount new routes (commented out for now)
- // app.use('/api/v1/managed-admin', managedAdminRoutes);
+ // Mount new routes
+ app.use('/api/v1/managed-admin', managedAdminRoutes);
  // app.use('/api/v1/database', databaseRoutes);
 
 // Admin Dashboard for institution users
@@ -3250,7 +3250,6 @@ app.post('/api/schedule-demo', cors(), async (req, res) => {
 				phone ? `Phone: ${phone}` : null,
 				position ? `Position: ${position}` : null,
 				studentsCount ? `Approx. Students: ${studentsCount}` : null,
-				notes ? '',
 				notes ? `Notes: ${notes}` : null
 			].filter(Boolean).join('\n')
 		});

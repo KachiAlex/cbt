@@ -1,23 +1,15 @@
 const express = require('express');
 const router = express.Router();
-const bcrypt = require('bcryptjs');
 const crypto = require('crypto');
 
-// Import models
-const Tenant = require('../models/Tenant');
-const User = require('../models/User');
-const AuditLog = require('../models/AuditLog');
+// Import Firestore services
+const TenantService = require('../services/firestore/TenantService');
+const UserService = require('../services/firestore/UserService');
+const AuditLogService = require('../services/firestore/AuditLogService');
 
-// Helper: find tenant by ObjectId or slug
+// Helper: find tenant by ID or slug
 async function findTenantByIdOrSlug(idOrSlug) {
-  let tenant = null;
-  try {
-    tenant = await Tenant.findById(idOrSlug);
-  } catch (_) {}
-  if (!tenant) {
-    tenant = await Tenant.findOne({ slug: idOrSlug });
-  }
-  return tenant;
+  return await TenantService.findByIdOrSlug(idOrSlug);
 }
 
 // Simple middleware to check for admin token
@@ -88,13 +80,13 @@ router.post('/tenants', requireManagedAdmin, async (req, res) => {
     const tenantSlug = slug || institutionName.toLowerCase().replace(/[^a-z0-9]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '');
 
     // Check if tenant slug already exists
-    const existingTenant = await Tenant.findOne({ slug: tenantSlug });
+    const existingTenant = await TenantService.findBySlug(tenantSlug);
     if (existingTenant) {
       return res.status(400).json({ error: 'Tenant slug already exists' });
     }
 
     // Create tenant
-    const tenant = new Tenant({
+    const tenant = await TenantService.create({
       name: institutionName,
       slug: tenantSlug,
       address: address || '',
@@ -106,41 +98,34 @@ router.post('/tenants', requireManagedAdmin, async (req, res) => {
       plan
     });
 
-    await tenant.save();
-
-    // Hash the provided password
-    const hashedPassword = await bcrypt.hash(adminPasswordField, 10);
-
     // Create default admin user (always super_admin)
-    const defaultAdminUser = new User({
-      tenant_id: tenant._id,
+    const defaultAdminUser = await UserService.create({
+      tenant_id: tenant._id || tenant.id,
       username: adminUsernameField,
       email: adminEmailField,
       phone: contact_phone || '',
       fullName: adminFullNameField,
-      password: hashedPassword,
+      password: adminPasswordField,
       role: 'super_admin', // All admins are super_admin
       is_default_admin: true,
       must_change_password: false // Password is already set
     });
 
-    await defaultAdminUser.save();
-
     // Create audit log
-    await new AuditLog({
+    await AuditLogService.create({
       actor_user_id: req.user.id,
       actor_ip: req.ip,
       actor_user_agent: req.get('User-Agent'),
       action: 'tenant.create',
       resource_type: 'tenant',
-      resource_id: tenant._id,
+      resource_id: tenant._id || tenant.id,
       details: {
         tenant_name: institutionName,
         tenant_slug: tenantSlug,
         default_admin_email: adminEmailField,
         plan: plan
       }
-    }).save();
+    });
 
     res.status(201).json({
       success: true,
@@ -180,22 +165,15 @@ router.get('/tenants', requireManagedAdmin, async (req, res) => {
   try {
     const { page = 1, limit = 10, status } = req.query;
     
-    let query = {};
-    if (status === 'active') {
-      query = { suspended: false, deleted_at: null };
-    } else if (status === 'suspended') {
-      query = { suspended: true, deleted_at: null };
-    } else if (status === 'deleted') {
-      query = { deleted_at: { $ne: null } };
-    }
+    const query = {
+      page: parseInt(page),
+      limit: parseInt(limit),
+      status: status,
+      deleted_at: null
+    };
 
-    const tenants = await Tenant.find(query)
-      .sort({ created_at: -1 })
-      .limit(limit * 1)
-      .skip((page - 1) * limit)
-      .lean();
-
-    const total = await Tenant.countDocuments(query);
+    const tenants = await TenantService.findAll(query);
+    const total = await TenantService.count(query);
 
     res.json({
       tenants,
@@ -218,20 +196,19 @@ router.get('/tenants/:id', requireManagedAdmin, async (req, res) => {
       return res.status(404).json({ error: 'Tenant not found' });
     }
 
-    // Get tenant users
-    const users = await User.find({ tenant_id: tenant._id })
-      .select('-password')
-      .lean();
+    // Get tenant users (exclude password)
+    const allUsers = await UserService.findByTenant(tenant._id || tenant.id);
+    const users = allUsers.map(user => {
+      const { password, ...userWithoutPassword } = user;
+      return userWithoutPassword;
+    });
 
     // Get recent audit logs for this tenant
-    const auditLogs = await AuditLog.find({
+    const auditLogs = await AuditLogService.find({
       resource_type: 'tenant',
-      resource_id: tenant._id
-    })
-      .sort({ created_at: -1 })
-      .limit(10)
-      .populate('actor_user_id', 'username email')
-      .lean();
+      resource_id: tenant._id || tenant.id,
+      limit: 10
+    });
 
     res.json({
       tenant,
@@ -259,13 +236,19 @@ router.post('/tenants/:id/admins', requireManagedAdmin, async (req, res) => {
     }
 
     // Check duplicate
-    const existing = await User.findOne({ tenant_id: tenant._id, $or: [{ username: username.toLowerCase() }, { email: email.toLowerCase() }] });
+    const existing = await UserService.findByUsernameOrEmail(username, tenant._id || tenant.id);
+    if (!existing) {
+      const existingByEmail = await UserService.findByUsernameOrEmail(email, tenant._id || tenant.id);
+      if (existingByEmail) {
+        existing = existingByEmail;
+      }
+    }
     if (existing) {
       return res.status(400).json({ error: 'An admin with this username or email already exists' });
     }
 
-    const adminUser = new User({
-      tenant_id: tenant._id,
+    const adminUser = await UserService.create({
+      tenant_id: tenant._id || tenant.id,
       username: username.toLowerCase(),
       email: email.toLowerCase(),
       fullName,
@@ -274,21 +257,20 @@ router.post('/tenants/:id/admins', requireManagedAdmin, async (req, res) => {
       is_default_admin: false,
       must_change_password: false
     });
-    await adminUser.save();
 
     try {
-      await new AuditLog({
+      await AuditLogService.create({
         actor_user_id: req.user?.id,
         actor_ip: req.ip,
         actor_user_agent: req.get('User-Agent'),
         action: 'admin.create',
         resource_type: 'user',
-        resource_id: adminUser._id,
-        details: { tenant_id: tenant._id, tenant_name: tenant.name, role: 'super_admin' }
-      }).save();
+        resource_id: adminUser._id || adminUser.id,
+        details: { tenant_id: tenant._id || tenant.id, tenant_name: tenant.name, role: 'super_admin' }
+      });
     } catch (_) {}
 
-    const { password: _, ...adminSafe } = adminUser.toObject();
+    const { password: _, ...adminSafe } = adminUser;
     return res.status(201).json({ message: 'Admin created', admin: adminSafe });
   } catch (error) {
     console.error('Error creating admin:', error);
@@ -300,25 +282,24 @@ router.post('/tenants/:id/admins', requireManagedAdmin, async (req, res) => {
 router.post('/tenants/:id/suspend', requireManagedAdmin, async (req, res) => {
   try {
     const { reason } = req.body;
-    const tenant = await Tenant.findById(req.params.id);
+    const tenant = await findTenantByIdOrSlug(req.params.id);
     
     if (!tenant) {
       return res.status(404).json({ error: 'Tenant not found' });
     }
 
-    tenant.suspended = true;
-    await tenant.save();
+    await TenantService.update(tenant._id || tenant.id, { suspended: true });
 
     // Create audit log
-    await new AuditLog({
+    await AuditLogService.create({
       actor_user_id: req.user.id,
       actor_ip: req.ip,
       actor_user_agent: req.get('User-Agent'),
       action: 'tenant.suspend',
       resource_type: 'tenant',
-      resource_id: tenant._id,
+      resource_id: tenant._id || tenant.id,
       details: { reason }
-    }).save();
+    });
 
     res.json({ message: 'Tenant suspended successfully' });
 
@@ -331,24 +312,23 @@ router.post('/tenants/:id/suspend', requireManagedAdmin, async (req, res) => {
 // Reinstate tenant
 router.post('/tenants/:id/reinstate', requireManagedAdmin, async (req, res) => {
   try {
-    const tenant = await Tenant.findById(req.params.id);
+    const tenant = await findTenantByIdOrSlug(req.params.id);
     
     if (!tenant) {
       return res.status(404).json({ error: 'Tenant not found' });
     }
 
-    tenant.suspended = false;
-    await tenant.save();
+    await TenantService.update(tenant._id || tenant.id, { suspended: false });
 
     // Create audit log
-    await new AuditLog({
+    await AuditLogService.create({
       actor_user_id: req.user.id,
       actor_ip: req.ip,
       actor_user_agent: req.get('User-Agent'),
       action: 'tenant.reinstate',
       resource_type: 'tenant',
-      resource_id: tenant._id
-    }).save();
+      resource_id: tenant._id || tenant.id
+    });
 
     res.json({ message: 'Tenant reinstated successfully' });
 
@@ -366,10 +346,8 @@ router.post('/tenants/:id/reset-default-admin', requireManagedAdmin, async (req,
       return res.status(404).json({ error: 'Tenant not found' });
     }
 
-    const defaultAdmin = await User.findOne({
-      tenant_id: tenant._id,
-      is_default_admin: true
-    });
+    const allUsers = await UserService.findByTenant(tenant._id || tenant.id);
+    const defaultAdmin = allUsers.find(u => u.is_default_admin === true);
 
     if (!defaultAdmin) {
       return res.status(404).json({ error: 'Default admin not found' });
@@ -377,23 +355,24 @@ router.post('/tenants/:id/reset-default-admin', requireManagedAdmin, async (req,
 
     // Generate new temporary password
     const tempPassword = generateTempPassword();
-    defaultAdmin.password = tempPassword;
-    defaultAdmin.must_change_password = true;
-    await defaultAdmin.save();
+    await UserService.update(defaultAdmin._id || defaultAdmin.id, {
+      password: tempPassword,
+      must_change_password: true
+    });
 
     // Create audit log
-    await new AuditLog({
+    await AuditLogService.create({
       actor_user_id: req.user.id,
       actor_ip: req.ip,
       actor_user_agent: req.get('User-Agent'),
       action: 'user.reset_password',
       resource_type: 'user',
-      resource_id: defaultAdmin._id,
+      resource_id: defaultAdmin._id || defaultAdmin.id,
       details: {
-        tenant_id: tenant._id,
+        tenant_id: tenant._id || tenant.id,
         tenant_name: tenant.name
       }
-    }).save();
+    });
 
     res.json({
       message: 'Default admin password reset successfully',
