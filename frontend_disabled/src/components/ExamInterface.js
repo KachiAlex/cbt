@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { dataService } from '../services/dataService';
+import firebaseDataService from '../firebase/dataService';
 import { scoreEssayAnswer, aggregateEssayScores } from '../utils/essayScorer';
 
 const ExamInterface = ({ user, exam: propExam, onComplete }) => {
@@ -168,7 +168,7 @@ const ExamInterface = ({ user, exam: propExam, onComplete }) => {
     }
     
     try {
-      const examQuestions = await dataService.getQuestions(exam.id);
+      const examQuestions = await firebaseDataService.getQuestions(exam.id);
       console.log('🔍 Loaded questions from Firestore:', examQuestions);
       console.log('🔍 First question structure:', examQuestions[0]);
       const randomized = applyRandomization(examQuestions || []);
@@ -227,16 +227,62 @@ const ExamInterface = ({ user, exam: propExam, onComplete }) => {
       
       // Calculate score for non-essay; for essay mark as pending
       let correctAnswers = 0;
+      let totalScore = 0;
+      let maxScore = 0;
       let essayAggregate = null;
       if (!isEssayExam) {
       questions.forEach(question => {
         const studentAnswer = answers[question.id];
-        const correctOptionIndex = question.correctIndex;
-        const correctAnswerText = question.options[correctOptionIndex];
+        const questionPoints = Number(question.points) || 1;
+        maxScore += questionPoints;
         
-        // Compare student answer with correct answer text
-        if (studentAnswer === correctAnswerText) {
-          correctAnswers++;
+        // Handle different correct answer formats
+        let correctAnswerText = null;
+        let correctOptionIndex = null;
+        
+        // Check if question has correctIndex (preferred)
+        if (question.correctIndex !== undefined && question.correctIndex !== null) {
+          correctOptionIndex = Number(question.correctIndex);
+          if (question.options && question.options[correctOptionIndex]) {
+            correctAnswerText = question.options[correctOptionIndex];
+          }
+        }
+        // Fallback to correctAnswer field
+        else if (question.correctAnswer !== undefined && question.correctAnswer !== null) {
+          // If correctAnswer is a number (index)
+          if (typeof question.correctAnswer === 'number' || !isNaN(Number(question.correctAnswer))) {
+            correctOptionIndex = Number(question.correctAnswer);
+            if (question.options && question.options[correctOptionIndex]) {
+              correctAnswerText = question.options[correctOptionIndex];
+            }
+          }
+          // If correctAnswer is a string (option text or letter like "A", "B", "C", "D")
+          else {
+            const correctAnswerStr = String(question.correctAnswer).trim();
+            // Check if it's a letter (A, B, C, D) and convert to index
+            if (/^[A-D]$/i.test(correctAnswerStr)) {
+              correctOptionIndex = correctAnswerStr.toUpperCase().charCodeAt(0) - 65; // A=0, B=1, C=2, D=3
+              if (question.options && question.options[correctOptionIndex]) {
+                correctAnswerText = question.options[correctOptionIndex];
+              }
+            }
+            // Otherwise treat as option text
+            else {
+              correctAnswerText = correctAnswerStr;
+            }
+          }
+        }
+        
+        // Compare student answer with correct answer
+        if (studentAnswer && correctAnswerText) {
+          // Normalize both answers for comparison (trim whitespace, case-insensitive for text)
+          const normalizedStudentAnswer = String(studentAnswer).trim();
+          const normalizedCorrectAnswer = String(correctAnswerText).trim();
+          
+          if (normalizedStudentAnswer === normalizedCorrectAnswer) {
+            correctAnswers++;
+            totalScore += questionPoints;
+          }
         }
       });
       } else {
@@ -250,8 +296,23 @@ const ExamInterface = ({ user, exam: propExam, onComplete }) => {
         });
         essayAggregate = aggregateEssayScores(perQuestion);
       }
-      const score = isEssayExam ? (essayAggregate?.percent ?? null) : Math.round((correctAnswers / questions.length) * 100);
-      const percentage = score; // Ensure percentage is consistent with score
+      // Calculate percentage score
+      let score = 0;
+      let percentage = 0;
+      
+      if (isEssayExam) {
+        score = essayAggregate?.percent ?? null;
+        percentage = score;
+      } else {
+        // Calculate percentage based on points, not just number of correct answers
+        if (maxScore > 0) {
+          percentage = Math.round((totalScore / maxScore) * 100);
+        } else if (questions.length > 0) {
+          // Fallback to simple percentage if no points system
+          percentage = Math.round((correctAnswers / questions.length) * 100);
+        }
+        score = percentage;
+      }
       
       // Save result
       const result = {
@@ -266,12 +327,14 @@ const ExamInterface = ({ user, exam: propExam, onComplete }) => {
         departmentCode: user.departmentCode || null,
         level: user.level || '',
         answers: answers,
-        score: correctAnswers, // Raw score (number of correct answers)
+        score: isEssayExam ? (essayAggregate?.percent ?? null) : totalScore, // Total points scored
+        maxScore: isEssayExam ? null : maxScore, // Maximum possible points
         percentage: percentage, // Percentage score
         totalQuestions: questions.length,
-        correctAnswers: correctAnswers,
+        correctAnswers: correctAnswers, // Number of correct answers
         timeSpent: Math.round(((exam.duration * 60) - timeLeft) / 60), // Convert to minutes
-        status: isEssayExam ? (essayAggregate && essayAggregate.confidence >= 0.7 ? 'provisional' : 'pending_review') : 'completed'
+        status: isEssayExam ? (essayAggregate && essayAggregate.confidence >= 0.7 ? 'provisional' : 'pending_review') : 'completed',
+        submittedAt: new Date().toISOString()
       };
       
       // Only add provisional field for essay exams
@@ -282,7 +345,18 @@ const ExamInterface = ({ user, exam: propExam, onComplete }) => {
         };
       }
       
-      await dataService.saveExamResult(result);
+      // Save result to Firestore
+      await firebaseDataService.createResult(result);
+      
+      console.log('✅ Exam result saved successfully:', {
+        examId: result.examId,
+        studentId: result.studentId,
+        score: result.score,
+        maxScore: result.maxScore,
+        percentage: result.percentage,
+        correctAnswers: result.correctAnswers,
+        totalQuestions: result.totalQuestions
+      });
       
     } catch (error) {
       console.error('Error submitting exam:', error);

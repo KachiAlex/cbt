@@ -558,6 +558,24 @@ class FirebaseDataService {
     }
   }
 
+  async getQuestions(examId) {
+    try {
+      const questionsRef = collection(db, this.collections.questions);
+      const q = query(questionsRef, where('examId', '==', examId));
+      const snapshot = await getDocs(q);
+      
+      const questions = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      }));
+      
+      return questions;
+    } catch (error) {
+      console.error('Error getting questions for exam:', error);
+      throw error;
+    }
+  }
+
   async createQuestion(questionData) {
     try {
       const questionsRef = collection(db, this.collections.questions);
