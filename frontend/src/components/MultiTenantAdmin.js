@@ -142,7 +142,7 @@ export default function MultiTenantAdmin() {
       setShowCreateInstitution(false);
     } catch (err) {
       console.error('Failed to create institution:', err);
-      setError('Failed to create institution. Please try again.');
+      setError(err.message || 'Failed to create institution. Please try again.');
     }
   };
 
@@ -206,9 +206,7 @@ export default function MultiTenantAdmin() {
 
   // Generate institution URL
   const getInstitutionUrl = (institution) => {
-    // Use working the API hosting URL (cbt-91a97.web.app)
-    const baseUrl = 'https://cbt-91a97.web.app';
-    return `${baseUrl}/institution-login?institution=${institution.slug}`;
+    return `${window.location.origin}/institution-login?institution=${institution.slug}`;
   };
 
   // Copy institution URL to clipboard

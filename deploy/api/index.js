@@ -289,9 +289,16 @@ app.get('/api/institutions', auth, superAdmin, async (req, res) => {
 });
 
 app.post('/api/institutions', auth, superAdmin, async (req, res) => {
+  const { name, slug } = req.body || {};
+  if (!name || !slug) return res.status(400).json({ error: 'Institution name and slug are required' });
+  if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(slug)) {
+    return res.status(400).json({ error: 'Slug must be lowercase letters, numbers, and hyphens only' });
+  }
+  const existing = await q('SELECT id FROM institutions WHERE slug = $1', [slug]);
+  if (existing.rows.length) return res.status(409).json({ error: 'An institution with this slug already exists' });
   const id = newId();
-  const data = { ...req.body, createdAt: now(), totalUsers: 0 };
-  await q('INSERT INTO institutions (id, slug, data) VALUES ($1, $2, $3)', [id, data.slug || null, data]);
+  const data = { ...req.body, status: req.body.status || 'active', createdAt: now(), totalUsers: 0 };
+  await q('INSERT INTO institutions (id, slug, data) VALUES ($1, $2, $3)', [id, slug, data]);
   res.json({ id, ...data });
 });
 
@@ -378,7 +385,8 @@ app.post('/api/institutions/:iid/admins', auth, staffOnly, async (req, res) => {
   const data = { ...body, institutionId: req.params.iid, role: 'admin', createdAt: now() };
   await q('INSERT INTO admins (id, institution_id, username, email, data) VALUES ($1,$2,$3,$4,$5)',
     [id, req.params.iid, data.username || null, data.email || null, data]);
-  res.json({ id, ...req.body });
+  const { password, passwordHash, ...safe } = data;
+  res.json({ id, ...safe });
 });
 
 app.patch('/api/admins/:id/password', auth, staffOnly, async (req, res) => {
