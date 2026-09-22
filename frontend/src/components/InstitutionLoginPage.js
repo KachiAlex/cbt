@@ -101,10 +101,10 @@ const InstitutionLoginPage = ({ institution, onLogin, onAdminAccess }) => {
     try {
       const result = await onLogin(formData);
       if (!result.success) {
-        setError(result.message || 'Login failed');
+        setError(result.error || result.message || 'Login failed');
       }
     } catch (err) {
-      setError('An error occurred during login');
+      setError(err.message || 'An error occurred during login');
     } finally {
       setLoading(false);
     }
