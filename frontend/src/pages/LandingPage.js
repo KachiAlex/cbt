@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import firebaseDataService from '../firebase/dataService';
+import dataService from '../services/dataService';
 import './LandingPage.css';
 
 const QUESTIONS = [
@@ -105,7 +105,7 @@ const LandingPage = () => {
 
   // live blogs
   useEffect(() => {
-    firebaseDataService.getBlogs()
+    dataService.getBlogs()
       .then(list => setBlogs((list || []).slice(0, 3)))
       .catch(() => setBlogs([]));
   }, []);
@@ -145,7 +145,6 @@ const LandingPage = () => {
           </nav>
           <div className="nav-actions">
             <button className="btn btn-ghost" onClick={() => navigate('/admin-login')}>Sign in</button>
-            <button className="btn btn-primary" onClick={() => navigate('/trial')}>Start a test <span>→</span></button>
           </div>
         </div>
       </header>
@@ -253,7 +252,7 @@ const LandingPage = () => {
                 <div className="check-item"><span className="check">✓</span><span>Allow review, flag-for-later and question navigation based on exam rules.</span></div>
                 <div className="check-item"><span className="check">✓</span><span>Display accessibility-friendly typography, contrast and focused interaction states.</span></div>
               </div>
-              <button className="btn btn-dark" onClick={() => navigate('/trial')}>Explore candidate mode →</button>
+              <button className="btn btn-dark" onClick={() => navigate('/how-it-works')}>See how it works →</button>
             </div>
             <div className="demo-panel reveal">
               <div className="demo-bar"><b>English Language</b><small>18:42 remaining</small></div>
@@ -334,7 +333,7 @@ const LandingPage = () => {
                       <h3>{blog.title}</h3>
                       <p>{blog.excerpt || ''}</p>
                       <div className="blog-meta">
-                        {firebaseDataService.safeToDate(blog.publishedAt)?.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}
+                        {dataService.safeToDate(blog.publishedAt)?.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}
                       </div>
                     </div>
                   </Link>
@@ -354,7 +353,7 @@ const LandingPage = () => {
                 <h2>Ready to modernise your CBT experience?</h2>
                 <p>Launch a platform that candidates enjoy using and administrators can trust when the stakes are high.</p>
               </div>
-              <button className="btn" onClick={() => navigate('/trial')}>Request a demo →</button>
+              <button className="btn" onClick={() => navigate('/admin-login')}>Sign in to your portal →</button>
             </div>
           </div>
         </section>

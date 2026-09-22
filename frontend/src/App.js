@@ -1,8 +1,5 @@
 import React, { useState } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import AdminDashboard from './components/AdminDashboard';
-import StudentPortal from './components/StudentPortal';
-import LoginPage from './components/LoginPage';
 import ExamInterface from './components/ExamInterface';
 import MultiTenantAdmin from './components/MultiTenantAdmin';
 

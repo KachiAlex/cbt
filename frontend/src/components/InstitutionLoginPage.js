@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import firebaseDataService from '../firebase/dataService';
+import dataService from '../services/dataService';
 
 const InstitutionLoginPage = ({ institution, onLogin, onAdminAccess }) => {
   const [formData, setFormData] = useState({
@@ -64,11 +64,11 @@ const InstitutionLoginPage = ({ institution, onLogin, onAdminAccess }) => {
   }, []);
 
   useEffect(() => {
-    if (!institution?.id) return;
+    if (!institution?.slug) return;
     const loadDepartments = async () => {
       try {
         setDepartmentsLoading(true);
-        const data = await firebaseDataService.getInstitutionDepartments(institution.id);
+        const data = await dataService.getPublicDepartments(institution.slug);
         setDepartments(data || []);
         setRegisterData(prev => {
           if (prev.departmentId || !(data && data.length)) {
@@ -91,7 +91,7 @@ const InstitutionLoginPage = ({ institution, onLogin, onAdminAccess }) => {
     };
 
     loadDepartments();
-  }, [institution?.id]);
+  }, [institution?.slug]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -160,58 +160,6 @@ const InstitutionLoginPage = ({ institution, onLogin, onAdminAccess }) => {
     }
 
     try {
-      // Check if user already exists in Firestore
-      const existingUsers = await firebaseDataService.getInstitutionUsers(institution.id);
-      const userExists = existingUsers.some(user => 
-        user.email === registerData.email || user.username === registerData.username
-      );
-      
-      if (userExists) {
-        setError('A user with this email or username already exists.');
-        setLoading(false);
-        return;
-      }
-
-      // Check if user exists in localStorage (migration check)
-      const oldUsers = JSON.parse(localStorage.getItem('cbt_users_v1') || '[]');
-      const oldUserExists = oldUsers.some(user => 
-        user.email === registerData.email || user.username === registerData.username
-      );
-      
-      if (oldUserExists) {
-        console.log('🔍 Found user in localStorage, migrating to Firestore...');
-        // Migrate the user from localStorage to Firestore
-        const oldUser = oldUsers.find(user => 
-          user.email === registerData.email || user.username === registerData.username
-        );
-        
-        const migratedUserData = {
-          ...oldUser,
-          institutionId: institution.id,
-          institutionName: institution.name,
-          role: 'student',
-          isActive: true,
-          createdAt: new Date().toISOString()
-        };
-        
-        const migratedUser = await firebaseDataService.createUser(migratedUserData);
-        console.log('🔍 Successfully migrated user:', migratedUser);
-        
-        // Remove from localStorage
-        const updatedOldUsers = oldUsers.filter(user => user.id !== oldUser.id);
-        localStorage.setItem('cbt_users_v1', JSON.stringify(updatedOldUsers));
-        
-        setFormData({
-          username: registerData.username,
-          password: registerData.password
-        });
-        setShowRegister(false);
-        setError('');
-        alert('User migrated successfully! You can now sign in.');
-        setLoading(false);
-        return;
-      }
-
       const selectedDepartment = departments.find(dept => dept.id === registerData.departmentId);
       if (hasDepartmentDefinitions && !selectedDepartment) {
         setError('Please select your department.');
@@ -258,9 +206,7 @@ const InstitutionLoginPage = ({ institution, onLogin, onAdminAccess }) => {
         createdAt: new Date().toISOString()
       };
 
-      console.log('🔍 InstitutionLoginPage: Attempting to create student with data:', studentData);
-      const newUser = await firebaseDataService.createUser(studentData);
-      console.log('🔍 InstitutionLoginPage: Successfully created new student:', newUser);
+      await dataService.registerStudent(institution.slug, studentData);
 
       setFormData({
         username: registerData.username,

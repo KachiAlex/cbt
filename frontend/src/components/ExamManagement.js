@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import firebaseDataService from '../firebase/dataService';
+import dataService from '../services/dataService';
 
 const ExamManagement = ({ institution, onStatsUpdate }) => {
   const [exams, setExams] = useState([]);
@@ -26,10 +26,10 @@ const ExamManagement = ({ institution, onStatsUpdate }) => {
   const loadExams = async () => {
     try {
       setLoading(true);
-      const examData = await firebaseDataService.getInstitutionExams(institution.id);
+      const examData = await dataService.getInstitutionExams(institution.id);
       // Fetch live question counts
       const counts = await Promise.all(
-        examData.map((e) => firebaseDataService.countQuestionsByExam(e.id))
+        examData.map((e) => dataService.countQuestionsByExam(e.id))
       );
       const withCounts = examData.map((e, idx) => ({ ...e, totalQuestions: counts[idx] }));
       setExams(withCounts);
@@ -53,9 +53,9 @@ const ExamManagement = ({ institution, onStatsUpdate }) => {
       };
 
       if (editingExam) {
-        await firebaseDataService.updateExam(editingExam.id, examData);
+        await dataService.updateExam(editingExam.id, examData);
       } else {
-        await firebaseDataService.createExam(examData);
+        await dataService.createExam(examData);
       }
 
       await loadExams();
@@ -90,7 +90,7 @@ const ExamManagement = ({ institution, onStatsUpdate }) => {
   const handleDelete = async (examId) => {
     if (window.confirm('Are you sure you want to delete this exam?')) {
       try {
-        await firebaseDataService.deleteExam(examId);
+        await dataService.deleteExam(examId);
         await loadExams();
         onStatsUpdate();
       } catch (error) {

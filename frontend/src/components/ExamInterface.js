@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import firebaseDataService from '../firebase/dataService';
-import { scoreEssayAnswer, aggregateEssayScores } from '../utils/essayScorer';
+import dataService from '../services/dataService';
 
 const ExamInterface = ({ user, exam: propExam, onComplete }) => {
   const [exam, setExam] = useState(propExam);
@@ -168,8 +167,8 @@ const ExamInterface = ({ user, exam: propExam, onComplete }) => {
     }
     
     try {
-      const examQuestions = await firebaseDataService.getQuestions(exam.id);
-      console.log('🔍 Loaded questions from Firestore:', examQuestions);
+      const examQuestions = await dataService.getQuestions(exam.id);
+      console.log('🔍 Loaded questions from the API:', examQuestions);
       console.log('🔍 First question structure:', examQuestions[0]);
       const randomized = applyRandomization(examQuestions || []);
       setQuestions(randomized);
@@ -223,98 +222,7 @@ const ExamInterface = ({ user, exam: propExam, onComplete }) => {
       // Clear persisted order for a fresh start on next attempt
       try { localStorage.removeItem(getPersistKey()); } catch (_) {}
       
-      const isEssayExam = String(exam?.type || '').toLowerCase() === 'essay';
-      
-      // Calculate score for non-essay; for essay mark as pending
-      let correctAnswers = 0;
-      let totalScore = 0;
-      let maxScore = 0;
-      let essayAggregate = null;
-      if (!isEssayExam) {
-      questions.forEach(question => {
-        const studentAnswer = answers[question.id];
-        const questionPoints = Number(question.points) || 1;
-        maxScore += questionPoints;
-        
-        // Handle different correct answer formats
-        let correctAnswerText = null;
-        let correctOptionIndex = null;
-        
-        // Check if question has correctIndex (preferred)
-        if (question.correctIndex !== undefined && question.correctIndex !== null) {
-          correctOptionIndex = Number(question.correctIndex);
-          if (question.options && question.options[correctOptionIndex]) {
-            correctAnswerText = question.options[correctOptionIndex];
-          }
-        }
-        // Fallback to correctAnswer field
-        else if (question.correctAnswer !== undefined && question.correctAnswer !== null) {
-          // If correctAnswer is a number (index)
-          if (typeof question.correctAnswer === 'number' || !isNaN(Number(question.correctAnswer))) {
-            correctOptionIndex = Number(question.correctAnswer);
-            if (question.options && question.options[correctOptionIndex]) {
-              correctAnswerText = question.options[correctOptionIndex];
-            }
-          }
-          // If correctAnswer is a string (option text or letter like "A", "B", "C", "D")
-          else {
-            const correctAnswerStr = String(question.correctAnswer).trim();
-            // Check if it's a letter (A, B, C, D) and convert to index
-            if (/^[A-D]$/i.test(correctAnswerStr)) {
-              correctOptionIndex = correctAnswerStr.toUpperCase().charCodeAt(0) - 65; // A=0, B=1, C=2, D=3
-              if (question.options && question.options[correctOptionIndex]) {
-                correctAnswerText = question.options[correctOptionIndex];
-              }
-            }
-            // Otherwise treat as option text
-            else {
-              correctAnswerText = correctAnswerStr;
-            }
-          }
-        }
-        
-        // Compare student answer with correct answer
-        if (studentAnswer && correctAnswerText) {
-          // Normalize both answers for comparison (trim whitespace, case-insensitive for text)
-          const normalizedStudentAnswer = String(studentAnswer).trim();
-          const normalizedCorrectAnswer = String(correctAnswerText).trim();
-          
-          if (normalizedStudentAnswer === normalizedCorrectAnswer) {
-            correctAnswers++;
-            totalScore += questionPoints;
-          }
-        }
-      });
-      } else {
-        // Essay: compute heuristic per-question provisional scores
-        const perQuestion = questions.map(q => {
-          const answerText = answers[q.id] || '';
-          const rubricKeywords = q.rubricKeywords || '';
-          const minWords = q.minWords || 50;
-          const modelAnswer = q.modelAnswer || '';
-          return scoreEssayAnswer(answerText, rubricKeywords, minWords, modelAnswer);
-        });
-        essayAggregate = aggregateEssayScores(perQuestion);
-      }
-      // Calculate percentage score
-      let score = 0;
-      let percentage = 0;
-      
-      if (isEssayExam) {
-        score = essayAggregate?.percent ?? null;
-        percentage = score;
-      } else {
-        // Calculate percentage based on points, not just number of correct answers
-        if (maxScore > 0) {
-          percentage = Math.round((totalScore / maxScore) * 100);
-        } else if (questions.length > 0) {
-          // Fallback to simple percentage if no points system
-          percentage = Math.round((correctAnswers / questions.length) * 100);
-        }
-        score = percentage;
-      }
-      
-      // Save result
+      // Server scores the exam — client submits answers only
       const result = {
         examId: exam.id,
         examTitle: exam.title,
@@ -327,34 +235,16 @@ const ExamInterface = ({ user, exam: propExam, onComplete }) => {
         departmentCode: user.departmentCode || null,
         level: user.level || '',
         answers: answers,
-        score: isEssayExam ? (essayAggregate?.percent ?? null) : totalScore, // Total points scored
-        maxScore: isEssayExam ? null : maxScore, // Maximum possible points
-        percentage: percentage, // Percentage score
         totalQuestions: questions.length,
-        correctAnswers: correctAnswers, // Number of correct answers
         timeSpent: Math.round(((exam.duration * 60) - timeLeft) / 60), // Convert to minutes
-        status: isEssayExam ? (essayAggregate && essayAggregate.confidence >= 0.7 ? 'provisional' : 'pending_review') : 'completed',
         submittedAt: new Date().toISOString()
       };
-      
-      // Only add provisional field for essay exams
-      if (isEssayExam) {
-        result.provisional = { 
-          percent: essayAggregate?.percent ?? null, 
-          confidence: essayAggregate?.confidence ?? 0 
-        };
-      }
-      
-      // Save result to Firestore
-      await firebaseDataService.createResult(result);
-      
-      console.log('✅ Exam result saved successfully:', {
+
+      await dataService.createResult(result);
+
+      console.log('✅ Exam result submitted:', {
         examId: result.examId,
         studentId: result.studentId,
-        score: result.score,
-        maxScore: result.maxScore,
-        percentage: result.percentage,
-        correctAnswers: result.correctAnswers,
         totalQuestions: result.totalQuestions
       });
       

@@ -62,9 +62,9 @@ const REQUIRED_METHODS = {
 };
 
 function validateDataService() {
-  console.log('🔍 Validating Firebase Data Service API...\n');
+  console.log('🔍 Validating Data Service API...\n');
 
-  const dataServicePath = path.join(__dirname, '../src/services/pgDataService.js');
+  const dataServicePath = path.join(__dirname, '../src/services/dataService.js');
   
   if (!fs.existsSync(dataServicePath)) {
     console.error('❌ Error: dataService.js not found at expected path');
@@ -151,8 +151,8 @@ function checkUsageConsistency() {
     const content = fs.readFileSync(filePath, 'utf8');
     const fileName = path.basename(filePath);
     
-    // Look for firebaseDataService method calls
-    const methodCallPattern = /firebaseDataService\.(\w+)\(/g;
+    // Look for dataService method calls
+    const methodCallPattern = /\bdataService\.(\w+)\(/g;
     let match;
     
     while ((match = methodCallPattern.exec(content)) !== null) {

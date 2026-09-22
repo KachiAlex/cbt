@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import firebaseDataService from '../firebase/dataService';
+import dataService from '../services/dataService';
 
 const BlogList = () => {
   const [blogs, setBlogs] = useState([]);
@@ -15,7 +15,7 @@ const BlogList = () => {
     try {
       setLoading(true);
       setError(null);
-      const publishedBlogs = await firebaseDataService.getBlogs();
+      const publishedBlogs = await dataService.getBlogs();
       setBlogs(publishedBlogs);
     } catch (error) {
       console.error('Error loading blogs:', error);
@@ -26,7 +26,7 @@ const BlogList = () => {
   };
 
   const formatDate = (timestamp) => {
-    const date = firebaseDataService.safeToDate(timestamp);
+    const date = dataService.safeToDate(timestamp);
     return date ? date.toLocaleDateString('en-US', { 
       year: 'numeric', 
       month: 'long', 

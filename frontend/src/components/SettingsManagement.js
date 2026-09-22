@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import firebaseDataService from '../firebase/dataService';
+import dataService from '../services/dataService';
 
 const SettingsManagement = ({ institution, user, onLogout }) => {
   const [settings, setSettings] = useState({
@@ -48,7 +48,7 @@ const SettingsManagement = ({ institution, user, onLogout }) => {
 
   const loadSettings = async () => {
     try {
-      const institutionData = await firebaseDataService.getInstitution(institution.id);
+      const institutionData = await dataService.getInstitution(institution.id);
       if (institutionData?.settings) {
         setSettings({ ...settings, ...institutionData.settings });
       }
@@ -60,7 +60,7 @@ const SettingsManagement = ({ institution, user, onLogout }) => {
   const handleSaveSettings = async () => {
     try {
       setLoading(true);
-      await firebaseDataService.updateInstitution(institution.id, {
+      await dataService.updateInstitution(institution.id, {
         ...institution,
         settings: settings
       });
@@ -86,7 +86,7 @@ const SettingsManagement = ({ institution, user, onLogout }) => {
         createdAt: new Date().toISOString()
       };
 
-      await firebaseDataService.createAdmin(adminData);
+      await dataService.createAdmin(adminData);
       setShowCreateAdminModal(false);
       setAdminFormData({
         fullName: '',
@@ -121,7 +121,7 @@ const SettingsManagement = ({ institution, user, onLogout }) => {
       setLoading(true);
       
       // Verify current password by checking against stored admin data
-      const admins = await firebaseDataService.getInstitutionAdmins(institution.id);
+      const admins = await dataService.getInstitutionAdmins(institution.id);
       const currentAdmin = admins.find(admin => admin.id === user.id);
       
       if (!currentAdmin || currentAdmin.password !== passwordFormData.currentPassword) {
@@ -131,7 +131,7 @@ const SettingsManagement = ({ institution, user, onLogout }) => {
       }
 
       // Update password
-      await firebaseDataService.updateAdminPassword(user.id, passwordFormData.newPassword);
+      await dataService.updateAdminPassword(user.id, passwordFormData.newPassword);
       
       setShowChangePasswordModal(false);
       setPasswordFormData({

@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import firebaseDataService from '../firebase/dataService';
-import firebaseAuthService from '../firebase/authService';
-import FirebaseStatus from './FirebaseStatus';
+import dataService from '../services/dataService';
+import authService from '../services/authService';
 import BlogManagement from './BlogManagement';
 
 export default function MultiTenantAdmin() {
@@ -58,13 +57,13 @@ export default function MultiTenantAdmin() {
   // Load institutions
   const loadInstitutions = useCallback(async () => {
     try {
-      console.log('🔄 Starting to load institutions from Firestore...');
+      console.log('🔄 Starting to load institutions from the API...');
       setLoading(true);
       setError('');
       
-      // Use Firestore directly to load institutions
-      const institutionsList = await firebaseDataService.getInstitutions();
-      console.log('📊 Loaded institutions from Firestore:', institutionsList);
+      // Use database directly to load institutions
+      const institutionsList = await dataService.getInstitutions();
+      console.log('📊 Loaded institutions from the API:', institutionsList);
       
       // Transform to match frontend expectations
       const transformed = (institutionsList || []).map(inst => ({
@@ -100,12 +99,12 @@ export default function MultiTenantAdmin() {
       setLoadingAdmins(true);
       setError('');
       
-      // Use Firestore directly to fetch admins
+      // Use database directly to fetch admins
       const institutionId = institution.id || institution._id;
       console.log('🔍 Loading admins for institution:', institutionId, institution);
       
-      const adminsList = await firebaseDataService.getInstitutionAdmins(institutionId);
-      console.log('📊 Loaded admins from Firestore:', adminsList);
+      const adminsList = await dataService.getInstitutionAdmins(institutionId);
+      console.log('📊 Loaded admins from the API:', adminsList);
       
       // Filter to only admin roles
       const adminUsers = (adminsList || []).filter(admin => 
@@ -129,7 +128,7 @@ export default function MultiTenantAdmin() {
     try {
       setError('');
       
-      await firebaseDataService.createInstitution(newInstitution);
+      await dataService.createInstitution(newInstitution);
       setNewInstitution({
         name: '',
         slug: '',
@@ -165,7 +164,7 @@ export default function MultiTenantAdmin() {
     try {
       setError('');
       
-      // Use Firestore directly to create admin
+      // Use database directly to create admin
       const institutionId = selectedInstitution.id || selectedInstitution._id;
       console.log('🔍 Creating admin for institution:', institutionId, selectedInstitution);
       
@@ -179,8 +178,8 @@ export default function MultiTenantAdmin() {
       };
       console.log('📤 Creating admin with data:', { ...adminData, password: '***' });
       
-      const createdAdmin = await firebaseDataService.createAdmin(adminData);
-      console.log('✅ Admin created successfully in Firestore:', createdAdmin);
+      const createdAdmin = await dataService.createAdmin(adminData);
+      console.log('✅ Admin created successfully:', createdAdmin);
       
       // Show success message
       setError(''); // Clear any previous errors
@@ -207,7 +206,7 @@ export default function MultiTenantAdmin() {
 
   // Generate institution URL
   const getInstitutionUrl = (institution) => {
-    // Use working Firebase hosting URL (cbt-91a97.web.app)
+    // Use working the API hosting URL (cbt-91a97.web.app)
     const baseUrl = 'https://cbt-91a97.web.app';
     return `${baseUrl}/institution-login?institution=${institution.slug}`;
   };
@@ -227,7 +226,7 @@ export default function MultiTenantAdmin() {
   // Handle logout
   const handleLogout = async () => {
     try {
-      await firebaseAuthService.signOut();
+      await authService.signOut();
       localStorage.removeItem('multi_tenant_admin_user');
       window.location.href = '/admin-login';
     } catch (err) {
@@ -263,9 +262,6 @@ export default function MultiTenantAdmin() {
             <div>
               <h1 className="text-3xl font-bold text-gray-900">Multi-Tenant Admin</h1>
               <p className="text-gray-600 mt-1">Manage institutions, administrators, and content</p>
-              <div className="mt-2">
-                <FirebaseStatus />
-              </div>
             </div>
             <div className="flex items-center space-x-4">
             {activeTab === 'institutions' && (

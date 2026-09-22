@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import firebaseDataService from '../firebase/dataService';
+import dataService from '../services/dataService';
 import CBTAdminDashboard from './CBTAdminDashboard';
 import StudentPortal from './StudentPortal';
 import InstitutionLoginPage from './InstitutionLoginPage';
@@ -23,7 +23,7 @@ const InstitutionCBT = () => {
 
     const checkInstitutionStatus = async () => {
       try {
-        const currentInstitution = await firebaseDataService.getInstitutionBySlug(institution.slug);
+        const currentInstitution = await dataService.getInstitutionBySlug(institution.slug);
         
         if (currentInstitution && currentInstitution.status === 'suspended') {
           // Institution was suspended, log out user
@@ -54,8 +54,8 @@ const InstitutionCBT = () => {
         return;
       }
 
-      // Get institution data from Firebase
-      const foundInstitution = await firebaseDataService.getInstitutionBySlug(institutionSlug);
+      // Get institution data
+      const foundInstitution = await dataService.getInstitutionBySlug(institutionSlug);
 
       // Check if institution is suspended
       if (foundInstitution.status === 'suspended') {
@@ -93,7 +93,7 @@ const InstitutionCBT = () => {
         };
       }
 
-      const result = await firebaseDataService.institutionLogin(
+      const result = await dataService.institutionLogin(
         institution.slug, credentials.username, credentials.password
       );
 

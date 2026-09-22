@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import firebaseAuthService from '../firebase/authService';
+import authService from '../services/authService';
 
 const MultiTenantAdminLogin = ({ onLoginSuccess }) => {
   const navigate = useNavigate();
@@ -17,7 +17,7 @@ const MultiTenantAdminLogin = ({ onLoginSuccess }) => {
     setError('');
 
     try {
-      const result = await firebaseAuthService.signIn(credentials.email, credentials.password);
+      const result = await authService.signIn(credentials.email, credentials.password);
       
       if (result.success) {
         // Store admin user data (token already stored by authService)
@@ -126,7 +126,7 @@ const MultiTenantAdminLogin = ({ onLoginSuccess }) => {
 
         <div className="mt-8 text-center">
           <div className="text-xs text-gray-500">
-            <p>🔥 Powered by Firebase</p>
+            <p>🔥 Powered by the API</p>
             <p>Multi-Tenant CBT Management System</p>
           </div>
         </div>

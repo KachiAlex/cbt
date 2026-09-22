@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useParams, useNavigate } from 'react-router-dom';
-import firebaseDataService from '../firebase/dataService';
+import dataService from '../services/dataService';
 
 const BlogDetail = () => {
   const { id } = useParams();
@@ -21,7 +21,7 @@ const BlogDetail = () => {
     try {
       setLoading(true);
       setError(null);
-      const blogData = await firebaseDataService.getBlog(id);
+      const blogData = await dataService.getBlog(id);
       
       // Check if blog is published
       if (!blogData.published) {
@@ -40,7 +40,7 @@ const BlogDetail = () => {
 
   const loadRelatedBlogs = async () => {
     try {
-      const allBlogs = await firebaseDataService.getBlogs();
+      const allBlogs = await dataService.getBlogs();
       // Get 3 random blogs excluding the current one
       const filtered = allBlogs.filter(b => b.id !== id);
       const shuffled = filtered.sort(() => 0.5 - Math.random());
@@ -51,7 +51,7 @@ const BlogDetail = () => {
   };
 
   const formatDate = (timestamp) => {
-    const date = firebaseDataService.safeToDate(timestamp);
+    const date = dataService.safeToDate(timestamp);
     return date ? date.toLocaleDateString('en-US', { 
       year: 'numeric', 
       month: 'long', 

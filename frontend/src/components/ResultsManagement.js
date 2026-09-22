@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import firebaseDataService from '../firebase/dataService';
+import dataService from '../services/dataService';
 
 const ResultsManagement = ({ institution, onStatsUpdate }) => {
   const [results, setResults] = useState([]);
@@ -28,9 +28,9 @@ const ResultsManagement = ({ institution, onStatsUpdate }) => {
     try {
       setLoading(true);
       const [resultsData, examsData, studentsData] = await Promise.all([
-        firebaseDataService.getInstitutionResults(institution.id),
-        firebaseDataService.getInstitutionExams(institution.id),
-        firebaseDataService.getInstitutionUsers(institution.id)
+        dataService.getInstitutionResults(institution.id),
+        dataService.getInstitutionExams(institution.id),
+        dataService.getInstitutionUsers(institution.id)
       ]);
       
       console.log('🔍 ResultsManagement: Loaded results:', resultsData);
@@ -289,7 +289,7 @@ const ResultsManagement = ({ institution, onStatsUpdate }) => {
     }
     try {
       setLoading(true);
-      await firebaseDataService.updateResult(finalizeTarget.id, {
+      await dataService.updateResult(finalizeTarget.id, {
         percentage: parsed,
         score: parsed,
         status: 'completed',
@@ -332,7 +332,7 @@ const ResultsManagement = ({ institution, onStatsUpdate }) => {
     try {
       setLoading(true);
       const deletePromises = selectedResults.map(resultId => 
-        firebaseDataService.deleteResult(resultId)
+        dataService.deleteResult(resultId)
       );
       await Promise.all(deletePromises);
       
@@ -407,9 +407,9 @@ const ResultsManagement = ({ institution, onStatsUpdate }) => {
         return;
       }
       // Try to fetch full result by id from backend
-      if (result && result.id && typeof firebaseDataService.getResultById === 'function') {
+      if (result && result.id && typeof dataService.getResultById === 'function') {
         setLoading(true);
-        const full = await firebaseDataService.getResultById(result.id);
+        const full = await dataService.getResultById(result.id);
         setShowDetails(full || result);
       } else {
         setShowDetails(result);

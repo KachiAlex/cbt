@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import firebaseDataService from '../firebase/dataService';
+import dataService from '../services/dataService';
 import QuestionImportModal from './QuestionImportModal';
 import QuestionImportGuide from './QuestionImportGuide';
 
@@ -35,8 +35,8 @@ const QuestionsManagement = ({ institution, onStatsUpdate }) => {
     try {
       setLoading(true);
       const [questionsData, examsData] = await Promise.all([
-        firebaseDataService.getInstitutionQuestions(institution.id),
-        firebaseDataService.getInstitutionExams(institution.id)
+        dataService.getInstitutionQuestions(institution.id),
+        dataService.getInstitutionExams(institution.id)
       ]);
       setQuestions(questionsData);
       setExams(examsData);
@@ -60,9 +60,9 @@ const QuestionsManagement = ({ institution, onStatsUpdate }) => {
       };
 
       if (editingQuestion) {
-        await firebaseDataService.updateQuestion(editingQuestion.id, questionData);
+        await dataService.updateQuestion(editingQuestion.id, questionData);
       } else {
-        await firebaseDataService.createQuestion(questionData);
+        await dataService.createQuestion(questionData);
       }
 
       await loadData();
@@ -98,7 +98,7 @@ const QuestionsManagement = ({ institution, onStatsUpdate }) => {
   const handleDelete = async (questionId) => {
     if (window.confirm('Are you sure you want to delete this question?')) {
       try {
-        await firebaseDataService.deleteQuestion(questionId);
+        await dataService.deleteQuestion(questionId);
         await loadData();
         onStatsUpdate();
       } catch (error) {
@@ -120,7 +120,7 @@ const QuestionsManagement = ({ institution, onStatsUpdate }) => {
       console.log('🔍 First question structure:', questionsToImport[0]);
       
       const importPromises = questionsToImport.map(question => 
-        firebaseDataService.createQuestion({ ...question, examId: selectedExam })
+        dataService.createQuestion({ ...question, examId: selectedExam })
       );
       await Promise.all(importPromises);
       await loadData();
@@ -143,7 +143,7 @@ const QuestionsManagement = ({ institution, onStatsUpdate }) => {
     }
     try {
       setLoading(true);
-      await firebaseDataService.deleteQuestionsByExam(selectedExam);
+      await dataService.deleteQuestionsByExam(selectedExam);
       await loadData();
       onStatsUpdate();
     } catch (error) {
@@ -213,7 +213,7 @@ const QuestionsManagement = ({ institution, onStatsUpdate }) => {
     try {
       setLoading(true);
       await Promise.all(
-        selectedQuestions.map(id => firebaseDataService.deleteQuestion(id))
+        selectedQuestions.map(id => dataService.deleteQuestion(id))
       );
       setSelectedQuestions([]);
       await loadData();

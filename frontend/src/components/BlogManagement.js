@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import firebaseDataService from '../firebase/dataService';
+import dataService from '../services/dataService';
 
 const BlogManagement = () => {
   const [blogs, setBlogs] = useState([]);
@@ -27,7 +27,7 @@ const BlogManagement = () => {
   const loadBlogs = async () => {
     try {
       setLoading(true);
-      const allBlogs = await firebaseDataService.getAllBlogs();
+      const allBlogs = await dataService.getAllBlogs();
       setBlogs(allBlogs);
     } catch (err) {
       setError('Error loading blogs: ' + err.message);
@@ -92,10 +92,10 @@ const BlogManagement = () => {
       };
 
       if (selectedBlog) {
-        await firebaseDataService.updateBlog(selectedBlog.id, blogData);
+        await dataService.updateBlog(selectedBlog.id, blogData);
         setSuccess('Blog updated successfully!');
       } else {
-        await firebaseDataService.createBlog(blogData);
+        await dataService.createBlog(blogData);
         setSuccess('Blog created successfully!');
       }
 
@@ -111,10 +111,10 @@ const BlogManagement = () => {
   const handlePublishToggle = async (blog) => {
     try {
       if (blog.published) {
-        await firebaseDataService.unpublishBlog(blog.id);
+        await dataService.unpublishBlog(blog.id);
         setSuccess('Blog unpublished successfully!');
       } else {
-        await firebaseDataService.publishBlog(blog.id);
+        await dataService.publishBlog(blog.id);
         setSuccess('Blog published successfully!');
       }
       loadBlogs();
@@ -126,7 +126,7 @@ const BlogManagement = () => {
   const handleDeleteBlog = async (blog) => {
     if (window.confirm('Are you sure you want to delete this blog? This action cannot be undone.')) {
       try {
-        await firebaseDataService.deleteBlog(blog.id);
+        await dataService.deleteBlog(blog.id);
         setSuccess('Blog deleted successfully!');
         loadBlogs();
       } catch (err) {
@@ -137,7 +137,7 @@ const BlogManagement = () => {
 
   const formatDate = (timestamp) => {
     if (!timestamp) return 'N/A';
-    const date = firebaseDataService.safeToDate(timestamp);
+    const date = dataService.safeToDate(timestamp);
     return date ? date.toLocaleDateString('en-US', { 
       year: 'numeric', 
       month: 'short', 

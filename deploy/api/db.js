@@ -7,8 +7,13 @@ const pool = new Pool({
 
 const q = (text, params) => pool.query(text, params);
 
-// Reconstruct a Firestore-style doc: { id, ...data }
-const toDoc = (row) => row ? { id: row.id, ...row.data } : null;
+// Reconstruct a document: { id, ...data }
+// Never leak credential fields to API responses.
+const toDoc = (row) => {
+  if (!row) return null;
+  const { password, passwordHash, ...safe } = row.data || {};
+  return { id: row.id, ...safe };
+};
 const toDocs = (rows) => rows.map(toDoc);
 
 // Sort newest-first by a timestamp-ish field inside data (mirrors the old JS-side sorting)

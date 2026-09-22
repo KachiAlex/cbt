@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import firebaseDataService from '../firebase/dataService';
+import dataService from '../services/dataService';
 
 const defaultFormState = {
   name: '',
@@ -24,7 +24,7 @@ const DepartmentsManagement = ({ institution, onChange }) => {
     try {
       setLoading(true);
       setError('');
-      const data = await firebaseDataService.getInstitutionDepartments(institution.id);
+      const data = await dataService.getInstitutionDepartments(institution.id);
       setDepartments(data || []);
     } catch (err) {
       console.error('Error loading departments:', err);
@@ -94,9 +94,9 @@ const DepartmentsManagement = ({ institution, onChange }) => {
       setLoading(true);
       setError('');
       if (editingDepartment) {
-        await firebaseDataService.updateInstitutionDepartment(institution.id, editingDepartment.id, payload);
+        await dataService.updateInstitutionDepartment(institution.id, editingDepartment.id, payload);
       } else {
-        await firebaseDataService.createInstitutionDepartment(institution.id, payload);
+        await dataService.createInstitutionDepartment(institution.id, payload);
       }
       setShowForm(false);
       resetForm();
@@ -119,7 +119,7 @@ const DepartmentsManagement = ({ institution, onChange }) => {
 
     try {
       setLoading(true);
-      await firebaseDataService.deleteInstitutionDepartment(institution.id, department.id);
+      await dataService.deleteInstitutionDepartment(institution.id, department.id);
       await loadDepartments();
       if (typeof onChange === 'function') {
         onChange();
@@ -136,7 +136,7 @@ const DepartmentsManagement = ({ institution, onChange }) => {
     if (!hasInstitution) return;
     try {
       setLoading(true);
-      await firebaseDataService.updateInstitutionDepartment(institution.id, department.id, {
+      await dataService.updateInstitutionDepartment(institution.id, department.id, {
         isActive: !department.isActive,
       });
       await loadDepartments();

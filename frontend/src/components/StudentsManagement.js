@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import firebaseDataService from '../firebase/dataService';
+import dataService from '../services/dataService';
 
 const StudentsManagement = ({ institution, onStatsUpdate }) => {
   const [students, setStudents] = useState([]);
@@ -41,9 +41,9 @@ const StudentsManagement = ({ institution, onStatsUpdate }) => {
       console.log('🔍 StudentsManagement: Loading students for institution:', institution.id);
       
       // Debug: Get all users to see what's in the database
-      await firebaseDataService.getAllUsers();
+      await dataService.getAllUsers();
       
-      const studentsData = await firebaseDataService.getInstitutionUsers(institution.id);
+      const studentsData = await dataService.getInstitutionUsers(institution.id);
       console.log('🔍 StudentsManagement: Loaded students:', studentsData);
       setStudents(studentsData);
     } catch (error) {
@@ -57,7 +57,7 @@ const StudentsManagement = ({ institution, onStatsUpdate }) => {
     if (!institution?.id) return;
     try {
       setDepartmentsLoading(true);
-      const departmentData = await firebaseDataService.getInstitutionDepartments(institution.id);
+      const departmentData = await dataService.getInstitutionDepartments(institution.id);
       setDepartments(departmentData || []);
     } catch (error) {
       console.error('Error loading departments:', error);
@@ -137,9 +137,9 @@ const StudentsManagement = ({ institution, onStatsUpdate }) => {
       }
 
       if (editingStudent) {
-        await firebaseDataService.updateUser(editingStudent.id, studentData);
+        await dataService.updateUser(editingStudent.id, studentData);
       } else {
-        await firebaseDataService.createUser(studentData);
+        await dataService.createUser(studentData);
       }
 
       await loadStudents();
@@ -176,7 +176,7 @@ const StudentsManagement = ({ institution, onStatsUpdate }) => {
   const handleDelete = async (studentId) => {
     if (window.confirm('Are you sure you want to delete this student?')) {
       try {
-        await firebaseDataService.deleteUser(studentId);
+        await dataService.deleteUser(studentId);
         await loadStudents();
         onStatsUpdate();
       } catch (error) {
@@ -199,7 +199,7 @@ const StudentsManagement = ({ institution, onStatsUpdate }) => {
     try {
       setLoading(true);
       const deletePromises = selectedStudents.map(studentId => 
-        firebaseDataService.deleteUser(studentId)
+        dataService.deleteUser(studentId)
       );
       await Promise.all(deletePromises);
       
@@ -217,7 +217,7 @@ const StudentsManagement = ({ institution, onStatsUpdate }) => {
 
   const handleSuspend = async (student) => {
     try {
-      await firebaseDataService.updateUser(student.id, {
+      await dataService.updateUser(student.id, {
         ...student,
         isActive: !student.isActive
       });
@@ -469,7 +469,7 @@ const StudentsManagement = ({ institution, onStatsUpdate }) => {
                       <div className="text-sm font-medium text-gray-900">{student.fullName}</div>
                       <div className="text-sm text-gray-500">{student.email}</div>
                       <div className="text-xs text-gray-400">Username: {student.username}</div>
-                      <div className="text-xs text-gray-400">Firebase ID: {student.id}</div>
+                      <div className="text-xs text-gray-400">the API ID: {student.id}</div>
                     </div>
                   </div>
                 </td>

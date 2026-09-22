@@ -5,7 +5,7 @@ import StudentsManagement from './StudentsManagement';
 import ResultsManagement from './ResultsManagement';
 import SettingsManagement from './SettingsManagement';
 import DepartmentsManagement from './DepartmentsManagement';
-import firebaseDataService from '../firebase/dataService';
+import dataService from '../services/dataService';
 
 const CBTAdminDashboard = ({ institution, user, onLogout }) => {
   const [activeTab, setActiveTab] = useState('exams');
@@ -42,10 +42,10 @@ const CBTAdminDashboard = ({ institution, user, onLogout }) => {
     try {
       setLoading(true);
       const [exams, questions, students, results] = await Promise.all([
-        firebaseDataService.getInstitutionExams(institution.id),
-        firebaseDataService.getInstitutionQuestions(institution.id),
-        firebaseDataService.getInstitutionUsers(institution.id),
-        firebaseDataService.getInstitutionResults(institution.id)
+        dataService.getInstitutionExams(institution.id),
+        dataService.getInstitutionQuestions(institution.id),
+        dataService.getInstitutionUsers(institution.id),
+        dataService.getInstitutionResults(institution.id)
       ]);
 
       // Store raw data for search and analytics

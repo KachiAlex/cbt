@@ -1,5 +1,5 @@
 -- CBT Platform Postgres schema
--- JSONB `data` column preserves the full Firestore document shape exactly.
+-- JSONB `data` column preserves documents as JSONB exactly.
 -- Indexed columns exist for the fields the API actually filters on.
 
 CREATE TABLE IF NOT EXISTS institutions (
