@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Grid Layout Test</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-50 p-8">
+    <h1 class="text-2xl font-bold mb-6">Grid Layout Test</h1>
+    
+    <!-- Test the exact grid layout from MultiTenantAdmin -->
+    <div class="bg-white border border-gray-200 rounded-xl p-6 shadow-sm">
+        <h3 class="text-xl font-semibold text-gray-800 mb-4">Test Institution</h3>
+        
+        <!-- This should be the new grid layout -->
+        <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6 mb-6">
+            <div class="bg-gray-50 p-4 rounded-lg">
+                <div class="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">Slug</div>
+                <div class="text-sm font-mono text-gray-900 bg-white px-2 py-1 rounded border">test-institution</div>
+            </div>
+            
+            <div class="bg-gray-50 p-4 rounded-lg">
+                <div class="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">Plan</div>
+                <div class="inline-flex px-3 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">Basic</div>
+            </div>
+            
+            <div class="bg-gray-50 p-4 rounded-lg">
+                <div class="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">Status</div>
+                <div class="inline-flex px-3 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">Active</div>
+            </div>
+            
+            <div class="bg-gray-50 p-4 rounded-lg">
+                <div class="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">Admin</div>
+                <div class="text-sm font-medium text-gray-900">Test Admin</div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="mt-8">
+        <h2 class="text-lg font-semibold mb-4">Expected vs Current:</h2>
+        <ul class="list-disc list-inside space-y-2 text-gray-700">
+            <li>✅ Should show 4 columns on large screens</li>
+            <li>✅ Should show 3 columns on medium screens</li>
+            <li>✅ Should show 2 columns on small screens</li>
+            <li>✅ Each info block should be in a gray box with proper spacing</li>
+            <li>❌ Currently showing: vertical stack of labels and values</li>
+        </ul>
+    </div>
+</body>
+</html>

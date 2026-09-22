@@ -1,0 +1,40 @@
+# Node & build
+node_modules/
+build/
+frontend/build/
+backend/node_modules/
+frontend/node_modules/
+
+# Local env
+.env
+backend/.env
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Firebase cache
+.firebase/
+
+# Restore points and backups
+backend/backups/restore-points/
+backend/backups/**/*.zip
+
+# IDE
+.vscode/
+.idea/
+# Migrated data export (contains user records)
+deploy/api/firestore-export.json
+
+# Data dumps / backups (contain user records)
+backend/*.json.backup
+backend/CBT_Data_Backup_*.json
+backend/cloud-import-*.json
+backend/backups/
+backend/extracted_data/
