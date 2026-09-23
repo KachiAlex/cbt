@@ -1,5 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { dataService } from '../services/dataService';
+import { formatResultDate } from '../utils/resultDate';
 
 const StudentPortal = ({ user, onLogout, onStartExam }) => {
   const [availableExams, setAvailableExams] = useState([]);
@@ -46,13 +47,8 @@ const StudentPortal = ({ user, onLogout, onStartExam }) => {
     }
   };
 
-  const hasTakenExam = (examId) => {
-    return userResults.some(result => result.examId === examId);
-  };
-
-  const getExamResult = (examId) => {
-    return userResults.find(result => result.examId === examId);
-  };
+  const resultsByExam = useMemo(() => new Map(userResults.map(result => [result.examId, result])), [userResults]);
+  const hasTakenExam = (examId) => resultsByExam.has(examId);
 
   if (loading) {
     return (
@@ -97,7 +93,6 @@ const StudentPortal = ({ user, onLogout, onStartExam }) => {
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {availableExams.map((exam) => {
                   const hasTaken = hasTakenExam(exam.id);
-                  const result = getExamResult(exam.id);
                   
                   return (
                     <div key={exam.id} className="border border-gray-200 rounded-lg p-6">
@@ -200,7 +195,7 @@ const StudentPortal = ({ user, onLogout, onStartExam }) => {
                           Completed - awaiting official result
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                          {new Date(result.submittedAt).toLocaleDateString()}
+                          {formatResultDate(result)}
                         </td>
                       </tr>
                     ))}

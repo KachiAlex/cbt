@@ -92,4 +92,7 @@ CREATE INDEX IF NOT EXISTS idx_questions_exam   ON questions(exam_id);
 CREATE INDEX IF NOT EXISTS idx_results_inst     ON results(institution_id);
 CREATE INDEX IF NOT EXISTS idx_results_exam     ON results(exam_id);
 CREATE INDEX IF NOT EXISTS idx_results_user     ON results(user_id);
+CREATE INDEX IF NOT EXISTS idx_results_inst_created ON results(institution_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_results_exam_created ON results(exam_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_results_user_exam ON results(user_id, exam_id);
 CREATE INDEX IF NOT EXISTS idx_blogs_published  ON blogs(published);

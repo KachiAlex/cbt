@@ -1,5 +1,6 @@
 import * as ExcelJS from 'exceljs';
 import { saveAs } from 'file-saver';
+import { formatResultDate } from '../utils/resultDate';
 import { Document, Packer, Paragraph, TextRun, Table, TableRow, TableCell, HeadingLevel } from 'docx';
 
 class ExportService {
@@ -78,7 +79,7 @@ class ExportService {
       percent: result.percent,
       grade: this.calculateGrade(result.percent),
       timeTaken: result.timeTaken ? Math.round(result.timeTaken / 60) : 'N/A',
-      submittedAt: new Date(result.submittedAt).toLocaleString(),
+      submittedAt: formatResultDate(result, true),
       institution: result.institution || result.tenant || 'Unknown',
       answers: result.answers ? result.answers.join(', ') : 'N/A'
     })));
@@ -269,7 +270,7 @@ class ExportService {
           `${result.percent}%`,
           this.calculateGrade(result.percent),
           result.timeTaken ? Math.round(result.timeTaken / 60).toString() : 'N/A',
-          new Date(result.submittedAt).toLocaleDateString()
+          formatResultDate(result)
         ].map(cell => 
           new TableCell({ 
             children: [new Paragraph(cell.toString())] 
@@ -301,7 +302,7 @@ class ExportService {
         result.percent,
         this.calculateGrade(result.percent),
         result.timeTaken ? Math.round(result.timeTaken / 60) : 'N/A',
-        `"${new Date(result.submittedAt).toLocaleString()}"`,
+        `"${formatResultDate(result, true)}"`,
         `"${result.institution || result.tenant || 'Unknown'}"`,
         `"${result.answers ? result.answers.join(', ') : 'N/A'}"`
       ].join(','))

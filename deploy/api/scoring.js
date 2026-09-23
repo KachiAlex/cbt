@@ -59,6 +59,7 @@ function overlapScore(answerTokens, modelTokens) {
 
 function scoreEssayAnswer(answerText, rubricKeywords, minWords, modelAnswer) {
   const tokens = tokenize(answerText);
+  if (!tokens.length) return { percent: 0, confidence: 0 };
   const modelTokens = tokenize(modelAnswer || '');
   const kw = keywordScore(tokens, rubricKeywords);
   const len = lengthScore(tokens.length, Number(minWords) || 0);

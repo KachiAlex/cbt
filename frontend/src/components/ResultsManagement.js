@@ -1,5 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import dataService from '../services/dataService';
+import { formatResultDate } from '../utils/resultDate';
 
 const ResultsManagement = ({ institution, onStatsUpdate }) => {
   const [results, setResults] = useState([]);
@@ -33,33 +34,6 @@ const ResultsManagement = ({ institution, onStatsUpdate }) => {
         dataService.getInstitutionUsers(institution.id)
       ]);
       
-      console.log('🔍 ResultsManagement: Loaded results:', resultsData);
-      console.log('🔍 ResultsManagement: Loaded students:', studentsData);
-      
-      // Log detailed results structure
-      resultsData.forEach((result, index) => {
-        console.log(`🔍 Result ${index}:`, {
-          id: result.id,
-          studentId: result.studentId,
-          userId: result.userId,
-          studentName: result.studentName,
-          examId: result.examId,
-          examTitle: result.examTitle
-        });
-      });
-      
-      // Log detailed students structure
-      studentsData.forEach((student, index) => {
-        console.log(`🔍 Student ${index}:`, {
-          id: student.id,
-          studentId: student.studentId,
-          userId: student.userId,
-          username: student.username,
-          fullName: student.fullName,
-          email: student.email
-        });
-      });
-      
       setResults(resultsData);
       setExams(examsData);
       setStudents(studentsData);
@@ -70,47 +44,52 @@ const ResultsManagement = ({ institution, onStatsUpdate }) => {
     }
   };
 
-  // Get unique departments and levels from students
-  const uniqueDepartments = [...new Set(students.map(s => s.department).filter(Boolean))].sort();
+  const studentsByIdentifier = useMemo(() => {
+    const byIdentifier = new Map();
+    students.forEach(student => {
+      [student.id, student.userId, student.username, student.studentId, student.email, student.fullName]
+        .filter(Boolean)
+        .forEach(value => {
+          const key = String(value).toLowerCase();
+          if (!byIdentifier.has(key)) byIdentifier.set(key, student);
+        });
+    });
+    return byIdentifier;
+  }, [students]);
+  const examsById = useMemo(() => new Map(exams.map(exam => [exam.id, exam])), [exams]);
+  const uniqueDepartments = useMemo(
+    () => [...new Set(students.map(student => student.department).filter(Boolean))].sort(),
+    [students]
+  );
 
-  const filteredResults = results.filter(result => {
+  const filteredResults = useMemo(() => results.filter(result => {
     const examMatch = !selectedExam || result.examId === selectedExam;
-    
-    // Enhanced student matching - try multiple ID fields
-    const studentMatch = !selectedStudent || 
-      result.studentId === selectedStudent ||
-      result.userId === selectedStudent ||
-      result.studentName === selectedStudent;
-    
-    // Find the student for this result to filter by department/level
-    const student = students.find(s =>
-      s.id === result.studentId ||
-      s.userId === result.studentId ||
-      s.username === result.studentId ||
-      s.studentId === result.studentId
-    );
-    
-    // Filter by department
-    if (filters.department && (!student || student.department !== filters.department)) {
-      return false;
-    }
-    
-    // Filter by level
-    if (filters.level && (!student || student.level !== filters.level)) {
-      return false;
-    }
-    
-    // Filter by student ID (partial match)
+    const studentMatch = !selectedStudent || result.studentId === selectedStudent ||
+      result.userId === selectedStudent || result.studentName === selectedStudent;
+    const student = [result.userId, result.studentId, result.username, result.studentName]
+      .map(value => value && studentsByIdentifier.get(String(value).toLowerCase()))
+      .find(Boolean);
+
+    if (filters.department && student?.department !== filters.department) return false;
+    if (filters.level && student?.level !== filters.level) return false;
     if (filters.studentId) {
-      const studentIdMatch = student?.studentId?.toLowerCase().includes(filters.studentId.toLowerCase());
-      const resultIdMatch = result.studentId?.toLowerCase().includes(filters.studentId.toLowerCase());
-      if (!studentIdMatch && !resultIdMatch) {
-        return false;
-      }
+      const needle = filters.studentId.toLowerCase();
+      const studentIdMatch = String(student?.studentId || '').toLowerCase().includes(needle);
+      const resultIdMatch = String(result.studentId || '').toLowerCase().includes(needle);
+      if (!studentIdMatch && !resultIdMatch) return false;
     }
-    
     return examMatch && studentMatch;
-  });
+  }), [results, selectedExam, selectedStudent, filters, studentsByIdentifier]);
+
+  const findStudentForResult = (result) => [result?.userId, result?.studentId, result?.username, result?.studentName]
+    .map(value => value && studentsByIdentifier.get(String(value).toLowerCase()))
+    .find(Boolean);
+  const getStudentName = (result) => {
+    const student = findStudentForResult(result);
+    return student?.fullName || student?.username || result?.studentName || `Unknown Student (ID: ${result?.studentId || result?.userId || 'N/A'})`;
+  };
+  const getStudentUsername = (result) => findStudentForResult(result)?.username || result?.studentName || 'Unknown';
+  const getExamTitle = (examId) => examsById.get(examId)?.title || 'Unknown Exam';
 
   const getGradeColor = (percentage) => {
     if (percentage >= 70) return 'text-green-600';
@@ -141,78 +120,13 @@ const ResultsManagement = ({ institution, onStatsUpdate }) => {
     );
   };
 
-    const getStudentName = (studentId) => {
-      console.log('🔍 Looking for student with ID:', studentId);
-      console.log('🔍 Available students:', students.map(s => ({
-        id: s.id,
-        fullName: s.fullName,
-        username: s.username,
-        studentId: s.studentId,
-        userId: s.userId
-      })));
 
-      // Get the result that contains this studentId to access studentName
-      const result = results.find(r => r.studentId === studentId);
-      const resultStudentName = result?.studentName;
-
-      // Try multiple matching strategies
-      let student = students.find(s =>
-        s.id === studentId ||
-        s.userId === studentId ||
-        s.username === studentId ||
-        s.studentId === studentId
-      );
-
-      // If no direct match, try matching by studentName from results
-      if (!student && resultStudentName) {
-        console.log('🔍 No direct ID match, trying to find by result data...');
-        console.log('🔍 Looking for student with name:', resultStudentName);
-        
-        // Try matching by fullName, username, or email (case insensitive)
-          student = students.find(s => 
-          (s.fullName && s.fullName.toLowerCase() === resultStudentName.toLowerCase()) ||
-          (s.username && s.username.toLowerCase() === resultStudentName.toLowerCase()) ||
-          (s.email && s.email.toLowerCase() === resultStudentName.toLowerCase())
-        );
-      }
-
-      // If still no match, try partial matching for email-like names
-      if (!student && resultStudentName && resultStudentName.includes('@')) {
-        console.log('🔍 Trying email-based partial matching...');
-        const emailPrefix = resultStudentName.split('@')[0];
-        student = students.find(s => 
-          (s.username && s.username.toLowerCase().includes(emailPrefix.toLowerCase())) ||
-          (s.fullName && s.fullName.toLowerCase().includes(emailPrefix.toLowerCase()))
-        );
-      }
-
-      if (student) {
-        console.log('✅ Found student:', student);
-        return student.fullName || student.username || 'Unknown Name';
-      } else {
-        console.log('❌ Student not found for ID:', studentId);
-        // Return the studentName from result if available, otherwise fallback
-        return resultStudentName || `Unknown Student (ID: ${studentId})`;
-      }
-    };
-
-  const getExamTitle = (examId) => {
-    const exam = exams.find(e => e.id === examId);
-    return exam ? exam.title : 'Unknown Exam';
-  };
 
   const getPercent = (r) => {
     // Debug logging for problematic calculations
-    if (r.score && r.totalQuestions && r.score > r.totalQuestions) {
-      console.warn('🚨 Potential percentage calculation issue:', {
-        score: r.score,
-        totalQuestions: r.totalQuestions,
-        percentage: r.percentage,
-        correctAnswers: r.correctAnswers,
-        resultId: r.id
-      });
+    if (r.percentage !== undefined && (!Number.isFinite(Number(r.percentage)) || Number(r.percentage) < 0 || Number(r.percentage) > 100)) {
+      console.warn('Invalid result percentage:', r.id);
     }
-    
     // Prioritize percentage field if available and valid (0-100)
     if (typeof r.percentage === 'number' && r.percentage >= 0 && r.percentage <= 100) {
       return r.percentage;
@@ -244,6 +158,7 @@ const ResultsManagement = ({ institution, onStatsUpdate }) => {
 
   const getScoreFormat = (result) => {
     const percentage = getPercent(result);
+    if (result.maxScore === null) return percentage !== null ? `${percentage}%` : '-';
     
     // Determine the correct score (number of correct answers)
     let correctScore = 0;
@@ -331,10 +246,9 @@ const ResultsManagement = ({ institution, onStatsUpdate }) => {
     
     try {
       setLoading(true);
-      const deletePromises = selectedResults.map(resultId => 
-        dataService.deleteResult(resultId)
-      );
-      await Promise.all(deletePromises);
+      for (let i = 0; i < selectedResults.length; i += 500) {
+        await dataService.deleteResults(selectedResults.slice(i, i + 500));
+      }
       
       setSelectedResults([]);
       setShowDeleteConfirm(false);
@@ -361,6 +275,7 @@ const ResultsManagement = ({ institution, onStatsUpdate }) => {
   };
 
   const exportResults = () => {
+    const csvCell = value => `"${String(value ?? '').replace(/"/g, '""')}"`;
     const csvContent = [
       ['Student Name', 'Exam', 'Score', 'Percentage', 'Grade', 'Status', 'Date'],
       ...filteredResults.map(result => {
@@ -368,16 +283,16 @@ const ResultsManagement = ({ institution, onStatsUpdate }) => {
         const scoreFormat = getScoreFormat(result);
         
         return [
-          getStudentName(result.studentId),
+          getStudentName(result),
           getExamTitle(result.examId),
           scoreFormat,
           percentage !== null ? `${percentage}%` : '-',
           percentage !== null ? getGradeLabel(percentage) : '-',
           result.status,
-          new Date(result.completedAt).toLocaleDateString()
+          formatResultDate(result)
         ];
       })
-    ].map(row => row.join(',')).join('\n');
+    ].map(row => row.map(csvCell).join(',')).join('\n');
 
     const blob = new Blob([csvContent], { type: 'text/csv' });
     const url = window.URL.createObjectURL(blob);
@@ -388,21 +303,20 @@ const ResultsManagement = ({ institution, onStatsUpdate }) => {
     window.URL.revokeObjectURL(url);
   };
 
-  const getAnalytics = () => {
-    const total = filteredResults.length;
-    const passed = filteredResults.filter(r => r.percentage >= 50).length;
-    const average = total > 0 ? filteredResults.reduce((sum, r) => sum + r.percentage, 0) / total : 0;
-    
-    return { total, passed, average: Math.round(average * 100) / 100 };
-  };
-
-  const analytics = getAnalytics();
+  const analytics = useMemo(() => {
+    const percentages = filteredResults.map(getPercent).filter(value => value !== null);
+    const passed = percentages.filter(value => value >= 50).length;
+    const average = percentages.length
+      ? percentages.reduce((sum, value) => sum + value, 0) / percentages.length
+      : 0;
+    return { total: filteredResults.length, passed, average: Math.round(average * 100) / 100 };
+  }, [filteredResults]);
 
   // Ensure we load full result details if needed before showing modal
   const openDetails = async (result) => {
     try {
       // If result already appears detailed, just show it
-      if (result && (result.answers || result.totalQuestions || result.percentage !== undefined)) {
+      if (result && result.answers !== undefined) {
         setShowDetails(result);
         return;
       }
@@ -447,6 +361,7 @@ const ResultsManagement = ({ institution, onStatsUpdate }) => {
     }
     return [];
   };
+  const detailAnswers = useMemo(() => normalizeAnswers(showDetails?.answers), [showDetails]);
 
   return (
     <div>
@@ -683,49 +598,14 @@ const ResultsManagement = ({ institution, onStatsUpdate }) => {
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap">
                   <div className="text-sm font-medium text-gray-900">
-                    {getStudentName(result.studentId)}
+                    {getStudentName(result)}
                   </div>
                   <div className="text-xs text-gray-500">
                     ID: {result.studentId || result.userId || 'N/A'}
                   </div>
-                  {(() => {
-                    // Use the same matching logic as getStudentName
-                    const resultStudentName = result.studentName;
-                    let student = students.find(s =>
-                      s.id === result.studentId ||
-                      s.userId === result.studentId ||
-                      s.username === result.studentId ||
-                      s.studentId === result.studentId
-                    );
-
-                    // If no direct match, try matching by studentName
-                    if (!student && resultStudentName) {
-                        student = students.find(s => 
-                        (s.fullName && s.fullName.toLowerCase() === resultStudentName.toLowerCase()) ||
-                        (s.username && s.username.toLowerCase() === resultStudentName.toLowerCase()) ||
-                        (s.email && s.email.toLowerCase() === resultStudentName.toLowerCase())
-                      );
-                    }
-
-                    // If still no match, try partial matching for email-like names
-                    if (!student && resultStudentName && resultStudentName.includes('@')) {
-                      const emailPrefix = resultStudentName.split('@')[0];
-                      student = students.find(s => 
-                        (s.username && s.username.toLowerCase().includes(emailPrefix.toLowerCase())) ||
-                        (s.fullName && s.fullName.toLowerCase().includes(emailPrefix.toLowerCase()))
-                      );
-                    }
-
-                    return student ? (
-                      <div className="text-xs text-gray-500">
-                        Username: {student.username}
-                      </div>
-                    ) : (
-                      <div className="text-xs text-gray-500">
-                        {resultStudentName || 'Unknown'}
-                      </div>
-                    );
-                  })()}
+                  <div className="text-xs text-gray-500">
+                    {getStudentUsername(result)}
+                  </div>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap">
                   <div className="text-sm text-gray-900">
@@ -749,7 +629,7 @@ const ResultsManagement = ({ institution, onStatsUpdate }) => {
                   {getStatusBadge(result.status)}
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                  {new Date(result.completedAt).toLocaleDateString()}
+                  {formatResultDate(result)}
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                   <button
@@ -797,7 +677,7 @@ const ResultsManagement = ({ institution, onStatsUpdate }) => {
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700">Student</label>
-                    <p className="text-sm text-gray-900">{getStudentName(showDetails.studentId)}</p>
+                    <p className="text-sm text-gray-900">{getStudentName(showDetails)}</p>
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700">Exam</label>
@@ -834,7 +714,7 @@ const ResultsManagement = ({ institution, onStatsUpdate }) => {
                   <div>
                     <label className="block text-sm font-medium text-gray-700">Completed At</label>
                     <p className="text-sm text-gray-900">
-                      {new Date(showDetails.completedAt).toLocaleString()}
+                      {formatResultDate(showDetails, true)}
                     </p>
                   </div>
                 </div>
@@ -849,11 +729,11 @@ const ResultsManagement = ({ institution, onStatsUpdate }) => {
                   </div>
                 )}
 
-                {normalizeAnswers(showDetails.answers).length > 0 && (
+                {detailAnswers.length > 0 && (
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">Answers</label>
                     <div className="space-y-2 max-h-60 overflow-y-auto">
-                      {normalizeAnswers(showDetails.answers).map((answer, index) => (
+                      {detailAnswers.map((answer, index) => (
                         <div key={index} className="p-3 border rounded-md">
                           <div className="text-sm font-medium text-gray-900">
                             Question {index + 1}

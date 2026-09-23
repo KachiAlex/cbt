@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import dataService from '../services/dataService';
 
 const ExamInterface = ({ user, exam: propExam, onComplete }) => {
@@ -9,6 +9,9 @@ const ExamInterface = ({ user, exam: propExam, onComplete }) => {
   const [timeLeft, setTimeLeft] = useState(0);
   const [examStarted, setExamStarted] = useState(false);
   const [examCompleted, setExamCompleted] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState('');
+  const submissionInFlight = useRef(false);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -75,7 +78,6 @@ const ExamInterface = ({ user, exam: propExam, onComplete }) => {
         // If question set has changed, regenerate randomization
         if (currentQuestionIds.size !== savedQuestionIds.size || 
             ![...currentQuestionIds].every(id => savedQuestionIds.has(id))) {
-          console.log('🔍 Question set changed, regenerating randomization');
           localStorage.removeItem(persistKey);
           return applyRandomization(loadedQuestions);
         }
@@ -132,7 +134,6 @@ const ExamInterface = ({ user, exam: propExam, onComplete }) => {
         timestamp: Date.now() // Add timestamp for debugging
       };
       localStorage.setItem(persistKey, JSON.stringify(saved));
-      console.log('🔍 Saved randomization:', saved);
     } catch (error) {
       console.warn('🔍 Failed to persist randomization:', error);
     }
@@ -168,8 +169,6 @@ const ExamInterface = ({ user, exam: propExam, onComplete }) => {
     
     try {
       const examQuestions = await dataService.getQuestions(exam.id);
-      console.log('🔍 Loaded questions from the API:', examQuestions);
-      console.log('🔍 First question structure:', examQuestions[0]);
       const randomized = applyRandomization(examQuestions || []);
       setQuestions(randomized);
       setLoading(false);
@@ -184,14 +183,12 @@ const ExamInterface = ({ user, exam: propExam, onComplete }) => {
   };
 
   const handleAnswerChange = (questionId, answer) => {
-    console.log('🔍 Answer changed:', { questionId, answer, currentQuestion: currentQuestion.id });
     
     setAnswers(prev => {
       const newAnswers = {
         ...prev,
         [questionId]: answer
       };
-      console.log('🔍 Updated answers:', newAnswers);
       return newAnswers;
     });
   };
@@ -200,7 +197,6 @@ const ExamInterface = ({ user, exam: propExam, onComplete }) => {
     if (currentQuestionIndex < questions.length - 1) {
       setCurrentQuestionIndex(prev => {
         const newIndex = prev + 1;
-        console.log('🔍 Moving to next question:', { from: prev, to: newIndex, questionId: questions[newIndex]?.id });
         return newIndex;
       });
     }
@@ -210,46 +206,30 @@ const ExamInterface = ({ user, exam: propExam, onComplete }) => {
     if (currentQuestionIndex > 0) {
       setCurrentQuestionIndex(prev => {
         const newIndex = prev - 1;
-        console.log('🔍 Moving to previous question:', { from: prev, to: newIndex, questionId: questions[newIndex]?.id });
         return newIndex;
       });
     }
   };
 
   const handleSubmitExam = async () => {
+    if (submissionInFlight.current || examCompleted) return;
+    submissionInFlight.current = true;
+    setSubmitting(true);
+    setSubmitError('');
+
     try {
-      setExamCompleted(true);
-      // Clear persisted order for a fresh start on next attempt
-      try { localStorage.removeItem(getPersistKey()); } catch (_) {}
-      
-      // Server scores the exam — client submits answers only
-      const result = {
+      await dataService.createResult({
         examId: exam.id,
-        examTitle: exam.title,
-        userId: user.id,
-        studentId: user.id, // Add studentId for admin panel compatibility
-        studentName: user.fullName || user.username,
-        institutionId: user.institutionId || tenant?.id, // Add institutionId for admin panel
-        departmentId: user.departmentId || '',
-        department: user.department || '',
-        departmentCode: user.departmentCode || null,
-        level: user.level || '',
-        answers: answers,
-        totalQuestions: questions.length,
-        timeSpent: Math.round(((exam.duration * 60) - timeLeft) / 60), // Convert to minutes
-        submittedAt: new Date().toISOString()
-      };
-
-      await dataService.createResult(result);
-
-      console.log('✅ Exam result submitted:', {
-        examId: result.examId,
-        studentId: result.studentId,
-        totalQuestions: result.totalQuestions
+        answers,
+        timeSpent: Math.round(((exam.duration * 60) - timeLeft) / 60)
       });
-      
+      try { localStorage.removeItem(getPersistKey()); } catch (_) {}
+      setExamCompleted(true);
     } catch (error) {
-      console.error('Error submitting exam:', error);
+      submissionInFlight.current = false;
+      setSubmitError(error.message || 'Unable to submit your exam. Please try again.');
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -374,10 +354,6 @@ const ExamInterface = ({ user, exam: propExam, onComplete }) => {
   const currentQuestion = questions[currentQuestionIndex];
   const progress = ((currentQuestionIndex + 1) / questions.length) * 100;
   
-  console.log('🔍 Current question:', currentQuestion);
-  console.log('🔍 Current question options:', currentQuestion?.options);
-  console.log('🔍 Current answers:', answers);
-  console.log('🔍 Current question answer:', currentQuestion?.id ? answers[currentQuestion.id] : 'No answer');
   
   // Safety check - ensure current question exists
   if (!currentQuestion) {
@@ -484,12 +460,13 @@ const ExamInterface = ({ user, exam: propExam, onComplete }) => {
               ))}
             </div>
             
-            {currentQuestionIndex === questions.length - 1 ? (
+            {currentQuestionIndex === questions.length - 1 || timeLeft === 0 ? (
               <button
                 onClick={handleSubmitExam}
-                className="w-full sm:w-auto px-6 py-3 bg-green-600 text-white rounded-md hover:bg-green-700 font-medium"
+                disabled={submitting}
+                className="w-full sm:w-auto px-6 py-3 bg-green-600 text-white rounded-md hover:bg-green-700 disabled:opacity-60 font-medium"
               >
-                Submit Exam
+                {submitting ? 'Submitting...' : 'Submit Exam'}
               </button>
             ) : (
               <button
@@ -499,6 +476,7 @@ const ExamInterface = ({ user, exam: propExam, onComplete }) => {
                 Next
               </button>
             )}
+            {submitError && <p role="alert" className="mt-3 text-sm text-red-600">{submitError}</p>}
           </div>
         </div>
       </div>

@@ -149,6 +149,7 @@ class PgDataService {
   async updateResult(id, data) { await patch(`/results/${id}`, data); return true; }
   async updateExamResult(id, data) { await patch(`/results/${id}`, data); return true; }
   async deleteResult(id) { await del(`/results/${id}`); return true; }
+  async deleteResults(ids) { return request('/results/bulk', { method: 'DELETE', body: JSON.stringify({ ids }) }); }
 
   // ---- blogs ----
   getBlogs() { return get('/blogs'); }

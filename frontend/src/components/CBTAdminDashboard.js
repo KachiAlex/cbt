@@ -6,6 +6,7 @@ import ResultsManagement from './ResultsManagement';
 import SettingsManagement from './SettingsManagement';
 import DepartmentsManagement from './DepartmentsManagement';
 import dataService from '../services/dataService';
+import { formatResultDate } from '../utils/resultDate';
 
 const CBTAdminDashboard = ({ institution, user, onLogout }) => {
   const [activeTab, setActiveTab] = useState('exams');
@@ -141,7 +142,7 @@ const CBTAdminDashboard = ({ institution, user, onLogout }) => {
             'Exam': item.examTitle,
             'Score': item.percentage,
             'Status': item.status,
-            'Date': new Date(item.completedAt).toLocaleDateString()
+            'Date': formatResultDate(item)
           };
         case 'students':
           return {

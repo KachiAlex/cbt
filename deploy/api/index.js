@@ -17,6 +17,33 @@ app.use(express.json({ limit: '10mb' }));
 const newId = () => crypto.randomUUID();
 const newStudentId = () => `STU-${newId().toUpperCase()}`;
 const now = () => new Date().toISOString();
+const parseStoredDate = (value) => {
+  if (value == null || value === '') return null;
+  if (value instanceof Date) return Number.isFinite(value.getTime()) ? value : null;
+  if (typeof value === 'number' || typeof value === 'string') {
+    const numeric = typeof value === 'number' ? value : /^\d{9,13}$/.test(value) ? Number(value) : null;
+    const date = numeric === null ? new Date(value) : new Date(numeric < 1e11 ? numeric * 1000 : numeric);
+    return Number.isFinite(date.getTime()) ? date : null;
+  }
+  if (typeof value === 'object') {
+    const seconds = Number(value.seconds ?? value._seconds);
+    const nanoseconds = Number(value.nanoseconds ?? value._nanoseconds ?? 0);
+    if (Number.isFinite(seconds) && Number.isFinite(nanoseconds)) {
+      const date = new Date(seconds * 1000 + nanoseconds / 1e6);
+      return Number.isFinite(date.getTime()) ? date : null;
+    }
+  }
+  return null;
+};
+const toResultDoc = (row, includeAnswers = true) => {
+  const data = toDoc(row);
+  const completedAt = [data.completedAt, data.submittedAt, data.createdAt, data.date, data.timestamp, row.created_at]
+    .map(parseStoredDate)
+    .find(Boolean);
+  const result = { ...data, completedAt: completedAt?.toISOString() || null };
+  if (!includeAnswers) delete result.answers;
+  return result;
+};
 
 // ---------- auth ----------
 
@@ -289,10 +316,11 @@ app.get('/api/users', auth, staffOnly, async (req, res) => {
 });
 
 app.get('/api/results', auth, staffOnly, async (req, res) => {
+  const columns = "id, institution_id, exam_id, user_id, data - 'answers' AS data, created_at";
   const { rows } = req.user.role === 'super_admin'
-    ? await q('SELECT * FROM results')
-    : await q('SELECT * FROM results WHERE institution_id = $1', [req.user.institutionId]);
-  res.json(toDocs(rows));
+    ? await q(`SELECT ${columns} FROM results ORDER BY created_at DESC`)
+    : await q(`SELECT ${columns} FROM results WHERE institution_id = $1 ORDER BY created_at DESC`, [req.user.institutionId]);
+  res.json(rows.map(row => toResultDoc(row, false)));
 });
 
 // ---------- institutions (super admin) ----------
@@ -453,8 +481,8 @@ app.get('/api/users/:id/results', auth, async (req, res) => {
   const owner = await q('SELECT institution_id FROM users WHERE id = $1', [req.params.id]);
   if (!owner.rows.length) return res.json([]);
   if (!tenantOk(req, owner.rows[0].institution_id)) return res.status(403).json({ error: 'Forbidden' });
-  const { rows } = await q('SELECT * FROM results WHERE user_id = $1', [req.params.id]);
-  res.json(toDocs(rows));
+  const { rows } = await q("SELECT id, institution_id, exam_id, user_id, data - 'answers' AS data, created_at FROM results WHERE user_id = $1 ORDER BY created_at DESC", [req.params.id]);
+  res.json(rows.map(row => toResultDoc(row, false)));
 });
 
 // ---------- exams ----------
@@ -539,43 +567,94 @@ app.delete('/api/exams/:examId/questions', auth, staffOnly, examTenant, async (r
 
 app.get('/api/institutions/:iid/results', auth, staffOnly, async (req, res) => {
   if (!tenantOk(req, req.params.iid)) return res.status(403).json({ error: 'Forbidden' });
-  const { rows } = await q('SELECT * FROM results WHERE institution_id = $1', [req.params.iid]);
-  res.json(toDocs(rows).sort(byDateDesc('completedAt')));
+  const { rows } = await q("SELECT id, institution_id, exam_id, user_id, data - 'answers' AS data, created_at FROM results WHERE institution_id = $1 ORDER BY created_at DESC", [req.params.iid]);
+  res.json(rows.map(row => toResultDoc(row, false)));
 });
 
 app.get('/api/exams/:examId/results', auth, staffOnly, examTenant, async (req, res) => {
-  const { rows } = await q('SELECT * FROM results WHERE exam_id = $1', [req.params.examId]);
-  res.json(toDocs(rows));
+  const { rows } = await q("SELECT id, institution_id, exam_id, user_id, data - 'answers' AS data, created_at FROM results WHERE exam_id = $1 ORDER BY created_at DESC", [req.params.examId]);
+  res.json(rows.map(row => toResultDoc(row, false)));
 });
 
 app.post('/api/results', auth, async (req, res) => {
-  const id = newId();
-  let institutionId = req.body.institutionId || req.user.institutionId || null;
-  const userId = req.user.role === 'student' ? req.user.sub : (req.body.userId || req.user.sub || null);
+  const body = req.body || {};
+  const isStudent = req.user.role === 'student';
+  if (isStudent && (!body.examId || !body.answers || typeof body.answers !== 'object' || Array.isArray(body.answers))) {
+    return res.status(400).json({ error: 'An exam and answers are required' });
+  }
 
-  // Verify the exam belongs to the caller's institution and derive institution from it
+  let student = null;
+  let userId = body.userId || req.user.sub || null;
+  let institutionId = body.institutionId || req.user.institutionId || null;
+  if (isStudent) {
+    const userResult = await q('SELECT * FROM users WHERE id = $1 AND role = $2', [req.user.sub, 'student']);
+    if (!userResult.rows.length) return res.status(403).json({ error: 'Student account not found' });
+    student = toDoc(userResult.rows[0]);
+    if (userResult.rows[0].institution_id !== req.user.institutionId) return res.status(403).json({ error: 'Forbidden' });
+    userId = userResult.rows[0].id;
+    institutionId = userResult.rows[0].institution_id;
+  }
+
   let examData = null;
-  if (req.body.examId) {
-    const exam = await q('SELECT institution_id, data FROM exams WHERE id = $1', [req.body.examId]);
+  if (body.examId) {
+    const exam = await q('SELECT institution_id, data FROM exams WHERE id = $1', [body.examId]);
     if (!exam.rows.length) return res.status(404).json({ error: 'Exam not found' });
     if (!tenantOk(req, exam.rows[0].institution_id)) return res.status(403).json({ error: 'Forbidden' });
-    institutionId = exam.rows[0].institution_id;
+    if (isStudent && exam.rows[0].institution_id !== institutionId) return res.status(403).json({ error: 'Exam belongs to another institution' });
     examData = exam.rows[0].data;
+    institutionId = exam.rows[0].institution_id;
+    if (isStudent) {
+      const existing = await q('SELECT id FROM results WHERE exam_id = $1 AND user_id = $2 LIMIT 1', [body.examId, userId]);
+      if (existing.rows.length) return res.json({ id: existing.rows[0].id, alreadySubmitted: true });
+    }
+    const nowDate = new Date();
+    const startDate = parseStoredDate(examData.startDate);
+    const endDate = parseStoredDate(examData.endDate);
+    if (isStudent && (examData.isActive === false || (startDate && startDate > nowDate) || (endDate && endDate < nowDate))) {
+      return res.status(403).json({ error: 'This exam is not currently available' });
+    }
+  } else if (isStudent) {
+    return res.status(400).json({ error: 'An exam is required' });
   }
 
-  const data = { ...req.body, userId, institutionId, completedAt: now(), submittedAt: now() };
-  // Never trust client-computed score fields
-  delete data.score; delete data.percentage; delete data.correctAnswers;
-  delete data.maxScore; delete data.provisional; delete data.status;
-
-  // Server-side scoring
-  if (req.body.examId && req.body.answers && typeof req.body.answers === 'object') {
-    const qrows = await q('SELECT id, data FROM questions WHERE exam_id = $1', [req.body.examId]);
-    const scored = scoreSubmission(qrows.rows.map(r => ({ id: r.id, ...r.data })), req.body.answers, examData?.type);
-    Object.assign(data, scored);
+  const questionRows = body.examId ? await q('SELECT id, data FROM questions WHERE exam_id = $1', [body.examId]) : { rows: [] };
+  if (body.examId && !questionRows.rows.length) return res.status(400).json({ error: 'This exam has no questions' });
+  const questions = questionRows.rows.map(row => ({ id: row.id, ...row.data }));
+  const answers = {};
+  for (const question of questions) {
+    const answer = body.answers?.[question.id];
+    if (typeof answer === 'string' || typeof answer === 'number' || typeof answer === 'boolean') {
+      answers[question.id] = String(answer);
+    }
   }
+
+  const submittedAt = now();
+  const requestedTime = Number(body.timeSpent);
+  const duration = Number(examData?.duration);
+  const timeSpent = Number.isFinite(requestedTime) && requestedTime >= 0
+    ? Number.isFinite(duration) && duration > 0 ? Math.min(requestedTime, duration) : requestedTime
+    : null;
+  const data = {
+    examId: body.examId || null,
+    examTitle: examData?.title || body.examTitle || '',
+    userId,
+    studentId: student ? student.studentId || student.id : body.studentId || '',
+    studentName: student ? student.fullName || student.username : body.studentName || '',
+    institutionId,
+    departmentId: student ? student.departmentId || '' : body.departmentId || '',
+    department: student ? student.department || '' : body.department || '',
+    departmentCode: student ? student.departmentCode || null : body.departmentCode || null,
+    level: student ? student.level || '' : body.level || '',
+    answers,
+    timeSpent,
+    completedAt: submittedAt,
+    submittedAt,
+  };
+  if (body.examId) Object.assign(data, scoreSubmission(questions, answers, examData?.type));
+
+  const id = newId();
   await q('INSERT INTO results (id, institution_id, exam_id, user_id, data) VALUES ($1,$2,$3,$4,$5)',
-    [id, institutionId, req.body.examId || null, userId, data]);
+    [id, institutionId, body.examId || null, userId, data]);
   res.json({ id, ...data });
 });
 
@@ -588,9 +667,17 @@ app.get('/api/results/:id', auth, async (req, res) => {
   if (rows[0].institution_id && !tenantOk(req, rows[0].institution_id)) {
     return res.status(403).json({ error: 'Forbidden' });
   }
-  res.json(toDoc(rows[0]));
+  res.json(toResultDoc(rows[0]));
 });
 
+app.delete('/api/results/bulk', auth, staffOnly, async (req, res) => {
+  const ids = [...new Set(Array.isArray(req.body?.ids) ? req.body.ids.filter(id => typeof id === 'string') : [])];
+  if (!ids.length || ids.length > 500) return res.status(400).json({ error: 'Provide between 1 and 500 result IDs' });
+  const result = req.user.role === 'super_admin'
+    ? await q('DELETE FROM results WHERE id = ANY($1::text[])', [ids])
+    : await q('DELETE FROM results WHERE institution_id = $1 AND id = ANY($2::text[])', [req.user.institutionId, ids]);
+  res.json({ deletedCount: result.rowCount });
+});
 app.patch('/api/results/:id', auth, staffOnly, (req, res) => patchRow('results', req.params.id, req.body, res, req));
 app.delete('/api/results/:id', auth, staffOnly, (req, res) => deleteRow('results', req.params.id, res, req));
 
