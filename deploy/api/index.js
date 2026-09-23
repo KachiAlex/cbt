@@ -15,6 +15,7 @@ app.use(cors());
 app.use(express.json({ limit: '10mb' }));
 
 const newId = () => crypto.randomUUID();
+const newStudentId = () => `STU-${newId().toUpperCase()}`;
 const now = () => new Date().toISOString();
 
 // ---------- auth ----------
@@ -207,14 +208,27 @@ app.post('/api/public/institutions/:slug/register', publicRateLimit, async (req,
     return res.status(409).json({ error: 'A user with this email or username already exists.' });
   }
 
+  let departmentId = '';
+  let department = typeof b.department === 'string' ? b.department.trim() : '';
+  let departmentCode = null;
+  if (b.departmentId) {
+    const dept = await q('SELECT id, data FROM departments WHERE id = $1 AND institution_id = $2', [b.departmentId, inst.rows[0].id]);
+    if (!dept.rows.length) return res.status(400).json({ error: 'Selected department is invalid' });
+    const deptData = toDoc(dept.rows[0]);
+    departmentId = deptData.id;
+    department = deptData.name || department;
+    departmentCode = deptData.code || null;
+  }
+
   const id = newId();
+  const studentId = newStudentId();
   const data = {
     fullName, email, username,
     password: await bcrypt.hash(password, 10),
-    studentId: b.studentId || '',
-    departmentId: b.departmentId || '',
-    department: b.department || '',
-    departmentCode: b.departmentCode || null,
+    studentId,
+    departmentId,
+    department,
+    departmentCode,
     level,
     phoneNumber: b.phoneNumber || '',
     role: 'student',
@@ -225,7 +239,7 @@ app.post('/api/public/institutions/:slug/register', publicRateLimit, async (req,
   };
   await q('INSERT INTO users (id, institution_id, username, role, data) VALUES ($1,$2,$3,$4,$5)',
     [id, inst.rows[0].id, username, 'student', data]);
-  res.json({ success: true, id });
+  res.json({ success: true, id, studentId });
 });
 
 // Simple per-IP rate limit for unauthenticated write endpoints (10 req / 10 min)
@@ -352,6 +366,9 @@ async function patchRow(table, id, body, res, req) {
     return res.status(403).json({ error: 'Forbidden' });
   }
   const safeBody = ['users', 'admins'].includes(table) ? await hashBodyPassword(body) : body;
+  if (table === 'users' && cur.rows[0].data.role === 'student') {
+    safeBody.studentId = cur.rows[0].data.studentId || newStudentId();
+  }
   const data = { ...cur.rows[0].data, ...safeBody, updatedAt: now() };
   await q(`UPDATE ${table} SET data = $2 WHERE id = $1`, [id, data]);
   res.json({ ok: true });
@@ -417,9 +434,11 @@ app.post('/api/institutions/:iid/users', auth, staffOnly, async (req, res) => {
   const id = newId();
   const body = await hashBodyPassword(req.body);
   const data = { ...body, institutionId: req.params.iid, createdAt: now() };
+  if (data.role === 'student') data.studentId = newStudentId();
   await q('INSERT INTO users (id, institution_id, username, role, data) VALUES ($1,$2,$3,$4,$5)',
     [id, req.params.iid, data.username || null, data.role || null, data]);
-  res.json({ id, ...data });
+  const { password, passwordHash, ...safe } = data;
+  res.json({ id, ...safe });
 });
 
 app.patch('/api/users/:id', auth, staffOnly, (req, res) => patchRow('users', req.params.id, req.body, res, req));

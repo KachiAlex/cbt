@@ -13,7 +13,6 @@ const StudentsManagement = ({ institution, onStatsUpdate }) => {
     email: '',
     username: '',
     password: '',
-    studentId: '',
     departmentId: '',
     level: '',
     phoneNumber: '',
@@ -88,20 +87,8 @@ const StudentsManagement = ({ institution, onStatsUpdate }) => {
     e.preventDefault();
     try {
       setLoading(true);
-      if (!departments.length) {
-        alert('Please create at least one department before adding students.');
-        setLoading(false);
-        return;
-      }
-
       const selectedDepartment = departments.find(dept => dept.id === formData.departmentId);
-      if (!selectedDepartment) {
-        alert('Select a department for the student.');
-        setLoading(false);
-        return;
-      }
-
-      const departmentLevels = selectedDepartment.levels || [];
+      const departmentLevels = selectedDepartment?.levels || [];
       if (departmentLevels.length > 0 && !departmentLevels.includes(formData.level)) {
         alert('Select a valid level for the chosen department.');
         setLoading(false);
@@ -119,10 +106,9 @@ const StudentsManagement = ({ institution, onStatsUpdate }) => {
         email: formData.email,
         username: formData.username,
         password: formData.password,
-        studentId: formData.studentId,
-        departmentId: selectedDepartment.id,
-        department: selectedDepartment.name,
-        departmentCode: selectedDepartment.code || null,
+        departmentId: selectedDepartment?.id || '',
+        department: selectedDepartment?.name || '',
+        departmentCode: selectedDepartment?.code || null,
         level: formData.level,
         phoneNumber: formData.phoneNumber,
         isActive: formData.isActive,
@@ -136,10 +122,11 @@ const StudentsManagement = ({ institution, onStatsUpdate }) => {
         delete studentData.password;
       }
 
+      let createdStudent;
       if (editingStudent) {
         await dataService.updateUser(editingStudent.id, studentData);
       } else {
-        await dataService.createUser(studentData);
+        createdStudent = await dataService.createUser(studentData);
       }
 
       await loadStudents();
@@ -147,6 +134,7 @@ const StudentsManagement = ({ institution, onStatsUpdate }) => {
       setShowModal(false);
       setEditingStudent(null);
       resetForm();
+      if (createdStudent?.studentId) alert(`Student created. Generated Student ID: ${createdStudent.studentId}`);
     } catch (error) {
       console.error('Error saving student:', error);
     } finally {
@@ -164,7 +152,6 @@ const StudentsManagement = ({ institution, onStatsUpdate }) => {
       email: student.email,
       username: student.username,
       password: '', // Don't pre-fill password
-      studentId: student.studentId,
       departmentId: matchedDepartment?.id || '',
       level: student.level,
       phoneNumber: student.phoneNumber,
@@ -228,16 +215,13 @@ const StudentsManagement = ({ institution, onStatsUpdate }) => {
   };
 
   const resetForm = () => {
-    const firstActiveDepartment = departments.find(dept => dept.isActive !== false) || departments[0] || null;
-    const firstLevel = firstActiveDepartment?.levels?.[0] || '';
     setFormData({
       fullName: '',
       email: '',
       username: '',
       password: '',
-      studentId: '',
-      departmentId: firstActiveDepartment?.id || '',
-      level: firstLevel,
+      departmentId: '',
+      level: '',
       phoneNumber: '',
       isActive: true
     });
@@ -519,7 +503,9 @@ const StudentsManagement = ({ institution, onStatsUpdate }) => {
               <h3 className="text-lg font-medium text-gray-900 mb-4">
                 {editingStudent ? 'Edit Student' : 'Add New Student'}
               </h3>
-              
+              <p className="mb-4 text-sm text-gray-600">
+                {editingStudent ? `Student ID: ${editingStudent.studentId || 'not assigned'}` : 'Student ID will be generated automatically.'}
+              </p>
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div className="grid grid-cols-2 gap-4">
                   <div>
@@ -535,18 +521,6 @@ const StudentsManagement = ({ institution, onStatsUpdate }) => {
                     />
                   </div>
 
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Student ID
-                    </label>
-                    <input
-                      type="text"
-                      required
-                      value={formData.studentId}
-                      onChange={(e) => setFormData({ ...formData, studentId: e.target.value })}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                    />
-                  </div>
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">
@@ -593,16 +567,14 @@ const StudentsManagement = ({ institution, onStatsUpdate }) => {
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Department
+                      Department (Optional)
                     </label>
                     <select
                       value={formData.departmentId}
                       onChange={(e) => setFormData({ ...formData, departmentId: e.target.value, level: '' })}
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                      required
-                      disabled={departments.length === 0}
                     >
-                      <option value="">{departments.length ? 'Select Department' : 'No departments available'}</option>
+                      <option value="">No department</option>
                       {departments
                         .filter(dept => dept.isActive !== false)
                         .map(dept => (
@@ -614,37 +586,42 @@ const StudentsManagement = ({ institution, onStatsUpdate }) => {
                         </option>
                       ))}
                     </select>
-                    {departments.length === 0 && (
-                      <p className="mt-1 text-xs text-amber-600">Create departments in the "Departments & Levels" tab first.</p>
-                    )}
                   </div>
 
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
                       Level
                     </label>
-                    <select
-                      value={formData.level}
-                      onChange={(e) => setFormData({ ...formData, level: e.target.value })}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                      required
-                      disabled={departments.length === 0}
-                    >
-                      <option value="">Select Level</option>
-                      {(() => {
-                        const selectedDepartment = departments.find(dept => dept.id === formData.departmentId);
-                        const configuredLevels = selectedDepartment?.levels || [];
-                        const levelOptions = formData.level && !configuredLevels.includes(formData.level)
-                          ? [...configuredLevels, formData.level]
-                          : configuredLevels;
-                        return levelOptions.map(level => (
-                          <option key={level} value={level}>{level}</option>
-                        ));
-                      })()}
-                    </select>
-                    {departments.length > 0 && !departments.find(dept => dept.id === formData.departmentId)?.levels?.length && (
-                      <p className="mt-1 text-xs text-amber-600">Add levels to this department to make selection easier.</p>
-                    )}
+                    {(() => {
+                      const selectedDepartment = departments.find(dept => dept.id === formData.departmentId);
+                      const configuredLevels = selectedDepartment?.levels || [];
+                      const levelOptions = formData.level && !configuredLevels.includes(formData.level)
+                        ? [...configuredLevels, formData.level]
+                        : configuredLevels;
+                      if (!selectedDepartment || !configuredLevels.length) {
+                        return (
+                          <input
+                            type="text"
+                            value={formData.level}
+                            onChange={(e) => setFormData({ ...formData, level: e.target.value })}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                            required
+                            placeholder="Enter the student's level"
+                          />
+                        );
+                      }
+                      return (
+                        <select
+                          value={formData.level}
+                          onChange={(e) => setFormData({ ...formData, level: e.target.value })}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                          required
+                        >
+                          <option value="">Select Level</option>
+                          {levelOptions.map(level => <option key={level} value={level}>{level}</option>)}
+                        </select>
+                      );
+                    })()}
                   </div>
                 </div>
 

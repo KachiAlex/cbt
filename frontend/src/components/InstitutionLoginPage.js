@@ -17,7 +17,6 @@ const InstitutionLoginPage = ({ institution, onLogin, onAdminAccess }) => {
     username: '',
     password: '',
     confirmPassword: '',
-    studentId: '',
     departmentId: '',
     department: '',
     level: '',
@@ -70,19 +69,6 @@ const InstitutionLoginPage = ({ institution, onLogin, onAdminAccess }) => {
         setDepartmentsLoading(true);
         const data = await dataService.getPublicDepartments(institution.slug);
         setDepartments(data || []);
-        setRegisterData(prev => {
-          if (prev.departmentId || !(data && data.length)) {
-            return prev;
-          }
-          const firstActive = data.find(dept => dept.isActive !== false) || data[0];
-          if (!firstActive) return prev;
-          return {
-            ...prev,
-            departmentId: firstActive.id,
-            department: firstActive.name,
-            level: firstActive.levels?.[0] || ''
-          };
-        });
       } catch (error) {
         console.error('Error loading departments:', error);
       } finally {
@@ -137,7 +123,7 @@ const InstitutionLoginPage = ({ institution, onLogin, onAdminAccess }) => {
       ...prev,
       departmentId,
       department: selectedDepartment?.name || '',
-      level: selectedDepartment?.levels?.[0] || ''
+      level: selectedDepartment ? selectedDepartment.levels?.[0] || '' : prev.level
     }));
   };
 
@@ -161,18 +147,6 @@ const InstitutionLoginPage = ({ institution, onLogin, onAdminAccess }) => {
 
     try {
       const selectedDepartment = departments.find(dept => dept.id === registerData.departmentId);
-      if (hasDepartmentDefinitions && !selectedDepartment) {
-        setError('Please select your department.');
-        setLoading(false);
-        return;
-      }
-
-      if (!hasDepartmentDefinitions && !registerData.department.trim()) {
-        setError('Please enter your department.');
-        setLoading(false);
-        return;
-      }
-
       const candidateLevel = registerData.level?.trim();
       if (!candidateLevel) {
         setError('Please select your level.');
@@ -193,7 +167,6 @@ const InstitutionLoginPage = ({ institution, onLogin, onAdminAccess }) => {
         email: registerData.email,
         username: registerData.username,
         password: registerData.password,
-        studentId: registerData.studentId,
         departmentId: selectedDepartment?.id || '',
         department: selectedDepartment?.name || registerData.department,
         departmentCode: selectedDepartment?.code || null,
@@ -206,7 +179,7 @@ const InstitutionLoginPage = ({ institution, onLogin, onAdminAccess }) => {
         createdAt: new Date().toISOString()
       };
 
-      await dataService.registerStudent(institution.slug, studentData);
+      const registration = await dataService.registerStudent(institution.slug, studentData);
 
       setFormData({
         username: registerData.username,
@@ -214,7 +187,7 @@ const InstitutionLoginPage = ({ institution, onLogin, onAdminAccess }) => {
       });
       setShowRegister(false);
       setError('');
-      alert('Registration successful! You can now sign in.');
+      alert(`Registration successful! Your student ID is ${registration.studentId}. You can now sign in.`);
     } catch (err) {
       console.error('🔍 InstitutionLoginPage: Registration failed with error:', err);
       setError(`Registration failed: ${err.message || 'Please try again.'}`);
@@ -383,35 +356,18 @@ const InstitutionLoginPage = ({ institution, onLogin, onAdminAccess }) => {
                     </div>
 
                     <div>
-                      <label htmlFor="studentId" className="block text-sm font-medium text-gray-700 mb-2">
-                        Student ID
-                      </label>
-                      <input
-                        id="studentId"
-                        name="studentId"
-                        type="text"
-                        required
-                        value={registerData.studentId}
-                        onChange={handleRegisterInputChange}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                        placeholder="Enter your student ID"
-                      />
-                    </div>
-
-                    <div>
                       <label htmlFor="department" className="block text-sm font-medium text-gray-700 mb-2">
-                        Department
+                        Department (Optional)
                       </label>
                       {hasDepartmentDefinitions ? (
                         <select
                           id="department"
                           name="department"
-                          required
                           value={registerData.departmentId}
                           onChange={handleDepartmentSelect}
                           className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
                         >
-                          <option value="">Select Department</option>
+                          <option value="">No department</option>
                           {departmentOptions.map(dept => (
                             <option key={dept.id} value={dept.id}>
                               {dept.name}{dept.isActive === false ? ' (inactive)' : ''}
@@ -423,11 +379,10 @@ const InstitutionLoginPage = ({ institution, onLogin, onAdminAccess }) => {
                           id="department"
                           name="department"
                           type="text"
-                          required
                           value={registerData.department}
                           onChange={handleRegisterInputChange}
                           className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                          placeholder="Enter your department"
+                          placeholder="Enter your department (optional)"
                         />
                       )}
                       {departmentsLoading && (
@@ -439,7 +394,7 @@ const InstitutionLoginPage = ({ institution, onLogin, onAdminAccess }) => {
                       <label htmlFor="level" className="block text-sm font-medium text-gray-700 mb-2">
                         Level
                       </label>
-                      {hasDepartmentDefinitions ? (
+                      {selectedRegistrationDepartment && configuredLevelOptions.length > 0 ? (
                         <select
                           id="level"
                           name="level"
