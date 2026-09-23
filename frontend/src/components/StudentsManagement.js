@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import dataService from '../services/dataService';
+import { getAcademicStructure } from '../utils/academicStructure';
 
 const StudentsManagement = ({ institution, onStatsUpdate }) => {
   const [students, setStudents] = useState([]);
@@ -26,14 +27,19 @@ const StudentsManagement = ({ institution, onStatsUpdate }) => {
     level: '',
     studentId: ''
   });
+  const academicStructure = getAcademicStructure(institution);
+  const departmentsEnabled = academicStructure.departmentsEnabled;
+  const departmentsRequired = academicStructure.departmentsRequired;
+  const levelLabel = academicStructure.levelLabel;
 
   useEffect(() => {
     const initialize = async () => {
-      await loadDepartments();
+      if (departmentsEnabled) await loadDepartments();
+      else setDepartments([]);
       await loadStudents();
     };
     initialize();
-  }, []);
+  }, [institution?.id, departmentsEnabled]);
 
   const loadStudents = async () => {
     try {
@@ -48,7 +54,10 @@ const StudentsManagement = ({ institution, onStatsUpdate }) => {
   };
 
   const loadDepartments = async () => {
-    if (!institution?.id) return;
+    if (!institution?.id || !departmentsEnabled) {
+      setDepartments([]);
+      return;
+    }
     try {
       setDepartmentsLoading(true);
       const departmentData = await dataService.getInstitutionDepartments(institution.id);
@@ -61,7 +70,7 @@ const StudentsManagement = ({ institution, onStatsUpdate }) => {
   };
 
   useEffect(() => {
-    if (!showModal || !editingStudent || !departments.length) return;
+    if (!departmentsEnabled || !showModal || !editingStudent || !departments.length) return;
     setFormData(prev => {
       if (prev.departmentId) return prev;
       const matchedDepartment =
@@ -82,7 +91,12 @@ const StudentsManagement = ({ institution, onStatsUpdate }) => {
     e.preventDefault();
     try {
       setLoading(true);
-      const selectedDepartment = departments.find(dept => dept.id === formData.departmentId);
+      const selectedDepartment = departmentsEnabled ? departments.find(dept => dept.id === formData.departmentId) : null;
+      if (departmentsRequired && !selectedDepartment) {
+        alert('Select a department for this student.');
+        setLoading(false);
+        return;
+      }
       const departmentLevels = selectedDepartment?.levels || [];
       if (departmentLevels.length > 0 && !departmentLevels.includes(formData.level)) {
         alert('Select a valid level for the chosen department.');
@@ -91,7 +105,7 @@ const StudentsManagement = ({ institution, onStatsUpdate }) => {
       }
 
       if (!formData.level) {
-        alert('Select the student\'s level.');
+        alert(`Enter the student's ${levelLabel.toLowerCase()}.`);
         setLoading(false);
         return;
       }
@@ -101,9 +115,9 @@ const StudentsManagement = ({ institution, onStatsUpdate }) => {
         email: formData.email,
         username: formData.username,
         password: formData.password,
-        departmentId: selectedDepartment?.id || '',
-        department: selectedDepartment?.name || formData.department.trim(),
-        departmentCode: selectedDepartment?.code || null,
+        departmentId: departmentsEnabled ? selectedDepartment?.id || '' : '',
+        department: departmentsEnabled ? selectedDepartment?.name || formData.department.trim() : '',
+        departmentCode: departmentsEnabled ? selectedDepartment?.code || null : null,
         level: formData.level,
         phoneNumber: formData.phoneNumber,
         isActive: formData.isActive,
@@ -140,9 +154,10 @@ const StudentsManagement = ({ institution, onStatsUpdate }) => {
 
   const handleEdit = (student) => {
     setEditingStudent(student);
-    const matchedDepartment =
-      departments.find(dept => dept.id === student.departmentId) ||
-      departments.find(dept => dept.name === student.department);
+    const matchedDepartment = departmentsEnabled
+      ? departments.find(dept => dept.id === student.departmentId) ||
+        departments.find(dept => dept.name === student.department)
+      : null;
     setFormData({
       fullName: student.fullName,
       email: student.email,
@@ -236,8 +251,8 @@ const StudentsManagement = ({ institution, onStatsUpdate }) => {
   };
 
   // Get unique departments combining configured records and legacy student entries
-  const configuredDepartmentNames = departments.map(dept => dept.name).filter(Boolean);
-  const legacyDepartmentNames = students.map(student => student.department).filter(Boolean);
+  const configuredDepartmentNames = departmentsEnabled ? departments.map(dept => dept.name).filter(Boolean) : [];
+  const legacyDepartmentNames = departmentsEnabled ? students.map(student => student.department).filter(Boolean) : [];
   const uniqueDepartments = Array.from(new Set([...configuredDepartmentNames, ...legacyDepartmentNames])).sort();
 
   const getLevelsForDepartment = (departmentName) => {
@@ -296,13 +311,15 @@ const StudentsManagement = ({ institution, onStatsUpdate }) => {
               Delete Selected ({selectedStudents.length})
             </button>
           )}
-          <button
-            onClick={loadDepartments}
-            className="bg-gray-100 text-gray-700 px-4 py-2 rounded-md hover:bg-gray-200 transition-colors"
-            disabled={departmentsLoading}
-          >
-            {departmentsLoading ? 'Refreshing…' : 'Refresh Departments'}
-          </button>
+          {departmentsEnabled && (
+            <button
+              onClick={loadDepartments}
+              className="bg-gray-100 text-gray-700 px-4 py-2 rounded-md hover:bg-gray-200 transition-colors"
+              disabled={departmentsLoading}
+            >
+              {departmentsLoading ? 'Refreshing…' : 'Refresh Departments'}
+            </button>
+          )}
           <button
             onClick={() => {
               resetForm();
@@ -316,34 +333,38 @@ const StudentsManagement = ({ institution, onStatsUpdate }) => {
       </div>
 
       {/* Alerts */}
-      {departments.length === 0 && !departmentsLoading && (
-        <div className="mb-6 bg-amber-50 border border-amber-200 text-amber-700 px-4 py-3 rounded">
-          No departments are configured yet. You can still create students and enter a level manually; add departments later for managed drop-downs.
+      {departmentsEnabled && departments.length === 0 && !departmentsLoading && (
+        <div className={`mb-6 border px-4 py-3 rounded ${departmentsRequired ? 'bg-red-50 border-red-200 text-red-700' : 'bg-amber-50 border-amber-200 text-amber-700'}`}>
+          {departmentsRequired
+            ? 'Departments are required for this institution, but none are configured yet. Create a department before adding students.'
+            : `No departments are configured yet. You can still create students and enter a ${levelLabel.toLowerCase()} manually; add departments later for managed drop-downs.`}
         </div>
       )}
 
       {/* Filters Section */}
       <div className="bg-white rounded-lg shadow p-6 mb-6">
         <div className="flex items-end gap-4">
-          <div className="flex-1">
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Department
-            </label>
-            <select
-              value={filters.department}
-              onChange={(e) => handleFilterChange('department', e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-            >
-              <option value="">All Departments</option>
-              {uniqueDepartments.map(dept => (
-                <option key={dept} value={dept}>{dept}</option>
-              ))}
-            </select>
-          </div>
+          {departmentsEnabled && (
+            <div className="flex-1">
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Department
+              </label>
+              <select
+                value={filters.department}
+                onChange={(e) => handleFilterChange('department', e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+              >
+                <option value="">All Departments</option>
+                {uniqueDepartments.map(dept => (
+                  <option key={dept} value={dept}>{dept}</option>
+                ))}
+              </select>
+            </div>
+          )}
 
           <div className="flex-1">
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              Level
+              {levelLabel}
             </label>
             <select
               value={filters.level}
@@ -410,11 +431,13 @@ const StudentsManagement = ({ institution, onStatsUpdate }) => {
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                 Student ID
               </th>
+              {departmentsEnabled && (
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Department
+                </th>
+              )}
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Department
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Level
+                {levelLabel}
               </th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                 Status
@@ -455,9 +478,11 @@ const StudentsManagement = ({ institution, onStatsUpdate }) => {
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                   {student.studentId}
                 </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                  {student.department}
-                </td>
+                {departmentsEnabled && (
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                    {student.department || '—'}
+                  </td>
+                )}
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                   {student.level}
                 </td>
@@ -560,57 +585,64 @@ const StudentsManagement = ({ institution, onStatsUpdate }) => {
                   />
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Department (Optional)
-                    </label>
-                    {departments.length ? (
-                      <>
-                        <select
-                          value={formData.departmentId}
-                          onChange={(e) => setFormData({ ...formData, departmentId: e.target.value, department: '', level: '' })}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                        >
-                          <option value="">No department</option>
-                          {departments
-                            .filter(dept => dept.isActive !== false)
-                            .map(dept => (
-                              <option key={dept.id} value={dept.id}>{dept.name}</option>
+                <div className={`grid gap-4 ${departmentsEnabled ? 'grid-cols-2' : 'grid-cols-1'}`}>
+                  {departmentsEnabled && (
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Department{departmentsRequired ? '' : ' (Optional)'}
+                      </label>
+                      {departments.length ? (
+                        <>
+                          <select
+                            required={departmentsRequired}
+                            value={formData.departmentId}
+                            onChange={(e) => setFormData({ ...formData, departmentId: e.target.value, department: '', level: '' })}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                          >
+                            <option value="">{departmentsRequired ? 'Select department' : 'No department'}</option>
+                            {departments
+                              .filter(dept => dept.isActive !== false)
+                              .map(dept => (
+                                <option key={dept.id} value={dept.id}>{dept.name}</option>
+                              ))}
+                            {departments.filter(dept => dept.isActive === false).map(dept => (
+                              <option key={dept.id} value={dept.id} disabled>
+                                {dept.name} (inactive)
+                              </option>
                             ))}
-                          {departments.filter(dept => dept.isActive === false).map(dept => (
-                            <option key={dept.id} value={dept.id} disabled>
-                              {dept.name} (inactive)
-                            </option>
-                          ))}
-                        </select>
-                        {!formData.departmentId && (
-                          <input
-                            type="text"
-                            value={formData.department}
-                            onChange={(e) => setFormData({ ...formData, department: e.target.value })}
-                            className="mt-2 w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                            placeholder="Optional custom department"
-                          />
-                        )}
-                      </>
-                    ) : (
-                      <input
-                        type="text"
-                        value={formData.department}
-                        onChange={(e) => setFormData({ ...formData, department: e.target.value })}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                        placeholder="Enter a department (optional)"
-                      />
-                    )}
-                  </div>
+                          </select>
+                          {!departmentsRequired && !formData.departmentId && (
+                            <input
+                              type="text"
+                              value={formData.department}
+                              onChange={(e) => setFormData({ ...formData, department: e.target.value })}
+                              className="mt-2 w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                              placeholder="Optional custom department"
+                            />
+                          )}
+                        </>
+                      ) : departmentsRequired ? (
+                        <div className="px-3 py-2 border border-red-200 bg-red-50 text-red-700 rounded-md text-sm">
+                          Create a department before adding students.
+                        </div>
+                      ) : (
+                        <input
+                          type="text"
+                          value={formData.department}
+                          onChange={(e) => setFormData({ ...formData, department: e.target.value })}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                          placeholder="Enter a department (optional)"
+                        />
+                      )}
+                    </div>
+                  )}
 
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Level
+                      {levelLabel}
                     </label>
                     {(() => {
-                      const selectedDepartment = departments.find(dept => dept.id === formData.departmentId);
+                      const selectedDepartment = departmentsEnabled ? departments.find(dept => dept.id === formData.departmentId) : null;
                       const configuredLevels = selectedDepartment?.levels || [];
                       const levelOptions = formData.level && !configuredLevels.includes(formData.level)
                         ? [...configuredLevels, formData.level]
@@ -623,7 +655,7 @@ const StudentsManagement = ({ institution, onStatsUpdate }) => {
                             onChange={(e) => setFormData({ ...formData, level: e.target.value })}
                             className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
                             required
-                            placeholder="Enter the student's level"
+                            placeholder={`Enter the student's ${levelLabel.toLowerCase()}`}
                           />
                         );
                       }
@@ -634,7 +666,7 @@ const StudentsManagement = ({ institution, onStatsUpdate }) => {
                           className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
                           required
                         >
-                          <option value="">Select Level</option>
+                          <option value="">Select {levelLabel}</option>
                           {levelOptions.map(level => <option key={level} value={level}>{level}</option>)}
                         </select>
                       );

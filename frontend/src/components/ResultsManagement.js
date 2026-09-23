@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import dataService from '../services/dataService';
 import { formatResultDate } from '../utils/resultDate';
+import { getAcademicStructure } from '../utils/academicStructure';
 
 const ResultsManagement = ({ institution, onStatsUpdate }) => {
   const [results, setResults] = useState([]);
@@ -20,6 +21,9 @@ const ResultsManagement = ({ institution, onStatsUpdate }) => {
   const [finalizeNote, setFinalizeNote] = useState('');
   const [selectedResults, setSelectedResults] = useState([]);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const academicStructure = getAcademicStructure(institution);
+  const departmentsEnabled = academicStructure.departmentsEnabled;
+  const levelLabel = academicStructure.levelLabel;
 
   useEffect(() => {
     loadData();
@@ -486,34 +490,36 @@ const ResultsManagement = ({ institution, onStatsUpdate }) => {
             </select>
           </div>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Department
-            </label>
-            <select
-              value={filters.department}
-              onChange={(e) => handleFilterChange('department', e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-            >
-              <option value="">All Departments</option>
-              {uniqueDepartments.map(dept => (
-                <option key={dept} value={dept}>{dept}</option>
-              ))}
-            </select>
-          </div>
+          {departmentsEnabled && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Department
+              </label>
+              <select
+                value={filters.department}
+                onChange={(e) => handleFilterChange('department', e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+              >
+                <option value="">All Departments</option>
+                {uniqueDepartments.map(dept => (
+                  <option key={dept} value={dept}>{dept}</option>
+                ))}
+              </select>
+            </div>
+          )}
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              Level
+              {levelLabel}
             </label>
             <select
               value={filters.level}
               onChange={(e) => handleFilterChange('level', e.target.value)}
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
             >
-              <option value="">All Levels</option>
+              <option value="">All {levelLabel}</option>
               {uniqueLevels.map(level => <option key={level} value={level}>{level}</option>)}
             </select>
           </div>

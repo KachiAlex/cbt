@@ -24,6 +24,7 @@ const newStudentId = () => `STU-${newId().toUpperCase()}`;
 const now = () => new Date().toISOString();
 const DEFAULT_INSTITUTION_SETTINGS = {
   timezone: 'Africa/Lagos', dateFormat: 'DD/MM/YYYY', timeFormat: '24h',
+  departmentMode: 'optional', levelLabel: 'Level',
   allowStudentRegistration: true, requireEmailVerification: false, maxExamAttempts: 3, examTimeLimit: 60,
   showCorrectAnswers: false, allowReviewAfterSubmit: true, autoSubmitOnTimeUp: true,
   randomizeQuestions: true, randomizeOptions: true, showProgressBar: true, allowBackNavigation: true,
@@ -31,6 +32,38 @@ const DEFAULT_INSTITUTION_SETTINGS = {
   maintenanceMessage: 'System is under maintenance. Please try again later.'
 };
 const institutionSettings = data => ({ ...DEFAULT_INSTITUTION_SETTINGS, ...(data?.settings || {}) });
+const normalizeDepartmentMode = value => ['disabled', 'optional', 'required'].includes(value) ? value : 'optional';
+
+async function resolveStudentDepartment({ institutionId, body, level, settings }) {
+  const departmentMode = normalizeDepartmentMode(settings?.departmentMode);
+  if (departmentMode === 'disabled') {
+    return { departmentId: '', department: '', departmentCode: null };
+  }
+
+  const suppliedDepartmentId = typeof body?.departmentId === 'string' ? body.departmentId.trim() : '';
+  let departmentId = '';
+  let department = typeof body?.department === 'string' ? body.department.trim() : '';
+  let departmentCode = null;
+
+  if (departmentMode === 'required' && !suppliedDepartmentId) {
+    return { error: 'Select a department for this student' };
+  }
+
+  if (suppliedDepartmentId) {
+    const dept = await q('SELECT id, data FROM departments WHERE id = $1 AND institution_id = $2', [suppliedDepartmentId, institutionId]);
+    if (!dept.rows.length) return { error: 'Selected department is invalid' };
+    const deptData = toDoc(dept.rows[0]);
+    if (deptData.isActive === false) return { error: 'Selected department is inactive' };
+    if (Array.isArray(deptData.levels) && deptData.levels.length && !deptData.levels.includes(level)) {
+      return { error: 'Selected level is not available in this department' };
+    }
+    departmentId = deptData.id;
+    department = deptData.name || department;
+    departmentCode = deptData.code || null;
+  }
+
+  return { departmentId, department, departmentCode };
+}
 const parseStoredDate = (value) => {
   if (value == null || value === '') return null;
   if (value instanceof Date) return Number.isFinite(value.getTime()) ? value : null;
@@ -304,6 +337,8 @@ app.get('/api/institutions/slug/:slug', async (req, res) => {
     status: data.status || 'active',
     logo: data.logo || null,
     allowStudentRegistration: settings.allowStudentRegistration !== false,
+    departmentMode: normalizeDepartmentMode(settings.departmentMode),
+    levelLabel: settings.levelLabel || 'Level',
     maintenanceMode: settings.maintenanceMode === true,
     maintenanceMessage: settings.maintenanceMode === true ? settings.maintenanceMessage : null,
   });
@@ -414,7 +449,9 @@ app.post('/api/auth/institution/:slug/login', authRateLimit, async (req, res) =>
 app.get('/api/public/institutions/:slug/departments', async (req, res) => {
   const inst = await q('SELECT * FROM institutions WHERE slug = $1', [req.params.slug]);
   if (!inst.rows.length) return res.status(404).json({ error: 'Institution not found' });
-  if (toDoc(inst.rows[0]).status === 'suspended') return res.status(403).json({ error: 'This institution is suspended' });
+  const institution = toDoc(inst.rows[0]);
+  if (institution.status === 'suspended') return res.status(403).json({ error: 'This institution is suspended' });
+  if (normalizeDepartmentMode(institutionSettings(institution).departmentMode) === 'disabled') return res.json([]);
   const { rows } = await q('SELECT * FROM departments WHERE institution_id = $1', [inst.rows[0].id]);
   res.json(toDocs(rows).filter(d => d.isActive !== false).map(d => ({
     id: d.id, name: d.name, code: d.code || null, levels: d.levels || [], isActive: true,
@@ -443,21 +480,14 @@ app.post('/api/public/institutions/:slug/register', publicRateLimit, async (req,
   if (institution.settings?.allowStudentRegistration === false) return res.status(403).json({ error: 'Student self-registration is disabled.' });
   if (institution.settings?.requireEmailVerification) return res.status(503).json({ error: 'Email verification is enabled but not configured. Contact the institution administrator.' });
 
-  let departmentId = '';
-  let department = typeof body.department === 'string' ? body.department.trim() : '';
-  let departmentCode = null;
-  if (body.departmentId) {
-    const dept = await q('SELECT id, data FROM departments WHERE id = $1 AND institution_id = $2', [body.departmentId, inst.rows[0].id]);
-    if (!dept.rows.length) return res.status(400).json({ error: 'Selected department is invalid' });
-    const deptData = toDoc(dept.rows[0]);
-    if (deptData.isActive === false) return res.status(400).json({ error: 'Selected department is inactive' });
-    if (Array.isArray(deptData.levels) && deptData.levels.length && !deptData.levels.includes(level)) {
-      return res.status(400).json({ error: 'Selected level is not available in this department' });
-    }
-    departmentId = deptData.id;
-    department = deptData.name || department;
-    departmentCode = deptData.code || null;
-  }
+  const departmentSelection = await resolveStudentDepartment({
+    institutionId: inst.rows[0].id,
+    body,
+    level,
+    settings: institutionSettings(institution),
+  });
+  if (departmentSelection.error) return res.status(400).json({ error: departmentSelection.error });
+  const { departmentId, department, departmentCode } = departmentSelection;
 
   const id = newId();
   const studentId = newStudentId();
@@ -673,6 +703,12 @@ app.post('/api/institutions', auth, superAdmin, async (req, res) => {
   }
   const existing = await q('SELECT id FROM institutions WHERE slug = $1', [slug]);
   if (existing.rows.length) return res.status(409).json({ error: 'An institution with this slug already exists' });
+  const suppliedSettings = req.body.settings && typeof req.body.settings === 'object' && !Array.isArray(req.body.settings) ? req.body.settings : {};
+  if (suppliedSettings.departmentMode !== undefined && !['disabled', 'optional', 'required'].includes(suppliedSettings.departmentMode)) {
+    return res.status(400).json({ error: 'Department mode must be disabled, optional, or required' });
+  }
+  const levelLabel = suppliedSettings.levelLabel === undefined ? DEFAULT_INSTITUTION_SETTINGS.levelLabel : String(suppliedSettings.levelLabel).trim();
+  if (!levelLabel || levelLabel.length > 30) return res.status(400).json({ error: 'Level label must be 1-30 characters' });
   const id = newId();
   const data = {
     name,
@@ -682,7 +718,7 @@ app.post('/api/institutions', auth, superAdmin, async (req, res) => {
     phone: String(req.body.phone || '').trim().slice(0, 40),
     address: String(req.body.address || '').slice(0, 500),
     logo: String(req.body.logo || '').trim().slice(0, 2048),
-    settings: { ...DEFAULT_INSTITUTION_SETTINGS, ...(req.body.settings || {}) },
+    settings: { ...DEFAULT_INSTITUTION_SETTINGS, ...suppliedSettings, levelLabel },
     status: 'active',
     createdAt: now(),
     totalUsers: 0,
@@ -699,7 +735,18 @@ app.get('/api/institutions/:id', auth, async (req, res) => {
   if (!rows.length) return res.status(404).json({ error: 'Institution not found' });
   const data = toDoc(rows[0]);
   if (req.user.role === 'student') {
-    return res.json({ id: data.id, name: data.name, slug: data.slug, status: data.status || 'active', logo: data.logo || null });
+    const settings = institutionSettings(data);
+    return res.json({
+      id: data.id,
+      name: data.name,
+      slug: data.slug,
+      status: data.status || 'active',
+      logo: data.logo || null,
+      settings: {
+        departmentMode: normalizeDepartmentMode(settings.departmentMode),
+        levelLabel: settings.levelLabel || 'Level',
+      },
+    });
   }
   res.json(data);
 });
@@ -770,6 +817,13 @@ app.patch('/api/institutions/:id', auth, staffOnly, async (req, res) => {
       return res.status(400).json({ error: 'Settings must be an object' });
     }
     const settings = { ...institutionSettings(cur.rows[0].data), ...allowedFields.settings };
+    if (!['disabled', 'optional', 'required'].includes(settings.departmentMode)) {
+      return res.status(400).json({ error: 'Department mode must be disabled, optional, or required' });
+    }
+    settings.levelLabel = String(settings.levelLabel || '').trim();
+    if (!settings.levelLabel || settings.levelLabel.length > 30) {
+      return res.status(400).json({ error: 'Level label must be 1-30 characters' });
+    }
     const booleanFields = ['allowStudentRegistration', 'requireEmailVerification', 'showCorrectAnswers', 'allowReviewAfterSubmit', 'autoSubmitOnTimeUp', 'randomizeQuestions', 'randomizeOptions', 'showProgressBar', 'allowBackNavigation', 'maintenanceMode'];
     if (booleanFields.some(field => typeof settings[field] !== 'boolean')) return res.status(400).json({ error: 'Boolean settings must be true or false' });
     if (settings.requireEmailVerification) return res.status(400).json({ error: 'Email verification cannot be enabled until email delivery is configured' });
@@ -834,7 +888,39 @@ async function patchRow(table, id, body, res, req) {
   if (table === 'users') {
     safeBody.institutionId = cur.rows[0].institution_id;
     safeBody.role = cur.rows[0].role;
-    if (cur.rows[0].role === 'student') safeBody.studentId = cur.rows[0].data.studentId || newStudentId();
+    if (cur.rows[0].role === 'student') {
+      safeBody.studentId = cur.rows[0].data.studentId || newStudentId();
+      const departmentFieldChanged = ['departmentId', 'department', 'departmentCode'].some(field => Object.hasOwn(body || {}, field));
+      if (departmentFieldChanged) {
+        const institution = await q('SELECT data FROM institutions WHERE id = $1', [cur.rows[0].institution_id]);
+        const settings = institutionSettings(institution.rows[0]?.data);
+        const departmentMode = normalizeDepartmentMode(settings.departmentMode);
+        const requestedDepartmentId = typeof safeBody.departmentId === 'string' ? safeBody.departmentId.trim() : '';
+        const nextLevel = typeof safeBody.level === 'string' && safeBody.level.trim() ? safeBody.level.trim() : cur.rows[0].data.level || '';
+        if (departmentMode === 'disabled') {
+          safeBody.departmentId = '';
+          safeBody.department = '';
+          safeBody.departmentCode = null;
+        } else if (departmentMode === 'required' && !requestedDepartmentId) {
+          return res.status(400).json({ error: 'Select a department for this student' });
+        } else if (requestedDepartmentId) {
+          const departmentSelection = await resolveStudentDepartment({
+            institutionId: cur.rows[0].institution_id,
+            body: safeBody,
+            level: nextLevel,
+            settings,
+          });
+          if (departmentSelection.error) return res.status(400).json({ error: departmentSelection.error });
+          safeBody.departmentId = departmentSelection.departmentId;
+          safeBody.department = departmentSelection.department;
+          safeBody.departmentCode = departmentSelection.departmentCode;
+        } else {
+          safeBody.departmentId = '';
+          safeBody.departmentCode = null;
+          if (typeof safeBody.department === 'string') safeBody.department = safeBody.department.trim();
+        }
+      }
+    }
     if (typeof safeBody.username === 'string') safeBody.username = safeBody.username.trim().toLowerCase();
     if (typeof safeBody.email === 'string') safeBody.email = safeBody.email.trim().toLowerCase();
   }
@@ -1005,18 +1091,15 @@ app.post('/api/institutions/:iid/users', auth, staffOnly, async (req, res) => {
   if (!fullName || !username || !email || !password || !level || password.length < 8 || password.length > 128 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || !/^[a-z0-9._-]{3,32}$/.test(username)) {
     return res.status(400).json({ error: 'Valid name, username, email, level and password (8-128 characters) are required' });
   }
-  let departmentId = '';
-  let department = typeof body.department === 'string' ? body.department.trim() : '';
-  let departmentCode = null;
-  if (body.departmentId) {
-    const dept = await q('SELECT id, data FROM departments WHERE id=$1 AND institution_id=$2', [body.departmentId, req.params.iid]);
-    if (!dept.rows.length || dept.rows[0].data.isActive === false) return res.status(400).json({ error: 'Selected department is invalid or inactive' });
-    const deptData = toDoc(dept.rows[0]);
-    if (deptData.levels?.length && !deptData.levels.includes(level)) return res.status(400).json({ error: 'Selected level is not available in this department' });
-    departmentId = deptData.id;
-    department = deptData.name || department;
-    departmentCode = deptData.code || null;
-  }
+  const institution = await q('SELECT data FROM institutions WHERE id = $1', [req.params.iid]);
+  const departmentSelection = await resolveStudentDepartment({
+    institutionId: req.params.iid,
+    body,
+    level,
+    settings: institutionSettings(institution.rows[0]?.data),
+  });
+  if (departmentSelection.error) return res.status(400).json({ error: departmentSelection.error });
+  const { departmentId, department, departmentCode } = departmentSelection;
   const id = newId();
   const data = {
     ...body, fullName, username, email, password: await bcrypt.hash(password, 10), role: 'student', authVersion: 0,

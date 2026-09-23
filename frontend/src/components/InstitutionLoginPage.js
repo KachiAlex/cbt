@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import dataService from '../services/dataService';
+import { getAcademicStructure } from '../utils/academicStructure';
 
 const InstitutionLoginPage = ({ institution, onLogin, onAdminAccess }) => {
   const [formData, setFormData] = useState({
@@ -24,11 +25,15 @@ const InstitutionLoginPage = ({ institution, onLogin, onAdminAccess }) => {
   });
   const [departments, setDepartments] = useState([]);
   const [departmentsLoading, setDepartmentsLoading] = useState(false);
+  const academicStructure = getAcademicStructure(institution);
+  const departmentsEnabled = academicStructure.departmentsEnabled;
+  const departmentsRequired = academicStructure.departmentsRequired;
+  const levelLabel = academicStructure.levelLabel;
 
-  const hasDepartmentDefinitions = departments.length > 0;
+  const hasDepartmentDefinitions = departmentsEnabled && departments.length > 0;
   const activeDepartments = departments.filter(dept => dept.isActive !== false);
   const departmentOptions = activeDepartments.length ? activeDepartments : departments;
-  const selectedRegistrationDepartment = departmentOptions.find(dept => dept.id === registerData.departmentId) || null;
+  const selectedRegistrationDepartment = departmentsEnabled ? departmentOptions.find(dept => dept.id === registerData.departmentId) || null : null;
   const configuredLevelOptions = selectedRegistrationDepartment?.levels || [];
   const levelOptionsWithFallback = registerData.level && !configuredLevelOptions.includes(registerData.level)
     ? [...configuredLevelOptions, registerData.level]
@@ -64,7 +69,10 @@ const InstitutionLoginPage = ({ institution, onLogin, onAdminAccess }) => {
   }, []);
 
   useEffect(() => {
-    if (!institution?.slug) return;
+    if (!institution?.slug || !departmentsEnabled) {
+      setDepartments([]);
+      return;
+    }
     const loadDepartments = async () => {
       try {
         setDepartmentsLoading(true);
@@ -78,7 +86,7 @@ const InstitutionLoginPage = ({ institution, onLogin, onAdminAccess }) => {
     };
 
     loadDepartments();
-  }, [institution?.slug]);
+  }, [institution?.slug, departmentsEnabled]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -147,10 +155,15 @@ const InstitutionLoginPage = ({ institution, onLogin, onAdminAccess }) => {
     }
 
     try {
-      const selectedDepartment = departments.find(dept => dept.id === registerData.departmentId);
+      const selectedDepartment = departmentsEnabled ? departments.find(dept => dept.id === registerData.departmentId) : null;
+      if (departmentsRequired && !selectedDepartment) {
+        setError('Please select your department.');
+        setLoading(false);
+        return;
+      }
       const candidateLevel = registerData.level?.trim();
       if (!candidateLevel) {
-        setError('Please select your level.');
+        setError(`Please enter your ${levelLabel.toLowerCase()}.`);
         setLoading(false);
         return;
       }
@@ -168,9 +181,9 @@ const InstitutionLoginPage = ({ institution, onLogin, onAdminAccess }) => {
         email: registerData.email,
         username: registerData.username,
         password: registerData.password,
-        departmentId: selectedDepartment?.id || '',
-        department: selectedDepartment?.name || registerData.department,
-        departmentCode: selectedDepartment?.code || null,
+        departmentId: departmentsEnabled ? selectedDepartment?.id || '' : '',
+        department: departmentsEnabled ? selectedDepartment?.name || registerData.department : '',
+        departmentCode: departmentsEnabled ? selectedDepartment?.code || null : null,
         level: candidateLevel,
         phoneNumber: registerData.phoneNumber,
         role: 'student',
@@ -362,44 +375,51 @@ const InstitutionLoginPage = ({ institution, onLogin, onAdminAccess }) => {
                       />
                     </div>
 
-                    <div>
-                      <label htmlFor="department" className="block text-sm font-medium text-gray-700 mb-2">
-                        Department (Optional)
-                      </label>
-                      {hasDepartmentDefinitions ? (
-                        <select
-                          id="department"
-                          name="department"
-                          value={registerData.departmentId}
-                          onChange={handleDepartmentSelect}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                        >
-                          <option value="">No department</option>
-                          {departmentOptions.map(dept => (
-                            <option key={dept.id} value={dept.id}>
-                              {dept.name}{dept.isActive === false ? ' (inactive)' : ''}
-                            </option>
-                          ))}
-                        </select>
-                      ) : (
-                        <input
-                          id="department"
-                          name="department"
-                          type="text"
-                          value={registerData.department}
-                          onChange={handleRegisterInputChange}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                          placeholder="Enter your department (optional)"
-                        />
-                      )}
-                      {departmentsLoading && (
-                        <p className="mt-1 text-xs text-gray-500">Loading departments...</p>
-                      )}
-                    </div>
+                    {departmentsEnabled && (
+                      <div>
+                        <label htmlFor="department" className="block text-sm font-medium text-gray-700 mb-2">
+                          Department{departmentsRequired ? '' : ' (Optional)'}
+                        </label>
+                        {hasDepartmentDefinitions ? (
+                          <select
+                            id="department"
+                            name="department"
+                            required={departmentsRequired}
+                            value={registerData.departmentId}
+                            onChange={handleDepartmentSelect}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                          >
+                            <option value="">{departmentsRequired ? 'Select department' : 'No department'}</option>
+                            {departmentOptions.map(dept => (
+                              <option key={dept.id} value={dept.id}>
+                                {dept.name}{dept.isActive === false ? ' (inactive)' : ''}
+                              </option>
+                            ))}
+                          </select>
+                        ) : departmentsRequired ? (
+                          <div className="px-3 py-2 border border-red-200 bg-red-50 text-red-700 rounded-md text-sm">
+                            Departments are required, but none are available. Contact your administrator.
+                          </div>
+                        ) : (
+                          <input
+                            id="department"
+                            name="department"
+                            type="text"
+                            value={registerData.department}
+                            onChange={handleRegisterInputChange}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                            placeholder="Enter your department (optional)"
+                          />
+                        )}
+                        {departmentsLoading && (
+                          <p className="mt-1 text-xs text-gray-500">Loading departments...</p>
+                        )}
+                      </div>
+                    )}
 
                     <div>
                       <label htmlFor="level" className="block text-sm font-medium text-gray-700 mb-2">
-                        Level
+                        {levelLabel}
                       </label>
                       {selectedRegistrationDepartment && configuredLevelOptions.length > 0 ? (
                         <select
@@ -411,7 +431,7 @@ const InstitutionLoginPage = ({ institution, onLogin, onAdminAccess }) => {
                           className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
                           disabled={!!selectedRegistrationDepartment && !(selectedRegistrationDepartment.levels || []).length}
                         >
-                          <option value="">Select Level</option>
+                          <option value="">Select {levelLabel}</option>
                           {levelOptionsWithFallback.map(level => (
                             <option key={level} value={level}>{level}</option>
                           ))}
@@ -425,7 +445,7 @@ const InstitutionLoginPage = ({ institution, onLogin, onAdminAccess }) => {
                           value={registerData.level}
                           onChange={handleRegisterInputChange}
                           className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                          placeholder="Enter your level"
+                          placeholder={`Enter your ${levelLabel.toLowerCase()}`}
                         />
                       )}
                       {selectedRegistrationDepartment && !(selectedRegistrationDepartment.levels || []).length && hasDepartmentDefinitions && (

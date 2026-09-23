@@ -33,7 +33,9 @@ export default function MultiTenantAdmin() {
     email: '',
     phone: '',
     address: '',
-    logo: null
+    logo: null,
+    departmentMode: 'optional',
+    levelLabel: 'Level'
   });
 
   const [newAdmin, setNewAdmin] = useState({
@@ -113,7 +115,11 @@ export default function MultiTenantAdmin() {
       setLoading(true);
       setError('');
 
-      await dataService.createInstitution(newInstitution);
+      const { departmentMode, levelLabel, ...institutionData } = newInstitution;
+      await dataService.createInstitution({
+        ...institutionData,
+        settings: { departmentMode, levelLabel: levelLabel.trim() || 'Level' }
+      });
       setNewInstitution({
         name: '',
         slug: '',
@@ -121,7 +127,9 @@ export default function MultiTenantAdmin() {
         email: '',
         phone: '',
         address: '',
-        logo: null
+        logo: null,
+        departmentMode: 'optional',
+        levelLabel: 'Level'
       });
       await loadInstitutions();
       setShowCreateInstitution(false);
@@ -491,6 +499,31 @@ export default function MultiTenantAdmin() {
                     className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
                     rows="3"
                   />
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700">Department Usage</label>
+                    <select
+                      value={newInstitution.departmentMode}
+                      onChange={(e) => setNewInstitution({...newInstitution, departmentMode: e.target.value})}
+                      className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
+                    >
+                      <option value="disabled">Not used (secondary school)</option>
+                      <option value="optional">Optional</option>
+                      <option value="required">Required</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700">Level Label</label>
+                    <input
+                      type="text"
+                      maxLength={30}
+                      value={newInstitution.levelLabel}
+                      onChange={(e) => setNewInstitution({...newInstitution, levelLabel: e.target.value})}
+                      className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
+                      placeholder="Level, Class, Grade"
+                    />
+                  </div>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700">Email</label>

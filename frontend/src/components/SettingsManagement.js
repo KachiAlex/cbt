@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import dataService from '../services/dataService';
+import { getAcademicStructure } from '../utils/academicStructure';
 
 const SettingsManagement = ({ institution, user, onLogout, onInstitutionChange }) => {
   const [settings, setSettings] = useState({
@@ -8,6 +9,8 @@ const SettingsManagement = ({ institution, user, onLogout, onInstitutionChange }
     timezone: 'Africa/Lagos',
     dateFormat: 'DD/MM/YYYY',
     timeFormat: '24h',
+    departmentMode: 'optional',
+    levelLabel: 'Level',
     allowStudentRegistration: true,
     requireEmailVerification: false,
     maxExamAttempts: 3,
@@ -75,6 +78,14 @@ const SettingsManagement = ({ institution, user, onLogout, onInstitutionChange }
       alert('Email verification cannot be enabled until an email delivery provider is configured.');
       return;
     }
+    if (!['disabled', 'optional', 'required'].includes(settings.departmentMode)) {
+      alert('Choose whether departments are disabled, optional, or required.');
+      return;
+    }
+    if (!settings.levelLabel.trim() || settings.levelLabel.trim().length > 30) {
+      alert('Level label must be 1-30 characters.');
+      return;
+    }
     if (!Number.isInteger(maxAttempts) || maxAttempts < 1 || maxAttempts > 20 || !Number.isInteger(timeLimit) || timeLimit < 1 || timeLimit > 600) {
       alert('Enter 1-20 attempts and a default time limit of 1-600 minutes.');
       return;
@@ -89,7 +100,7 @@ const SettingsManagement = ({ institution, user, onLogout, onInstitutionChange }
         ...institution,
         name: settings.institutionName.trim(),
         logo: settings.logo.trim(),
-        settings: { ...settings, maxExamAttempts: maxAttempts, examTimeLimit: timeLimit, institutionName: settings.institutionName.trim(), logo: settings.logo.trim(), emailNotifications: false, smsNotifications: false }
+        settings: { ...settings, levelLabel: settings.levelLabel.trim(), maxExamAttempts: maxAttempts, examTimeLimit: timeLimit, institutionName: settings.institutionName.trim(), logo: settings.logo.trim(), emailNotifications: false, smsNotifications: false }
       });
       const updatedInstitution = await dataService.getInstitution(institution.id);
       onInstitutionChange?.(updatedInstitution);
@@ -251,6 +262,42 @@ const SettingsManagement = ({ institution, user, onLogout, onInstitutionChange }
             </select>
           </div>
         </div>
+      </div>
+
+      <div>
+        <h3 className="text-lg font-medium text-gray-900 mb-4">Academic Structure</h3>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Department Usage
+            </label>
+            <select
+              value={settings.departmentMode}
+              onChange={(e) => setSettings({ ...settings, departmentMode: e.target.value })}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+            >
+              <option value="disabled">Departments not used (e.g. secondary school)</option>
+              <option value="optional">Departments optional</option>
+              <option value="required">Departments required</option>
+            </select>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Level Label
+            </label>
+            <input
+              type="text"
+              maxLength={30}
+              value={settings.levelLabel}
+              onChange={(e) => setSettings({ ...settings, levelLabel: e.target.value })}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+              placeholder="Level, Class, Grade, or Year"
+            />
+          </div>
+        </div>
+        <p className="mt-2 text-xs text-gray-500">
+          Choose “Departments not used” for schools that only need {getAcademicStructure({ settings }).levelLabel.toLowerCase()} values such as JSS1 or SS1.
+        </p>
       </div>
 
       <div>

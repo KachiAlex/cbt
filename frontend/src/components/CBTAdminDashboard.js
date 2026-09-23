@@ -7,6 +7,7 @@ import SettingsManagement from './SettingsManagement';
 import DepartmentsManagement from './DepartmentsManagement';
 import dataService from '../services/dataService';
 import { formatResultDate } from '../utils/resultDate';
+import { getAcademicStructure } from '../utils/academicStructure';
 
 const CBTAdminDashboard = ({ institution, user, onLogout, onInstitutionChange }) => {
   const [activeTab, setActiveTab] = useState('exams');
@@ -29,6 +30,7 @@ const CBTAdminDashboard = ({ institution, user, onLogout, onInstitutionChange })
     students: [],
     results: []
   });
+  const academicStructure = getAcademicStructure(institution);
 
   useEffect(() => {
     loadDashboardStats();
@@ -149,7 +151,7 @@ const CBTAdminDashboard = ({ institution, user, onLogout, onInstitutionChange })
 
   // Single-admin model: show all tabs to admin users
   const getTabsForRole = () => {
-    return [
+    const allTabs = [
       { id: 'exams', name: 'Exam Management', icon: '📝' },
       { id: 'questions', name: 'Questions', icon: '❓' },
       { id: 'students', name: 'Students', icon: '👥' },
@@ -158,9 +160,14 @@ const CBTAdminDashboard = ({ institution, user, onLogout, onInstitutionChange })
       { id: 'analytics', name: 'Analytics', icon: '📈' },
       { id: 'settings', name: 'Settings', icon: '⚙️' }
     ];
+    return academicStructure.departmentsEnabled ? allTabs : allTabs.filter(tab => tab.id !== 'structure');
   };
 
   const tabs = getTabsForRole();
+
+  useEffect(() => {
+    if (!academicStructure.departmentsEnabled && activeTab === 'structure') setActiveTab('students');
+  }, [academicStructure.departmentsEnabled, activeTab]);
 
   // Analytics component
   const renderAnalytics = () => {
