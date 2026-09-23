@@ -1,7 +1,7 @@
 // API-backed data service — talks to the Express/Postgres API on the VPS.
 // Talks to the Express/Postgres API. Same method names/signatures as before.
 
-const BASE = process.env.REACT_APP_API_URL || '';
+const BASE = import.meta.env.VITE_API_URL || '';
 
 const TOKEN_KEYS = ['cbt_token', 'multi_tenant_admin_token'];
 
@@ -16,14 +16,22 @@ async function request(path, options = {}, tokenIndex = 0) {
 
   const res = await fetch(`${BASE}/api${path}`, { ...options, headers });
 
-  // If unauthorized and another token exists, retry with it
-  if (res.status === 401 && tokenIndex + 1 < tokens.length) {
+  // If this session token is invalid or lacks the required role, try the next stored session.
+  if ([401, 403].includes(res.status) && tokenIndex + 1 < tokens.length) {
     return request(path, options, tokenIndex + 1);
   }
 
   if (!res.ok) {
     let msg = `HTTP ${res.status}`;
-    try { msg = (await res.json()).error || msg; } catch {}
+    try {
+      const data = await res.json();
+      if (Array.isArray(data.errors) && data.errors.length) {
+        msg = data.errors.slice(0, 5).map(item => `Row ${Number(item.index) + 1}: ${item.error}`).join('; ');
+        if (data.errors.length > 5) msg += `; and ${data.errors.length - 5} more`;
+      } else {
+        msg = data.error || msg;
+      }
+    } catch {}
     throw new Error(msg);
   }
   return res.json();
@@ -55,9 +63,21 @@ class PgDataService {
     return null;
   }
 
+  getSession() { return get('/auth/session'); }
+  async logout() {
+    const tokens = TOKEN_KEYS.map(key => [key, localStorage.getItem(key)]).filter(([, token]) => token);
+    try {
+      await Promise.all(tokens.map(([, token]) => fetch(`${BASE}/api/auth/logout`, { method: 'POST', headers: { Authorization: `Bearer ${token}` } }).catch(() => {})));
+    } finally {
+      TOKEN_KEYS.forEach(key => localStorage.removeItem(key));
+      localStorage.removeItem('multi_tenant_admin_user');
+    }
+  }
+
   // ---- institutions ----
   getInstitutions() { return get('/institutions'); }
   getInstitution(id) { return get(`/institutions/${id}`); }
+  getInstitutionSummary(id) { return get(`/institutions/${id}/summary`); }
   getInstitutionBySlug(slug) { return get(`/institutions/slug/${slug}`); }
   institutionLogin(slug, username, password) { return institutionLogin(slug, username, password); }
   async createInstitution(data) { return post('/institutions', data); }
@@ -69,7 +89,11 @@ class PgDataService {
   // Public (pre-login, registration form): slug-scoped, minimal fields
   getPublicDepartments(slug) {
     return fetch(`${BASE}/api/public/institutions/${encodeURIComponent(slug)}/departments`)
-      .then(r => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); });
+      .then(async r => {
+        const data = await r.json().catch(() => ({}));
+        if (!r.ok) throw new Error(data.error || `HTTP ${r.status}`);
+        return data;
+      });
   }
   // Public (pre-login): student self-registration
   registerStudent(slug, data) {
@@ -94,7 +118,10 @@ class PgDataService {
     const iid = data.institutionId;
     return post(`/institutions/${iid}/admins`, data);
   }
-  async updateAdminPassword(id, password) { await patch(`/admins/${id}/password`, { password }); return true; }
+  updateAdminPassword(id, currentPassword, newPassword) {
+    return patch(`/admins/${id}/password`, { currentPassword, newPassword });
+  }
+  async updateAdmin(id, data) { await patch(`/admins/${id}`, data); return true; }
   async deleteAdmin(id) { await del(`/admins/${id}`); return true; }
   async deleteInstitutionAdmins(iid) {
     const admins = await this.getInstitutionAdmins(iid);
@@ -111,6 +138,9 @@ class PgDataService {
   }
   async updateUser(id, data) { await patch(`/users/${id}`, data); return true; }
   async deleteUser(id) { await del(`/users/${id}`); return true; }
+  async deleteUsers(institutionId, ids) {
+    return request(`/institutions/${institutionId}/users/bulk`, { method: 'DELETE', body: JSON.stringify({ ids }) });
+  }
   getAllUsers() { return get('/users'); }
   async updateInstitutionUserCount(iid) {
     const users = await this.getInstitutionUsers(iid);
@@ -127,6 +157,7 @@ class PgDataService {
   async updateExam(id, data) { await patch(`/exams/${id}`, data); return true; }
   async deleteExam(id) { await del(`/exams/${id}`); return true; }
   getExams() { return get('/exams'); } // flat, tenant-scoped server-side
+  startExamAttempt(examId) { return post(`/exams/${examId}/attempts`, {}); }
 
   // ---- questions ----
   getInstitutionQuestions(iid) { return get(`/institutions/${iid}/questions`); }
@@ -135,6 +166,7 @@ class PgDataService {
   async addQuestions(examId, questionsData) { return post(`/exams/${examId}/questions/bulk`, { questions: questionsData }); }
   async updateQuestion(id, data) { await patch(`/questions/${id}`, data); return true; }
   async deleteQuestion(id) { await del(`/questions/${id}`); return true; }
+  async deleteQuestions(ids) { return request('/questions/bulk', { method: 'DELETE', body: JSON.stringify({ ids }) }); }
   async countQuestionsByExam(examId) { const r = await get(`/exams/${examId}/questions/count`); return r.count; }
   async deleteQuestionsByExam(examId) { await del(`/exams/${examId}/questions`); return true; }
 
@@ -144,8 +176,10 @@ class PgDataService {
   getResultsByExam(examId) { return get(`/exams/${examId}/results`); }
   getResultsByUser(userId) { return get(`/users/${userId}/results`); }
   getResultById(id) { return get(`/results/${id}`); }
+  getResultReview(id) { return get(`/results/${id}/review`); }
   async createResult(data) { return post('/results', data); }
   async saveExamResult(data) { return post('/results', data); }
+  async submitExamResult(data) { return post('/results', data); }
   async updateResult(id, data) { await patch(`/results/${id}`, data); return true; }
   async updateExamResult(id, data) { await patch(`/results/${id}`, data); return true; }
   async deleteResult(id) { await del(`/results/${id}`); return true; }
@@ -154,6 +188,8 @@ class PgDataService {
   // ---- blogs ----
   getBlogs() { return get('/blogs'); }
   getAllBlogs() { return get('/blogs-all'); }
+  getDemoRequests() { return get('/demo-requests'); }
+  async updateDemoRequestStatus(id, status) { await patch(`/demo-requests/${id}`, { status }); return true; }
   getBlog(id) { return get(`/blogs/${id}`); }
   async createBlog(data) { return post('/blogs', data); }
   async updateBlog(id, data) { await patch(`/blogs/${id}`, data); return true; }

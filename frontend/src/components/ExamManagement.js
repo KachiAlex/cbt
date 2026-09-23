@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import dataService from '../services/dataService';
+import { isoToZonedInput, zonedInputToIso } from '../utils/timeZone';
 
 const ExamManagement = ({ institution, onStatsUpdate }) => {
+  const timezone = institution?.settings?.timezone || 'Africa/Lagos';
   const [exams, setExams] = useState([]);
   const [loading, setLoading] = useState(false);
   const [showModal, setShowModal] = useState(false);
@@ -9,8 +11,7 @@ const ExamManagement = ({ institution, onStatsUpdate }) => {
   const [formData, setFormData] = useState({
     title: '',
     description: '',
-    duration: 60,
-    totalQuestions: 0,
+    duration: Number(institution?.settings?.examTimeLimit) || 60,
     passingScore: 50,
     isActive: true,
     startDate: '',
@@ -27,12 +28,7 @@ const ExamManagement = ({ institution, onStatsUpdate }) => {
     try {
       setLoading(true);
       const examData = await dataService.getInstitutionExams(institution.id);
-      // Fetch live question counts
-      const counts = await Promise.all(
-        examData.map((e) => dataService.countQuestionsByExam(e.id))
-      );
-      const withCounts = examData.map((e, idx) => ({ ...e, totalQuestions: counts[idx] }));
-      setExams(withCounts);
+      setExams(examData.map(exam => ({ ...exam, totalQuestions: Number(exam.totalQuestions ?? exam.questionCount) || 0 })));
     } catch (error) {
       console.error('Error loading exams:', error);
     } finally {
@@ -42,14 +38,29 @@ const ExamManagement = ({ institution, onStatsUpdate }) => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    const startDate = zonedInputToIso(formData.startDate, timezone);
+    const endDate = zonedInputToIso(formData.endDate, timezone);
+    if ((formData.startDate && !startDate) || (formData.endDate && !endDate) || (startDate && endDate && new Date(endDate) <= new Date(startDate))) {
+      alert('Choose valid exam dates; the end must be after the start.');
+      return;
+    }
+    const duration = Number(formData.duration);
+    const passingScore = Number(formData.passingScore);
+    if (!Number.isInteger(duration) || duration < 1 || duration > 600 || !Number.isFinite(passingScore) || passingScore < 0 || passingScore > 100) {
+      alert('Enter a whole-number duration of 1-600 minutes and a passing score of 0-100.');
+      return;
+    }
     try {
       setLoading(true);
-      
       const examData = {
         ...formData,
+        duration,
+        passingScore,
+        startDate,
+        endDate,
         institutionId: institution.id,
         institutionName: institution.name,
-        createdAt: new Date().toISOString()
+        ...(editingExam ? {} : { createdAt: new Date().toISOString() })
       };
 
       if (editingExam) {
@@ -65,6 +76,7 @@ const ExamManagement = ({ institution, onStatsUpdate }) => {
       resetForm();
     } catch (error) {
       console.error('Error saving exam:', error);
+      alert(error.message || 'Error saving exam.');
     } finally {
       setLoading(false);
     }
@@ -76,11 +88,10 @@ const ExamManagement = ({ institution, onStatsUpdate }) => {
       title: exam.title,
       description: exam.description,
       duration: exam.duration,
-      totalQuestions: exam.totalQuestions,
       passingScore: exam.passingScore,
-      isActive: exam.isActive,
-      startDate: exam.startDate,
-      endDate: exam.endDate,
+      isActive: exam.isActive !== false,
+      startDate: isoToZonedInput(exam.startDate, timezone),
+      endDate: isoToZonedInput(exam.endDate, timezone),
       instructions: exam.instructions,
       type: exam.type || 'Objective'
     });
@@ -95,6 +106,7 @@ const ExamManagement = ({ institution, onStatsUpdate }) => {
         onStatsUpdate();
       } catch (error) {
         console.error('Error deleting exam:', error);
+        alert(error.message || 'Error deleting exam.');
       }
     }
   };
@@ -103,8 +115,7 @@ const ExamManagement = ({ institution, onStatsUpdate }) => {
     setFormData({
       title: '',
       description: '',
-      duration: 60,
-      totalQuestions: 0,
+      duration: Number(institution?.settings?.examTimeLimit) || 60,
       passingScore: 50,
       isActive: true,
       startDate: '',
@@ -262,8 +273,10 @@ const ExamManagement = ({ institution, onStatsUpdate }) => {
                 <input
                   type="number"
                   required
+                  min="1"
+                  max="600"
                       value={formData.duration}
-                      onChange={(e) => setFormData({ ...formData, duration: parseInt(e.target.value) })}
+                      onChange={(e) => setFormData({ ...formData, duration: e.target.value })}
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
                 />
               </div>
@@ -275,8 +288,10 @@ const ExamManagement = ({ institution, onStatsUpdate }) => {
                     <input
                       type="number"
                       required
+                      min="0"
+                      max="100"
                       value={formData.passingScore}
-                      onChange={(e) => setFormData({ ...formData, passingScore: parseInt(e.target.value) })}
+                      onChange={(e) => setFormData({ ...formData, passingScore: e.target.value })}
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
                     />
                   </div>

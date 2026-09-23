@@ -106,7 +106,7 @@ const DepartmentsManagement = ({ institution, onChange }) => {
       }
     } catch (err) {
       console.error('Error saving department:', err);
-      setError('Failed to save department. Please try again.');
+      setError(err.message || 'Failed to save department. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -114,7 +114,7 @@ const DepartmentsManagement = ({ institution, onChange }) => {
 
   const handleDelete = async (department) => {
     if (!hasInstitution) return;
-    const confirmed = window.confirm(`Delete department "${department.name}"? This will remove all associated level definitions.`);
+    const confirmed = window.confirm(`Delete department "${department.name}"? Departments assigned to students cannot be deleted until they are reassigned.`);
     if (!confirmed) return;
 
     try {
@@ -126,7 +126,7 @@ const DepartmentsManagement = ({ institution, onChange }) => {
       }
     } catch (err) {
       console.error('Error deleting department:', err);
-      setError('Failed to delete department. Please try again.');
+      setError(err.message || 'Failed to delete department. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -137,7 +137,7 @@ const DepartmentsManagement = ({ institution, onChange }) => {
     try {
       setLoading(true);
       await dataService.updateInstitutionDepartment(institution.id, department.id, {
-        isActive: !department.isActive,
+        isActive: department.isActive === false,
       });
       await loadDepartments();
     } catch (err) {
@@ -146,6 +146,11 @@ const DepartmentsManagement = ({ institution, onChange }) => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const formatDepartmentDate = (value) => {
+    const date = value?.toDate ? value.toDate() : new Date(value);
+    return Number.isNaN(date.getTime()) ? '—' : date.toLocaleString();
   };
 
   const filteredDepartments = useMemo(() => {
@@ -243,7 +248,7 @@ const DepartmentsManagement = ({ institution, onChange }) => {
                     </span>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    {department.updatedAt?.toDate ? department.updatedAt.toDate().toLocaleString() : '—'}
+                    {formatDepartmentDate(department.updatedAt)}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium space-x-3">
                     <button

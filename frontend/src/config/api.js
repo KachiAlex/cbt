@@ -1,7 +1,7 @@
 // API Configuration
 const API_CONFIG = {
   // Get API URL from environment variable or use default
-  BASE_URL: process.env.REACT_APP_API_URL || '',
+  BASE_URL: import.meta.env.VITE_API_URL || '',
   
   // API endpoints
   ENDPOINTS: {
@@ -67,18 +67,12 @@ export const apiRequest = async (endpoint, options = {}) => {
     },
   };
 
-  try {
-    const response = await fetch(url, config);
-    
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
-    }
-    
-    return await response.json();
-  } catch (error) {
-    console.error('API request failed:', error);
-    throw error;
+  const response = await fetch(url, config);
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(payload.error || `HTTP error! status: ${response.status}`);
   }
+  return payload;
 };
 
 export default API_CONFIG; 

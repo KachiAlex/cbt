@@ -4,22 +4,23 @@
   "description": "New CBT Frontend Application",
   "private": true,
   "scripts": {
-    "start": "react-scripts start",
-    "build": "react-scripts build",
-    "test": "react-scripts test",
-    "eject": "react-scripts eject",
+    "start": "vite --host 0.0.0.0 --port 3001",
+    "build": "vite build && node scripts/copy-public-assets.js",
+    "test": "vitest run",
     "validate-api": "node scripts/validate-api.js",
-    "prebuild": "npm run validate-api"
+    "prebuild": "npm run validate-api",
+    "dev": "vite --host 0.0.0.0 --port 3001",
+    "test:watch": "vitest"
   },
   "dependencies": {
     "ajv": "^8.17.1",
+    "docx": "^9.7.1",
+    "exceljs": "^4.4.0",
     "file-saver": "^2.0.5",
     "mammoth": "^1.10.0",
     "react": "^19.1.1",
     "react-dom": "^19.1.1",
-    "react-router-dom": "^6.26.2",
-    "react-scripts": "^5.0.1",
-    "xlsx": "^0.18.5"
+    "react-router-dom": "^7.18.4"
   },
   "browserslist": {
     "production": [
@@ -33,5 +34,17 @@
       "last 1 safari version"
     ]
   },
-  "proxy": "http://162.35.104.28:8090"
+  "devDependencies": {
+    "@vitejs/plugin-react": "^6.1.1",
+    "autoprefixer": "^10.4.21",
+    "jsdom": "^26.1.0",
+    "tailwindcss": "^3.4.17",
+    "vite": "^8.3.0",
+    "vitest": "^4.1.11"
+  },
+  "overrides": {
+    "exceljs": {
+      "uuid": "11.1.1"
+    }
+  }
 }

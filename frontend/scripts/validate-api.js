@@ -3,58 +3,95 @@
 /**
  * API Validation Script
  * 
- * This script validates that all expected methods exist in the Firebase Data Service
+ * This script validates that all expected methods exist in the API Data Service
  * and that the API contract is maintained across updates.
  */
 
 const fs = require('fs');
 const path = require('path');
 
-// Expected methods that must exist in the Firebase Data Service
+// Expected methods that must exist in the API Data Service
 const REQUIRED_METHODS = {
   // Institution Management
   'getInstitutions': 'Institution[]',
   'getInstitution': 'Institution',
+  'getInstitutionSummary': 'Summary',
   'getInstitutionBySlug': 'Institution',
   'createInstitution': 'Institution',
   'updateInstitution': 'boolean',
   'updateInstitutionStatus': 'boolean',
   'deleteInstitution': 'boolean',
 
-  // User Management (CRITICAL SECTION)
+  // User Management
   'getInstitutionUsers': 'User[]',
-  'getInstitutionStudents': 'User[]', // This method caused the original error
+  'getInstitutionStudents': 'User[]',
+  'getPublicDepartments': 'Department[]',
+  'registerStudent': 'User',
+  'institutionLogin': 'Session',
+  'getSession': 'Session',
+  'logout': 'boolean',
+  'getInstitutionDepartments': 'Department[]',
+  'createInstitutionDepartment': 'Department',
+  'updateInstitutionDepartment': 'boolean',
+  'deleteInstitutionDepartment': 'boolean',
   'createUser': 'User',
   'updateUser': 'boolean',
   'deleteUser': 'boolean',
+  'deleteUsers': 'number',
   'updateInstitutionUserCount': 'number',
 
   // Admin Management
   'getInstitutionAdmins': 'Admin[]',
   'createAdmin': 'Admin',
   'updateAdminPassword': 'boolean',
+  'updateAdmin': 'boolean',
   'deleteAdmin': 'boolean',
   'deleteInstitutionAdmins': 'boolean',
 
   // Exam Management
   'getInstitutionExams': 'Exam[]',
+  'getExams': 'Exam[]',
+  'startExamAttempt': 'Attempt',
   'createExam': 'Exam',
   'updateExam': 'boolean',
   'deleteExam': 'boolean',
 
   // Question Management
   'getInstitutionQuestions': 'Question[]',
+  'getQuestions': 'Question[]',
   'createQuestion': 'Question',
+  'addQuestions': 'Question[]',
   'updateQuestion': 'boolean',
   'deleteQuestion': 'boolean',
+  'deleteQuestions': 'number',
   'countQuestionsByExam': 'number',
   'deleteQuestionsByExam': 'boolean',
 
   // Results Management
   'getInstitutionResults': 'Result[]',
+  'getResults': 'Result[]',
+  'getResultsByExam': 'Result[]',
+  'getResultsByUser': 'Result[]',
+  'getResultById': 'Result',
+  'getResultReview': 'ResultReview',
   'createResult': 'Result',
+  'saveExamResult': 'Result',
+  'submitExamResult': 'Result',
   'updateResult': 'boolean',
   'deleteResult': 'boolean',
+  'deleteResults': 'number',
+
+  // Blogs and lead management
+  'getBlogs': 'Blog[]',
+  'getAllBlogs': 'Blog[]',
+  'getBlog': 'Blog',
+  'createBlog': 'Blog',
+  'updateBlog': 'boolean',
+  'publishBlog': 'boolean',
+  'unpublishBlog': 'boolean',
+  'deleteBlog': 'boolean',
+  'getDemoRequests': 'Lead[]',
+  'updateDemoRequestStatus': 'boolean',
 
   // Utility Methods
   'getAllUsers': 'User[]',
@@ -108,12 +145,8 @@ function validateDataService() {
     });
   }
 
-  // Special validation for the critical method that caused the original error
   if (!foundMethods.includes('getInstitutionStudents')) {
-    console.log(`\n🔥 CRITICAL ERROR:`);
-    console.log(`   The 'getInstitutionStudents' method is missing!`);
-    console.log(`   This method is required by InstitutionCBT.js for student login.`);
-    console.log(`   Add this method or create an alias to prevent runtime errors.`);
+    console.error('The getInstitutionStudents data-service method is required by the API contract.');
     hasErrors = true;
   }
 

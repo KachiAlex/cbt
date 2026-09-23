@@ -8,13 +8,11 @@ import DepartmentsManagement from './DepartmentsManagement';
 import dataService from '../services/dataService';
 import { formatResultDate } from '../utils/resultDate';
 
-const CBTAdminDashboard = ({ institution, user, onLogout }) => {
+const CBTAdminDashboard = ({ institution, user, onLogout, onInstitutionChange }) => {
   const [activeTab, setActiveTab] = useState('exams');
   const [loading, setLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
-  const [searchType, setSearchType] = useState('all');
   const [showQuickActions, setShowQuickActions] = useState(false);
-  const [selectedItems, setSelectedItems] = useState([]);
   const [stats, setStats] = useState({
     totalExams: 0,
     totalQuestions: 0,
@@ -35,47 +33,36 @@ const CBTAdminDashboard = ({ institution, user, onLogout }) => {
   useEffect(() => {
     loadDashboardStats();
     // Set up real-time updates every 30 seconds
-    const interval = setInterval(loadDashboardStats, 30000);
+    const interval = setInterval(loadDashboardSummary, 30000);
     return () => clearInterval(interval);
   }, []);
 
   const loadDashboardStats = async () => {
     try {
       setLoading(true);
-      const [exams, questions, students, results] = await Promise.all([
+      const [exams, questions, students, results, summary] = await Promise.all([
         dataService.getInstitutionExams(institution.id),
         dataService.getInstitutionQuestions(institution.id),
         dataService.getInstitutionUsers(institution.id),
-        dataService.getInstitutionResults(institution.id)
+        dataService.getInstitutionResults(institution.id),
+        dataService.getInstitutionSummary(institution.id)
       ]);
 
       // Store raw data for search and analytics
       setRawData({ exams, questions, students, results });
-
-      // Calculate enhanced stats
-      const activeExams = exams.filter(exam => exam.isActive).length;
-      const completedResults = results.filter(result => result.status === 'completed').length;
-      const averageScore = results.length > 0 
-        ? results.reduce((sum, result) => sum + (result.percentage || 0), 0) / results.length 
-        : 0;
-      const passRate = results.length > 0 
-        ? (results.filter(result => (result.percentage || 0) >= 50).length / results.length) * 100 
-        : 0;
-
-      setStats({
-        totalExams: exams.length,
-        totalQuestions: questions.length,
-        totalStudents: students.length,
-        totalResults: results.length,
-        activeExams,
-        completedResults,
-        averageScore: Math.round(averageScore * 100) / 100,
-        passRate: Math.round(passRate * 100) / 100
-      });
+      setStats(summary);
     } catch (error) {
       console.error('Error loading dashboard stats:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadDashboardSummary = async () => {
+    try {
+      setStats(await dataService.getInstitutionSummary(institution.id));
+    } catch (error) {
+      console.error('Error refreshing dashboard summary:', error);
     }
   };
 
@@ -91,7 +78,7 @@ const CBTAdminDashboard = ({ institution, user, onLogout }) => {
       ),
       questions: rawData.questions.filter(question =>
         question.question?.toLowerCase().includes(term) ||
-        question.options?.some(opt => opt.toLowerCase().includes(term))
+        question.options?.some(opt => String(opt ?? '').toLowerCase().includes(term))
       ),
       students: rawData.students.filter(student =>
         student.fullName?.toLowerCase().includes(term) ||
@@ -105,35 +92,13 @@ const CBTAdminDashboard = ({ institution, user, onLogout }) => {
     };
   }, [rawData, searchTerm]);
 
-  // Quick actions
-  const handleBulkDelete = async (type) => {
-    if (selectedItems.length === 0) return;
-    
-    const confirmed = window.confirm(
-      `Are you sure you want to delete ${selectedItems.length} ${type}? This action cannot be undone.`
-    );
-    
-    if (confirmed) {
-      try {
-        setLoading(true);
-        // Implement bulk delete logic based on type
-        console.log(`Bulk deleting ${selectedItems.length} ${type}:`, selectedItems);
-        // TODO: Implement actual bulk delete functionality
-        setSelectedItems([]);
-        await loadDashboardStats();
-      } catch (error) {
-        console.error('Error during bulk delete:', error);
-        alert('Error occurred during bulk delete operation');
-      } finally {
-        setLoading(false);
-      }
-    }
-  };
-
   const handleBulkExport = (type) => {
-    if (selectedItems.length === 0) return;
-    
-    const data = selectedItems.map(item => {
+    const data = filteredData[type] || [];
+    if (!data.length) {
+      alert(`No ${type} are available to export.`);
+      return;
+    }
+    const rows = data.map(item => {
       // Format data for export based on type
       switch (type) {
         case 'results':
@@ -142,7 +107,7 @@ const CBTAdminDashboard = ({ institution, user, onLogout }) => {
             'Exam': item.examTitle,
             'Score': item.percentage,
             'Status': item.status,
-            'Date': formatResultDate(item)
+            'Date': formatResultDate(item, false, institution?.settings)
           };
         case 'students':
           return {
@@ -156,17 +121,22 @@ const CBTAdminDashboard = ({ institution, user, onLogout }) => {
             'Title': item.title,
             'Description': item.description,
             'Status': item.isActive ? 'Active' : 'Inactive',
-            'Questions': item.questionCount || 0
+            'Questions': item.totalQuestions ?? item.questionCount ?? 0
           };
         default:
           return item;
       }
     });
 
+    const csvCell = value => {
+      let text = String(value ?? '');
+      if (/^\s*[=+\-@]/.test(text)) text = `'${text}`;
+      return `"${text.replace(/"/g, '""')}"`;
+    };
     const csvContent = [
-      Object.keys(data[0] || {}),
-      ...data.map(row => Object.values(row))
-    ].map(row => row.join(',')).join('\n');
+      Object.keys(rows[0]),
+      ...rows.map(row => Object.values(row))
+    ].map(row => row.map(csvCell).join(',')).join('\n');
 
     const blob = new Blob([csvContent], { type: 'text/csv' });
     const url = window.URL.createObjectURL(blob);
@@ -194,19 +164,20 @@ const CBTAdminDashboard = ({ institution, user, onLogout }) => {
 
   // Analytics component
   const renderAnalytics = () => {
-    const gradeDistribution = rawData.results.reduce((acc, result) => {
-      const grade = result.percentage >= 70 ? 'A' : 
-                   result.percentage >= 60 ? 'B' : 
-                   result.percentage >= 50 ? 'C' : 
+    const scoredResults = rawData.results.filter(result => typeof result.percentage === 'number' && Number.isFinite(result.percentage));
+    const gradeDistribution = scoredResults.reduce((acc, result) => {
+      const grade = result.percentage >= 70 ? 'A' :
+                   result.percentage >= 60 ? 'B' :
+                   result.percentage >= 50 ? 'C' :
                    result.percentage >= 40 ? 'D' : 'F';
       acc[grade] = (acc[grade] || 0) + 1;
       return acc;
     }, {});
 
     const examPerformance = rawData.exams.map(exam => {
-      const examResults = rawData.results.filter(r => r.examId === exam.id);
-      const avgScore = examResults.length > 0 
-        ? examResults.reduce((sum, r) => sum + (r.percentage || 0), 0) / examResults.length 
+      const examResults = scoredResults.filter(r => r.examId === exam.id);
+      const avgScore = examResults.length > 0
+        ? examResults.reduce((sum, r) => sum + r.percentage, 0) / examResults.length
         : 0;
       return {
         title: exam.title,
@@ -301,7 +272,7 @@ const CBTAdminDashboard = ({ institution, user, onLogout }) => {
       case 'analytics':
         return renderAnalytics();
       case 'settings':
-        return <SettingsManagement institution={institution} user={user} onLogout={onLogout} />;
+        return <SettingsManagement institution={institution} user={user} onLogout={onLogout} onInstitutionChange={onInstitutionChange} />;
       default:
         return <ExamManagement institution={institution} onStatsUpdate={loadDashboardStats} />;
     }
@@ -469,19 +440,19 @@ const CBTAdminDashboard = ({ institution, user, onLogout }) => {
                       onClick={() => handleBulkExport('results')}
                       className="w-full text-left px-3 py-2 text-sm text-gray-600 hover:bg-white hover:text-gray-900 rounded-md transition-colors"
                     >
-                      Export Selected Results
+                      Export Filtered Results
                     </button>
                     <button
                       onClick={() => handleBulkExport('students')}
                       className="w-full text-left px-3 py-2 text-sm text-gray-600 hover:bg-white hover:text-gray-900 rounded-md transition-colors"
                     >
-                      Export Selected Students
+                      Export Filtered Students
                     </button>
                     <button
                       onClick={() => handleBulkExport('exams')}
                       className="w-full text-left px-3 py-2 text-sm text-gray-600 hover:bg-white hover:text-gray-900 rounded-md transition-colors"
                     >
-                      Export Selected Exams
+                      Export Filtered Exams
                     </button>
                   </div>
                 </div>
@@ -490,16 +461,16 @@ const CBTAdminDashboard = ({ institution, user, onLogout }) => {
                   <h4 className="text-sm font-medium text-gray-700 mb-2">Data Management</h4>
                   <div className="space-y-2">
                     <button
-                      onClick={() => handleBulkDelete('results')}
-                      className="w-full text-left px-3 py-2 text-sm text-red-600 hover:bg-white hover:text-red-900 rounded-md transition-colors"
+                      onClick={() => setActiveTab('results')}
+                      className="w-full text-left px-3 py-2 text-sm text-blue-600 hover:bg-white hover:text-blue-900 rounded-md transition-colors"
                     >
-                      Delete Selected Results
+                      Manage Results
                     </button>
                     <button
-                      onClick={() => handleBulkDelete('students')}
-                      className="w-full text-left px-3 py-2 text-sm text-red-600 hover:bg-white hover:text-red-900 rounded-md transition-colors"
+                      onClick={() => setActiveTab('students')}
+                      className="w-full text-left px-3 py-2 text-sm text-blue-600 hover:bg-white hover:text-blue-900 rounded-md transition-colors"
                     >
-                      Delete Selected Students
+                      Manage Students
                     </button>
                   </div>
                 </div>
@@ -517,6 +488,32 @@ const CBTAdminDashboard = ({ institution, user, onLogout }) => {
                     )}
                   </div>
                 </div>
+              </div>
+            </div>
+          )}
+
+          {searchTerm && (
+            <div className="mt-4 rounded-lg border border-blue-100 bg-blue-50 p-4">
+              <div className="mb-3 flex items-center justify-between">
+                <h3 className="text-sm font-semibold text-blue-900">Search results</h3>
+                <button onClick={() => setSearchTerm('')} className="text-xs text-blue-700 hover:underline">Clear search</button>
+              </div>
+              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+                {[
+                  ['exams', 'Exams', item => item.title],
+                  ['questions', 'Questions', item => item.question],
+                  ['students', 'Students', item => item.fullName || item.username],
+                  ['results', 'Results', item => `${item.studentName || 'Student'} — ${item.examTitle || 'Exam'}`],
+                ].map(([key, label, getLabel]) => (
+                  <div key={key} className="rounded bg-white p-3">
+                    <button onClick={() => setActiveTab(key === 'structure' ? 'structure' : key)} className="text-sm font-medium text-blue-700 hover:underline">
+                      {filteredData[key].length} {label}
+                    </button>
+                    <ul className="mt-2 space-y-1 text-xs text-gray-600">
+                      {filteredData[key].slice(0, 3).map(item => <li key={item.id} className="truncate">{getLabel(item)}</li>)}
+                    </ul>
+                  </div>
+                ))}
               </div>
             </div>
           )}

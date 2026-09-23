@@ -24,7 +24,7 @@ const MultiTenantAdminLogin = ({ onLoginSuccess }) => {
         localStorage.setItem('multi_tenant_admin_user', JSON.stringify(result.user));
         
         // Call the success callback
-        onLoginSuccess(result.user);
+        onLoginSuccess?.(result.user);
         
         // Navigate to admin dashboard
         navigate('/super-admin');
@@ -75,6 +75,7 @@ const MultiTenantAdminLogin = ({ onLoginSuccess }) => {
                 placeholder="Enter your email"
                 value={credentials.email}
                 onChange={handleChange}
+                autoComplete="username"
               />
             </div>
             <div>
@@ -90,6 +91,7 @@ const MultiTenantAdminLogin = ({ onLoginSuccess }) => {
                 placeholder="Enter your password"
                 value={credentials.password}
                 onChange={handleChange}
+                autoComplete="current-password"
               />
             </div>
           </div>
@@ -126,7 +128,7 @@ const MultiTenantAdminLogin = ({ onLoginSuccess }) => {
 
         <div className="mt-8 text-center">
           <div className="text-xs text-gray-500">
-            <p>🔥 Powered by the API</p>
+            <p>Powered by the CBTProMax API</p>
             <p>Multi-Tenant CBT Management System</p>
           </div>
         </div>

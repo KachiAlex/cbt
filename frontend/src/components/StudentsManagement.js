@@ -14,6 +14,7 @@ const StudentsManagement = ({ institution, onStatsUpdate }) => {
     username: '',
     password: '',
     departmentId: '',
+    department: '',
     level: '',
     phoneNumber: '',
     isActive: true
@@ -37,13 +38,7 @@ const StudentsManagement = ({ institution, onStatsUpdate }) => {
   const loadStudents = async () => {
     try {
       setLoading(true);
-      console.log('🔍 StudentsManagement: Loading students for institution:', institution.id);
-      
-      // Debug: Get all users to see what's in the database
-      await dataService.getAllUsers();
-      
       const studentsData = await dataService.getInstitutionUsers(institution.id);
-      console.log('🔍 StudentsManagement: Loaded students:', studentsData);
       setStudents(studentsData);
     } catch (error) {
       console.error('Error loading students:', error);
@@ -107,7 +102,7 @@ const StudentsManagement = ({ institution, onStatsUpdate }) => {
         username: formData.username,
         password: formData.password,
         departmentId: selectedDepartment?.id || '',
-        department: selectedDepartment?.name || '',
+        department: selectedDepartment?.name || formData.department.trim(),
         departmentCode: selectedDepartment?.code || null,
         level: formData.level,
         phoneNumber: formData.phoneNumber,
@@ -137,6 +132,7 @@ const StudentsManagement = ({ institution, onStatsUpdate }) => {
       if (createdStudent?.studentId) alert(`Student created. Generated Student ID: ${createdStudent.studentId}`);
     } catch (error) {
       console.error('Error saving student:', error);
+      alert(error.message || 'Error saving student.');
     } finally {
       setLoading(false);
     }
@@ -153,6 +149,7 @@ const StudentsManagement = ({ institution, onStatsUpdate }) => {
       username: student.username,
       password: '', // Don't pre-fill password
       departmentId: matchedDepartment?.id || '',
+      department: matchedDepartment ? '' : (student.department || ''),
       level: student.level,
       phoneNumber: student.phoneNumber,
       isActive: student.isActive
@@ -168,6 +165,7 @@ const StudentsManagement = ({ institution, onStatsUpdate }) => {
         onStatsUpdate();
       } catch (error) {
         console.error('Error deleting student:', error);
+        alert(error.message || 'Error deleting student.');
       }
     }
   };
@@ -185,10 +183,9 @@ const StudentsManagement = ({ institution, onStatsUpdate }) => {
     
     try {
       setLoading(true);
-      const deletePromises = selectedStudents.map(studentId => 
-        dataService.deleteUser(studentId)
-      );
-      await Promise.all(deletePromises);
+      for (let i = 0; i < selectedStudents.length; i += 500) {
+        await dataService.deleteUsers(institution.id, selectedStudents.slice(i, i + 500));
+      }
       
       setSelectedStudents([]);
       setShowDeleteConfirm(false);
@@ -196,7 +193,7 @@ const StudentsManagement = ({ institution, onStatsUpdate }) => {
       onStatsUpdate();
     } catch (error) {
       console.error('Error deleting students:', error);
-      alert('Failed to delete some students. Please try again.');
+      alert(error.message || 'Failed to delete students.');
     } finally {
       setLoading(false);
     }
@@ -204,13 +201,11 @@ const StudentsManagement = ({ institution, onStatsUpdate }) => {
 
   const handleSuspend = async (student) => {
     try {
-      await dataService.updateUser(student.id, {
-        ...student,
-        isActive: !student.isActive
-      });
+      await dataService.updateUser(student.id, { isActive: student.isActive === false });
       await loadStudents();
     } catch (error) {
       console.error('Error updating student status:', error);
+      alert(error.message || 'Error updating student status.');
     }
   };
 
@@ -221,6 +216,7 @@ const StudentsManagement = ({ institution, onStatsUpdate }) => {
       username: '',
       password: '',
       departmentId: '',
+      department: '',
       level: '',
       phoneNumber: '',
       isActive: true
@@ -228,7 +224,7 @@ const StudentsManagement = ({ institution, onStatsUpdate }) => {
   };
 
   const getStatusBadge = (isActive) => {
-    return isActive ? (
+    return isActive !== false ? (
       <span className="px-2 py-1 text-xs font-medium bg-green-100 text-green-800 rounded-full">
         Active
       </span>
@@ -312,8 +308,7 @@ const StudentsManagement = ({ institution, onStatsUpdate }) => {
               resetForm();
               setShowModal(true);
             }}
-            className={`bg-blue-600 text-white px-4 py-2 rounded-md transition-colors ${departments.length === 0 ? 'opacity-60 cursor-not-allowed' : 'hover:bg-blue-700'}`}
-            disabled={departments.length === 0}
+            className="bg-blue-600 text-white px-4 py-2 rounded-md transition-colors hover:bg-blue-700"
           >
             Add New Student
           </button>
@@ -323,7 +318,7 @@ const StudentsManagement = ({ institution, onStatsUpdate }) => {
       {/* Alerts */}
       {departments.length === 0 && !departmentsLoading && (
         <div className="mb-6 bg-amber-50 border border-amber-200 text-amber-700 px-4 py-3 rounded">
-          No departments have been configured yet. Create departments and their levels in the "Departments & Levels" tab to power drop-downs here and in student self-registration.
+          No departments are configured yet. You can still create students and enter a level manually; add departments later for managed drop-downs.
         </div>
       )}
 
@@ -478,9 +473,9 @@ const StudentsManagement = ({ institution, onStatsUpdate }) => {
                   </button>
                   <button
                     onClick={() => handleSuspend(student)}
-                    className={`${student.isActive ? 'text-yellow-600 hover:text-yellow-900' : 'text-green-600 hover:text-green-900'}`}
+                    className={`${student.isActive !== false ? 'text-yellow-600 hover:text-yellow-900' : 'text-green-600 hover:text-green-900'}`}
                   >
-                    {student.isActive ? 'Suspend' : 'Activate'}
+                    {student.isActive !== false ? 'Suspend' : 'Activate'}
                   </button>
                   <button
                     onClick={() => handleDelete(student.id)}
@@ -557,6 +552,7 @@ const StudentsManagement = ({ institution, onStatsUpdate }) => {
                   </label>
                   <input
                     type="password"
+                    minLength={editingStudent ? undefined : 8}
                     required={!editingStudent}
                     value={formData.password}
                     onChange={(e) => setFormData({ ...formData, password: e.target.value })}
@@ -569,23 +565,44 @@ const StudentsManagement = ({ institution, onStatsUpdate }) => {
                     <label className="block text-sm font-medium text-gray-700 mb-1">
                       Department (Optional)
                     </label>
-                    <select
-                      value={formData.departmentId}
-                      onChange={(e) => setFormData({ ...formData, departmentId: e.target.value, level: '' })}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                    >
-                      <option value="">No department</option>
-                      {departments
-                        .filter(dept => dept.isActive !== false)
-                        .map(dept => (
-                          <option key={dept.id} value={dept.id}>{dept.name}</option>
-                        ))}
-                      {departments.filter(dept => dept.isActive === false).map(dept => (
-                        <option key={dept.id} value={dept.id}>
-                          {dept.name} (inactive)
-                        </option>
-                      ))}
-                    </select>
+                    {departments.length ? (
+                      <>
+                        <select
+                          value={formData.departmentId}
+                          onChange={(e) => setFormData({ ...formData, departmentId: e.target.value, department: '', level: '' })}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                        >
+                          <option value="">No department</option>
+                          {departments
+                            .filter(dept => dept.isActive !== false)
+                            .map(dept => (
+                              <option key={dept.id} value={dept.id}>{dept.name}</option>
+                            ))}
+                          {departments.filter(dept => dept.isActive === false).map(dept => (
+                            <option key={dept.id} value={dept.id} disabled>
+                              {dept.name} (inactive)
+                            </option>
+                          ))}
+                        </select>
+                        {!formData.departmentId && (
+                          <input
+                            type="text"
+                            value={formData.department}
+                            onChange={(e) => setFormData({ ...formData, department: e.target.value })}
+                            className="mt-2 w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                            placeholder="Optional custom department"
+                          />
+                        )}
+                      </>
+                    ) : (
+                      <input
+                        type="text"
+                        value={formData.department}
+                        onChange={(e) => setFormData({ ...formData, department: e.target.value })}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                        placeholder="Enter a department (optional)"
+                      />
+                    )}
                   </div>
 
                   <div>
@@ -689,8 +706,8 @@ const StudentsManagement = ({ institution, onStatsUpdate }) => {
               <h3 className="text-lg font-medium text-gray-900 mt-4">Delete Students</h3>
               <div className="mt-2">
                 <p className="text-sm text-gray-500">
-                  Are you sure you want to delete {selectedStudents.length} selected student{selectedStudents.length > 1 ? 's' : ''}? 
-                  This action cannot be undone and will also delete all their exam results.
+                  Are you sure you want to delete {selectedStudents.length} selected student{selectedStudents.length > 1 ? 's' : ''}?
+                  Students with exam history must be suspended instead; their results are preserved.
                 </p>
               </div>
               <div className="mt-6 flex justify-center space-x-3">

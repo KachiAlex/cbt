@@ -1,5 +1,5 @@
 // API-backed auth service (JWT + Express/Postgres). Returns { success, user, error }.
-const BASE = process.env.REACT_APP_API_URL || '';
+const BASE = import.meta.env.VITE_API_URL || '';
 
 class ApiAuthService {
   async signIn(email, password) {
@@ -19,8 +19,14 @@ class ApiAuthService {
   }
 
   async signOut() {
-    localStorage.removeItem('multi_tenant_admin_token');
-    localStorage.removeItem('multi_tenant_admin_user');
+    const tokenKeys = ['multi_tenant_admin_token', 'cbt_token'];
+    const tokens = tokenKeys.map(key => [key, localStorage.getItem(key)]).filter(([, token]) => token);
+    try {
+      await Promise.all(tokens.map(([, token]) => fetch(`${BASE}/api/auth/logout`, { method: 'POST', headers: { Authorization: `Bearer ${token}` } }).catch(() => {})));
+    } finally {
+      tokenKeys.forEach(key => localStorage.removeItem(key));
+      localStorage.removeItem('multi_tenant_admin_user');
+    }
     return { success: true };
   }
 
@@ -34,6 +40,21 @@ class ApiAuthService {
 
   async getToken() {
     return localStorage.getItem('multi_tenant_admin_token');
+  }
+
+  async getSession() {
+    const token = localStorage.getItem('multi_tenant_admin_token');
+    if (!token) return null;
+    try {
+      const res = await fetch(`${BASE}/api/auth/session`, { headers: { Authorization: `Bearer ${token}` } });
+      if (!res.ok) {
+        this.signOut();
+        return null;
+      }
+      return (await res.json()).user || null;
+    } catch (_) {
+      return null;
+    }
   }
 }
 

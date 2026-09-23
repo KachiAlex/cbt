@@ -1,21 +1,37 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { saveAs } from 'file-saver';
-import QuestionImportParser, { PARSING_RULES } from '../utils/questionImportParser';
 
-const QuestionImportModal = ({ isOpen, onClose, onImport, examId, institutionId }) => {
+const QuestionImportModal = ({ isOpen, onClose, onImport, examId, institutionId, institutionName }) => {
   const [importStep, setImportStep] = useState('select'); // select, preview, import
   const [selectedFile, setSelectedFile] = useState(null);
   const [parsedQuestions, setParsedQuestions] = useState([]);
   const [importing, setImporting] = useState(false);
   const [error, setError] = useState('');
   const [importStats, setImportStats] = useState({ total: 0, valid: 0, invalid: 0 });
+  const [parser, setParser] = useState(null);
   const fileInputRef = useRef(null);
-  const parser = new QuestionImportParser();
+
+  useEffect(() => {
+    if (!isOpen || parser) return;
+    let active = true;
+    import('../utils/questionImportParser').then(({ default: Parser }) => {
+      if (active) setParser(new Parser());
+    }).catch(err => {
+      if (active) setError(err.message || 'Unable to load import tools.');
+    });
+    return () => { active = false; };
+  }, [isOpen, parser]);
 
   const handleFileSelect = async (event) => {
+    if (!parser) return;
     const file = event.target.files[0];
     if (!file) return;
 
+    if (file.size > 10 * 1024 * 1024) {
+      setError('The selected file exceeds the 10 MB limit.');
+      event.target.value = '';
+      return;
+    }
     setSelectedFile(file);
     setError('');
     setImporting(true);
@@ -40,6 +56,7 @@ const QuestionImportModal = ({ isOpen, onClose, onImport, examId, institutionId 
   };
 
   const handleImport = async () => {
+    if (!parser) return setError('Import tools are still loading.');
     if (!examId) {
       setError('Please select an exam before importing questions.');
       return;
@@ -47,16 +64,29 @@ const QuestionImportModal = ({ isOpen, onClose, onImport, examId, institutionId 
     setImporting(true);
     try {
       const validQuestions = parsedQuestions.filter(q => q.question && q.question.trim().length > 0);
-      
+      if (!validQuestions.length) {
+        setError('No valid questions were found in the selected file.');
+        return;
+      }
+      if (validQuestions.length > 1000) {
+        setError('Import at most 1,000 questions per batch.');
+        return;
+      }
+
       // Add exam and institution info to each question
       const questionsToImport = validQuestions.map(question => ({
         ...question,
         examId,
         institutionId,
-        institutionName: 'Current Institution' // This should be passed as prop
+        institutionName: institutionName || ''
       }));
 
+      if (!questionsToImport.length) {
+        setError('No valid questions were found in the selected file.');
+        return;
+      }
       await onImport(questionsToImport);
+      resetModal();
       onClose();
     } catch (err) {
       setError(`Error importing questions: ${err.message}`);
@@ -65,9 +95,10 @@ const QuestionImportModal = ({ isOpen, onClose, onImport, examId, institutionId 
     }
   };
 
-  const downloadTemplate = (format) => {
+  const downloadTemplate = async (format) => {
+    if (!parser) return setError('Import tools are still loading.');
     if (format === 'excel') {
-      const templateData = parser.generateExcelTemplate();
+      const templateData = await parser.generateExcelTemplate();
       const blob = new Blob([templateData], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
       saveAs(blob, 'question_template.xlsx');
     } else if (format === 'word') {
@@ -160,10 +191,10 @@ const QuestionImportModal = ({ isOpen, onClose, onImport, examId, institutionId 
                   <div className="mt-4">
                     <label htmlFor="file-upload" className="cursor-pointer">
                       <span className="mt-2 block text-sm font-medium text-gray-900">
-                        Upload Excel or Word file
+                        Upload an Excel, Word or text template file
                       </span>
                       <span className="mt-1 block text-sm text-gray-500">
-                        Supports .xlsx, .xls, .docx, .doc files
+                        Supports .xlsx, .docx and .txt files
                       </span>
                     </label>
                     <input
@@ -171,8 +202,9 @@ const QuestionImportModal = ({ isOpen, onClose, onImport, examId, institutionId 
                       id="file-upload"
                       name="file-upload"
                       type="file"
+                      disabled={!parser || importing}
                       className="sr-only"
-                      accept=".xlsx,.xls,.docx,.doc"
+                      accept=".xlsx,.docx,.txt"
                       onChange={handleFileSelect}
                     />
                   </div>
@@ -186,19 +218,21 @@ const QuestionImportModal = ({ isOpen, onClose, onImport, examId, institutionId 
                   <p className="text-sm text-gray-600 mb-3">Download Excel template with flexible column mapping</p>
                   <button
                     onClick={() => downloadTemplate('excel')}
+                    disabled={!parser}
                     className="w-full bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 transition-colors"
                   >
                     Download Excel Template
                   </button>
                 </div>
                 <div className="border rounded-lg p-4">
-                  <h5 className="font-medium text-gray-900 mb-2">Word Template</h5>
-                  <p className="text-sm text-gray-600 mb-3">Download Word template with flexible formatting</p>
+                  <h5 className="font-medium text-gray-900 mb-2">Text Template</h5>
+                  <p className="text-sm text-gray-600 mb-3">Download a plain-text template with flexible formatting</p>
                   <button
                     onClick={() => downloadTemplate('word')}
+                    disabled={!parser}
                     className="w-full bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition-colors"
                   >
-                    Download Word Template
+                    Download Text Template
                   </button>
                 </div>
               </div>

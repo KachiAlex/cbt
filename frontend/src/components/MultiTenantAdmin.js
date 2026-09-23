@@ -2,32 +2,25 @@ import React, { useState, useEffect, useCallback } from 'react';
 import dataService from '../services/dataService';
 import authService from '../services/authService';
 import BlogManagement from './BlogManagement';
+import DemoRequestsManagement from './DemoRequestsManagement';
 
 export default function MultiTenantAdmin() {
   try {
-    console.log('🎨 MultiTenantAdmin component rendering - START');
     
     // Main state
     const [activeTab, setActiveTab] = useState('institutions');
-    console.log('🎨 State 1 - activeTab set');
     
     const [institutions, setInstitutions] = useState([]);
-    console.log('🎨 State 2 - institutions set');
     
     const [loading, setLoading] = useState(false);
-    console.log('🎨 State 3 - loading set');
     
     const [error, setError] = useState('');
-    console.log('🎨 State 4 - error set');
     
-    console.log('🎨 Component state:', { activeTab, institutions, loading, error });
 
   // Modals
   const [showCreateInstitution, setShowCreateInstitution] = useState(false);
   const [showManageAdmins, setShowManageAdmins] = useState(false);
   const [showViewInstitution, setShowViewInstitution] = useState(false);
-  const [showManageInstitution, setShowManageInstitution] = useState(false);
-  const [showCreateBlog, setShowCreateBlog] = useState(false);
   const [selectedInstitution, setSelectedInstitution] = useState(null);
   const [loadingAdmins, setLoadingAdmins] = useState(false);
   const [admins, setAdmins] = useState([]);
@@ -52,18 +45,15 @@ export default function MultiTenantAdmin() {
   });
 
   const [showCreateAdmin, setShowCreateAdmin] = useState(false);
-  console.log('🎨 All modal states set');
 
   // Load institutions
   const loadInstitutions = useCallback(async () => {
     try {
-      console.log('🔄 Starting to load institutions from the API...');
       setLoading(true);
       setError('');
       
       // Use database directly to load institutions
       const institutionsList = await dataService.getInstitutions();
-      console.log('📊 Loaded institutions from the API:', institutionsList);
       
       // Transform to match frontend expectations
       const transformed = (institutionsList || []).map(inst => ({
@@ -80,16 +70,13 @@ export default function MultiTenantAdmin() {
         createdAt: inst.createdAt || inst.created_at
       }));
       
-      console.log('📊 Transformed institutions:', transformed);
       setInstitutions(transformed);
-      console.log('✅ Institutions state updated');
     } catch (err) {
       console.error('❌ Failed to load institutions:', err);
       setError('Failed to load institutions. Please try again.');
       setInstitutions([]);
     } finally {
       setLoading(false);
-      console.log('🏁 Loading finished');
     }
   }, []);
 
@@ -101,17 +88,14 @@ export default function MultiTenantAdmin() {
       
       // Use database directly to fetch admins
       const institutionId = institution.id || institution._id;
-      console.log('🔍 Loading admins for institution:', institutionId, institution);
       
       const adminsList = await dataService.getInstitutionAdmins(institutionId);
-      console.log('📊 Loaded admins from the API:', adminsList);
       
       // Filter to only admin roles
       const adminUsers = (adminsList || []).filter(admin => 
         ['super_admin', 'admin', 'tenant_admin'].includes(admin.role)
       );
       
-      console.log('✅ Filtered admin users:', adminUsers);
       setAdmins(adminUsers || []);
     } catch (err) {
       console.error('❌ Failed to load admins:', err);
@@ -126,8 +110,9 @@ export default function MultiTenantAdmin() {
   const handleCreateInstitution = async (e) => {
     e.preventDefault();
     try {
+      setLoading(true);
       setError('');
-      
+
       await dataService.createInstitution(newInstitution);
       setNewInstitution({
         name: '',
@@ -143,6 +128,30 @@ export default function MultiTenantAdmin() {
     } catch (err) {
       console.error('Failed to create institution:', err);
       setError(err.message || 'Failed to create institution. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleToggleInstitutionStatus = async (institution) => {
+    const nextStatus = institution.status === 'suspended' ? 'active' : 'suspended';
+    if (!window.confirm(`${nextStatus === 'suspended' ? 'Suspend' : 'Activate'} ${institution.name}?`)) return;
+    try {
+      setError('');
+      await dataService.updateInstitutionStatus(institution.id, nextStatus);
+      await loadInstitutions();
+    } catch (err) {
+      setError(err.message || 'Failed to update institution status.');
+    }
+  };
+
+  const handleToggleAdminStatus = async (admin) => {
+    try {
+      setError('');
+      await dataService.updateAdmin(admin.id, { isActive: admin.isActive === false });
+      await loadAdmins(selectedInstitution);
+    } catch (err) {
+      setError(err.message || 'Failed to update admin status.');
     }
   };
 
@@ -156,6 +165,10 @@ export default function MultiTenantAdmin() {
       return;
     }
     
+    if (newAdmin.password.length < 8) {
+      setError('Admin password must be at least 8 characters long.');
+      return;
+    }
     if (newAdmin.password !== newAdmin.confirmPassword) {
       setError('Passwords do not match');
       return;
@@ -166,7 +179,6 @@ export default function MultiTenantAdmin() {
       
       // Use database directly to create admin
       const institutionId = selectedInstitution.id || selectedInstitution._id;
-      console.log('🔍 Creating admin for institution:', institutionId, selectedInstitution);
       
       const adminData = {
         institutionId: institutionId,
@@ -174,12 +186,10 @@ export default function MultiTenantAdmin() {
         username: newAdmin.username,
         email: newAdmin.email,
         password: newAdmin.password,
-        role: 'super_admin'
+        role: 'admin'
       };
-      console.log('📤 Creating admin with data:', { ...adminData, password: '***' });
       
-      const createdAdmin = await dataService.createAdmin(adminData);
-      console.log('✅ Admin created successfully:', createdAdmin);
+      await dataService.createAdmin(adminData);
       
       // Show success message
       setError(''); // Clear any previous errors
@@ -248,8 +258,6 @@ export default function MultiTenantAdmin() {
     };
   }, []); // Removed loadInstitutions dependency to prevent re-renders
 
-  console.log('🎨 MultiTenantAdmin render - loading:', loading, 'institutions:', institutions.length, 'error:', error);
-  console.log('🎨 About to return JSX');
 
     return (
     <div className="min-h-screen bg-gray-50">
@@ -270,14 +278,6 @@ export default function MultiTenantAdmin() {
                 + Create Institution
               </button>
             )}
-              {activeTab === 'blog' && (
-                <button
-                  onClick={() => setShowCreateBlog(true)}
-                  className="bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-lg font-medium transition-colors"
-                >
-                  + Create Blog Post
-                </button>
-              )}
               <button
                 onClick={handleLogout}
                 className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg font-medium transition-colors"
@@ -304,14 +304,16 @@ export default function MultiTenantAdmin() {
               Institutions
               </button>
               <button
-              onClick={() => setActiveTab('blog')}
-              className={`py-4 px-1 border-b-2 font-medium text-sm ${
-                activeTab === 'blog'
-                    ? 'border-blue-500 text-blue-600'
-                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                }`}
+                onClick={() => setActiveTab('blog')}
+                className={`py-4 px-1 border-b-2 font-medium text-sm ${activeTab === 'blog' ? 'border-blue-500 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'}`}
               >
                 Blog Management
+              </button>
+              <button
+                onClick={() => setActiveTab('leads')}
+                className={`py-4 px-1 border-b-2 font-medium text-sm ${activeTab === 'leads' ? 'border-blue-500 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'}`}
+              >
+                Requests
               </button>
             </nav>
         </div>
@@ -377,7 +379,7 @@ export default function MultiTenantAdmin() {
                         <span className="text-sm text-gray-500">
                           {institution.totalUsers || 0} users
                         </span>
-                        <div className="flex space-x-2">
+                        <div className="flex flex-wrap gap-x-3 gap-y-1">
                           <button
                             onClick={() => {
                               setSelectedInstitution(institution);
@@ -396,6 +398,12 @@ export default function MultiTenantAdmin() {
                             className="text-green-600 hover:text-green-800 text-sm font-medium"
                           >
                             Manage Admins
+                          </button>
+                          <button
+                            onClick={() => handleToggleInstitutionStatus(institution)}
+                            className={`text-sm font-medium ${institution.status === 'suspended' ? 'text-green-600 hover:text-green-800' : 'text-red-600 hover:text-red-800'}`}
+                          >
+                            {institution.status === 'suspended' ? 'Activate' : 'Suspend'}
                           </button>
                         </div>
                       </div>
@@ -437,6 +445,7 @@ export default function MultiTenantAdmin() {
         )}
 
         {activeTab === 'blog' && <BlogManagement />}
+        {activeTab === 'leads' && <DemoRequestsManagement />}
       </div>
 
       {/* Create Institution Modal */}
@@ -465,9 +474,11 @@ export default function MultiTenantAdmin() {
                   <input
                     type="text"
                     value={newInstitution.slug}
-                    onChange={(e) => setNewInstitution({...newInstitution, slug: e.target.value})}
+                    onChange={(e) => setNewInstitution({...newInstitution, slug: e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '').replace(/-+/g, '-')})}
                     className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
                     placeholder="Auto-generated from name"
+                    pattern="[a-z0-9]+(?:-[a-z0-9]+)*"
+                    title="Use lowercase letters, numbers, and single hyphens only."
                     required
                   />
                   <p className="mt-1 text-xs text-gray-500">This will be used in the institution URL</p>
@@ -618,10 +629,19 @@ export default function MultiTenantAdmin() {
                         <p className="text-sm text-gray-500">{admin.email}</p>
                         <p className="text-xs text-gray-400">Username: {admin.username} | Role: {admin.role || 'admin'}</p>
                 </div>
-                      <div className="flex space-x-2">
+                      <div className="flex items-center space-x-2">
                         {admin.is_default_admin && (
                           <span className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded">Default Admin</span>
                         )}
+                        <span className={`text-xs px-2 py-1 rounded ${admin.isActive === false ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'}`}>
+                          {admin.isActive === false ? 'Suspended' : 'Active'}
+                        </span>
+                        <button
+                          onClick={() => handleToggleAdminStatus(admin)}
+                          className={`text-xs font-medium ${admin.isActive === false ? 'text-green-600 hover:text-green-800' : 'text-red-600 hover:text-red-800'}`}
+                        >
+                          {admin.isActive === false ? 'Activate' : 'Suspend'}
+                        </button>
                       </div>
                     </div>
                   ))
@@ -697,6 +717,7 @@ export default function MultiTenantAdmin() {
                     value={newAdmin.password}
                     onChange={(e) => setNewAdmin({...newAdmin, password: e.target.value})}
                     className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
+                    minLength={8}
                     required
                   />
                 </div>

@@ -1,25 +1,20 @@
-/**
- * Script to populate initial blog posts in Firebase
- * Run this script to add sample blog content to the CBTProMax platform
- */
+const API_BASE = (process.env.CBT_API_URL || 'https://cbt.pisairtelsms.com').replace(/\/+$/, '');
+const ADMIN_EMAIL = process.env.SUPER_ADMIN_EMAIL;
+const ADMIN_PASSWORD = process.env.SUPER_ADMIN_PASSWORD;
 
-const { initializeApp } = require('firebase/app');
-const { getFirestore, collection, addDoc, serverTimestamp } = require('firebase/firestore');
-
-// Firebase configuration
-const firebaseConfig = {
-  apiKey: "AIzaSyB5oUy7N8G633FCjmu34FrLBZvjsm1tdVc",
-  authDomain: "cbt-91a97.firebaseapp.com",
-  projectId: "cbt-91a97",
-  storageBucket: "cbt-91a97.firebasestorage.app",
-  messagingSenderId: "273021677586",
-  appId: "1:273021677586:web:f1170c3a9a9f25493028cb",
-  measurementId: "G-PMMHZEBZ92"
-};
-
-// Initialize Firebase
-const app = initializeApp(firebaseConfig);
-const db = getFirestore(app);
+async function api(path, { method = 'GET', token, body } = {}) {
+  const response = await fetch(`${API_BASE}/api${path}`, {
+    method,
+    headers: {
+      'Content-Type': 'application/json',
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+    ...(body ? { body: JSON.stringify(body) } : {}),
+  });
+  const data = await response.json();
+  if (!response.ok) throw new Error(data.error || `API request failed (${response.status})`);
+  return data;
+}
 
 // Blog posts to create
 const blogPosts = [
@@ -418,36 +413,21 @@ For detailed information about specific features or to schedule a demonstration 
 ];
 
 async function populateBlogs() {
-  console.log('🚀 Starting blog population...');
-  
-  try {
-    const blogsCollection = collection(db, 'blogs');
-    
-    for (let i = 0; i < blogPosts.length; i++) {
-      const blogData = {
-        ...blogPosts[i],
-        createdAt: serverTimestamp(),
-        publishedAt: serverTimestamp(),
-        updatedAt: serverTimestamp()
-      };
-      
-      console.log(`📝 Creating blog ${i + 1}: "${blogData.title}"`);
-      
-      const docRef = await addDoc(blogsCollection, blogData);
-      console.log(`✅ Blog created with ID: ${docRef.id}`);
-    }
-    
-    console.log('🎉 All blogs created successfully!');
-    console.log(`📊 Total blogs created: ${blogPosts.length}`);
-    
-  } catch (error) {
-    console.error('❌ Error creating blogs:', error);
+  if (!ADMIN_EMAIL || !ADMIN_PASSWORD) throw new Error('Set SUPER_ADMIN_EMAIL and SUPER_ADMIN_PASSWORD');
+  const session = await api('/auth/super-admin/login', {
+    method: 'POST', body: { email: ADMIN_EMAIL, password: ADMIN_PASSWORD }
+  });
+  const existing = await api('/blogs-all', { token: session.token });
+  const titles = new Set(existing.map(blog => String(blog.title || '').trim().toLowerCase()));
+  const pending = blogPosts.filter(blog => !titles.has(blog.title.trim().toLowerCase()));
+  for (const blog of pending) {
+    await api('/blogs', { method: 'POST', token: session.token, body: blog });
+    console.log(`Created blog: ${blog.title}`);
   }
+  console.log(`Blog seed complete; ${pending.length} new posts added.`);
 }
 
-// Run the script
-populateBlogs().then(() => {
-  console.log('✨ Blog population complete!');
-}).catch((error) => {
-  console.error('💥 Script failed:', error);
+populateBlogs().catch(error => {
+  console.error('Blog seed failed:', error.message);
+  process.exitCode = 1;
 });

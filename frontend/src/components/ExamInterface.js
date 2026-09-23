@@ -1,482 +1,321 @@
 import React, { useState, useEffect, useRef } from 'react';
 import dataService from '../services/dataService';
 
-const ExamInterface = ({ user, exam: propExam, onComplete }) => {
-  const [exam, setExam] = useState(propExam);
+function seededNumber(seed) {
+  let hash = 2166136261;
+  for (let i = 0; i < seed.length; i += 1) {
+    hash ^= seed.charCodeAt(i);
+    hash = Math.imul(hash, 16777619);
+  }
+  return hash >>> 0;
+}
+
+function seededRandom(seed) {
+  let value = seed + 0x6D2B79F5;
+  return () => {
+    value += 0x6D2B79F5;
+    let next = value;
+    next = Math.imul(next ^ (next >>> 15), next | 1);
+    next ^= next + Math.imul(next ^ (next >>> 7), next | 61);
+    return ((next ^ (next >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+function deterministicShuffle(items, seed, enabled) {
+  const shuffled = [...items];
+  if (!enabled || shuffled.length < 2) return shuffled;
+  const random = seededRandom(seededNumber(seed));
+  for (let index = shuffled.length - 1; index > 0; index -= 1) {
+    const swapIndex = Math.floor(random() * (index + 1));
+    [shuffled[index], shuffled[swapIndex]] = [shuffled[swapIndex], shuffled[index]];
+  }
+  return shuffled;
+}
+
+function formatTime(seconds) {
+  const safeSeconds = Math.max(0, seconds);
+  const hours = Math.floor(safeSeconds / 3600);
+  const minutes = Math.floor((safeSeconds % 3600) / 60);
+  const secs = safeSeconds % 60;
+  return hours > 0
+    ? `${hours}:${String(minutes).padStart(2, '0')}:${String(secs).padStart(2, '0')}`
+    : `${minutes}:${String(secs).padStart(2, '0')}`;
+}
+
+const ExamInterface = ({ user, exam, onClose }) => {
+  const [phase, setPhase] = useState('loading');
+  const [attempt, setAttempt] = useState(null);
   const [questions, setQuestions] = useState([]);
-  const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
+  const [optionOrder, setOptionOrder] = useState({});
   const [answers, setAnswers] = useState({});
+  const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [timeLeft, setTimeLeft] = useState(0);
-  const [examStarted, setExamStarted] = useState(false);
-  const [examCompleted, setExamCompleted] = useState(false);
   const [submitting, setSubmitting] = useState(false);
-  const [submitError, setSubmitError] = useState('');
-  const submissionInFlight = useRef(false);
-  const [loading, setLoading] = useState(true);
+  const [submittedResult, setSubmittedResult] = useState(null);
+  const [error, setError] = useState('');
+  const submissionStarted = useRef(false);
+
+  const storageKey = attempt ? `exam_attempt_state_${user?.id}_${attempt.id}` : null;
 
   useEffect(() => {
-    // Load exam from localStorage if not provided as prop
-    if (!exam) {
-      const storedExam = localStorage.getItem('selected_exam');
-      if (storedExam) {
-        const parsedExam = JSON.parse(storedExam);
-        setExam(parsedExam);
-        setTimeLeft(parsedExam.duration * 60);
-      }
-    } else {
-      setTimeLeft(exam.duration * 60);
-    }
-  }, [exam]);
-
-  // Deterministic PRNG based on seed (mulberry32)
-  const mulberry32 = (seed) => {
-    let t = seed >>> 0;
-    return () => {
-      t += 0x6D2B79F5;
-      let r = Math.imul(t ^ (t >>> 15), t | 1);
-      r ^= r + Math.imul(r ^ (r >>> 7), r | 61);
-      return ((r ^ (r >>> 14)) >>> 0) / 4294967296;
-    };
-  };
-
-  const stringToSeed = (str) => {
-    let h = 2166136261;
-    for (let i = 0; i < str.length; i++) {
-      h ^= str.charCodeAt(i);
-      h += (h << 1) + (h << 4) + (h << 7) + (h << 8) + (h << 24);
-    }
-    return h >>> 0;
-  };
-
-  const shuffleArray = (array, rand) => {
-    const arr = array.slice();
-    for (let i = arr.length - 1; i > 0; i--) {
-      const j = Math.floor(rand() * (i + 1));
-      [arr[i], arr[j]] = [arr[j], arr[i]];
-    }
-    return arr;
-  };
-
-  const getPersistKey = () => `cbt_order_${exam.id}_${user.id}`;
-
-  const applyRandomization = (loadedQuestions) => {
-    // Flags could come from exam or institution settings; default to true for both
-    const randomizeQuestions = exam?.randomizeQuestions !== false;
-    const randomizeOptions = exam?.randomizeOptions !== false;
-
-    const persistKey = getPersistKey();
-    const persisted = localStorage.getItem(persistKey);
-
-    if (persisted) {
+    let cancelled = false;
+    const loadAttempt = async () => {
       try {
-        const saved = JSON.parse(persisted);
-        
-        // Validate that we have the same questions as before
-        const currentQuestionIds = new Set(loadedQuestions.map(q => q.id));
-        const savedQuestionIds = new Set(saved.questionOrder);
-        
-        // If question set has changed, regenerate randomization
-        if (currentQuestionIds.size !== savedQuestionIds.size || 
-            ![...currentQuestionIds].every(id => savedQuestionIds.has(id))) {
-          localStorage.removeItem(persistKey);
-          return applyRandomization(loadedQuestions);
+        setPhase('loading');
+        setError('');
+        const startedAttempt = await dataService.startExamAttempt(exam.id);
+        const examQuestions = await dataService.getQuestions(exam.id);
+        if (cancelled) return;
+        if (!examQuestions.length) throw new Error('This exam has no questions.');
+
+        const orderedQuestions = deterministicShuffle(
+          examQuestions,
+          `${startedAttempt.id}:questions`,
+          exam.randomizeQuestions !== false
+        );
+        const orderedOptions = {};
+        for (const question of orderedQuestions) {
+          orderedOptions[question.id] = deterministicShuffle(
+            question.options || [],
+            `${startedAttempt.id}:${question.id}:options`,
+            question.type === 'multiple-choice' && exam.randomizeOptions !== false
+          );
         }
-        
-        const idToQuestion = new Map(loadedQuestions.map(q => [q.id, q]));
-        const reordered = saved.questionOrder
-          .map(qid => idToQuestion.get(qid))
-          .filter(Boolean);
-        
-        // Fallback if mismatch
-        const baseQuestions = reordered.length ? reordered : loadedQuestions;
-        const withOptionOrders = baseQuestions.map(q => {
-          const order = saved.optionOrders?.[q.id];
-          if (randomizeOptions && Array.isArray(order) && q.options && order.length === q.options.length) {
-            const opts = order.map(idx => q.options[idx]).filter(v => v !== undefined);
-            return { ...q, options: opts };
+
+        let restoredAnswers = {};
+        let restoredIndex = 0;
+        try {
+          const savedState = JSON.parse(localStorage.getItem(`exam_attempt_state_${user?.id}_${startedAttempt.id}`) || 'null');
+          if (savedState?.attemptId === startedAttempt.id) {
+            restoredAnswers = savedState.answers || {};
+            restoredIndex = Math.min(Math.max(Number(savedState.currentQuestionIndex) || 0, 0), orderedQuestions.length - 1);
           }
-          return q;
-        });
-        return withOptionOrders;
-      } catch (error) {
-        console.warn('🔍 Error parsing persisted randomization, regenerating:', error);
-        localStorage.removeItem(persistKey);
-        // fall through to fresh generation
+        } catch {}
+
+        setAttempt(startedAttempt);
+        setQuestions(orderedQuestions);
+        setOptionOrder(orderedOptions);
+        setAnswers(restoredAnswers);
+        setCurrentQuestionIndex(restoredIndex);
+        setTimeLeft(Math.max(0, Math.ceil((new Date(startedAttempt.deadlineAt).getTime() - Date.now()) / 1000)));
+        setPhase('exam');
+      } catch (loadError) {
+        if (!cancelled) {
+          setError(loadError.message || 'Unable to start this exam.');
+          setPhase('error');
+        }
       }
-    }
+    };
+    loadAttempt();
+    return () => { cancelled = true; };
+  }, [exam.id, exam.randomizeOptions, exam.randomizeQuestions, user?.id]);
 
-    // Generate deterministic per-student order
-    const seed = stringToSeed(`${exam.id}::${user.id}`);
-    const rand = mulberry32(seed);
-
-    let questionOrder = loadedQuestions.slice();
-    if (randomizeQuestions) {
-      questionOrder = shuffleArray(questionOrder, rand);
-    }
-
-    const optionOrders = {};
-    const randomized = questionOrder.map(q => {
-      if (randomizeOptions && Array.isArray(q.options)) {
-        const indices = q.options.map((_, idx) => idx);
-        const shuffledIdx = shuffleArray(indices, rand);
-        optionOrders[q.id] = shuffledIdx;
-        const newOptions = shuffledIdx.map(i => q.options[i]);
-        return { ...q, options: newOptions };
+  useEffect(() => {
+    if (phase !== 'exam' || !attempt?.deadlineAt) return undefined;
+    const updateTimer = () => {
+      const remaining = Math.max(0, Math.ceil((new Date(attempt.deadlineAt).getTime() - Date.now()) / 1000));
+      setTimeLeft(remaining);
+      if (remaining <= 0 && exam.autoSubmitOnTimeUp !== false && !submissionStarted.current) {
+        submitExam(true);
       }
-      return q;
-    });
+    };
+    updateTimer();
+    const timer = setInterval(updateTimer, 1000);
+    return () => clearInterval(timer);
+  }, [phase, attempt?.deadlineAt, exam.autoSubmitOnTimeUp]);
 
-    // Persist mapping to ensure consistency for this attempt
+  useEffect(() => {
+    if (!storageKey || phase !== 'exam') return;
     try {
-      const saved = {
-        questionOrder: randomized.map(q => q.id),
-        optionOrders,
-        timestamp: Date.now() // Add timestamp for debugging
-      };
-      localStorage.setItem(persistKey, JSON.stringify(saved));
-    } catch (error) {
-      console.warn('🔍 Failed to persist randomization:', error);
-    }
+      localStorage.setItem(storageKey, JSON.stringify({ attemptId: attempt.id, answers, currentQuestionIndex }));
+    } catch {}
+  }, [storageKey, attempt?.id, answers, currentQuestionIndex, phase]);
 
-    return randomized;
+  const setAnswer = (questionId, value) => {
+    if (submitting) return;
+    setAnswers(previous => ({ ...previous, [questionId]: value }));
   };
 
-  useEffect(() => {
-    loadExamQuestions();
-  }, [exam]);
+  const answeredCount = questions.filter(question => String(answers[question.id] || '').trim()).length;
 
-  useEffect(() => {
-    let timer;
-    if (examStarted && timeLeft > 0 && !examCompleted) {
-      timer = setInterval(() => {
-        setTimeLeft(prev => {
-          if (prev <= 1) {
-            handleSubmitExam();
-            return 0;
-          }
-          return prev - 1;
-        });
-      }, 1000);
-    }
-    return () => clearInterval(timer);
-  }, [examStarted, timeLeft, examCompleted]);
-
-  const loadExamQuestions = async () => {
-    if (!exam || !exam.id) {
-      setLoading(false);
+  const submitExam = async (automatic = false) => {
+    if (!attempt || submissionStarted.current) return;
+    if (!automatic && answeredCount < questions.length && !window.confirm(`Submit with ${questions.length - answeredCount} unanswered question(s)?`)) {
       return;
     }
-    
-    try {
-      const examQuestions = await dataService.getQuestions(exam.id);
-      const randomized = applyRandomization(examQuestions || []);
-      setQuestions(randomized);
-      setLoading(false);
-    } catch (error) {
-      console.error('Error loading questions:', error);
-      setLoading(false);
-    }
-  };
-
-  const startExam = () => {
-    setExamStarted(true);
-  };
-
-  const handleAnswerChange = (questionId, answer) => {
-    
-    setAnswers(prev => {
-      const newAnswers = {
-        ...prev,
-        [questionId]: answer
-      };
-      return newAnswers;
-    });
-  };
-
-  const handleNextQuestion = () => {
-    if (currentQuestionIndex < questions.length - 1) {
-      setCurrentQuestionIndex(prev => {
-        const newIndex = prev + 1;
-        return newIndex;
-      });
-    }
-  };
-
-  const handlePreviousQuestion = () => {
-    if (currentQuestionIndex > 0) {
-      setCurrentQuestionIndex(prev => {
-        const newIndex = prev - 1;
-        return newIndex;
-      });
-    }
-  };
-
-  const handleSubmitExam = async () => {
-    if (submissionInFlight.current || examCompleted) return;
-    submissionInFlight.current = true;
+    submissionStarted.current = true;
     setSubmitting(true);
-    setSubmitError('');
-
+    setError('');
     try {
-      await dataService.createResult({
-        examId: exam.id,
-        answers,
-        timeSpent: Math.round(((exam.duration * 60) - timeLeft) / 60)
-      });
-      try { localStorage.removeItem(getPersistKey()); } catch (_) {}
-      setExamCompleted(true);
-    } catch (error) {
-      submissionInFlight.current = false;
-      setSubmitError(error.message || 'Unable to submit your exam. Please try again.');
+      const payloadAnswers = {};
+      for (const question of questions) {
+        const answer = answers[question.id];
+        if (answer !== undefined && answer !== null) payloadAnswers[question.id] = String(answer).trim();
+      }
+      const saved = await dataService.submitExamResult({ examId: exam.id, attemptId: attempt.id, answers: payloadAnswers });
+      const finalResult = saved.alreadySubmitted && saved.id ? await dataService.getResultById(saved.id) : saved;
+      try { if (storageKey) localStorage.removeItem(storageKey); } catch {}
+      setSubmittedResult(finalResult);
+      setPhase('results');
+    } catch (submitError) {
+      submissionStarted.current = false;
+      setError(submitError.message || 'Submission failed. Your answers remain available; try submitting again.');
     } finally {
       setSubmitting(false);
     }
   };
 
-  const formatTime = (seconds) => {
-    const hours = Math.floor(seconds / 3600);
-    const minutes = Math.floor((seconds % 3600) / 60);
-    const secs = seconds % 60;
-    
-    if (hours > 0) {
-      return `${hours}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
-    }
-    return `${minutes}:${secs.toString().padStart(2, '0')}`;
-  };
-
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600 mx-auto"></div>
-          <p className="mt-4 text-gray-600">Loading exam...</p>
-        </div>
-      </div>
-    );
-  }
-
-  if (questions.length === 0) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <h2 className="text-2xl font-bold text-gray-900 mb-4">No Questions Available</h2>
-          <p className="text-gray-600 mb-6">This exam has no questions yet.</p>
-          <button
-            onClick={onComplete}
-            className="bg-indigo-600 text-white px-4 py-2 rounded-md hover:bg-indigo-700"
-          >
-            Return to Portal
-          </button>
-        </div>
-      </div>
-    );
-  }
-
-  if (!examStarted) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="max-w-2xl mx-auto bg-white rounded-lg shadow-lg p-8">
-          <h2 className="text-3xl font-bold text-gray-900 mb-6 text-center">{exam.title}</h2>
-          
-          <div className="space-y-4 mb-8">
-            <div className="flex justify-between">
-              <span className="font-medium text-gray-700">Duration:</span>
-              <span className="text-gray-600">{exam.duration} minutes</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="font-medium text-gray-700">Questions:</span>
-              <span className="text-gray-600">{questions.length}</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="font-medium text-gray-700">Instructions:</span>
-            </div>
-            <div className="bg-gray-50 p-4 rounded-md">
-              <p className="text-gray-700">{exam.instructions || 'Answer all questions to the best of your ability. Good luck!'}</p>
-            </div>
-          </div>
-          
-          <div className="text-center">
-            <button
-              onClick={startExam}
-              className="bg-indigo-600 text-white px-8 py-3 rounded-md hover:bg-indigo-700 text-lg font-medium"
-            >
-              Start Exam
-            </button>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  if (examCompleted) {
-    const isEssay = String(exam?.type || '').toLowerCase() === 'essay';
-    if (isEssay) {
-      return (
-        <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-          <div className="max-w-2xl mx-auto bg-white rounded-lg shadow-lg p-8 text-center">
-            <h2 className="text-3xl font-bold text-gray-900 mb-6">Exam Submitted</h2>
-            <div className="text-6xl mb-4">📬</div>
-            <p className="text-lg text-gray-700 mb-2">Thank you for completing the exam.</p>
-            <p className="text-gray-600">Your result will be communicated by the school authorities.</p>
-            <div className="mt-8">
-              <button
-                onClick={onComplete}
-                className="bg-indigo-600 text-white px-8 py-3 rounded-md hover:bg-indigo-700 text-lg font-medium"
-              >
-                Return to Portal
-              </button>
-            </div>
-          </div>
-        </div>
-      );
-    }
-    
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="max-w-2xl mx-auto bg-white rounded-lg shadow-lg p-8 text-center">
-          <h2 className="text-3xl font-bold text-gray-900 mb-6">Exam Submitted</h2>
-          <div className="text-6xl mb-4">📬</div>
-          <p className="text-lg text-gray-700 mb-2">Thank you for completing the exam.</p>
-          <p className="text-gray-600">Your result will be communicated by the school authorities.</p>
-          <div className="mt-8">
-          <button
-            onClick={onComplete}
-            className="bg-indigo-600 text-white px-8 py-3 rounded-md hover:bg-indigo-700 text-lg font-medium"
-          >
-            Return to Portal
-          </button>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
   const currentQuestion = questions[currentQuestionIndex];
-  const progress = ((currentQuestionIndex + 1) / questions.length) * 100;
-  
-  
-  // Safety check - ensure current question exists
-  if (!currentQuestion) {
-    console.error('🔍 Current question is undefined!', { currentQuestionIndex, questionsLength: questions.length });
+  const currentOptions = currentQuestion ? (optionOrder[currentQuestion.id] || currentQuestion.options || []) : [];
+  const isChoiceQuestion = ['multiple-choice', 'true-false'].includes(currentQuestion?.type);
+  const canGoBack = exam.allowBackNavigation !== false;
+
+  if (phase === 'loading') {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <h2 className="text-2xl font-bold text-gray-900 mb-4">Error Loading Question</h2>
-          <p className="text-gray-600 mb-6">There was an issue loading the current question. Please refresh the page.</p>
-          <button
-            onClick={() => window.location.reload()}
-            className="bg-indigo-600 text-white px-4 py-2 rounded-md hover:bg-indigo-700"
-          >
-            Refresh Page
-          </button>
+      <div className="fixed inset-0 bg-gray-900 bg-opacity-75 flex items-center justify-center z-50">
+        <div className="bg-white rounded-lg p-8 text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-gray-700">Preparing your exam session...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (phase === 'error') {
+    return (
+      <div className="fixed inset-0 bg-gray-900 bg-opacity-75 flex items-center justify-center z-50 p-4">
+        <div className="bg-white rounded-lg p-8 max-w-md w-full text-center">
+          <h2 className="text-xl font-bold text-gray-900 mb-3">Unable to Start Exam</h2>
+          <p className="text-gray-600 mb-6">{error}</p>
+          <button onClick={onClose} className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700">Back to Dashboard</button>
+        </div>
+      </div>
+    );
+  }
+
+  if (phase === 'results') {
+    const percentage = Number(submittedResult?.percentage ?? submittedResult?.score ?? 0);
+    return (
+      <div className="fixed inset-0 bg-gray-900 bg-opacity-75 flex items-center justify-center z-50 p-4">
+        <div className="bg-white rounded-lg p-8 max-w-md w-full text-center">
+          <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+            <span className="text-3xl text-green-600">✓</span>
+          </div>
+          <h2 className="text-2xl font-bold text-gray-900 mb-2">Exam Submitted</h2>
+          <p className="text-gray-600 mb-6">Your result was recorded by the server.</p>
+          <div className="bg-gray-50 rounded-lg p-4 mb-6">
+            <div className="text-3xl font-bold text-blue-600">{Number.isFinite(percentage) ? percentage.toFixed(1) : '0.0'}%</div>
+            {submittedResult?.score !== undefined && submittedResult?.maxScore !== undefined && (
+              <div className="text-sm text-gray-600 mt-1">{submittedResult.score} / {submittedResult.maxScore} points</div>
+            )}
+            {submittedResult?.status && <div className="text-xs text-gray-500 mt-2">Status: {String(submittedResult.status).replace('_', ' ')}</div>}
+          </div>
+          <button onClick={onClose} className="w-full px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700">Back to Dashboard</button>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <header className="bg-white shadow">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center py-4 gap-4">
-            <div className="flex-1 min-w-0">
-              <h1 className="text-lg sm:text-2xl font-bold text-gray-900 truncate">{exam.title}</h1>
-              <p className="text-sm sm:text-base text-gray-600">Question {currentQuestionIndex + 1} of {questions.length}</p>
-            </div>
-            <div className="text-left sm:text-right flex-shrink-0">
-              <div className="text-xl sm:text-2xl font-bold text-red-600">
-                {formatTime(timeLeft)}
-              </div>
-              <div className="text-xs sm:text-sm text-gray-500">Time Remaining</div>
-            </div>
+    <div className="fixed inset-0 bg-white z-50 flex flex-col">
+      <div className="bg-blue-600 text-white p-4">
+        <div className="max-w-5xl mx-auto flex justify-between items-center gap-4">
+          <div className="min-w-0">
+            <h1 className="text-lg font-bold truncate">{exam.title}</h1>
+            <p className="text-blue-100 text-sm truncate">{exam.institutionName || user?.institutionName || 'Examination'}</p>
           </div>
-          
-          {/* Progress Bar */}
-          <div className="w-full bg-gray-200 rounded-full h-2 mb-4">
-            <div 
-              className="bg-indigo-600 h-2 rounded-full transition-all duration-300"
-              style={{ width: `${progress}%` }}
-            ></div>
+          <div className="text-right shrink-0">
+            <div className={`text-2xl font-mono font-bold ${timeLeft < 300 ? 'text-red-200' : ''}`}>{formatTime(timeLeft)}</div>
+            <div className="text-xs text-blue-100">Server time remaining</div>
           </div>
         </div>
-      </header>
+      </div>
 
-      <div className="max-w-4xl mx-auto py-4 sm:py-6 px-4 sm:px-6 lg:px-8">
-        <div className="bg-white rounded-lg shadow-lg p-4 sm:p-8">
-          <div className="mb-6 sm:mb-8">
-            <h2 className="text-lg sm:text-xl font-semibold text-gray-900 mb-4 leading-relaxed">
-              {currentQuestion.question}
-            </h2>
-            
-            <div className="space-y-3">
-              {currentQuestion.options && currentQuestion.options.length > 0 ? (
-                currentQuestion.options.map((option, index) => (
-                  <label key={`${currentQuestion.id}-${index}-${option}`} className="flex items-start p-3 sm:p-4 border-2 border-gray-200 rounded-lg hover:bg-gray-50 cursor-pointer transition-colors">
+      {exam.showProgressBar !== false && (
+        <div className="bg-gray-200 h-2">
+          <div className="bg-blue-600 h-2 transition-all" style={{ width: `${questions.length ? ((currentQuestionIndex + 1) / questions.length) * 100 : 0}%` }} />
+        </div>
+      )}
+
+      <div className="flex-1 overflow-y-auto p-4 md:p-6">
+        <div className="max-w-4xl mx-auto">
+          {error && <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-md text-red-700">{error}</div>}
+          <div className="bg-white border rounded-lg shadow-sm p-5 md:p-6">
+            <div className="flex justify-between items-start gap-4 mb-5">
+              <h2 className="text-lg font-semibold text-gray-900">Question {currentQuestionIndex + 1} of {questions.length}</h2>
+              <span className="text-sm text-gray-500">{currentQuestion?.points || 1} point{(currentQuestion?.points || 1) === 1 ? '' : 's'}</span>
+            </div>
+            <p className="text-gray-900 text-lg leading-relaxed mb-6 whitespace-pre-wrap">{currentQuestion?.question}</p>
+
+            {isChoiceQuestion && (
+              <div className="space-y-3">
+                {currentOptions.map((option, index) => (
+                  <label key={index} className="flex items-start gap-3 p-3 border rounded-md cursor-pointer hover:bg-blue-50">
                     <input
                       type="radio"
                       name={`question-${currentQuestion.id}`}
                       value={option}
                       checked={answers[currentQuestion.id] === option}
-                      onChange={(e) => handleAnswerChange(currentQuestion.id, e.target.value)}
-                      className="mr-3 mt-1 text-indigo-600 focus:ring-indigo-500 w-4 h-4 flex-shrink-0"
+                      onChange={(event) => setAnswer(currentQuestion.id, event.target.value)}
+                      disabled={submitting}
+                      className="mt-1 h-4 w-4 text-blue-600"
                     />
-                    <span className="text-gray-700 text-sm sm:text-base leading-relaxed">{option}</span>
+                    <span className="text-gray-800"><span className="font-medium mr-2">{String.fromCharCode(65 + index)}.</span>{option}</span>
                   </label>
-                ))
+                ))}
+              </div>
+            )}
+
+            {currentQuestion?.type === 'short-answer' && (
+              <input
+                type="text"
+                value={answers[currentQuestion.id] || ''}
+                onChange={(event) => setAnswer(currentQuestion.id, event.target.value)}
+                disabled={submitting}
+                className="w-full px-4 py-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="Type your answer"
+              />
+            )}
+
+            {currentQuestion?.type === 'essay' && (
+              <textarea
+                rows={12}
+                value={answers[currentQuestion.id] || ''}
+                onChange={(event) => setAnswer(currentQuestion.id, event.target.value)}
+                disabled={submitting}
+                className="w-full px-4 py-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="Write your answer here"
+              />
+            )}
+          </div>
+        </div>
+      </div>
+
+      <div className="border-t bg-white p-4">
+        <div className="max-w-5xl mx-auto flex flex-col gap-3">
+          <div className="flex flex-wrap gap-2 max-h-24 overflow-y-auto">
+            {questions.map((question, index) => (
+              <button
+                key={question.id}
+                type="button"
+                onClick={() => (canGoBack || index > currentQuestionIndex) && setCurrentQuestionIndex(index)}
+                disabled={!canGoBack && index < currentQuestionIndex}
+                className={`w-9 h-9 rounded border text-sm font-medium ${index === currentQuestionIndex ? 'bg-blue-600 text-white border-blue-600' : answers[question.id] ? 'bg-green-100 text-green-800 border-green-300' : 'bg-white text-gray-700 border-gray-300'} disabled:opacity-40`}
+              >
+                {index + 1}
+              </button>
+            ))}
+          </div>
+          <div className="flex justify-between items-center gap-3">
+            <div className="text-sm text-gray-600">Answered {answeredCount} of {questions.length}</div>
+            <div className="flex gap-3">
+              <button type="button" onClick={() => setCurrentQuestionIndex(Math.max(0, currentQuestionIndex - 1))} disabled={!canGoBack || currentQuestionIndex === 0 || submitting} className="px-4 py-2 border rounded-md disabled:opacity-50">Previous</button>
+              {currentQuestionIndex < questions.length - 1 ? (
+                <button type="button" onClick={() => setCurrentQuestionIndex(currentQuestionIndex + 1)} disabled={submitting} className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50">Next</button>
               ) : (
-                <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-md">
-                  <p className="text-yellow-800 text-sm sm:text-base">⚠️ No options available for this question. Please contact your instructor.</p>
-                  <p className="text-xs sm:text-sm text-yellow-700 mt-1">Question ID: {currentQuestion.id}</p>
-                </div>
+                <button type="button" onClick={() => submitExam(false)} disabled={submitting} className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 disabled:opacity-50">{submitting ? 'Submitting...' : 'Submit Exam'}</button>
               )}
             </div>
-          </div>
-          
-          <div className="flex flex-col sm:flex-row justify-between items-center gap-4">
-            <button
-              onClick={handlePreviousQuestion}
-              disabled={currentQuestionIndex === 0}
-              className="w-full sm:w-auto px-4 py-3 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed font-medium"
-            >
-              Previous
-            </button>
-            
-            <div className="flex flex-wrap justify-center gap-2 max-w-full overflow-x-auto">
-              {questions.map((_, index) => (
-                <button
-                  key={index}
-                  onClick={() => setCurrentQuestionIndex(index)}
-                  className={`w-8 h-8 sm:w-10 sm:h-10 rounded-full text-xs sm:text-sm font-medium flex-shrink-0 ${
-                    index === currentQuestionIndex
-                      ? 'bg-indigo-600 text-white'
-                      : answers[questions[index].id]
-                      ? 'bg-green-100 text-green-800'
-                      : 'bg-gray-100 text-gray-600'
-                  }`}
-                >
-                  {index + 1}
-                </button>
-              ))}
-            </div>
-            
-            {currentQuestionIndex === questions.length - 1 || timeLeft === 0 ? (
-              <button
-                onClick={handleSubmitExam}
-                disabled={submitting}
-                className="w-full sm:w-auto px-6 py-3 bg-green-600 text-white rounded-md hover:bg-green-700 disabled:opacity-60 font-medium"
-              >
-                {submitting ? 'Submitting...' : 'Submit Exam'}
-              </button>
-            ) : (
-              <button
-                onClick={handleNextQuestion}
-                className="w-full sm:w-auto px-4 py-3 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 font-medium"
-              >
-                Next
-              </button>
-            )}
-            {submitError && <p role="alert" className="mt-3 text-sm text-red-600">{submitError}</p>}
           </div>
         </div>
       </div>

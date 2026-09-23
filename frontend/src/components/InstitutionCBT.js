@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useParams } from 'react-router-dom';
 import dataService from '../services/dataService';
 import CBTAdminDashboard from './CBTAdminDashboard';
 import StudentPortal from './StudentPortal';
@@ -6,6 +7,7 @@ import InstitutionLoginPage from './InstitutionLoginPage';
 import ExamInterface from './ExamInterface';
 
 const InstitutionCBT = () => {
+  const { slug: routeSlug } = useParams();
   const [institution, setInstitution] = useState(null);
   const [user, setUser] = useState(null);
   const [currentView, setCurrentView] = useState('login');
@@ -14,8 +16,8 @@ const InstitutionCBT = () => {
   const [error, setError] = useState('');
 
   useEffect(() => {
-    loadInstitution();
-  }, []);
+    loadInstitution(routeSlug);
+  }, [routeSlug]);
 
   // Check institution status periodically to handle suspensions while logged in
   useEffect(() => {
@@ -31,6 +33,7 @@ const InstitutionCBT = () => {
           setCurrentView('login');
           setError('Your institution has been suspended. Contact your administrator.');
           localStorage.removeItem(`cbt_user_${institution.slug}`);
+          localStorage.removeItem('cbt_token');
         }
       } catch (err) {
         console.error('Error checking institution status:', err);
@@ -43,11 +46,11 @@ const InstitutionCBT = () => {
     return () => clearInterval(interval);
   }, [institution, user]);
 
-  const loadInstitution = async () => {
+  const loadInstitution = async (pathSlug) => {
     try {
       setLoading(true);
       const urlParams = new URLSearchParams(window.location.search);
-      const institutionSlug = urlParams.get('institution');
+      const institutionSlug = pathSlug || urlParams.get('institution');
       
       if (!institutionSlug) {
         setError('No institution specified');
@@ -67,13 +70,27 @@ const InstitutionCBT = () => {
 
       setInstitution(foundInstitution);
 
-      // Check for saved user
       const savedUser = localStorage.getItem(`cbt_user_${institutionSlug}`);
-      if (savedUser) {
-        const userData = JSON.parse(savedUser);
-        setUser(userData);
-        // Set view based on user role
-        setCurrentView(userData.role === 'admin' ? 'dashboard' : 'student');
+      const hasToken = Boolean(localStorage.getItem('cbt_token'));
+      let restored = false;
+      if (savedUser && hasToken) {
+        try {
+          const cachedUser = JSON.parse(savedUser);
+          const session = await dataService.getSession();
+          const sessionUser = session?.user;
+          if (sessionUser?.id === cachedUser.id && sessionUser?.institutionId === foundInstitution.id) {
+            if (sessionUser.role === 'admin') {
+              try { setInstitution(await dataService.getInstitution(foundInstitution.id)); } catch (_) {}
+            }
+            setUser(sessionUser);
+            setCurrentView(sessionUser.role === 'admin' ? 'dashboard' : 'student');
+            restored = true;
+          }
+        } catch (_) {}
+      }
+      if (!restored) {
+        localStorage.removeItem(`cbt_user_${institutionSlug}`);
+        localStorage.removeItem('cbt_token');
       }
     } catch (err) {
       console.error('Error loading institution:', err);
@@ -99,6 +116,9 @@ const InstitutionCBT = () => {
 
       if (result.success) {
         localStorage.setItem('cbt_token', result.token);
+        if (result.user.role === 'admin') {
+          try { setInstitution(await dataService.getInstitution(result.user.institutionId)); } catch (_) {}
+        }
         setUser(result.user);
         localStorage.setItem(`cbt_user_${institution.slug}`, JSON.stringify(result.user));
         setCurrentView(result.user.role === 'admin' ? 'dashboard' : 'student');
@@ -117,12 +137,17 @@ const InstitutionCBT = () => {
     setCurrentView('admin-login');
   };
 
-  const handleLogout = () => {
+  const handleInstitutionChange = (updatedInstitution) => setInstitution(updatedInstitution);
+
+  const handleLogout = async () => {
+    try { await dataService.logout(); } catch (_) {}
     setUser(null);
     setCurrentView('login');
     setCurrentExam(null);
     localStorage.removeItem(`cbt_user_${institution.slug}`);
     localStorage.removeItem('cbt_token');
+    localStorage.removeItem('multi_tenant_admin_token');
+    localStorage.removeItem('multi_tenant_admin_user');
   };
 
   const startExam = (exam) => {
@@ -164,7 +189,7 @@ const InstitutionCBT = () => {
           </div>
         );
       case 'dashboard':
-        return <CBTAdminDashboard institution={institution} user={user} onLogout={handleLogout} />;
+        return <CBTAdminDashboard institution={institution} user={user} onLogout={handleLogout} onInstitutionChange={handleInstitutionChange} />;
       case 'student':
         return <StudentPortal user={user} onLogout={handleLogout} onStartExam={startExam} />;
       case 'exam':

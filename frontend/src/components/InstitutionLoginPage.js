@@ -33,6 +33,7 @@ const InstitutionLoginPage = ({ institution, onLogin, onAdminAccess }) => {
   const levelOptionsWithFallback = registerData.level && !configuredLevelOptions.includes(registerData.level)
     ? [...configuredLevelOptions, registerData.level]
     : configuredLevelOptions;
+  const registrationAvailable = institution?.allowStudentRegistration !== false && institution?.maintenanceMode !== true;
 
   // Hidden admin access - click on logo 5 times quickly
   const handleLogoClick = () => {
@@ -247,6 +248,7 @@ const InstitutionLoginPage = ({ institution, onLogin, onAdminAccess }) => {
                        onChange={handleInputChange}
                        className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
                        placeholder="Enter admin username"
+                       autoComplete="username"
                      />
                    </div>
 
@@ -263,6 +265,7 @@ const InstitutionLoginPage = ({ institution, onLogin, onAdminAccess }) => {
                        onChange={handleInputChange}
                        className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
                        placeholder="Enter admin password"
+                       autoComplete="current-password"
                      />
                    </div>
 
@@ -304,7 +307,11 @@ const InstitutionLoginPage = ({ institution, onLogin, onAdminAccess }) => {
                    </div>
                  )}
 
-                 {showRegister ? (
+                 {institution?.maintenanceMode ? (
+                   <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-md text-yellow-800 text-center">
+                     {institution.maintenanceMessage || 'The student portal is under maintenance. Please check back later.'}
+                   </div>
+                 ) : showRegister ? (
                    /* Registration Form */
                    <form onSubmit={handleRegister} className="space-y-4">
                      <div>
@@ -449,11 +456,13 @@ const InstitutionLoginPage = ({ institution, onLogin, onAdminAccess }) => {
                          id="reg-password"
                          name="password"
                          type="password"
+                         minLength={8}
                          required
                          value={registerData.password}
                          onChange={handleRegisterInputChange}
                          className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
                          placeholder="Choose a password"
+                         autoComplete="new-password"
                        />
                      </div>
 
@@ -470,6 +479,7 @@ const InstitutionLoginPage = ({ institution, onLogin, onAdminAccess }) => {
                          onChange={handleRegisterInputChange}
                          className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
                          placeholder="Confirm your password"
+                         autoComplete="new-password"
                        />
                      </div>
 
@@ -504,6 +514,7 @@ const InstitutionLoginPage = ({ institution, onLogin, onAdminAccess }) => {
                          onChange={handleInputChange}
                          className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
                          placeholder="Enter your username or email"
+                         autoComplete="username"
                        />
                      </div>
 
@@ -520,6 +531,7 @@ const InstitutionLoginPage = ({ institution, onLogin, onAdminAccess }) => {
                          onChange={handleInputChange}
                          className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
                          placeholder="Enter your password"
+                         autoComplete="current-password"
                        />
                      </div>
 
@@ -542,7 +554,7 @@ const InstitutionLoginPage = ({ institution, onLogin, onAdminAccess }) => {
 
                  {/* Toggle between Login and Register */}
                  <div className="mt-6 text-center">
-                   {showRegister ? (
+                   {!institution?.maintenanceMode && (showRegister ? (
                      <button
                        onClick={() => setShowRegister(false)}
                        className="text-sm text-gray-500 hover:text-gray-700 underline"
@@ -550,13 +562,17 @@ const InstitutionLoginPage = ({ institution, onLogin, onAdminAccess }) => {
                        Already have an account? Sign in
                      </button>
                    ) : (
-                     <button
-                       onClick={() => setShowRegister(true)}
-                       className="text-sm text-gray-500 hover:text-gray-700 underline"
-                     >
-                       Don't have an account? Register
-                     </button>
-                   )}
+                     registrationAvailable ? (
+                      <button
+                        onClick={() => setShowRegister(true)}
+                        className="text-sm text-gray-500 hover:text-gray-700 underline"
+                      >
+                        Don't have an account? Register
+                      </button>
+                    ) : (
+                      <p className="text-sm text-gray-500">{institution?.maintenanceMode ? (institution.maintenanceMessage || 'Registration is temporarily unavailable.') : 'Student registration is currently closed.'}</p>
+                    )
+                   ))}
                  </div>
 
                  {/* Help Text */}

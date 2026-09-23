@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import dataService from '../services/dataService';
 
-const SettingsManagement = ({ institution, user, onLogout }) => {
+const SettingsManagement = ({ institution, user, onLogout, onInstitutionChange }) => {
   const [settings, setSettings] = useState({
     institutionName: institution?.name || '',
     logo: institution?.logo || '',
@@ -19,7 +19,7 @@ const SettingsManagement = ({ institution, user, onLogout }) => {
     randomizeOptions: true,
     showProgressBar: true,
     allowBackNavigation: true,
-    emailNotifications: true,
+    emailNotifications: false,
     smsNotifications: false,
     maintenanceMode: false,
     maintenanceMessage: 'System is under maintenance. Please try again later.'
@@ -49,8 +49,15 @@ const SettingsManagement = ({ institution, user, onLogout }) => {
   const loadSettings = async () => {
     try {
       const institutionData = await dataService.getInstitution(institution.id);
-      if (institutionData?.settings) {
-        setSettings({ ...settings, ...institutionData.settings });
+      if (institutionData) {
+        setSettings(current => ({
+          ...current,
+          ...institutionData.settings,
+          institutionName: institutionData.name || current.institutionName,
+          logo: institutionData.logo || '',
+          emailNotifications: false,
+          smsNotifications: false
+        }));
       }
     } catch (error) {
       console.error('Error loading settings:', error);
@@ -58,16 +65,38 @@ const SettingsManagement = ({ institution, user, onLogout }) => {
   };
 
   const handleSaveSettings = async () => {
+    const maxAttempts = Number(settings.maxExamAttempts);
+    const timeLimit = Number(settings.examTimeLimit);
+    if (!settings.institutionName.trim()) {
+      alert('Institution name is required.');
+      return;
+    }
+    if (settings.requireEmailVerification) {
+      alert('Email verification cannot be enabled until an email delivery provider is configured.');
+      return;
+    }
+    if (!Number.isInteger(maxAttempts) || maxAttempts < 1 || maxAttempts > 20 || !Number.isInteger(timeLimit) || timeLimit < 1 || timeLimit > 600) {
+      alert('Enter 1-20 attempts and a default time limit of 1-600 minutes.');
+      return;
+    }
+    if (settings.maintenanceMessage.length > 500) {
+      alert('Maintenance message must be 500 characters or fewer.');
+      return;
+    }
     try {
       setLoading(true);
       await dataService.updateInstitution(institution.id, {
         ...institution,
-        settings: settings
+        name: settings.institutionName.trim(),
+        logo: settings.logo.trim(),
+        settings: { ...settings, maxExamAttempts: maxAttempts, examTimeLimit: timeLimit, institutionName: settings.institutionName.trim(), logo: settings.logo.trim(), emailNotifications: false, smsNotifications: false }
       });
+      const updatedInstitution = await dataService.getInstitution(institution.id);
+      onInstitutionChange?.(updatedInstitution);
       alert('Settings saved successfully!');
     } catch (error) {
       console.error('Error saving settings:', error);
-      alert('Error saving settings. Please try again.');
+      alert(error.message || 'Error saving settings. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -98,7 +127,7 @@ const SettingsManagement = ({ institution, user, onLogout }) => {
       alert('Admin created successfully!');
     } catch (error) {
       console.error('Error creating admin:', error);
-      alert('Error creating admin. Please try again.');
+      alert(error.message || 'Error creating admin. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -112,26 +141,17 @@ const SettingsManagement = ({ institution, user, onLogout }) => {
       return;
     }
 
-    if (passwordFormData.newPassword.length < 6) {
-      alert('New password must be at least 6 characters long!');
+    if (passwordFormData.newPassword.length < 8) {
+      alert('New password must be at least 8 characters long!');
       return;
     }
 
     try {
       setLoading(true);
       
-      // Verify current password by checking against stored admin data
-      const admins = await dataService.getInstitutionAdmins(institution.id);
-      const currentAdmin = admins.find(admin => admin.id === user.id);
-      
-      if (!currentAdmin || currentAdmin.password !== passwordFormData.currentPassword) {
-        alert('Current password is incorrect!');
-        setLoading(false);
-        return;
-      }
-
-      // Update password
-      await dataService.updateAdminPassword(user.id, passwordFormData.newPassword);
+      // Verify current password on the server and update atomically
+      const passwordResult = await dataService.updateAdminPassword(user.id, passwordFormData.currentPassword, passwordFormData.newPassword);
+      if (passwordResult.token) localStorage.setItem('cbt_token', passwordResult.token);
       
       setShowChangePasswordModal(false);
       setPasswordFormData({
@@ -142,7 +162,7 @@ const SettingsManagement = ({ institution, user, onLogout }) => {
       alert('Password changed successfully!');
     } catch (error) {
       console.error('Error changing password:', error);
-      alert('Error changing password. Please try again.');
+      alert(error.message || 'Error changing password. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -253,13 +273,15 @@ const SettingsManagement = ({ institution, user, onLogout }) => {
               type="checkbox"
               id="requireEmailVerification"
               checked={settings.requireEmailVerification}
+              disabled
               onChange={(e) => setSettings({ ...settings, requireEmailVerification: e.target.checked })}
               className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
             />
             <label htmlFor="requireEmailVerification" className="ml-2 block text-sm text-gray-900">
-              Require email verification for registration
+              Require email verification for registration (email delivery unavailable)
             </label>
           </div>
+          <p className="text-xs text-amber-700">Enabling this setting will block registrations until an email provider is configured.</p>
         </div>
       </div>
 
@@ -295,8 +317,9 @@ const SettingsManagement = ({ institution, user, onLogout }) => {
             <input
               type="number"
               min="1"
+              max="20"
               value={settings.maxExamAttempts}
-              onChange={(e) => setSettings({ ...settings, maxExamAttempts: parseInt(e.target.value) })}
+              onChange={(e) => setSettings({ ...settings, maxExamAttempts: e.target.value })}
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
             />
           </div>
@@ -307,8 +330,9 @@ const SettingsManagement = ({ institution, user, onLogout }) => {
             <input
               type="number"
               min="1"
+              max="600"
               value={settings.examTimeLimit}
-              onChange={(e) => setSettings({ ...settings, examTimeLimit: parseInt(e.target.value) })}
+              onChange={(e) => setSettings({ ...settings, examTimeLimit: e.target.value })}
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
             />
           </div>
@@ -416,9 +440,9 @@ const SettingsManagement = ({ institution, user, onLogout }) => {
             <input
               type="checkbox"
               id="emailNotifications"
-              checked={settings.emailNotifications}
-              onChange={(e) => setSettings({ ...settings, emailNotifications: e.target.checked })}
-              className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+              checked={false}
+              disabled
+              className="h-4 w-4 rounded border-gray-300 text-blue-600"
             />
             <label htmlFor="emailNotifications" className="ml-2 block text-sm text-gray-900">
               Enable email notifications
@@ -428,14 +452,15 @@ const SettingsManagement = ({ institution, user, onLogout }) => {
             <input
               type="checkbox"
               id="smsNotifications"
-              checked={settings.smsNotifications}
-              onChange={(e) => setSettings({ ...settings, smsNotifications: e.target.checked })}
-              className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+              checked={false}
+              disabled
+              className="h-4 w-4 rounded border-gray-300 text-blue-600"
             />
             <label htmlFor="smsNotifications" className="ml-2 block text-sm text-gray-900">
               Enable SMS notifications
             </label>
           </div>
+          <p className="mt-2 text-sm text-amber-700">Outbound email and SMS providers are not configured; these notifications are disabled.</p>
         </div>
       </div>
 
@@ -498,9 +523,9 @@ const SettingsManagement = ({ institution, user, onLogout }) => {
               Admin Role Permissions
             </h3>
             <div className="mt-2 text-sm text-blue-700">
-              <p><strong>Regular Admins:</strong> Can only manage exams and questions</p>
-              <p><strong>Super Admins:</strong> Full access to students, results, and system settings</p>
-              <p className="mt-1 text-xs">Only Super Admins can create new administrators.</p>
+              <p><strong>Institution Admins:</strong> Manage their institution's exams, questions, students, results, departments, and settings</p>
+              <p><strong>Super Admins:</strong> Manage institutions, tenant admins, public content, and requests across the platform</p>
+              <p className="mt-1 text-xs">New tenant administrators are created from the Multi-Tenant Admin panel.</p>
             </div>
           </div>
         </div>
@@ -623,6 +648,7 @@ const SettingsManagement = ({ institution, user, onLogout }) => {
                   </label>
                   <input
                     type="password"
+                    minLength={8}
                     required
                     value={adminFormData.password}
                     onChange={(e) => setAdminFormData({ ...adminFormData, password: e.target.value })}
@@ -643,7 +669,7 @@ const SettingsManagement = ({ institution, user, onLogout }) => {
                     <option value="admin">Admin (Exam Management Only)</option>
                   </select>
                   <p className="text-xs text-gray-500 mt-1">
-                    Regular admins can only manage exams and questions. Super Admin privileges are restricted.
+                    Tenant administrators are scoped to this institution and cannot access other tenants.
                   </p>
                 </div>
 
@@ -688,6 +714,7 @@ const SettingsManagement = ({ institution, user, onLogout }) => {
                     onChange={(e) => setPasswordFormData({ ...passwordFormData, currentPassword: e.target.value })}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
                     placeholder="Enter your current password"
+                    autoComplete="current-password"
                   />
                 </div>
 
@@ -702,7 +729,8 @@ const SettingsManagement = ({ institution, user, onLogout }) => {
                     onChange={(e) => setPasswordFormData({ ...passwordFormData, newPassword: e.target.value })}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
                     placeholder="Enter your new password"
-                    minLength={6}
+                    minLength={8}
+                    autoComplete="new-password"
                   />
                 </div>
 
@@ -717,7 +745,8 @@ const SettingsManagement = ({ institution, user, onLogout }) => {
                     onChange={(e) => setPasswordFormData({ ...passwordFormData, confirmPassword: e.target.value })}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
                     placeholder="Confirm your new password"
-                    minLength={6}
+                    minLength={8}
+                    autoComplete="new-password"
                   />
                 </div>
 
@@ -734,7 +763,7 @@ const SettingsManagement = ({ institution, user, onLogout }) => {
                       </h3>
                       <div className="mt-2 text-sm text-blue-700">
                         <ul className="list-disc list-inside space-y-1">
-                          <li>At least 6 characters long</li>
+                          <li>At least 8 characters long</li>
                           <li>Must match the confirmation password</li>
                         </ul>
                       </div>

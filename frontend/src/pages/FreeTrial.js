@@ -87,14 +87,14 @@ const FreeTrial = () => {
             </div>
             <h2 className="text-3xl font-bold text-gray-900 mb-4">Request Submitted Successfully!</h2>
             <p className="text-xl text-gray-600 mb-8 leading-relaxed">
-              Thank you for your interest in CBTProMax. A Business Relationship Manager will contact you soon to discuss your institution's needs and set up your free trial.
+              Thank you for your interest in CBTProMax. Your request has been recorded for our team to review. A representative will follow up to discuss your institution's needs and set up your free trial.
             </p>
             <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl p-6 mb-8">
               <h3 className="text-lg font-semibold text-gray-900 mb-3">What happens next?</h3>
               <ul className="text-left space-y-2 text-gray-700">
                 <li className="flex items-start">
                   <span className="text-blue-600 mr-2">1.</span>
-                  Our Business Relationship Manager will contact you within 24 hours
+                  Our team will review your request and contact you
                 </li>
                 <li className="flex items-start">
                   <span className="text-blue-600 mr-2">2.</span>

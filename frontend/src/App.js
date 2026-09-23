@@ -1,10 +1,7 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import ExamInterface from './components/ExamInterface';
 import MultiTenantAdmin from './components/MultiTenantAdmin';
 
-// Debug import
-console.log('🔥 MultiTenantAdmin import:', MultiTenantAdmin);
 import MultiTenantAdminLogin from './components/MultiTenantAdminLogin';
 import InstitutionCBT from './components/InstitutionCBT';
 import AuthGuard from './components/AuthGuard';
@@ -14,12 +11,6 @@ import FreeTrial from './pages/FreeTrial';
 import BlogList from './pages/BlogList';
 import BlogDetail from './pages/BlogDetail';
 function App() {
-  const [user, setUser] = useState(null);
-
-  const handleMultiTenantAdminLogin = (user) => {
-    setUser(user);
-  };
-
   return (
     <Router>
       <div className="min-h-screen bg-gray-50">
@@ -36,7 +27,7 @@ function App() {
           <Route path="/admin" element={<AuthGuard><MultiTenantAdmin /></AuthGuard>} />
           <Route path="/test-admin" element={<AuthGuard><MultiTenantAdmin /></AuthGuard>} />
           <Route path="/super-admin" element={<AuthGuard><MultiTenantAdmin /></AuthGuard>} />
-          <Route path="/admin-login" element={<MultiTenantAdminLogin onLoginSuccess={handleMultiTenantAdminLogin} />} />
+          <Route path="/admin-login" element={<MultiTenantAdminLogin />} />
           
           {/* Direct admin redirect for clarity */}
           <Route path="/admin/" element={<Navigate to="/admin" replace />} />
@@ -46,7 +37,7 @@ function App() {
           <Route path="/institution-login/:slug" element={<InstitutionCBT />} />
           
           {/* Legacy routes for backward compatibility */}
-          <Route path="/login" element={<MultiTenantAdminLogin onLoginSuccess={handleMultiTenantAdminLogin} />} />
+          <Route path="/login" element={<MultiTenantAdminLogin />} />
           
           {/* Default redirect */}
           <Route path="*" element={<Navigate to="/" replace />} />

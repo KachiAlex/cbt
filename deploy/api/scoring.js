@@ -2,6 +2,9 @@
 // can't be tampered with in the browser.
 
 function resolveCorrectAnswer(question) {
+  if (String(question.type || '').toLowerCase() === 'short-answer') {
+    return question.correctAnswer == null ? null : String(question.correctAnswer).trim();
+  }
   let correctAnswerText = null;
   let correctOptionIndex = null;
 
@@ -18,7 +21,7 @@ function resolveCorrectAnswer(question) {
       }
     } else {
       const s = String(question.correctAnswer).trim();
-      if (/^[A-D]$/i.test(s)) {
+      if (/^[A-E]$/i.test(s)) {
         correctOptionIndex = s.toUpperCase().charCodeAt(0) - 65;
         if (question.options && question.options[correctOptionIndex]) {
           correctAnswerText = question.options[correctOptionIndex];
@@ -77,16 +80,18 @@ function scoreSubmission(questions, answers, examType) {
   const isEssay = String(examType || '').toLowerCase() === 'essay';
 
   if (isEssay) {
-    const per = questions.map(q =>
-      scoreEssayAnswer(answers[q.id] || '', q.rubricKeywords || '', q.minWords || 50, q.modelAnswer || ''));
-    const n = per.length;
-    const percent = n ? Math.round(per.reduce((s, x) => s + x.percent, 0) / n) : null;
-    const confidence = n ? Math.round((per.reduce((s, x) => s + x.confidence, 0) / n) * 100) / 100 : 0;
+    const per = questions.map(question => ({
+      ...scoreEssayAnswer(answers[question.id] || '', question.rubricKeywords || '', question.minWords || 50, question.modelAnswer || ''),
+      weight: Number(question.points) > 0 ? Number(question.points) : 1,
+    }));
+    const totalWeight = per.reduce((sum, item) => sum + item.weight, 0);
+    const percent = totalWeight ? Math.round(per.reduce((sum, item) => sum + item.percent * item.weight, 0) / totalWeight) : null;
+    const confidence = totalWeight ? Math.round((per.reduce((sum, item) => sum + item.confidence * item.weight, 0) / totalWeight) * 100) / 100 : 0;
     return {
       score: percent,
       maxScore: null,
       percentage: percent,
-      totalQuestions: n,
+      totalQuestions: questions.length,
       correctAnswers: 0,
       status: confidence >= 0.7 ? 'provisional' : 'pending_review',
       provisional: { percent, confidence },
@@ -99,7 +104,8 @@ function scoreSubmission(questions, answers, examType) {
     maxScore += points;
     const correct = resolveCorrectAnswer(question);
     const student = answers[question.id];
-    if (student && correct && String(student).trim() === String(correct).trim()) {
+    const normalize = value => String(value ?? '').trim().replace(/\s+/g, ' ').toLowerCase();
+    if (student && correct && normalize(student) === normalize(correct)) {
       correctAnswers++;
       totalScore += points;
     }
@@ -118,4 +124,4 @@ function scoreSubmission(questions, answers, examType) {
   };
 }
 
-module.exports = { scoreSubmission };
+module.exports = { scoreSubmission, resolveCorrectAnswer };

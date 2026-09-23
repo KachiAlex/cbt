@@ -58,8 +58,12 @@ const ResultsManagement = ({ institution, onStatsUpdate }) => {
   }, [students]);
   const examsById = useMemo(() => new Map(exams.map(exam => [exam.id, exam])), [exams]);
   const uniqueDepartments = useMemo(
-    () => [...new Set(students.map(student => student.department).filter(Boolean))].sort(),
-    [students]
+    () => [...new Set([...students.map(student => student.department), ...results.map(result => result.department)].filter(Boolean))].sort(),
+    [students, results]
+  );
+  const uniqueLevels = useMemo(
+    () => [...new Set([...students.map(student => student.level), ...results.map(result => result.level)].filter(Boolean))].sort(),
+    [students, results]
   );
 
   const filteredResults = useMemo(() => results.filter(result => {
@@ -70,8 +74,10 @@ const ResultsManagement = ({ institution, onStatsUpdate }) => {
       .map(value => value && studentsByIdentifier.get(String(value).toLowerCase()))
       .find(Boolean);
 
-    if (filters.department && student?.department !== filters.department) return false;
-    if (filters.level && student?.level !== filters.level) return false;
+    const department = student?.department || result.department || '';
+    const level = student?.level || result.level || '';
+    if (filters.department && department !== filters.department) return false;
+    if (filters.level && level !== filters.level) return false;
     if (filters.studentId) {
       const needle = filters.studentId.toLowerCase();
       const studentIdMatch = String(student?.studentId || '').toLowerCase().includes(needle);
@@ -89,7 +95,7 @@ const ResultsManagement = ({ institution, onStatsUpdate }) => {
     return student?.fullName || student?.username || result?.studentName || `Unknown Student (ID: ${result?.studentId || result?.userId || 'N/A'})`;
   };
   const getStudentUsername = (result) => findStudentForResult(result)?.username || result?.studentName || 'Unknown';
-  const getExamTitle = (examId) => examsById.get(examId)?.title || 'Unknown Exam';
+  const getExamTitle = (result) => examsById.get(result?.examId)?.title || result?.examTitle || 'Unknown Exam';
 
   const getGradeColor = (percentage) => {
     if (percentage >= 70) return 'text-green-600';
@@ -158,47 +164,34 @@ const ResultsManagement = ({ institution, onStatsUpdate }) => {
 
   const getScoreFormat = (result) => {
     const percentage = getPercent(result);
+    const maxScore = Number(result.maxScore);
+    if (Number.isFinite(maxScore) && maxScore > 0 && result.score !== undefined && result.score !== null) {
+      return `${result.score}/${maxScore}${percentage !== null ? ` (${percentage}%)` : ''}`;
+    }
     if (result.maxScore === null) return percentage !== null ? `${percentage}%` : '-';
-    
-    // Determine the correct score (number of correct answers)
+
     let correctScore = 0;
-    
-    // Prioritize correctAnswers field (most reliable)
     if (result.correctAnswers !== undefined) {
       correctScore = result.correctAnswers;
-    } 
-    // If score is a raw count (should be <= totalQuestions)
-    else if (result.score !== undefined && result.totalQuestions && result.score <= result.totalQuestions) {
+    } else if (result.score !== undefined && result.totalQuestions && result.score <= result.totalQuestions) {
       correctScore = result.score;
-    }
-    // If score appears to be a percentage (> 100), calculate correct answers
-    else if (result.score !== undefined && result.totalQuestions && result.score > 100) {
-      // This is a percentage, calculate correct answers
+    } else if (result.score !== undefined && result.totalQuestions && result.score > 100) {
       correctScore = Math.round((result.score / 100) * result.totalQuestions);
-    }
-    // If we have percentage and totalQuestions, calculate correct answers
-    else if (percentage !== null && result.totalQuestions) {
+    } else if (percentage !== null && result.totalQuestions) {
       correctScore = Math.round((percentage / 100) * result.totalQuestions);
     }
-    
-    // Get total questions
+
     const totalQuestions = result.totalQuestions || 0;
-    
-    if (totalQuestions > 0 && percentage !== null) {
-      return `${correctScore}/${totalQuestions} (${percentage}%)`;
-    } else if (totalQuestions > 0) {
-      return `${correctScore}/${totalQuestions}`;
-    } else if (percentage !== null) {
-      return `${percentage}%`;
-    }
-    
+    if (totalQuestions > 0 && percentage !== null) return `${correctScore}/${totalQuestions} (${percentage}%)`;
+    if (totalQuestions > 0) return `${correctScore}/${totalQuestions}`;
+    if (percentage !== null) return `${percentage}%`;
     return '-';
   };
 
   const finalizeResult = async () => {
     if (!finalizeTarget) return;
-    const parsed = parseInt(finalizeScore, 10);
-    if (isNaN(parsed) || parsed < 0 || parsed > 100) {
+    const parsed = Number(finalizeScore);
+    if (!Number.isFinite(parsed) || parsed < 0 || parsed > 100) {
       alert('Enter a valid percentage between 0 and 100');
       return;
     }
@@ -206,7 +199,6 @@ const ResultsManagement = ({ institution, onStatsUpdate }) => {
       setLoading(true);
       await dataService.updateResult(finalizeTarget.id, {
         percentage: parsed,
-        score: parsed,
         status: 'completed',
         finalized: true,
         finalizedAt: new Date().toISOString(),
@@ -219,7 +211,7 @@ const ResultsManagement = ({ institution, onStatsUpdate }) => {
       onStatsUpdate && onStatsUpdate();
     } catch (e) {
       console.error('Error finalizing result:', e);
-      alert('Failed to finalize result.');
+      alert(e.message || 'Failed to finalize result.');
     } finally {
       setLoading(false);
     }
@@ -256,7 +248,7 @@ const ResultsManagement = ({ institution, onStatsUpdate }) => {
       onStatsUpdate && onStatsUpdate();
     } catch (error) {
       console.error('Error deleting results:', error);
-      alert('Failed to delete some results. Please try again.');
+      alert(error.message || 'Failed to delete some results. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -275,7 +267,11 @@ const ResultsManagement = ({ institution, onStatsUpdate }) => {
   };
 
   const exportResults = () => {
-    const csvCell = value => `"${String(value ?? '').replace(/"/g, '""')}"`;
+    const csvCell = value => {
+      let text = String(value ?? '');
+      if (/^\s*[=+\-@]/.test(text)) text = `'${text}`;
+      return `"${text.replace(/"/g, '""')}"`;
+    };
     const csvContent = [
       ['Student Name', 'Exam', 'Score', 'Percentage', 'Grade', 'Status', 'Date'],
       ...filteredResults.map(result => {
@@ -284,12 +280,12 @@ const ResultsManagement = ({ institution, onStatsUpdate }) => {
         
         return [
           getStudentName(result),
-          getExamTitle(result.examId),
+          getExamTitle(result),
           scoreFormat,
           percentage !== null ? `${percentage}%` : '-',
           percentage !== null ? getGradeLabel(percentage) : '-',
           result.status,
-          formatResultDate(result)
+          formatResultDate(result, false, institution?.settings)
         ];
       })
     ].map(row => row.map(csvCell).join(',')).join('\n');
@@ -320,11 +316,16 @@ const ResultsManagement = ({ institution, onStatsUpdate }) => {
         setShowDetails(result);
         return;
       }
-      // Try to fetch full result by id from backend
+      // Try to fetch full result and question review data from the backend
       if (result && result.id && typeof dataService.getResultById === 'function') {
         setLoading(true);
-        const full = await dataService.getResultById(result.id);
-        setShowDetails(full || result);
+        const [fullResult, reviewResult] = await Promise.allSettled([
+          dataService.getResultById(result.id),
+          typeof dataService.getResultReview === 'function' ? dataService.getResultReview(result.id) : Promise.resolve(null),
+        ]);
+        const full = fullResult.status === 'fulfilled' ? fullResult.value : result;
+        const review = reviewResult.status === 'fulfilled' ? reviewResult.value : null;
+        setShowDetails({ ...(full || result), reviewQuestions: review?.questions || [] });
       } else {
         setShowDetails(result);
       }
@@ -362,6 +363,7 @@ const ResultsManagement = ({ institution, onStatsUpdate }) => {
     return [];
   };
   const detailAnswers = useMemo(() => normalizeAnswers(showDetails?.answers), [showDetails]);
+  const detailItems = showDetails?.reviewQuestions?.length ? showDetails.reviewQuestions : detailAnswers;
 
   return (
     <div>
@@ -512,12 +514,7 @@ const ResultsManagement = ({ institution, onStatsUpdate }) => {
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
             >
               <option value="">All Levels</option>
-              <option value="100">100 Level</option>
-              <option value="200">200 Level</option>
-              <option value="300">300 Level</option>
-              <option value="400">400 Level</option>
-              <option value="500">500 Level</option>
-              <option value="Postgraduate">Postgraduate</option>
+              {uniqueLevels.map(level => <option key={level} value={level}>{level}</option>)}
             </select>
           </div>
 
@@ -609,7 +606,7 @@ const ResultsManagement = ({ institution, onStatsUpdate }) => {
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap">
                   <div className="text-sm text-gray-900">
-                    {getExamTitle(result.examId)}
+                    {getExamTitle(result)}
                   </div>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap">
@@ -629,7 +626,7 @@ const ResultsManagement = ({ institution, onStatsUpdate }) => {
                   {getStatusBadge(result.status)}
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                  {formatResultDate(result)}
+                  {formatResultDate(result, false, institution?.settings)}
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                   <button
@@ -681,7 +678,7 @@ const ResultsManagement = ({ institution, onStatsUpdate }) => {
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700">Exam</label>
-                    <p className="text-sm text-gray-900">{getExamTitle(showDetails.examId)}</p>
+                    <p className="text-sm text-gray-900">{getExamTitle(showDetails)}</p>
                   </div>
                 </div>
 
@@ -714,7 +711,7 @@ const ResultsManagement = ({ institution, onStatsUpdate }) => {
                   <div>
                     <label className="block text-sm font-medium text-gray-700">Completed At</label>
                     <p className="text-sm text-gray-900">
-                      {formatResultDate(showDetails, true)}
+                      {formatResultDate(showDetails, true, institution?.settings)}
                     </p>
                   </div>
                 </div>
@@ -729,18 +726,21 @@ const ResultsManagement = ({ institution, onStatsUpdate }) => {
                   </div>
                 )}
 
-                {detailAnswers.length > 0 && (
+                {detailItems.length > 0 && (
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">Answers</label>
                     <div className="space-y-2 max-h-60 overflow-y-auto">
-                      {detailAnswers.map((answer, index) => (
-                        <div key={index} className="p-3 border rounded-md">
+                      {detailItems.map((answer, index) => (
+                        <div key={answer.id || index} className="p-3 border rounded-md">
                           <div className="text-sm font-medium text-gray-900">
-                            Question {index + 1}
+                            {index + 1}. {answer.question || `Question ${index + 1}`}
                           </div>
                           <div className="text-sm text-gray-600 mt-1">
                             Answer: {answer.selectedAnswer || 'No answer'}
                           </div>
+                          {answer.correctAnswer !== undefined && answer.correctAnswer !== null && answer.correctAnswer !== '' && (
+                            <div className="text-xs text-green-700 mt-1">Correct answer: {answer.correctAnswer}</div>
+                          )}
                           {answer.isCorrect !== undefined && (
                             <div className={`text-xs mt-1 ${answer.isCorrect ? 'text-green-600' : 'text-red-600'}`}>
                               {answer.isCorrect ? 'Correct' : 'Incorrect'}

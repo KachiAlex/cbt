@@ -38,10 +38,27 @@ export const getResultDate = (result) => {
   return null;
 };
 
-export const formatResultDate = (result, includeTime = false) => {
+export const formatResultDate = (result, includeTime = false, preferences = {}) => {
   const date = getResultDate(result);
   if (!date) return '—';
-  return date.toLocaleString(undefined, includeTime
-    ? { dateStyle: 'medium', timeStyle: 'short' }
-    : { dateStyle: 'medium' });
+  const timeZone = preferences.timezone || undefined;
+  const dateFormat = preferences.dateFormat || 'DD/MM/YYYY';
+  const timeFormat = preferences.timeFormat || '24h';
+  try {
+    const parts = Object.fromEntries(new Intl.DateTimeFormat('en', {
+      timeZone, year: 'numeric', month: '2-digit', day: '2-digit'
+    }).formatToParts(date).map(part => [part.type, part.value]));
+    const formattedDate = dateFormat === 'YYYY-MM-DD'
+      ? `${parts.year}-${parts.month}-${parts.day}`
+      : dateFormat === 'MM/DD/YYYY'
+        ? `${parts.month}/${parts.day}/${parts.year}`
+        : `${parts.day}/${parts.month}/${parts.year}`;
+    if (!includeTime) return formattedDate;
+    const formattedTime = new Intl.DateTimeFormat('en', {
+      timeZone, hour: '2-digit', minute: '2-digit', hour12: timeFormat === '12h'
+    }).format(date);
+    return `${formattedDate} ${formattedTime}`;
+  } catch (_) {
+    return includeTime ? date.toLocaleString() : date.toLocaleDateString();
+  }
 };

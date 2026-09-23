@@ -7,6 +7,7 @@ const QuestionsManagement = ({ institution, onStatsUpdate }) => {
   const [questions, setQuestions] = useState([]);
   const [exams, setExams] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
   const [showModal, setShowModal] = useState(false);
   const [showImportModal, setShowImportModal] = useState(false);
   const [showImportGuide, setShowImportGuide] = useState(false);
@@ -26,6 +27,8 @@ const QuestionsManagement = ({ institution, onStatsUpdate }) => {
     minWords: 50,
     modelAnswer: ''
   });
+  const selectedExamData = exams.find(exam => exam.id === formData.examId);
+  const essayExam = String(selectedExamData?.type || '').toLowerCase() === 'essay';
 
   useEffect(() => {
     loadData();
@@ -41,6 +44,7 @@ const QuestionsManagement = ({ institution, onStatsUpdate }) => {
       setQuestions(questionsData);
       setExams(examsData);
     } catch (error) {
+      setError(error.message || 'Error loading questions.');
       console.error('Error loading data:', error);
     } finally {
       setLoading(false);
@@ -49,14 +53,43 @@ const QuestionsManagement = ({ institution, onStatsUpdate }) => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setError('');
+    if (!formData.examId) return setError('Select an exam first.');
+    if (formData.type === 'essay' && !formData.rubricKeywords.trim() && !formData.modelAnswer.trim()) {
+      return setError('Add rubric keywords or a model answer for essay scoring.');
+    }
+    if (formData.type === 'short-answer' && !String(formData.correctAnswer || '').trim()) {
+      return setError('Enter the correct short answer.');
+    }
+    let normalizedOptions = [];
+    let correctIndex = null;
+    if (['multiple-choice', 'true-false'].includes(formData.type)) {
+      const rawCorrectIndex = Number(formData.correctAnswer);
+      formData.options.forEach((option, originalIndex) => {
+        const normalizedOption = String(option || '').trim();
+        if (!normalizedOption) return;
+        if (originalIndex === rawCorrectIndex) correctIndex = normalizedOptions.length;
+        normalizedOptions.push(normalizedOption);
+      });
+      if (normalizedOptions.length < 2 || correctIndex === null) return setError('Add at least two options and select the correct answer.');
+    }
+    const points = Number(formData.points);
+    if (!Number.isFinite(points) || points <= 0) return setError('Question points must be greater than zero.');
     try {
       setLoading(true);
-      
+
       const questionData = {
         ...formData,
+        options: normalizedOptions,
+        correctIndex,
+        correctAnswer: formData.type === 'short-answer'
+          ? String(formData.correctAnswer || '').trim()
+          : correctIndex !== null ? normalizedOptions[correctIndex] : '',
+        points,
+        minWords: Number(formData.minWords) || 0,
         institutionId: institution.id,
         institutionName: institution.name,
-        createdAt: new Date().toISOString()
+        ...(editingQuestion ? {} : { createdAt: new Date().toISOString() })
       };
 
       if (editingQuestion) {
@@ -71,6 +104,7 @@ const QuestionsManagement = ({ institution, onStatsUpdate }) => {
       setEditingQuestion(null);
       resetForm();
     } catch (error) {
+      setError(error.message || 'Error saving question.');
       console.error('Error saving question:', error);
     } finally {
       setLoading(false);
@@ -79,12 +113,17 @@ const QuestionsManagement = ({ institution, onStatsUpdate }) => {
 
   const handleEdit = (question) => {
     setEditingQuestion(question);
+    const exam = exams.find(item => item.id === question.examId);
+    const options = question.options || ['', '', '', ''];
+    const answerIndex = question.correctIndex != null
+      ? Number(question.correctIndex)
+      : options.findIndex(option => String(option).trim().toLowerCase() === String(question.correctAnswer || '').trim().toLowerCase());
     setFormData({
       examId: question.examId,
       question: question.question,
-      type: question.type,
-      options: question.options || ['', '', '', ''],
-      correctAnswer: question.correctAnswer,
+      type: String(exam?.type || '').toLowerCase() === 'essay' ? 'essay' : (question.type === 'essay' ? 'multiple-choice' : question.type),
+      options,
+      correctAnswer: answerIndex >= 0 ? String(answerIndex) : (['short-answer'].includes(question.type) ? question.correctAnswer || '' : ''),
       explanation: question.explanation,
       points: question.points,
       difficulty: question.difficulty,
@@ -102,6 +141,7 @@ const QuestionsManagement = ({ institution, onStatsUpdate }) => {
         await loadData();
         onStatsUpdate();
       } catch (error) {
+        setError(error.message || 'Error deleting question.');
         console.error('Error deleting question:', error);
       }
     }
@@ -115,14 +155,7 @@ const QuestionsManagement = ({ institution, onStatsUpdate }) => {
         return;
       }
       
-      // Debug: Log the questions being imported
-      console.log('🔍 Questions being imported:', questionsToImport);
-      console.log('🔍 First question structure:', questionsToImport[0]);
-      
-      const importPromises = questionsToImport.map(question => 
-        dataService.createQuestion({ ...question, examId: selectedExam })
-      );
-      await Promise.all(importPromises);
+      await dataService.addQuestions(selectedExam, questionsToImport);
       await loadData();
       onStatsUpdate();
     } catch (error) {
@@ -147,6 +180,7 @@ const QuestionsManagement = ({ institution, onStatsUpdate }) => {
       await loadData();
       onStatsUpdate();
     } catch (error) {
+      setError(error.message || 'Error clearing questions.');
       console.error('Error clearing questions:', error);
     } finally {
       setLoading(false);
@@ -181,7 +215,11 @@ const QuestionsManagement = ({ institution, onStatsUpdate }) => {
 
   const removeOption = (index) => {
     const newOptions = formData.options.filter((_, i) => i !== index);
-    setFormData({ ...formData, options: newOptions });
+    const answerIndex = Number(formData.correctAnswer);
+    const correctAnswer = Number.isInteger(answerIndex)
+      ? (answerIndex === index ? '' : answerIndex > index ? String(answerIndex - 1) : formData.correctAnswer)
+      : '';
+    setFormData({ ...formData, options: newOptions, correctAnswer });
   };
 
   const handleSelectAll = (e) => {
@@ -212,13 +250,12 @@ const QuestionsManagement = ({ institution, onStatsUpdate }) => {
     
     try {
       setLoading(true);
-      await Promise.all(
-        selectedQuestions.map(id => dataService.deleteQuestion(id))
-      );
+      await dataService.deleteQuestions(selectedQuestions);
       setSelectedQuestions([]);
       await loadData();
       onStatsUpdate();
     } catch (error) {
+      setError(error.message || 'Error deleting questions.');
       console.error('Error deleting questions:', error);
     } finally {
       setLoading(false);
@@ -235,15 +272,16 @@ const QuestionsManagement = ({ institution, onStatsUpdate }) => {
     }
   };
 
-  const getDifficultyBadge = (difficulty) => {
+  const getDifficultyBadge = (difficulty = 'medium') => {
     const colors = {
       easy: 'bg-green-100 text-green-800',
       medium: 'bg-yellow-100 text-yellow-800',
       hard: 'bg-red-100 text-red-800'
     };
+    const level = colors[difficulty] ? difficulty : 'medium';
     return (
-      <span className={`px-2 py-1 text-xs font-medium rounded-full ${colors[difficulty]}`}>
-        {difficulty.charAt(0).toUpperCase() + difficulty.slice(1)}
+      <span className={`px-2 py-1 text-xs font-medium rounded-full ${colors[level]}`}>
+        {level.charAt(0).toUpperCase() + level.slice(1)}
       </span>
     );
   };
@@ -265,7 +303,9 @@ const QuestionsManagement = ({ institution, onStatsUpdate }) => {
           </button>
           <button
             onClick={() => setShowImportModal(true)}
-            className="bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 transition-colors"
+            disabled={!selectedExam || loading}
+            title={selectedExam ? 'Import questions into the selected exam' : 'Select an exam before importing'}
+            className="bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 transition-colors disabled:opacity-50"
           >
             Import Questions
           </button>
@@ -291,6 +331,8 @@ const QuestionsManagement = ({ institution, onStatsUpdate }) => {
           </button>
         </div>
       </div>
+
+      {error && <p role="alert" className="mb-4 rounded bg-red-50 p-3 text-sm text-red-700">{error}</p>}
 
       {/* Filter */}
       <div className="mb-6">
@@ -352,9 +394,9 @@ const QuestionsManagement = ({ institution, onStatsUpdate }) => {
                 </td>
                 <td className="px-6 py-4">
                   <div className="text-sm text-gray-900 max-w-md">
-                    {question.question.length > 100 
+                    {(question.question || '').length > 100
                       ? `${question.question.substring(0, 100)}...` 
-                      : question.question
+                      : question.question || 'Untitled question'
                     }
                   </div>
                 </td>
@@ -404,7 +446,11 @@ const QuestionsManagement = ({ institution, onStatsUpdate }) => {
                   <select
                     required
                     value={formData.examId}
-                    onChange={(e) => setFormData({ ...formData, examId: e.target.value })}
+                    onChange={(e) => {
+                      const selected = exams.find(exam => exam.id === e.target.value);
+                      const isEssay = String(selected?.type || '').toLowerCase() === 'essay';
+                      setFormData({ ...formData, examId: e.target.value, type: isEssay ? 'essay' : (formData.type === 'essay' ? 'multiple-choice' : formData.type) });
+                    }}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
                   >
                     <option value="">Select an exam</option>
@@ -423,10 +469,15 @@ const QuestionsManagement = ({ institution, onStatsUpdate }) => {
                     onChange={(e) => setFormData({ ...formData, type: e.target.value })}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
                   >
-                    <option value="multiple-choice">Multiple Choice</option>
-                    <option value="true-false">True/False</option>
-                    <option value="short-answer">Short Answer</option>
-                    <option value="essay">Essay</option>
+                    {essayExam ? (
+                      <option value="essay">Essay</option>
+                    ) : (
+                      <>
+                        <option value="multiple-choice">Multiple Choice</option>
+                        <option value="true-false">True/False</option>
+                        <option value="short-answer">Short Answer</option>
+                      </>
+                    )}
                   </select>
                 </div>
 
@@ -521,7 +572,7 @@ const QuestionsManagement = ({ institution, onStatsUpdate }) => {
                         type="number"
                         min="0"
                         value={formData.minWords}
-                        onChange={(e) => setFormData({ ...formData, minWords: parseInt(e.target.value) || 0 })}
+                        onChange={(e) => setFormData({ ...formData, minWords: e.target.value })}
                         className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
                       />
                     </div>
@@ -549,7 +600,7 @@ const QuestionsManagement = ({ institution, onStatsUpdate }) => {
                       type="number"
                       min="1"
                       value={formData.points}
-                      onChange={(e) => setFormData({ ...formData, points: parseInt(e.target.value) })}
+                      onChange={(e) => setFormData({ ...formData, points: e.target.value })}
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
                     />
                   </div>
@@ -616,6 +667,7 @@ const QuestionsManagement = ({ institution, onStatsUpdate }) => {
         onImport={handleImportQuestions}
         examId={selectedExam}
         institutionId={institution.id}
+        institutionName={institution.name}
       />
 
       {/* Import Guide Modal */}

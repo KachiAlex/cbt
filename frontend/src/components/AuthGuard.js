@@ -1,22 +1,21 @@
 import React, { useEffect, useState } from 'react';
 import { Navigate } from 'react-router-dom';
+import authService from '../services/authService';
 
 const AuthGuard = ({ children }) => {
   const [isAuthenticated, setIsAuthenticated] = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const checkAuth = () => {
-      // Require both a user record and a real JWT
-      const adminUser = localStorage.getItem('multi_tenant_admin_user');
-      const token = localStorage.getItem('multi_tenant_admin_token');
-      const hasAdminUser = !!adminUser && !!token;
-      
-      setIsAuthenticated(hasAdminUser);
+    let active = true;
+    const checkAuth = async () => {
+      const [session, storedUser] = await Promise.all([authService.getSession(), authService.getCurrentUser()]);
+      if (!active) return;
+      setIsAuthenticated(Boolean(session?.role === 'super_admin' && storedUser?.uid === session.id));
       setLoading(false);
     };
-
     checkAuth();
+    return () => { active = false; };
   }, []);
 
   if (loading) {
@@ -32,7 +31,6 @@ const AuthGuard = ({ children }) => {
   }
 
   if (!isAuthenticated) {
-    console.log('🔐 AuthGuard: Redirecting to /admin-login');
     return <Navigate to="/admin-login" replace />;
   }
 

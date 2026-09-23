@@ -1,4 +1,4 @@
-import * as XLSX from 'xlsx';
+import ExcelJS from 'exceljs';
 import mammoth from 'mammoth';
 
 // Flexible parsing rules for different formats
@@ -14,7 +14,10 @@ export const PARSING_RULES = {
       explanation: ['explanation', 'explain', 'reason', 'rationale', 'why'],
       points: ['points', 'score', 'marks', 'weight', 'value'],
       difficulty: ['difficulty', 'level', 'complexity', 'hardness'],
-      category: ['category', 'subject', 'topic', 'chapter', 'section']
+      category: ['category', 'subject', 'topic', 'chapter', 'section'],
+      rubricKeywords: ['rubric keywords', 'rubric', 'keywords'],
+      minWords: ['minimum words', 'min words', 'min_words'],
+      modelAnswer: ['model answer', 'model_answer', 'ideal answer']
     },
     
     // Question type mapping
@@ -63,7 +66,10 @@ export const PARSING_RULES = {
       explanation: /(?:Explanation|Explain|Reason|Rationale)[\s:]*([^\n]+)/i,
       points: /(?:Points|Score|Marks)[\s:]*(\d+)/i,
       difficulty: /(?:Difficulty|Level)[\s:]*([^\n]+)/i,
-      type: /(?:Type|Format)[\s:]*([^\n]+)/i
+      type: /(?:Type|Format)[\s:]*([^\n]+)/i,
+      rubricKeywords: /(?:Rubric Keywords|Keywords)[\s:]*([^\n]+)/i,
+      minWords: /(?:Minimum Word Count|Min Words)[\s:]*(\d+)/i,
+      modelAnswer: /(?:Model Answer)[\s:]*([\s\S]*?)(?=\n(?:Rubric Keywords|Minimum Word Count|Answer|Explanation|Points|Difficulty|Type):|$)/i
     },
     
     // Alternative patterns for different formats
@@ -89,36 +95,25 @@ export class ExcelQuestionParser {
   }
 
   async parseFile(file) {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        try {
-          const data = new Uint8Array(e.target.result);
-          const workbook = XLSX.read(data, { type: 'array' });
-          const questions = this.parseWorkbook(workbook);
-          resolve(questions);
-        } catch (error) {
-          reject(error);
-        }
-      };
-      reader.readAsArrayBuffer(file);
-    });
+    const workbook = new ExcelJS.Workbook();
+    await workbook.xlsx.load(await file.arrayBuffer());
+    return this.parseWorkbook(workbook);
   }
 
   parseWorkbook(workbook) {
     const questions = [];
-    const sheetNames = workbook.SheetNames;
-    
-    sheetNames.forEach(sheetName => {
-      const worksheet = workbook.Sheets[sheetName];
-      const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
-      
-      if (jsonData.length > 0) {
-        const parsedQuestions = this.parseSheetData(jsonData);
-        questions.push(...parsedQuestions);
-      }
+    workbook.eachSheet(worksheet => {
+      const rows = [];
+      worksheet.eachRow({ includeEmpty: true }, row => {
+        const values = [];
+        for (let column = 1; column <= worksheet.columnCount; column++) {
+          values.push(row.getCell(column).text || '');
+        }
+        rows.push(values);
+      });
+      if (rows.length) questions.push(...this.parseSheetData(rows));
+      if (questions.length > 1000) throw new Error('Import at most 1,000 questions per batch.');
     });
-    
     return questions;
   }
 
@@ -146,50 +141,54 @@ export class ExcelQuestionParser {
 
   mapColumns(headers) {
     const columnMap = {};
-    
-    // Debug: Log the headers we're working with
-    console.log('🔍 Parser: Excel headers found:', headers);
-    
     Object.keys(this.rules.columns).forEach(key => {
       const possibleNames = this.rules.columns[key];
       for (const name of possibleNames) {
         const index = headers.findIndex(h => h.includes(name.toLowerCase()));
         if (index !== -1) {
           columnMap[key] = index;
-          console.log(`🔍 Parser: Mapped column "${headers[index]}" to "${key}"`);
           break;
         }
       }
     });
-    
-    // Also look for option columns with different naming patterns
+
     headers.forEach((header, index) => {
       const lowerHeader = header.toLowerCase();
       if (lowerHeader.includes('option') || lowerHeader.includes('choice') || lowerHeader.includes('answer')) {
-        // Check if it's a specific option (A, B, C, D)
         const optionMatch = lowerHeader.match(/option\s*([a-e])|choice\s*([a-e])|answer\s*([a-e])/);
         if (optionMatch) {
           const optionLetter = optionMatch[1] || optionMatch[2] || optionMatch[3];
           columnMap[`option_${optionLetter}`] = index;
-          console.log(`🔍 Parser: Mapped option column "${header}" to "option_${optionLetter}"`);
         }
       }
     });
-    
-    console.log('🔍 Parser: Final column mapping:', columnMap);
     return columnMap;
   }
 
   parseRow(row, columnMap) {
+    const optionData = this.parseOptions(row, columnMap);
+    const rawCorrectAnswer = this.getCellValue(row, columnMap.correctAnswer);
+    let correctAnswer = rawCorrectAnswer;
+    if (/^[A-E]$/i.test(rawCorrectAnswer)) {
+      const answerIndex = rawCorrectAnswer.toUpperCase().charCodeAt(0) - 65;
+      const optionPosition = optionData.labels.indexOf(answerIndex);
+      if (optionPosition >= 0) correctAnswer = optionData.options[optionPosition];
+    } else if (/^\d+$/.test(rawCorrectAnswer)) {
+      const optionPosition = optionData.labels.indexOf(Number(rawCorrectAnswer));
+      if (optionPosition >= 0) correctAnswer = optionData.options[optionPosition];
+    }
     const question = {
       question: this.getCellValue(row, columnMap.question),
       type: this.parseQuestionType(this.getCellValue(row, columnMap.type)),
-      options: this.parseOptions(row, columnMap),
-      correctAnswer: this.getCellValue(row, columnMap.correctAnswer),
+      options: optionData.options,
+      correctAnswer,
       explanation: this.getCellValue(row, columnMap.explanation),
       points: this.parsePoints(this.getCellValue(row, columnMap.points)),
       difficulty: this.parseDifficulty(this.getCellValue(row, columnMap.difficulty)),
-      category: this.getCellValue(row, columnMap.category)
+      category: this.getCellValue(row, columnMap.category),
+      rubricKeywords: this.getCellValue(row, columnMap.rubricKeywords),
+      minWords: Math.max(0, parseInt(this.getCellValue(row, columnMap.minWords), 10) || 50),
+      modelAnswer: this.getCellValue(row, columnMap.modelAnswer)
     };
     
     return question;
@@ -197,49 +196,43 @@ export class ExcelQuestionParser {
 
   parseOptions(row, columnMap) {
     const options = [];
+    const labels = [];
     
-    console.log('🔍 Parser: Parsing options for row:', row);
-    console.log('🔍 Parser: Column map for options:', columnMap);
     
     // Try to find options in separate columns (Option A, Option B, etc.)
     const optionColumns = ['option_a', 'option_b', 'option_c', 'option_d', 'option_e'];
-    for (const optionKey of optionColumns) {
+    optionColumns.forEach((optionKey, label) => {
       if (columnMap[optionKey] !== undefined) {
         const value = this.getCellValue(row, columnMap[optionKey]);
-        console.log(`🔍 Parser: Found ${optionKey} at column ${columnMap[optionKey]}: "${value}"`);
         if (value && value.trim()) {
           options.push(value.trim());
+          labels.push(label);
         }
       }
-    }
+    });
     
-    console.log('🔍 Parser: Options from separate columns:', options);
     
     // If no separate option columns found, try to parse from options column
     if (options.length === 0 && columnMap.options !== undefined) {
       const optionsText = this.getCellValue(row, columnMap.options);
-      console.log('🔍 Parser: Options text from combined column:', optionsText);
       if (optionsText) {
-        const parsedOptions = this.parseOptionsFromText(optionsText);
-        console.log('🔍 Parser: Parsed options from text:', parsedOptions);
-        return parsedOptions;
+        return this.parseOptionsFromText(optionsText);
       }
     }
     
     // If still no options, try to find any column that might contain options
     if (options.length === 0) {
-      console.log('🔍 Parser: Scanning all columns for option-like content...');
       for (let i = 0; i < row.length; i++) {
         const cellValue = this.getCellValue(row, i);
-        console.log(`🔍 Parser: Column ${i}: "${cellValue}" - looks like option: ${this.looksLikeOption(cellValue)}`);
         if (cellValue && this.looksLikeOption(cellValue)) {
-          options.push(cellValue.trim());
+          const match = cellValue.trim().match(/^([A-E])[\.\)\-\s]+(.+)$/);
+          options.push((match?.[2] || cellValue).trim());
+          labels.push(match ? match[1].charCodeAt(0) - 65 : options.length - 1);
         }
       }
     }
     
-    console.log('🔍 Parser: Final parsed options:', options);
-    return options;
+    return { options, labels };
   }
 
   parseOptionsFromText(text) {
@@ -252,32 +245,35 @@ export class ExcelQuestionParser {
     ];
     
     for (const pattern of patterns) {
-      const matches = [...text.matchAll(pattern)];
+      const matches = [...text.matchAll(pattern)]
+        .map(match => ({ label: match[1].toUpperCase().charCodeAt(0) - 65, option: match[2].trim() }))
+        .filter(item => item.option.length > 0);
       if (matches.length > 0) {
-        return matches.map(match => match[2].trim()).filter(opt => opt.length > 0);
+        return { options: matches.map(item => item.option), labels: matches.map(item => item.label) };
       }
     }
     
     // Try to parse options separated by newlines or semicolons
     const lines = text.split(/[\n;]/).map(line => line.trim()).filter(line => line.length > 0);
     const options = [];
-    
+    const labels = [];
+
     for (const line of lines) {
       if (this.looksLikeOption(line)) {
-        // Remove the A), B), etc. prefix
-        const optionText = line.replace(/^[A-E][\.\)\-\s]+/, '').trim();
+        const match = line.match(/^([A-E])[\.\)\-\s]+(.+)$/);
+        const optionText = (match?.[2] || line).trim();
         if (optionText) {
           options.push(optionText);
+          labels.push(match ? match[1].charCodeAt(0) - 65 : options.length - 1);
         }
       }
     }
-    
-    if (options.length > 0) {
-      return options;
-    }
-    
+
+    if (options.length > 0) return { options, labels };
+
     // Final fallback: split by common separators
-    return text.split(/[;\n]/).map(opt => opt.trim()).filter(opt => opt.length > 0);
+    const fallbackOptions = text.split(/[;\n]/).map(opt => opt.trim()).filter(opt => opt.length > 0);
+    return { options: fallbackOptions, labels: fallbackOptions.map((_, index) => index) };
   }
 
   parseQuestionType(type) {
@@ -383,21 +379,31 @@ export class WordQuestionParser {
       explanation: '',
       points: 1,
       difficulty: 'medium',
-      category: ''
+      category: '',
+      rubricKeywords: '',
+      minWords: 50,
+      modelAnswer: ''
     };
     
     // Parse question text
     question.question = this.extractQuestion(section);
     
     // Parse options
-    question.options = this.extractOptions(section);
-    
+    const optionData = this.extractOptionDetails(section);
+    question.options = optionData.map(item => item.option);
+
     // Parse other fields
-    question.correctAnswer = this.extractField(section, 'correctAnswer');
+    const rawCorrectAnswer = this.extractField(section, 'correctAnswer');
+    const answerIndex = /^[A-E]$/i.test(rawCorrectAnswer) ? rawCorrectAnswer.toUpperCase().charCodeAt(0) - 65 : null;
+    const matchingOption = answerIndex === null ? null : optionData.find(item => item.label === answerIndex);
+    question.correctAnswer = matchingOption?.option || rawCorrectAnswer;
     question.explanation = this.extractField(section, 'explanation');
     question.points = this.parsePoints(this.extractField(section, 'points'));
     question.difficulty = this.parseDifficulty(this.extractField(section, 'difficulty'));
     question.type = this.parseQuestionType(this.extractField(section, 'type'));
+    question.rubricKeywords = this.extractField(section, 'rubricKeywords');
+    question.minWords = Math.max(0, parseInt(this.extractField(section, 'minWords'), 10) || 50);
+    question.modelAnswer = this.extractField(section, 'modelAnswer');
     
     return question;
   }
@@ -408,15 +414,16 @@ export class WordQuestionParser {
     return match ? match[1].trim() : '';
   }
 
-  extractOptions(text) {
+  extractOptionDetails(text) {
     const options = [];
     const pattern = this.rules.patterns.options;
     let match;
-    
+
     while ((match = pattern.exec(text)) !== null) {
-      options.push(match[2].trim());
+      const option = match[2].trim();
+      if (option) options.push({ label: match[1].toUpperCase().charCodeAt(0) - 65, option });
     }
-    
+
     return options;
   }
 
@@ -460,26 +467,23 @@ export class QuestionImportParser {
     let questions;
     switch (extension) {
       case 'xlsx':
-      case 'xls':
         questions = await this.excelParser.parseFile(file);
         break;
       case 'docx':
-      case 'doc':
         questions = await this.wordParser.parseFile(file);
+        break;
+      case 'txt':
+        questions = this.wordParser.parseText(await file.text());
         break;
       default:
         throw new Error(`Unsupported file format: ${extension}`);
     }
     
-    // Debug: Log parsed questions
-    console.log('🔍 Parser: Parsed questions from file:', questions);
-    console.log('🔍 Parser: First question structure:', questions[0]);
-    
     return questions;
   }
 
   // Generate template files
-  generateExcelTemplate() {
+  async generateExcelTemplate() {
     const templateData = [
       ['Question', 'Type', 'Option A', 'Option B', 'Option C', 'Option D', 'Correct Answer', 'Explanation', 'Points', 'Difficulty', 'Category'],
       [
@@ -510,11 +514,9 @@ export class QuestionImportParser {
       ]
     ];
 
-    const worksheet = XLSX.utils.aoa_to_sheet(templateData);
-    const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, 'Questions');
-    
-    return XLSX.write(workbook, { bookType: 'xlsx', type: 'array' });
+    const workbook = new ExcelJS.Workbook();
+    workbook.addWorksheet('Questions').addRows(templateData);
+    return workbook.xlsx.writeBuffer();
   }
 
   generateWordTemplate() {
