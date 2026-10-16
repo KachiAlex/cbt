@@ -5,6 +5,7 @@ import { formatResultDate } from '../utils/resultDate';
 const StudentPortal = ({ user, onLogout, onStartExam }) => {
   const [availableExams, setAvailableExams] = useState([]);
   const [userResults, setUserResults] = useState([]);
+  const [resultsVisible, setResultsVisible] = useState(true);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState('');
   const [reviewResult, setReviewResult] = useState(null);
@@ -17,10 +18,15 @@ const StudentPortal = ({ user, onLogout, onStartExam }) => {
 
   const loadStudentData = async () => {
     try {
-      const [exams, results] = await Promise.all([
+      const institutionId = user?.institutionId || user?.tenantId;
+      const [exams, results, institution] = await Promise.all([
         dataService.getExams(),
-        dataService.getResultsByUser(user.id)
+        dataService.getResultsByUser(user.id),
+        institutionId ? dataService.getInstitution(institutionId).catch(() => null) : Promise.resolve(null)
       ]);
+
+      const showResults = institution?.settings?.showResultsToStudents !== false;
+      setResultsVisible(showResults);
 
       // Filter exams: institution match, active flag, and within schedule window when provided
       const now = new Date();
@@ -45,7 +51,7 @@ const StudentPortal = ({ user, onLogout, onStartExam }) => {
         .filter(isWithinWindow);
 
       setAvailableExams(activeExams);
-      setUserResults(results);
+      setUserResults(showResults ? results : []);
       setLoadError('');
       setLoading(false);
     } catch (error) {
@@ -131,7 +137,12 @@ const StudentPortal = ({ user, onLogout, onStartExam }) => {
                   return (
                     <div key={exam.id} className="border border-gray-200 rounded-lg p-6">
                       <div className="flex justify-between items-start mb-4">
-                        <h4 className="text-lg font-semibold text-gray-900">{exam.title}</h4>
+                        <div>
+                          <h4 className="text-lg font-semibold text-gray-900">{exam.title}</h4>
+                          {exam.subject && (
+                            <span className="inline-block mt-1 px-2 py-0.5 text-xs font-medium bg-indigo-50 text-indigo-700 rounded-full">{exam.subject}</span>
+                          )}
+                        </div>
                         {inProgress && <span className="px-2 py-1 text-xs rounded-full bg-blue-100 text-blue-700">In Progress</span>}
                         {hasTaken && <span className="px-2 py-1 text-xs rounded-full bg-gray-100 text-gray-700">Attempts Used</span>}
                       </div>
@@ -194,7 +205,15 @@ const StudentPortal = ({ user, onLogout, onStartExam }) => {
         </div>
 
         {/* Exam History */}
-        {userResults.length > 0 && (
+        {!resultsVisible && (
+          <div className="bg-white shadow rounded-lg">
+            <div className="px-4 py-5 sm:p-6">
+              <h3 className="text-lg leading-6 font-medium text-gray-900 mb-2">Exam History</h3>
+              <p className="text-sm text-gray-500">Your institution has chosen not to publish exam results here.</p>
+            </div>
+          </div>
+        )}
+        {resultsVisible && userResults.length > 0 && (
           <div className="bg-white shadow rounded-lg">
             <div className="px-4 py-5 sm:p-6">
               <h3 className="text-lg leading-6 font-medium text-gray-900 mb-4">Exam History</h3>
@@ -256,7 +275,14 @@ const StudentPortal = ({ user, onLogout, onStartExam }) => {
             <div className="max-h-[70vh] space-y-4 overflow-y-auto">
               {reviewResult.questions.map((question, index) => (
                 <article key={question.id} className="rounded border p-4">
-                  <h3 className="font-medium text-gray-900">{index + 1}. {question.question}</h3>
+                  <div className="flex items-start justify-between gap-3">
+                    <h3 className="font-medium text-gray-900">{index + 1}. {question.question}</h3>
+                    {question.isCorrect !== undefined && (
+                      <span className={`shrink-0 px-2 py-0.5 text-xs font-medium rounded-full ${question.isCorrect ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                        {question.isCorrect ? 'Correct' : 'Wrong'}
+                      </span>
+                    )}
+                  </div>
                   <p className="mt-2 text-sm text-gray-700">Your answer: {question.selectedAnswer || 'No answer'}</p>
                   {question.correctAnswer !== undefined && <p className="mt-1 text-sm text-green-700">Correct answer: {question.correctAnswer}</p>}
                   {question.explanation && <p className="mt-2 text-sm text-gray-600">{question.explanation}</p>}

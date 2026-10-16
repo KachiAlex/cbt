@@ -112,6 +112,12 @@ class PgDataService {
   async updateInstitutionDepartment(iid, deptId, data) { await patch(`/departments/${deptId}`, data); return true; }
   async deleteInstitutionDepartment(iid, deptId) { await del(`/departments/${deptId}`); return true; }
 
+  // ---- subjects ----
+  getInstitutionSubjects(iid) { return get(`/institutions/${iid}/subjects`); }
+  async createInstitutionSubject(iid, data) { return post(`/institutions/${iid}/subjects`, data); }
+  async updateInstitutionSubject(iid, subjectId, data) { await patch(`/subjects/${subjectId}`, data); return true; }
+  async deleteInstitutionSubject(iid, subjectId) { await del(`/subjects/${subjectId}`); return true; }
+
   // ---- admins ----
   getInstitutionAdmins(iid) { return get(`/institutions/${iid}/admins`); }
   async createAdmin(data) {

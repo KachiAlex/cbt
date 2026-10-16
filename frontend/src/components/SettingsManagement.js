@@ -17,6 +17,7 @@ const SettingsManagement = ({ institution, user, onLogout, onInstitutionChange }
     examTimeLimit: 60,
     showCorrectAnswers: false,
     allowReviewAfterSubmit: true,
+    showResultsToStudents: true,
     autoSubmitOnTimeUp: true,
     randomizeQuestions: true,
     randomizeOptions: true,
@@ -387,32 +388,59 @@ const SettingsManagement = ({ institution, user, onLogout, onInstitutionChange }
       </div>
 
       <div>
-        <h3 className="text-lg font-medium text-gray-900 mb-4">Exam Experience</h3>
+        <h3 className="text-lg font-medium text-gray-900 mb-4">Result Visibility</h3>
         <div className="space-y-3">
           <div className="flex items-center">
             <input
               type="checkbox"
-              id="showCorrectAnswers"
-              checked={settings.showCorrectAnswers}
-              onChange={(e) => setSettings({ ...settings, showCorrectAnswers: e.target.checked })}
+              id="showResultsToStudents"
+              checked={settings.showResultsToStudents}
+              onChange={(e) => setSettings({
+                ...settings,
+                showResultsToStudents: e.target.checked,
+                ...(e.target.checked ? { allowReviewAfterSubmit: true, showCorrectAnswers: true } : {})
+              })}
               className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
             />
-            <label htmlFor="showCorrectAnswers" className="ml-2 block text-sm text-gray-900">
-              Show correct answers after exam completion
+            <label htmlFor="showResultsToStudents" className="ml-2 block text-sm text-gray-900">
+              Show exam results to students after submission
             </label>
           </div>
+          <p className="text-xs text-gray-500">
+            When enabled, students see their score and can review each question with the correct and incorrect answers.
+          </p>
           <div className="flex items-center">
             <input
               type="checkbox"
               id="allowReviewAfterSubmit"
               checked={settings.allowReviewAfterSubmit}
+              disabled={!settings.showResultsToStudents}
               onChange={(e) => setSettings({ ...settings, allowReviewAfterSubmit: e.target.checked })}
-              className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+              className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded disabled:opacity-50"
             />
             <label htmlFor="allowReviewAfterSubmit" className="ml-2 block text-sm text-gray-900">
               Allow students to review answers after submission
             </label>
           </div>
+          <div className="flex items-center">
+            <input
+              type="checkbox"
+              id="showCorrectAnswers"
+              checked={settings.showCorrectAnswers}
+              disabled={!settings.showResultsToStudents || !settings.allowReviewAfterSubmit}
+              onChange={(e) => setSettings({ ...settings, showCorrectAnswers: e.target.checked })}
+              className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded disabled:opacity-50"
+            />
+            <label htmlFor="showCorrectAnswers" className="ml-2 block text-sm text-gray-900">
+              Show correct answers after exam completion
+            </label>
+          </div>
+        </div>
+      </div>
+
+      <div>
+        <h3 className="text-lg font-medium text-gray-900 mb-4">Exam Experience</h3>
+        <div className="space-y-3">
           <div className="flex items-center">
             <input
               type="checkbox"

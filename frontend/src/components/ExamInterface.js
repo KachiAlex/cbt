@@ -153,7 +153,7 @@ const ExamInterface = ({ user, exam, onClose }) => {
         if (answer !== undefined && answer !== null) payloadAnswers[question.id] = String(answer).trim();
       }
       const saved = await dataService.submitExamResult({ examId: exam.id, attemptId: attempt.id, answers: payloadAnswers });
-      const finalResult = saved.alreadySubmitted && saved.id ? await dataService.getResultById(saved.id) : saved;
+      const finalResult = saved.alreadySubmitted && saved.id && exam.showResultsToStudents !== false ? await dataService.getResultById(saved.id) : saved;
       try { if (storageKey) localStorage.removeItem(storageKey); } catch {}
       setSubmittedResult(finalResult);
       setPhase('results');
@@ -194,6 +194,7 @@ const ExamInterface = ({ user, exam, onClose }) => {
   }
 
   if (phase === 'results') {
+    const resultsPublished = exam.showResultsToStudents !== false && submittedResult?.resultsPublished !== false;
     const percentage = Number(submittedResult?.percentage ?? submittedResult?.score ?? 0);
     return (
       <div className="fixed inset-0 bg-gray-900 bg-opacity-75 flex items-center justify-center z-50 p-4">
@@ -203,13 +204,17 @@ const ExamInterface = ({ user, exam, onClose }) => {
           </div>
           <h2 className="text-2xl font-bold text-gray-900 mb-2">Exam Submitted</h2>
           <p className="text-gray-600 mb-6">Your result was recorded by the server.</p>
-          <div className="bg-gray-50 rounded-lg p-4 mb-6">
-            <div className="text-3xl font-bold text-blue-600">{Number.isFinite(percentage) ? percentage.toFixed(1) : '0.0'}%</div>
-            {submittedResult?.score !== undefined && submittedResult?.maxScore !== undefined && (
-              <div className="text-sm text-gray-600 mt-1">{submittedResult.score} / {submittedResult.maxScore} points</div>
-            )}
-            {submittedResult?.status && <div className="text-xs text-gray-500 mt-2">Status: {String(submittedResult.status).replace('_', ' ')}</div>}
-          </div>
+          {resultsPublished ? (
+            <div className="bg-gray-50 rounded-lg p-4 mb-6">
+              <div className="text-3xl font-bold text-blue-600">{Number.isFinite(percentage) ? percentage.toFixed(1) : '0.0'}%</div>
+              {submittedResult?.score !== undefined && submittedResult?.maxScore !== undefined && (
+                <div className="text-sm text-gray-600 mt-1">{submittedResult.score} / {submittedResult.maxScore} points</div>
+              )}
+              {submittedResult?.status && <div className="text-xs text-gray-500 mt-2">Status: {String(submittedResult.status).replace('_', ' ')}</div>}
+            </div>
+          ) : (
+            <p className="text-sm text-gray-500 mb-6">Your institution has chosen not to display exam results.</p>
+          )}
           <button onClick={onClose} className="w-full px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700">Back to Dashboard</button>
         </div>
       </div>

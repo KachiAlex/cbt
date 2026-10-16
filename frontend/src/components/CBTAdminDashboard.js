@@ -5,6 +5,7 @@ import StudentsManagement from './StudentsManagement';
 import ResultsManagement from './ResultsManagement';
 import SettingsManagement from './SettingsManagement';
 import DepartmentsManagement from './DepartmentsManagement';
+import SubjectsManagement from './SubjectsManagement';
 import dataService from '../services/dataService';
 import { formatResultDate } from '../utils/resultDate';
 import { getAcademicStructure } from '../utils/academicStructure';
@@ -153,6 +154,7 @@ const CBTAdminDashboard = ({ institution, user, onLogout, onInstitutionChange })
   const getTabsForRole = () => {
     const allTabs = [
       { id: 'exams', name: 'Exam Management', icon: '📝' },
+      { id: 'subjects', name: 'Subjects', icon: '📚' },
       { id: 'questions', name: 'Questions', icon: '❓' },
       { id: 'students', name: 'Students', icon: '👥' },
       { id: 'results', name: 'Results', icon: '📊' },
@@ -276,6 +278,8 @@ const CBTAdminDashboard = ({ institution, user, onLogout, onInstitutionChange })
         return <ResultsManagement institution={institution} onStatsUpdate={loadDashboardStats} />;
       case 'structure':
         return <DepartmentsManagement institution={institution} onChange={loadDashboardStats} />;
+      case 'subjects':
+        return <SubjectsManagement institution={institution} onChange={loadDashboardStats} />;
       case 'analytics':
         return renderAnalytics();
       case 'settings':

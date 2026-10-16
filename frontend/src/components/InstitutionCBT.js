@@ -193,7 +193,7 @@ const InstitutionCBT = () => {
       case 'student':
         return <StudentPortal user={user} onLogout={handleLogout} onStartExam={startExam} />;
       case 'exam':
-        return <ExamInterface user={user} exam={currentExam} onComplete={completeExam} />;
+        return <ExamInterface user={user} exam={currentExam} onClose={completeExam} />;
       default:
         return (
           <InstitutionLoginPage 

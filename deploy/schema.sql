@@ -34,6 +34,13 @@ CREATE TABLE IF NOT EXISTS users (
   created_at     TIMESTAMPTZ DEFAULT now()
 );
 
+CREATE TABLE IF NOT EXISTS subjects (
+  id             TEXT PRIMARY KEY,
+  institution_id TEXT NOT NULL REFERENCES institutions(id) ON DELETE CASCADE,
+  data           JSONB NOT NULL,
+  created_at     TIMESTAMPTZ DEFAULT now()
+);
+
 CREATE TABLE IF NOT EXISTS exams (
   id             TEXT PRIMARY KEY,
   institution_id TEXT REFERENCES institutions(id) ON DELETE CASCADE,
@@ -110,6 +117,7 @@ CREATE UNIQUE INDEX IF NOT EXISTS uq_users_inst_username ON users(institution_id
 CREATE UNIQUE INDEX IF NOT EXISTS uq_users_inst_email ON users(institution_id, lower(data->>'email')) WHERE coalesce(data->>'isActive','true') <> 'false' AND nullif(btrim(data->>'email'), '') IS NOT NULL;
 CREATE UNIQUE INDEX IF NOT EXISTS uq_admins_inst_username ON admins(institution_id, lower(coalesce(nullif(username,''), data->>'username'))) WHERE coalesce(data->>'isActive','true') <> 'false' AND nullif(btrim(coalesce(username, data->>'username')), '') IS NOT NULL;
 CREATE UNIQUE INDEX IF NOT EXISTS uq_admins_inst_email ON admins(institution_id, lower(coalesce(nullif(email,''), data->>'email'))) WHERE coalesce(data->>'isActive','true') <> 'false' AND nullif(btrim(coalesce(email, data->>'email')), '') IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_subjects_inst    ON subjects(institution_id);
 CREATE INDEX IF NOT EXISTS idx_exams_inst       ON exams(institution_id);
 CREATE INDEX IF NOT EXISTS idx_questions_inst   ON questions(institution_id);
 CREATE INDEX IF NOT EXISTS idx_questions_exam   ON questions(exam_id);

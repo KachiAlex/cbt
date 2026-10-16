@@ -5,12 +5,14 @@ import { isoToZonedInput, zonedInputToIso } from '../utils/timeZone';
 const ExamManagement = ({ institution, onStatsUpdate }) => {
   const timezone = institution?.settings?.timezone || 'Africa/Lagos';
   const [exams, setExams] = useState([]);
+  const [subjects, setSubjects] = useState([]);
   const [loading, setLoading] = useState(false);
   const [showModal, setShowModal] = useState(false);
   const [editingExam, setEditingExam] = useState(null);
   const [formData, setFormData] = useState({
     title: '',
     description: '',
+    subjectId: '',
     duration: Number(institution?.settings?.examTimeLimit) || 60,
     passingScore: 50,
     isActive: true,
@@ -22,7 +24,16 @@ const ExamManagement = ({ institution, onStatsUpdate }) => {
 
   useEffect(() => {
     loadExams();
+    loadSubjects();
   }, []);
+
+  const loadSubjects = async () => {
+    try {
+      setSubjects(await dataService.getInstitutionSubjects(institution.id));
+    } catch (error) {
+      console.error('Error loading subjects:', error);
+    }
+  };
 
   const loadExams = async () => {
     try {
@@ -87,6 +98,7 @@ const ExamManagement = ({ institution, onStatsUpdate }) => {
     setFormData({
       title: exam.title,
       description: exam.description,
+      subjectId: exam.subjectId || '',
       duration: exam.duration,
       passingScore: exam.passingScore,
       isActive: exam.isActive !== false,
@@ -115,6 +127,7 @@ const ExamManagement = ({ institution, onStatsUpdate }) => {
     setFormData({
       title: '',
       description: '',
+      subjectId: '',
       duration: Number(institution?.settings?.examTimeLimit) || 60,
       passingScore: 50,
       isActive: true,
@@ -186,6 +199,9 @@ const ExamManagement = ({ institution, onStatsUpdate }) => {
                   <div>
                     <div className="text-sm font-medium text-gray-900">{exam.title}</div>
                     <div className="text-sm text-gray-500">{exam.description}</div>
+                    {exam.subject && (
+                      <span className="inline-block mt-1 px-2 py-0.5 text-xs font-medium bg-indigo-50 text-indigo-700 rounded-full">{exam.subject}</span>
+                    )}
                   </div>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
@@ -239,6 +255,29 @@ const ExamManagement = ({ institution, onStatsUpdate }) => {
                     <option value="Objective">Objective (MCQ)</option>
                     <option value="Essay">Essay</option>
                   </select>
+                </div>
+              <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Subject
+                  </label>
+                  <select
+                    value={formData.subjectId}
+                    onChange={(e) => setFormData({ ...formData, subjectId: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                  >
+                    <option value="">No subject</option>
+                    {subjects.filter(subject => subject.isActive !== false || subject.id === formData.subjectId).map(subject => (
+                      <option key={subject.id} value={subject.id}>
+                        {subject.name}{subject.code ? ` (${subject.code})` : ''}{subject.isActive === false ? ' — inactive' : ''}
+                      </option>
+                    ))}
+                    {formData.subjectId && !subjects.some(subject => subject.id === formData.subjectId) && (
+                      <option value={formData.subjectId}>{editingExam?.subject || 'Previous subject'} — unavailable</option>
+                    )}
+                  </select>
+                  {subjects.length === 0 && (
+                    <p className="mt-1 text-xs text-gray-500">No subjects yet — create them in the Subjects tab.</p>
+                  )}
                 </div>
               <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">

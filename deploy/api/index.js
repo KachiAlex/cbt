@@ -26,7 +26,7 @@ const DEFAULT_INSTITUTION_SETTINGS = {
   timezone: 'Africa/Lagos', dateFormat: 'DD/MM/YYYY', timeFormat: '24h',
   departmentMode: 'optional', levelLabel: 'Level',
   allowStudentRegistration: true, requireEmailVerification: false, maxExamAttempts: 3, examTimeLimit: 60,
-  showCorrectAnswers: false, allowReviewAfterSubmit: true, autoSubmitOnTimeUp: true,
+  showCorrectAnswers: false, allowReviewAfterSubmit: true, showResultsToStudents: true, autoSubmitOnTimeUp: true,
   randomizeQuestions: true, randomizeOptions: true, showProgressBar: true, allowBackNavigation: true,
   emailNotifications: false, smsNotifications: false, maintenanceMode: false,
   maintenanceMessage: 'System is under maintenance. Please try again later.'
@@ -64,6 +64,19 @@ async function resolveStudentDepartment({ institutionId, body, level, settings }
 
   return { departmentId, department, departmentCode };
 }
+
+async function resolveExamSubject(institutionId, body) {
+  const subjectId = typeof body?.subjectId === 'string' ? body.subjectId.trim() : '';
+  if (!subjectId) {
+    return { subjectId: '', subject: typeof body?.subject === 'string' ? body.subject.trim().slice(0, 120) : '', subjectCode: null };
+  }
+  const { rows } = await q('SELECT data FROM subjects WHERE id = $1 AND institution_id = $2', [subjectId, institutionId]);
+  if (!rows.length) return { error: 'Selected subject is invalid' };
+  const subject = rows[0].data || {};
+  if (subject.isActive === false) return { error: 'Selected subject is inactive' };
+  return { subjectId, subject: subject.name || '', subjectCode: subject.code || null };
+}
+
 const parseStoredDate = (value) => {
   if (value == null || value === '') return null;
   if (value instanceof Date) return Number.isFinite(value.getTime()) ? value : null;
@@ -594,6 +607,7 @@ app.get('/api/exams', auth, async (req, res) => {
     autoSubmitOnTimeUp: settings.autoSubmitOnTimeUp !== false,
     allowReviewAfterSubmit: settings.allowReviewAfterSubmit !== false,
     showCorrectAnswers: settings.showCorrectAnswers === true,
+    showResultsToStudents: settings.showResultsToStudents !== false,
   })));
 });
 
@@ -745,6 +759,7 @@ app.get('/api/institutions/:id', auth, async (req, res) => {
       settings: {
         departmentMode: normalizeDepartmentMode(settings.departmentMode),
         levelLabel: settings.levelLabel || 'Level',
+        showResultsToStudents: settings.showResultsToStudents !== false,
       },
     });
   }
@@ -824,7 +839,7 @@ app.patch('/api/institutions/:id', auth, staffOnly, async (req, res) => {
     if (!settings.levelLabel || settings.levelLabel.length > 30) {
       return res.status(400).json({ error: 'Level label must be 1-30 characters' });
     }
-    const booleanFields = ['allowStudentRegistration', 'requireEmailVerification', 'showCorrectAnswers', 'allowReviewAfterSubmit', 'autoSubmitOnTimeUp', 'randomizeQuestions', 'randomizeOptions', 'showProgressBar', 'allowBackNavigation', 'maintenanceMode'];
+    const booleanFields = ['allowStudentRegistration', 'requireEmailVerification', 'showCorrectAnswers', 'allowReviewAfterSubmit', 'showResultsToStudents', 'autoSubmitOnTimeUp', 'randomizeQuestions', 'randomizeOptions', 'showProgressBar', 'allowBackNavigation', 'maintenanceMode'];
     if (booleanFields.some(field => typeof settings[field] !== 'boolean')) return res.status(400).json({ error: 'Boolean settings must be true or false' });
     if (settings.requireEmailVerification) return res.status(400).json({ error: 'Email verification cannot be enabled until email delivery is configured' });
     const maxAttempts = Number(settings.maxExamAttempts);
@@ -986,6 +1001,58 @@ app.delete('/api/departments/:id', auth, staffOnly, async (req, res) => {
   const usage = await q("SELECT count(*)::int AS n FROM users WHERE institution_id=$1 AND (data->>'departmentId'=$2 OR (coalesce(data->>'departmentId','')='' AND lower(data->>'department')=lower($3)))", [department.rows[0].institution_id, req.params.id, data.name || '']);
   if (usage.rows[0].n) return res.status(409).json({ error: 'Students are assigned to this department. Reassign them before deleting it.' });
   await q('DELETE FROM departments WHERE id=$1', [req.params.id]);
+  res.json({ ok: true });
+});
+
+// ---------- subjects ----------
+
+app.get('/api/institutions/:iid/subjects', auth, staffOnly, async (req, res) => {
+  if (!tenantOk(req, req.params.iid)) return res.status(403).json({ error: 'Forbidden' });
+  const { rows } = await q('SELECT * FROM subjects WHERE institution_id = $1', [req.params.iid]);
+  res.json(toDocs(rows).sort((a, b) => (a.name || '').localeCompare(b.name || '')));
+});
+
+app.post('/api/institutions/:iid/subjects', auth, staffOnly, async (req, res) => {
+  if (!tenantOk(req, req.params.iid)) return res.status(403).json({ error: 'Forbidden' });
+  const body = req.body || {};
+  const name = typeof body.name === 'string' ? body.name.trim() : '';
+  if (!name || name.length > 120) return res.status(400).json({ error: 'Subject name is required (max 120 characters)' });
+  const code = typeof body.code === 'string' ? body.code.trim().toUpperCase() : '';
+  if (code.length > 40) return res.status(400).json({ error: 'Subject code must be at most 40 characters' });
+  const description = typeof body.description === 'string' ? body.description.trim().slice(0, 500) : '';
+  const duplicate = await q("SELECT 1 FROM subjects WHERE institution_id=$1 AND (lower(data->>'name')=lower($2) OR ($3 <> '' AND lower(data->>'code')=lower($3))) LIMIT 1", [req.params.iid, name, code]);
+  if (duplicate.rowCount) return res.status(409).json({ error: 'Subject name or code already exists' });
+  const id = newId();
+  const data = { name, code: code || null, description, isActive: body.isActive !== false, createdAt: now(), updatedAt: now() };
+  await q('INSERT INTO subjects (id, institution_id, data) VALUES ($1, $2, $3)', [id, req.params.iid, data]);
+  res.json({ id, ...data });
+});
+
+app.patch('/api/subjects/:id', auth, staffOnly, async (req, res) => {
+  const current = await q('SELECT * FROM subjects WHERE id = $1', [req.params.id]);
+  if (!current.rows.length) return res.status(404).json({ error: 'Subject not found' });
+  if (!tenantOk(req, current.rows[0].institution_id)) return res.status(403).json({ error: 'Forbidden' });
+  const body = req.body || {};
+  const data = { ...current.rows[0].data, ...body, updatedAt: now() };
+  const name = typeof data.name === 'string' ? data.name.trim() : '';
+  const code = typeof data.code === 'string' ? data.code.trim().toUpperCase() : '';
+  if (!name || name.length > 120) return res.status(400).json({ error: 'Subject name is required (max 120 characters)' });
+  if (code.length > 40) return res.status(400).json({ error: 'Subject code must be at most 40 characters' });
+  if (typeof data.description !== 'string' || data.description.length > 500) return res.status(400).json({ error: 'Description must be at most 500 characters' });
+  const duplicate = await q("SELECT 1 FROM subjects WHERE institution_id=$1 AND id<>$2 AND (lower(data->>'name')=lower($3) OR ($4 <> '' AND lower(data->>'code')=lower($4))) LIMIT 1", [current.rows[0].institution_id, req.params.id, name, code]);
+  if (duplicate.rowCount) return res.status(409).json({ error: 'Subject name or code already exists' });
+  data.name = name; data.code = code || null; data.description = data.description.trim();
+  await q('UPDATE subjects SET data=$2 WHERE id=$1', [req.params.id, data]);
+  res.json({ ok: true });
+});
+app.delete('/api/subjects/:id', auth, staffOnly, async (req, res) => {
+  const subject = await q('SELECT * FROM subjects WHERE id=$1', [req.params.id]);
+  if (!subject.rows.length) return res.status(404).json({ error: 'Subject not found' });
+  if (!tenantOk(req, subject.rows[0].institution_id)) return res.status(403).json({ error: 'Forbidden' });
+  const data = subject.rows[0].data || {};
+  const usage = await q("SELECT count(*)::int AS n FROM exams WHERE institution_id=$1 AND (data->>'subjectId'=$2 OR (coalesce(data->>'subjectId','')='' AND lower(data->>'subject')=lower($3)))", [subject.rows[0].institution_id, req.params.id, data.name || '']);
+  if (usage.rows[0].n) return res.status(409).json({ error: 'Exams are assigned to this subject. Reassign them before deleting it.' });
+  await q('DELETE FROM subjects WHERE id=$1', [req.params.id]);
   res.json({ ok: true });
 });
 
@@ -1180,9 +1247,10 @@ app.get('/api/users/:id/results', auth, async (req, res) => {
   const owner = await q('SELECT institution_id FROM users WHERE id = $1', [req.params.id]);
   if (!owner.rows.length) return res.json([]);
   if (!tenantOk(req, owner.rows[0].institution_id)) return res.status(403).json({ error: 'Forbidden' });
-  const { rows } = await q("SELECT id, institution_id, exam_id, user_id, data - 'answers' AS data, created_at FROM results WHERE user_id = $1 ORDER BY created_at DESC", [req.params.id]);
   const institution = req.user.role === 'student' ? await q('SELECT data FROM institutions WHERE id = $1', [owner.rows[0].institution_id]) : null;
   const settings = institutionSettings(institution?.rows[0]?.data);
+  if (req.user.role === 'student' && settings.showResultsToStudents === false) return res.json([]);
+  const { rows } = await q("SELECT id, institution_id, exam_id, user_id, data - 'answers' AS data, created_at FROM results WHERE user_id = $1 ORDER BY created_at DESC", [req.params.id]);
   res.json(rows.map(row => ({
     ...toResultDoc(row, false),
     ...(req.user.role === 'student' ? { reviewAvailable: settings.allowReviewAfterSubmit !== false } : {})
@@ -1208,9 +1276,11 @@ app.post('/api/institutions/:iid/exams', auth, staffOnly, async (req, res) => {
   const exam = { ...body, duration: body.duration ?? settings.examTimeLimit, title: typeof body.title === 'string' ? body.title.trim() : '' };
   const validationError = examValidationError(exam);
   if (validationError) return res.status(400).json({ error: validationError });
+  const subjectSelection = await resolveExamSubject(req.params.iid, exam);
+  if (subjectSelection.error) return res.status(400).json({ error: subjectSelection.error });
   const id = newId();
   const data = {
-    ...exam, duration: Number(exam.duration), passingScore: Number(exam.passingScore),
+    ...exam, ...subjectSelection, duration: Number(exam.duration), passingScore: Number(exam.passingScore),
     type: String(exam.type || 'Objective').toLowerCase() === 'essay' ? 'Essay' : 'Objective',
     startDate: exam.startDate ? parseStoredDate(exam.startDate).toISOString() : '',
     endDate: exam.endDate ? parseStoredDate(exam.endDate).toISOString() : '',
@@ -1233,8 +1303,13 @@ app.patch('/api/exams/:id', auth, staffOnly, async (req, res) => {
   }
   const validationError = examValidationError(exam);
   if (validationError) return res.status(400).json({ error: validationError });
+  let subjectSelection = {};
+  if (Object.hasOwn(req.body || {}, 'subjectId') || Object.hasOwn(req.body || {}, 'subject')) {
+    subjectSelection = await resolveExamSubject(current.rows[0].institution_id, exam);
+    if (subjectSelection.error) return res.status(400).json({ error: subjectSelection.error });
+  }
   const data = {
-    ...exam, duration: Number(exam.duration), passingScore: Number(exam.passingScore),
+    ...exam, ...subjectSelection, duration: Number(exam.duration), passingScore: Number(exam.passingScore),
     type: String(exam.type || 'Objective').toLowerCase() === 'essay' ? 'Essay' : 'Objective',
     startDate: exam.startDate ? parseStoredDate(exam.startDate).toISOString() : '',
     endDate: exam.endDate ? parseStoredDate(exam.endDate).toISOString() : '', updatedAt: now()
@@ -1487,7 +1562,8 @@ app.post('/api/results', auth, studentOnly, async (req, res) => {
 
   const submittedAt = new Date();
   const institution = await q('SELECT data FROM institutions WHERE id = $1', [institutionId]);
-  const duration = Number(examData?.duration || institutionSettings(institution.rows[0]?.data).examTimeLimit || 60);
+  const settings = institutionSettings(institution.rows[0]?.data);
+  const duration = Number(examData?.duration || settings.examTimeLimit || 60);
   const completedAt = submittedAt.toISOString();
   const data = {
     examId: body.examId,
@@ -1544,6 +1620,9 @@ app.post('/api/results', auth, studentOnly, async (req, res) => {
   } finally {
     client.release();
   }
+  if (settings.showResultsToStudents === false) {
+    return res.json({ id, status: data.status, resultsPublished: false });
+  }
   res.json({ id, ...data });
 });
 
@@ -1552,6 +1631,12 @@ app.get('/api/results/:id', auth, async (req, res) => {
   if (!rows.length) return res.status(404).json({ error: 'Result not found' });
   if (req.user.role === 'student' && rows[0].user_id !== req.user.sub) return res.status(403).json({ error: 'Forbidden' });
   if (rows[0].institution_id && !tenantOk(req, rows[0].institution_id)) return res.status(403).json({ error: 'Forbidden' });
+  if (req.user.role === 'student') {
+    const institution = await q('SELECT data FROM institutions WHERE id = $1', [rows[0].institution_id]);
+    if (institutionSettings(institution.rows[0]?.data).showResultsToStudents === false) {
+      return res.status(403).json({ error: 'Results are not published by your institution' });
+    }
+  }
   res.json(toResultDoc(rows[0]));
 });
 
@@ -1564,6 +1649,7 @@ app.get('/api/results/:id/review', auth, async (req, res) => {
   if (req.user.role === 'student' && result.data.status !== 'completed') return res.status(409).json({ error: 'This result is not finalized for review' });
   const institution = await q('SELECT data FROM institutions WHERE id = $1', [result.institution_id]);
   const settings = institutionSettings(institution.rows[0]?.data);
+  if (req.user.role === 'student' && settings.showResultsToStudents === false) return res.status(403).json({ error: 'Results are not published by your institution' });
   if (req.user.role === 'student' && settings.allowReviewAfterSubmit === false) return res.status(403).json({ error: 'Answer review is disabled by your institution' });
   const { rows: questionRows } = await q('SELECT id, data FROM questions WHERE exam_id = $1 ORDER BY created_at', [result.exam_id]);
   const exam = await q('SELECT data FROM exams WHERE id = $1', [result.exam_id]);
@@ -1718,6 +1804,13 @@ async function boot() {
   )`);
   await q('ALTER TABLE exam_attempts ADD COLUMN IF NOT EXISTS submitted_at TIMESTAMPTZ');
   await q('ALTER TABLE exam_attempts ADD COLUMN IF NOT EXISTS result_id TEXT');
+  await q(`CREATE TABLE IF NOT EXISTS subjects (
+    id TEXT PRIMARY KEY,
+    institution_id TEXT NOT NULL REFERENCES institutions(id) ON DELETE CASCADE,
+    data JSONB NOT NULL,
+    created_at TIMESTAMPTZ DEFAULT now()
+  )`);
+  await q('CREATE INDEX IF NOT EXISTS idx_subjects_inst ON subjects(institution_id)');
   await q("CREATE UNIQUE INDEX IF NOT EXISTS uq_users_inst_username ON users(institution_id, lower(coalesce(nullif(data->>'username',''), username))) WHERE coalesce(data->>'isActive','true') <> 'false' AND nullif(btrim(coalesce(data->>'username', username)), '') IS NOT NULL");
   await q("CREATE UNIQUE INDEX IF NOT EXISTS uq_users_inst_email ON users(institution_id, lower(data->>'email')) WHERE coalesce(data->>'isActive','true') <> 'false' AND nullif(btrim(data->>'email'), '') IS NOT NULL");
   await q("CREATE UNIQUE INDEX IF NOT EXISTS uq_admins_inst_username ON admins(institution_id, lower(coalesce(nullif(username,''), data->>'username'))) WHERE coalesce(data->>'isActive','true') <> 'false' AND nullif(btrim(coalesce(username, data->>'username')), '') IS NOT NULL");
