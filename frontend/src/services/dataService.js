@@ -170,6 +170,9 @@ class PgDataService {
   async deleteUsers(institutionId, ids) {
     return request(`/institutions/${institutionId}/users/bulk`, { method: 'DELETE', body: JSON.stringify({ ids }) });
   }
+  async importStudents(iid, students) {
+    return post(`/institutions/${iid}/users/bulk`, { students });
+  }
   getAllUsers() { return get('/users'); }
   async updateInstitutionUserCount(iid) {
     const users = await this.getInstitutionUsers(iid);

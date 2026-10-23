@@ -734,7 +734,7 @@ app.post('/api/institutions', auth, superAdmin, async (req, res) => {
     email: String(req.body.email || '').trim().slice(0, 254),
     phone: String(req.body.phone || '').trim().slice(0, 40),
     address: String(req.body.address || '').slice(0, 500),
-    logo: String(req.body.logo || '').trim().slice(0, 2048),
+    logo: String(req.body.logo || '').trim().slice(0, 400_000),
     settings: { ...DEFAULT_INSTITUTION_SETTINGS, ...suppliedSettings, levelLabel },
     status: 'active',
     createdAt: now(),
@@ -825,7 +825,7 @@ app.patch('/api/institutions/:id', auth, staffOnly, async (req, res) => {
   }
   if (allowedFields.logo !== undefined) {
     const logo = String(allowedFields.logo || '').trim();
-    if (logo.length > 2048 || (logo && !/^(https?:\/\/|\/|data:image\/(?:png|jpe?g|webp|svg\+xml);base64,)/i.test(logo))) {
+    if (logo.length > 400_000 || (logo && !/^(https?:\/\/|\/|data:image\/(?:png|jpe?g|webp|svg\+xml);base64,)/i.test(logo))) {
       return res.status(400).json({ error: 'Logo must be an HTTPS URL, site-relative path, or image data URL' });
     }
     data.logo = logo;
@@ -1291,6 +1291,95 @@ app.post('/api/institutions/:iid/users', auth, staffOnly, async (req, res) => {
   if (!inserted.rowCount) return res.status(409).json({ error: 'A user with this username or email already exists.' });
   const { password: _password, passwordHash: _passwordHash, ...safe } = data;
   res.json({ id, ...safe });
+});
+
+// Bulk student import — per-row validation, partial success.
+// Each row: { fullName, username, email, level, department|departmentId, password?, phoneNumber? }
+// Blank password -> generated and returned so the admin can distribute credentials.
+app.post('/api/institutions/:iid/users/bulk', auth, staffOnly, async (req, res) => {
+  if (!tenantOk(req, req.params.iid)) return res.status(403).json({ error: 'Forbidden' });
+  const rows = Array.isArray(req.body?.students) ? req.body.students : [];
+  if (!rows.length || rows.length > 500) return res.status(400).json({ error: 'Provide between 1 and 500 students' });
+  const institution = await q('SELECT data FROM institutions WHERE id = $1', [req.params.iid]);
+  if (!institution.rows.length) return res.status(404).json({ error: 'Institution not found' });
+  const settings = institutionSettings(institution.rows[0].data);
+
+  // Departments can be referenced by id, name, or code in the spreadsheet.
+  const { rows: deptRows } = await q('SELECT id, data FROM departments WHERE institution_id = $1', [req.params.iid]);
+  const deptLookup = new Map();
+  for (const row of deptRows) {
+    const dept = toDoc(row);
+    deptLookup.set(dept.id.toLowerCase(), dept.id);
+    if (dept.name) deptLookup.set(dept.name.toLowerCase(), dept.id);
+    if (dept.code) deptLookup.set(String(dept.code).toLowerCase(), dept.id);
+  }
+
+  const emailRe = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  const usernameRe = /^[a-z0-9._-]{3,32}$/;
+  const seenKeys = new Set();
+  const genPassword = () => `St${crypto.randomBytes(4).toString('hex')}!`;
+  const results = new Array(rows.length);
+
+  async function processRow(raw, index) {
+    try {
+      const fullName = String(raw?.fullName || '').trim();
+      const username = String(raw?.username || '').trim().toLowerCase();
+      const email = String(raw?.email || '').trim().toLowerCase();
+      const level = String(raw?.level || '').trim();
+      if (!fullName || !username || !email || !level) return { index, username, email, ok: false, error: 'fullName, username, email and level are required' };
+      if (!usernameRe.test(username)) return { index, username, email, ok: false, error: 'username must be 3-32 chars (a-z 0-9 . _ -)' };
+      if (!emailRe.test(email)) return { index, username, email, ok: false, error: 'invalid email address' };
+
+      let password = typeof raw?.password === 'string' && raw.password.trim() ? raw.password.trim() : '';
+      const generated = !password;
+      if (generated) password = genPassword();
+      if (password.length < 8 || password.length > 128) return { index, username, email, ok: false, error: 'password must be 8-128 characters' };
+
+      const dedupeKey = `${username}|${email}`;
+      if (seenKeys.has(dedupeKey) || seenKeys.has(username)) return { index, username, email, ok: false, error: 'duplicate row in file' };
+      seenKeys.add(dedupeKey); seenKeys.add(username);
+
+      // Resolve department: id, name, or code from the sheet.
+      const deptRef = String(raw?.departmentId || raw?.department || '').trim();
+      const departmentId = deptRef ? deptLookup.get(deptRef.toLowerCase()) || deptRef : '';
+      const selection = await resolveStudentDepartment({
+        institutionId: req.params.iid,
+        body: { departmentId, department: String(raw?.department || '').trim() },
+        level,
+        settings,
+      });
+      if (selection.error) return { index, username, email, ok: false, error: deptRef && !deptLookup.has(deptRef.toLowerCase()) && departmentId === deptRef ? `department "${deptRef}" not found` : selection.error };
+
+      const id = newId();
+      const data = {
+        fullName, username, email, level, role: 'student', authVersion: 0,
+        password: await bcrypt.hash(password, 10),
+        studentId: newStudentId(),
+        departmentId: selection.departmentId, department: selection.department, departmentCode: selection.departmentCode,
+        phoneNumber: String(raw?.phoneNumber || raw?.phone || '').trim(),
+        institutionId: req.params.iid, createdAt: now(),
+      };
+      const inserted = await q('INSERT INTO users (id, institution_id, username, role, data) VALUES ($1,$2,$3,$4,$5) ON CONFLICT DO NOTHING RETURNING id',
+        [id, req.params.iid, username, 'student', data]);
+      if (!inserted.rowCount) return { index, username, email, ok: false, error: 'username or email already exists' };
+      const { password: _p, passwordHash: _h, ...safe } = data;
+      return { index, username, email, ok: true, studentId: data.studentId, student: safe, ...(generated ? { generatedPassword: password } : {}) };
+    } catch (error) {
+      if (error?.code === '23505') return { index, username: String(raw?.username || ''), email: String(raw?.email || ''), ok: false, error: 'username or email already exists' };
+      return { index, username: String(raw?.username || ''), email: String(raw?.email || ''), ok: false, error: error.message || 'import failed' };
+    }
+  }
+
+  let cursor = 0;
+  await Promise.all(Array.from({ length: Math.min(8, rows.length) }, async () => {
+    while (cursor < rows.length) {
+      const index = cursor++;
+      results[index] = await processRow(rows[index], index);
+    }
+  }));
+
+  const created = results.filter(r => r.ok).length;
+  res.json({ created, failed: results.length - created, results });
 });
 
 app.delete('/api/institutions/:iid/users/bulk', auth, staffOnly, async (req, res) => {

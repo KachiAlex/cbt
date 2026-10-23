@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import dataService from '../services/dataService';
 import { getAcademicStructure } from '../utils/academicStructure';
+import StudentImportModal from './StudentImportModal';
 
 const StudentsManagement = ({ institution, onStatsUpdate }) => {
   const [students, setStudents] = useState([]);
@@ -22,6 +23,7 @@ const StudentsManagement = ({ institution, onStatsUpdate }) => {
   });
   const [selectedStudents, setSelectedStudents] = useState([]);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [showImport, setShowImport] = useState(false);
   const [filters, setFilters] = useState({
     department: '',
     level: '',
@@ -320,6 +322,12 @@ const StudentsManagement = ({ institution, onStatsUpdate }) => {
               {departmentsLoading ? 'Refreshing…' : 'Refresh Departments'}
             </button>
           )}
+          <button
+            onClick={() => setShowImport(true)}
+            className="bg-green-600 text-white px-4 py-2 rounded-md transition-colors hover:bg-green-700"
+          >
+            Bulk Import
+          </button>
           <button
             onClick={() => {
               resetForm();
@@ -760,6 +768,15 @@ const StudentsManagement = ({ institution, onStatsUpdate }) => {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Bulk Import Modal */}
+      {showImport && (
+        <StudentImportModal
+          institution={institution}
+          onClose={() => setShowImport(false)}
+          onImported={() => { loadStudents(); onStatsUpdate?.(); }}
+        />
       )}
     </div>
   );

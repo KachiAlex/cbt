@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import dataService from '../services/dataService';
 import { getAcademicStructure } from '../utils/academicStructure';
 
@@ -31,6 +31,7 @@ const SettingsManagement = ({ institution, user, onLogout, onInstitutionChange }
 
   const [loading, setLoading] = useState(false);
   const [activeTab, setActiveTab] = useState('general');
+  const logoInputRef = useRef(null);
   const [showCreateAdminModal, setShowCreateAdminModal] = useState(false);
   const [showChangePasswordModal, setShowChangePasswordModal] = useState(false);
   const [adminFormData, setAdminFormData] = useState({
@@ -66,6 +67,43 @@ const SettingsManagement = ({ institution, user, onLogout, onInstitutionChange }
     } catch (error) {
       console.error('Error loading settings:', error);
     }
+  };
+
+  // Logos are stored as data URLs — resize raster images down so the
+  // stored value stays small (server caps at ~300KB).
+  const handleLogoFile = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    e.target.value = '';
+    if (!/^image\/(png|jpe?g|webp|svg\+xml)$/.test(file.type)) {
+      alert('Choose a PNG, JPG, WebP or SVG image.');
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      alert('Image must be smaller than 5MB.');
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => {
+      const dataUrl = String(reader.result || '');
+      if (file.type === 'image/svg+xml') {
+        setSettings(current => ({ ...current, logo: dataUrl }));
+        return;
+      }
+      const img = new Image();
+      img.onload = () => {
+        const max = 256;
+        const scale = Math.min(1, max / Math.max(img.width, img.height));
+        const canvas = document.createElement('canvas');
+        canvas.width = Math.max(1, Math.round(img.width * scale));
+        canvas.height = Math.max(1, Math.round(img.height * scale));
+        canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+        setSettings(current => ({ ...current, logo: canvas.toDataURL('image/png') }));
+      };
+      img.onerror = () => alert('Could not read that image file.');
+      img.src = dataUrl;
+    };
+    reader.readAsDataURL(file);
   };
 
   const handleSaveSettings = async () => {
@@ -205,14 +243,47 @@ const SettingsManagement = ({ institution, user, onLogout, onInstitutionChange }
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              Logo URL
+              Logo
             </label>
-            <input
-              type="url"
-              value={settings.logo}
-              onChange={(e) => setSettings({ ...settings, logo: e.target.value })}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-            />
+            <div className="flex items-center space-x-3">
+              {settings.logo ? (
+                <img
+                  src={settings.logo}
+                  alt="Institution logo"
+                  className="h-12 w-12 rounded-md object-cover border border-gray-200"
+                />
+              ) : (
+                <div className="h-12 w-12 rounded-md border border-dashed border-gray-300 flex items-center justify-center text-gray-400 text-xs">
+                  None
+                </div>
+              )}
+              <div className="flex flex-col space-y-1">
+                <input
+                  ref={logoInputRef}
+                  type="file"
+                  accept="image/png,image/jpeg,image/webp,image/svg+xml"
+                  className="hidden"
+                  onChange={handleLogoFile}
+                />
+                <button
+                  type="button"
+                  onClick={() => logoInputRef.current?.click()}
+                  className="px-3 py-1.5 text-sm bg-blue-50 text-blue-700 border border-blue-200 rounded-md hover:bg-blue-100"
+                >
+                  {settings.logo ? 'Change logo' : 'Upload logo'}
+                </button>
+                {settings.logo && (
+                  <button
+                    type="button"
+                    onClick={() => setSettings({ ...settings, logo: '' })}
+                    className="px-3 py-1.5 text-sm text-red-600 border border-red-200 rounded-md hover:bg-red-50"
+                  >
+                    Remove
+                  </button>
+                )}
+              </div>
+            </div>
+            <p className="mt-1 text-xs text-gray-500">PNG, JPG, WebP or SVG — resized automatically. Saved when you click Save Settings.</p>
           </div>
         </div>
       </div>
