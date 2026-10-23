@@ -5,7 +5,7 @@ const QuestionImportGuide = ({ isOpen, onClose }) => {
 
   return (
     <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
-      <div className="relative top-10 mx-auto p-5 border w-full max-w-4xl shadow-lg rounded-md bg-white">
+      <div className="relative top-4 sm:top-10 mx-auto p-5 border w-11/12 max-w-4xl shadow-lg rounded-md bg-white mb-10">
         <div className="mt-3">
           <div className="flex justify-between items-center mb-4">
             <h3 className="text-lg font-medium text-gray-900">Question Import Format Guide</h3>
@@ -69,7 +69,7 @@ const QuestionImportGuide = ({ isOpen, onClose }) => {
 
               <div className="mt-4">
                 <h5 className="font-medium text-gray-800 mb-2">Difficulty Levels</h5>
-                <div className="grid grid-cols-3 gap-2 text-sm">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-sm">
                   <div className="bg-green-50 p-2 rounded">Easy: Easy, E, 1, Simple</div>
                   <div className="bg-yellow-50 p-2 rounded">Medium: Medium, M, 2, Moderate</div>
                   <div className="bg-red-50 p-2 rounded">Hard: Hard, H, 3, Difficult, Complex</div>

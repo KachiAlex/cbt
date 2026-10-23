@@ -696,7 +696,7 @@ const SettingsManagement = ({ institution, user, onLogout, onInstitutionChange }
 
   return (
     <div>
-      <div className="flex justify-between items-center mb-6">
+      <div className="flex flex-wrap gap-3 justify-between items-center mb-6">
         <h2 className="text-2xl font-bold text-gray-900">Settings</h2>
         <div className="space-x-3">
           <button
@@ -744,7 +744,7 @@ const SettingsManagement = ({ institution, user, onLogout, onInstitutionChange }
       {/* Create Admin Modal */}
       {showCreateAdminModal && (
         <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
-          <div className="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
+          <div className="relative top-10 sm:top-20 mx-auto p-5 border w-11/12 max-w-md shadow-lg rounded-md bg-white">
             <div className="mt-3">
               <h3 className="text-lg font-medium text-gray-900 mb-4">Create New Admin</h3>
               
@@ -844,7 +844,7 @@ const SettingsManagement = ({ institution, user, onLogout, onInstitutionChange }
       {/* Change Password Modal */}
       {showChangePasswordModal && (
         <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
-          <div className="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
+          <div className="relative top-10 sm:top-20 mx-auto p-5 border w-11/12 max-w-md shadow-lg rounded-md bg-white">
             <div className="mt-3">
               <h3 className="text-lg font-medium text-gray-900 mb-4">Change Password</h3>
               

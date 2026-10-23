@@ -94,9 +94,9 @@ const StudentPortal = ({ user, onLogout, onStartExam }) => {
       {/* Header */}
       <header className="bg-white shadow">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center py-6">
+          <div className="flex justify-between items-center py-4 sm:py-6">
             <div>
-              <h1 className="text-3xl font-bold text-gray-900">Student Portal</h1>
+              <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Student Portal</h1>
               <p className="text-gray-600">Welcome, {user?.fullName || user?.username}</p>
             </div>
             <div className="flex space-x-3">
@@ -135,7 +135,7 @@ const StudentPortal = ({ user, onLogout, onStartExam }) => {
                   const hasTaken = !canStart;
                   
                   return (
-                    <div key={exam.id} className="border border-gray-200 rounded-lg p-6">
+                    <div key={exam.id} className="border border-gray-200 rounded-lg p-4 sm:p-6">
                       <div className="flex justify-between items-start mb-4">
                         <div>
                           <h4 className="text-lg font-semibold text-gray-900">{exam.title}</h4>
@@ -264,7 +264,7 @@ const StudentPortal = ({ user, onLogout, onStartExam }) => {
       {reviewError && <p role="alert" className="mb-4 rounded bg-red-50 p-3 text-sm text-red-700">{reviewError}</p>}
       {reviewResult && (
         <div className="fixed inset-0 z-50 overflow-y-auto bg-black/50 p-4" role="dialog" aria-modal="true">
-          <div className="mx-auto mt-10 max-w-3xl rounded-lg bg-white p-6 shadow-xl">
+          <div className="mx-auto mt-4 sm:mt-10 max-w-3xl rounded-lg bg-white p-4 sm:p-6 shadow-xl">
             <div className="mb-5 flex items-center justify-between">
               <div>
                 <h2 className="text-xl font-semibold text-gray-900">{reviewResult.examTitle || 'Exam review'}</h2>

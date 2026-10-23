@@ -51,7 +51,7 @@ const StudentImportModal = ({ institution, onClose, onImported }) => {
 
   return (
     <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
-      <div className="relative top-10 mx-auto p-5 border w-full max-w-3xl shadow-lg rounded-md bg-white mb-10">
+      <div className="relative top-4 sm:top-10 mx-auto p-5 border w-11/12 max-w-3xl shadow-lg rounded-md bg-white mb-10">
         <div className="flex justify-between items-center mb-4">
           <h3 className="text-lg font-medium text-gray-900">Bulk Import Students</h3>
           <button onClick={onClose} className="text-gray-400 hover:text-gray-600">

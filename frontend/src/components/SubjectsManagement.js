@@ -152,7 +152,7 @@ const SubjectsManagement = ({ institution, onChange }) => {
 
   return (
     <div>
-      <div className="flex justify-between items-center mb-6">
+      <div className="flex flex-wrap gap-3 justify-between items-center mb-6">
         <div>
           <h2 className="text-2xl font-bold text-gray-900">Subjects</h2>
           <p className="text-sm text-gray-600">Define the subjects admins can attach to exams when creating them.</p>
@@ -199,7 +199,7 @@ const SubjectsManagement = ({ institution, onChange }) => {
           </button>
         </div>
       ) : (
-        <div className="bg-white rounded-lg shadow overflow-hidden">
+        <div className="bg-white rounded-lg shadow overflow-x-auto">
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
               <tr>

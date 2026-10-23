@@ -120,3 +120,25 @@ code {
   -webkit-text-fill-color: transparent;
   background-clip: text;
 } 
+/* ---- Mobile ergonomics ---- */
+
+/* Remove the grey flash on tap for all interactive elements */
+* {
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* iOS Safari auto-zooms on focus when inputs are under 16px — force a
+   non-zooming size on phones only (visual difference is negligible). */
+@media (max-width: 640px) {
+  input,
+  select,
+  textarea {
+    font-size: 16px !important;
+  }
+}
+
+/* Momentum scrolling for horizontally-scrollable tables/tab bars */
+.overflow-x-auto,
+.overflow-y-auto {
+  -webkit-overflow-scrolling: touch;
+}

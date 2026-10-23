@@ -404,7 +404,7 @@ const ResultsManagement = ({ institution, onStatsUpdate }) => {
 
   return (
     <div>
-      <div className="flex justify-between items-center mb-6">
+      <div className="flex flex-wrap gap-3 justify-between items-center mb-6">
         <h2 className="text-2xl font-bold text-gray-900">Results Management</h2>
         <div className="flex space-x-3">
           {selectedResults.length > 0 && (
@@ -604,7 +604,7 @@ const ResultsManagement = ({ institution, onStatsUpdate }) => {
       </div>
 
       {/* Results Table */}
-      <div className="bg-white rounded-lg shadow overflow-hidden">
+      <div className="bg-white rounded-lg shadow overflow-x-auto">
         <table className="min-w-full divide-y divide-gray-200">
           <thead className="bg-gray-50">
             <tr>
@@ -728,7 +728,7 @@ const ResultsManagement = ({ institution, onStatsUpdate }) => {
       {/* Result Details Modal */}
       {showDetails && (
         <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
-          <div className="relative top-10 mx-auto p-5 border w-full max-w-2xl shadow-lg rounded-md bg-white">
+          <div className="relative top-4 sm:top-10 mx-auto p-5 border w-11/12 max-w-2xl shadow-lg rounded-md bg-white mb-10">
             <div className="mt-3">
               <div className="flex justify-between items-center mb-4">
                 <h3 className="text-lg font-medium text-gray-900">Result Details</h3>
@@ -743,7 +743,7 @@ const ResultsManagement = ({ institution, onStatsUpdate }) => {
               </div>
 
               <div className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700">Student</label>
                     <p className="text-sm text-gray-900">{getStudentName(showDetails)}</p>
@@ -754,7 +754,7 @@ const ResultsManagement = ({ institution, onStatsUpdate }) => {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700">Score</label>
                     <p className="text-sm text-gray-900">
@@ -775,7 +775,7 @@ const ResultsManagement = ({ institution, onStatsUpdate }) => {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700">Status</label>
                     <div className="mt-1">{getStatusBadge(showDetails.status)}</div>
@@ -897,7 +897,7 @@ const ResultsManagement = ({ institution, onStatsUpdate }) => {
       {/* Delete Confirmation Modal */}
       {showDeleteConfirm && (
         <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
-          <div className="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
+          <div className="relative top-10 sm:top-20 mx-auto p-5 border w-11/12 max-w-md shadow-lg rounded-md bg-white">
             <div className="mt-3 text-center">
               <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-red-100">
                 <svg className="h-6 w-6 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">

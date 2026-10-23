@@ -173,7 +173,7 @@ const ExamManagement = ({ institution, onStatsUpdate }) => {
 
     return (
     <div>
-      <div className="flex justify-between items-center mb-6">
+      <div className="flex flex-wrap gap-3 justify-between items-center mb-6">
         <h2 className="text-2xl font-bold text-gray-900">Exam Management</h2>
         <button
           onClick={() => setShowModal(true)}
@@ -184,7 +184,7 @@ const ExamManagement = ({ institution, onStatsUpdate }) => {
       </div>
 
       {/* Exams Table */}
-      <div className="bg-white rounded-lg shadow overflow-hidden">
+      <div className="bg-white rounded-lg shadow overflow-x-auto">
         <table className="min-w-full divide-y divide-gray-200">
           <thead className="bg-gray-50">
             <tr>
@@ -249,7 +249,7 @@ const ExamManagement = ({ institution, onStatsUpdate }) => {
       {/* Create/Edit Modal */}
       {showModal && (
         <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
-          <div className="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
+          <div className="relative top-4 sm:top-20 mx-auto p-5 border w-11/12 max-w-md shadow-lg rounded-md bg-white mb-10">
             <div className="mt-3">
               <h3 className="text-lg font-medium text-gray-900 mb-4">
                 {editingExam ? 'Edit Exam' : 'Create New Exam'}
@@ -317,7 +317,7 @@ const ExamManagement = ({ institution, onStatsUpdate }) => {
                   />
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
                       Duration (minutes)
@@ -349,7 +349,7 @@ const ExamManagement = ({ institution, onStatsUpdate }) => {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
                       Questions per attempt
@@ -381,7 +381,7 @@ const ExamManagement = ({ institution, onStatsUpdate }) => {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
                   Start Date

@@ -254,16 +254,16 @@ const ExamInterface = ({ user, exam, onClose }) => {
   }
 
   return (
-    <div className="fixed inset-0 bg-white z-50 flex flex-col">
-      <div className="bg-blue-600 text-white p-4">
-        <div className="max-w-5xl mx-auto flex justify-between items-center gap-4">
+    <div className="fixed inset-0 bg-white z-50 flex flex-col overscroll-none" style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }}>
+      <div className="bg-blue-600 text-white p-3 sm:p-4">
+        <div className="max-w-5xl mx-auto flex justify-between items-center gap-3 sm:gap-4">
           <div className="min-w-0">
-            <h1 className="text-lg font-bold truncate">{exam.title}</h1>
-            <p className="text-blue-100 text-sm truncate">{exam.institutionName || user?.institutionName || 'Examination'}</p>
+            <h1 className="text-base sm:text-lg font-bold truncate">{exam.title}</h1>
+            <p className="text-blue-100 text-xs sm:text-sm truncate">{exam.institutionName || user?.institutionName || 'Examination'}</p>
           </div>
           <div className="text-right shrink-0">
-            <div className={`text-2xl font-mono font-bold ${timeLeft < 300 ? 'text-red-200' : ''}`}>{formatTime(timeLeft)}</div>
-            <div className="text-xs text-blue-100">Server time remaining</div>
+            <div className={`text-xl sm:text-2xl font-mono font-bold ${timeLeft < 300 ? 'text-red-200' : ''}`}>{formatTime(timeLeft)}</div>
+            <div className="text-[10px] sm:text-xs text-blue-100">Time remaining</div>
           </div>
         </div>
       </div>
@@ -274,20 +274,20 @@ const ExamInterface = ({ user, exam, onClose }) => {
         </div>
       )}
 
-      <div className="flex-1 overflow-y-auto p-4 md:p-6">
+      <div className="flex-1 overflow-y-auto p-3 sm:p-4 md:p-6">
         <div className="max-w-4xl mx-auto">
           {error && <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-md text-red-700">{error}</div>}
-          <div className="bg-white border rounded-lg shadow-sm p-5 md:p-6">
-            <div className="flex justify-between items-start gap-4 mb-5">
-              <h2 className="text-lg font-semibold text-gray-900">Question {currentQuestionIndex + 1} of {questions.length}</h2>
-              <span className="text-sm text-gray-500">{currentQuestion?.points || 1} point{(currentQuestion?.points || 1) === 1 ? '' : 's'}</span>
+          <div className="bg-white border rounded-lg shadow-sm p-4 sm:p-5 md:p-6">
+            <div className="flex justify-between items-start gap-4 mb-4 sm:mb-5">
+              <h2 className="text-base sm:text-lg font-semibold text-gray-900">Question {currentQuestionIndex + 1} of {questions.length}</h2>
+              <span className="text-sm text-gray-500 shrink-0">{currentQuestion?.points || 1} point{(currentQuestion?.points || 1) === 1 ? '' : 's'}</span>
             </div>
-            <p className="text-gray-900 text-lg leading-relaxed mb-6 whitespace-pre-wrap">{currentQuestion?.question}</p>
+            <p className="text-gray-900 text-base sm:text-lg leading-relaxed mb-5 sm:mb-6 whitespace-pre-wrap">{currentQuestion?.question}</p>
 
             {isChoiceQuestion && (
               <div className="space-y-3">
                 {currentOptions.map((option, index) => (
-                  <label key={index} className="flex items-start gap-3 p-3 border rounded-md cursor-pointer hover:bg-blue-50">
+                  <label key={index} className="flex items-start gap-3 p-3.5 sm:p-4 border rounded-md cursor-pointer hover:bg-blue-50 active:bg-blue-100 touch-manipulation">
                     <input
                       type="radio"
                       name={`question-${currentQuestion.id}`}
@@ -295,9 +295,9 @@ const ExamInterface = ({ user, exam, onClose }) => {
                       checked={answers[currentQuestion.id] === option}
                       onChange={(event) => setAnswer(currentQuestion.id, event.target.value)}
                       disabled={submitting}
-                      className="mt-1 h-4 w-4 text-blue-600"
+                      className="mt-0.5 h-5 w-5 shrink-0 text-blue-600"
                     />
-                    <span className="text-gray-800"><span className="font-medium mr-2">{String.fromCharCode(65 + index)}.</span>{option}</span>
+                    <span className="text-gray-800 text-base"><span className="font-medium mr-2">{String.fromCharCode(65 + index)}.</span>{option}</span>
                   </label>
                 ))}
               </div>
@@ -309,18 +309,18 @@ const ExamInterface = ({ user, exam, onClose }) => {
                 value={answers[currentQuestion.id] || ''}
                 onChange={(event) => setAnswer(currentQuestion.id, event.target.value)}
                 disabled={submitting}
-                className="w-full px-4 py-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-4 py-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-base"
                 placeholder="Type your answer"
               />
             )}
 
             {currentQuestion?.type === 'essay' && (
               <textarea
-                rows={12}
+                rows={10}
                 value={answers[currentQuestion.id] || ''}
                 onChange={(event) => setAnswer(currentQuestion.id, event.target.value)}
                 disabled={submitting}
-                className="w-full px-4 py-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-4 py-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-base"
                 placeholder="Write your answer here"
               />
             )}
@@ -328,7 +328,7 @@ const ExamInterface = ({ user, exam, onClose }) => {
         </div>
       </div>
 
-      <div className="border-t bg-white p-4">
+      <div className="border-t bg-white p-3 sm:p-4" style={{ paddingBottom: 'max(0.75rem, env(safe-area-inset-bottom, 0px))' }}>
         <div className="max-w-5xl mx-auto flex flex-col gap-3">
           <div className="flex flex-wrap gap-2 max-h-24 overflow-y-auto">
             {questions.map((question, index) => (
@@ -337,7 +337,7 @@ const ExamInterface = ({ user, exam, onClose }) => {
                 type="button"
                 onClick={() => (canGoBack || index > currentQuestionIndex) && setCurrentQuestionIndex(index)}
                 disabled={!canGoBack && index < currentQuestionIndex}
-                className={`w-9 h-9 rounded border text-sm font-medium ${index === currentQuestionIndex ? 'bg-blue-600 text-white border-blue-600' : answers[question.id] ? 'bg-green-100 text-green-800 border-green-300' : 'bg-white text-gray-700 border-gray-300'} disabled:opacity-40`}
+                className={`w-10 h-10 sm:w-11 sm:h-11 rounded border text-sm font-medium touch-manipulation ${index === currentQuestionIndex ? 'bg-blue-600 text-white border-blue-600' : answers[question.id] ? 'bg-green-100 text-green-800 border-green-300' : 'bg-white text-gray-700 border-gray-300'} disabled:opacity-40`}
               >
                 {index + 1}
               </button>
@@ -345,12 +345,12 @@ const ExamInterface = ({ user, exam, onClose }) => {
           </div>
           <div className="flex justify-between items-center gap-3">
             <div className="text-sm text-gray-600">Answered {answeredCount} of {questions.length}</div>
-            <div className="flex gap-3">
-              <button type="button" onClick={() => setCurrentQuestionIndex(Math.max(0, currentQuestionIndex - 1))} disabled={!canGoBack || currentQuestionIndex === 0 || submitting} className="px-4 py-2 border rounded-md disabled:opacity-50">Previous</button>
+            <div className="flex gap-2 sm:gap-3">
+              <button type="button" onClick={() => setCurrentQuestionIndex(Math.max(0, currentQuestionIndex - 1))} disabled={!canGoBack || currentQuestionIndex === 0 || submitting} className="px-3 sm:px-4 py-2.5 border rounded-md disabled:opacity-50 touch-manipulation">Previous</button>
               {currentQuestionIndex < questions.length - 1 ? (
-                <button type="button" onClick={() => setCurrentQuestionIndex(currentQuestionIndex + 1)} disabled={submitting} className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50">Next</button>
+                <button type="button" onClick={() => setCurrentQuestionIndex(currentQuestionIndex + 1)} disabled={submitting} className="px-4 py-2.5 bg-blue-600 text-white rounded-md hover:bg-blue-700 active:bg-blue-800 disabled:opacity-50 touch-manipulation">Next</button>
               ) : (
-                <button type="button" onClick={() => submitExam(false)} disabled={submitting} className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 disabled:opacity-50">{submitting ? 'Submitting...' : 'Submit Exam'}</button>
+                <button type="button" onClick={() => submitExam(false)} disabled={submitting} className="px-4 py-2.5 bg-green-600 text-white rounded-md hover:bg-green-700 active:bg-green-800 disabled:opacity-50 touch-manipulation">{submitting ? 'Submitting...' : 'Submit Exam'}</button>
               )}
             </div>
           </div>

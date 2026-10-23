@@ -355,7 +355,7 @@ const QuestionsManagement = ({ institution, onStatsUpdate }) => {
 
   return (
     <div>
-      <div className="flex justify-between items-center mb-6">
+      <div className="flex flex-wrap gap-3 justify-between items-center mb-6">
         <h2 className="text-2xl font-bold text-gray-900">Questions Management</h2>
         <div className="flex space-x-3">
           <button
@@ -469,7 +469,7 @@ const QuestionsManagement = ({ institution, onStatsUpdate }) => {
       </div>
 
       {/* Questions Table */}
-      <div className="bg-white rounded-lg shadow overflow-hidden">
+      <div className="bg-white rounded-lg shadow overflow-x-auto">
         <table className="min-w-full divide-y divide-gray-200">
           <thead className="bg-gray-50">
             <tr>
@@ -559,7 +559,7 @@ const QuestionsManagement = ({ institution, onStatsUpdate }) => {
       {/* Create/Edit Modal */}
       {showModal && (
         <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
-          <div className="relative top-10 mx-auto p-5 border w-full max-w-2xl shadow-lg rounded-md bg-white">
+          <div className="relative top-4 sm:top-10 mx-auto p-5 border w-11/12 max-w-2xl shadow-lg rounded-md bg-white mb-10">
             <div className="mt-3">
               <h3 className="text-lg font-medium text-gray-900 mb-4">
                 {editingQuestion ? 'Edit Question' : 'Add New Question'}
@@ -740,7 +740,7 @@ const QuestionsManagement = ({ institution, onStatsUpdate }) => {
                   </>
                 )}
 
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
                       Points
@@ -827,7 +827,7 @@ const QuestionsManagement = ({ institution, onStatsUpdate }) => {
       {/* Attach from Bank Modal */}
       {showAttachModal && (
         <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
-          <div className="relative top-10 mx-auto p-5 border w-full max-w-3xl shadow-lg rounded-md bg-white">
+          <div className="relative top-4 sm:top-10 mx-auto p-5 border w-11/12 max-w-3xl shadow-lg rounded-md bg-white mb-10">
             <div className="flex justify-between items-center mb-4">
               <div>
                 <h3 className="text-lg font-medium text-gray-900">Attach Questions from Bank</h3>
