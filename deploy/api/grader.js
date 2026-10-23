@@ -15,7 +15,7 @@ const { scoreEssayAnswer } = require('./scoring');
 
 const API_KEY = process.env.GROQ_API_KEY || process.env.GRADER_API_KEY || '';
 const BASE_URL = (process.env.GRADER_BASE_URL || 'https://api.groq.com/openai/v1').replace(/\/+$/, '');
-const MODEL = process.env.GRADER_MODEL || 'llama-3.3-70b-versatile';
+const MODEL = process.env.GRADER_MODEL || 'openai/gpt-oss-120b';
 const CONFIDENCE_THRESHOLD = Math.min(1, Math.max(0, Number(process.env.GRADER_CONFIDENCE) || 0.7));
 const TIMEOUT_MS = Math.max(5000, Number(process.env.GRADER_TIMEOUT_MS) || 30000);
 const MAX_ATTEMPTS = Math.max(1, Number(process.env.GRADER_MAX_ATTEMPTS) || 3);
@@ -41,7 +41,7 @@ function extractJson(text) {
   return JSON.parse(text.slice(start, end + 1));
 }
 
-async function chatCompletion(messages) {
+async function postChat(messages, jsonMode) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
   try {
@@ -52,22 +52,30 @@ async function chatCompletion(messages) {
       body: JSON.stringify({
         model: MODEL,
         temperature: 0,
-        max_tokens: 700,
-        response_format: { type: 'json_object' },
+        max_tokens: 2000,
+        reasoning_effort: 'low',
+        ...(jsonMode ? { response_format: { type: 'json_object' } } : {}),
         messages,
       }),
     });
-    if (!res.ok) {
-      const body = await res.text().catch(() => '');
-      throw new Error(`grader API HTTP ${res.status}: ${body.slice(0, 200)}`);
-    }
-    const json = await res.json();
-    const content = json.choices?.[0]?.message?.content;
-    if (!content) throw new Error('empty model response');
-    return content;
+    const body = await res.text().catch(() => '');
+    return { status: res.status, body };
   } finally {
     clearTimeout(timer);
   }
+}
+
+async function chatCompletion(messages) {
+  let res = await postChat(messages, true);
+  // Some providers/models reject response_format — retry once without it.
+  if (res.status === 400 && /response_format|json/i.test(res.body)) {
+    res = await postChat(messages, false);
+  }
+  if (res.status !== 200) throw new Error(`grader API HTTP ${res.status}: ${res.body.slice(0, 200)}`);
+  const json = JSON.parse(res.body);
+  const content = json.choices?.[0]?.message?.content;
+  if (!content) throw new Error('empty model response');
+  return content;
 }
 
 // Grade one essay answer. Returns a normalized verdict object.
