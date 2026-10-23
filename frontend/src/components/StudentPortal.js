@@ -241,7 +241,7 @@ const StudentPortal = ({ user, onLogout, onStartExam }) => {
                           {result.examTitle}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                          {result.status === 'pending_review' || result.status === 'provisional' ? 'Awaiting review' : 'Completed'}
+                          {result.status === 'grading' ? 'Grading in progress' : result.status === 'pending_review' || result.status === 'provisional' ? 'Awaiting review' : 'Completed'}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                           {formatResultDate(result, false, user)}

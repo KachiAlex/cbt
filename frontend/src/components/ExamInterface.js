@@ -204,7 +204,9 @@ const ExamInterface = ({ user, exam, onClose }) => {
           </div>
           <h2 className="text-2xl font-bold text-gray-900 mb-2">Exam Submitted</h2>
           <p className="text-gray-600 mb-6">Your result was recorded by the server.</p>
-          {resultsPublished ? (
+          {resultsPublished && submittedResult?.status === 'grading' ? (
+            <p className="text-sm text-gray-500 mb-6">Your essay answers are being graded by AI. Check back shortly for your score.</p>
+          ) : resultsPublished ? (
             <div className="bg-gray-50 rounded-lg p-4 mb-6">
               <div className="text-3xl font-bold text-blue-600">{Number.isFinite(percentage) ? percentage.toFixed(1) : '0.0'}%</div>
               {submittedResult?.score !== undefined && submittedResult?.maxScore !== undefined && (

@@ -31,6 +31,13 @@ const ResultsManagement = ({ institution, onStatsUpdate }) => {
     loadData();
   }, []);
 
+  // Refresh periodically while AI grading is in flight.
+  useEffect(() => {
+    if (!results.some(result => result.status === 'grading')) return;
+    const timer = setTimeout(loadData, 8000);
+    return () => clearTimeout(timer);
+  }, [results]);
+
   const loadData = async () => {
     try {
       setLoading(true);
@@ -129,7 +136,8 @@ const ResultsManagement = ({ institution, onStatsUpdate }) => {
       in_progress: 'bg-yellow-100 text-yellow-800',
       abandoned: 'bg-red-100 text-red-800',
       pending_review: 'bg-yellow-100 text-yellow-800',
-      provisional: 'bg-blue-100 text-blue-800'
+      provisional: 'bg-blue-100 text-blue-800',
+      grading: 'bg-purple-100 text-purple-800'
     };
     return (
       <span className={`px-2 py-1 text-xs font-medium rounded-full ${colors[status] || 'bg-gray-100 text-gray-800'}`}>
@@ -678,6 +686,21 @@ const ResultsManagement = ({ institution, onStatsUpdate }) => {
                       Finalize
                     </button>
                   )}
+                  {result.grading && result.status !== 'grading' && (
+                    <button
+                      onClick={async () => {
+                        try {
+                          await dataService.regradeResult(result.id);
+                          loadData();
+                        } catch (error) {
+                          alert(`Regrade failed: ${error.message || 'AI grading may not be configured'}`);
+                        }
+                      }}
+                      className="ml-3 text-purple-600 hover:text-purple-800"
+                    >
+                      Regrade
+                    </button>
+                  )}
                 </td>
               </tr>
             ))}
@@ -748,6 +771,19 @@ const ResultsManagement = ({ institution, onStatsUpdate }) => {
                   </div>
                 </div>
 
+                {showDetails.grading && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700">AI Grading</label>
+                    <p className="text-xs text-gray-600">
+                      {showDetails.grading.state === 'done' ? 'Completed' : showDetails.grading.state || 'queued'}
+                      {showDetails.grading.model ? ` · model ${showDetails.grading.model}` : ''}
+                      {showDetails.grading.state === 'done' ? ` · confidence ${Math.round((showDetails.grading.confidence ?? 0) * 100)}%` : ''}
+                      {showDetails.grading.released ? ' · auto-released' : ''}
+                      {showDetails.grading.fallback ? ' · heuristic fallback used' : ''}
+                    </p>
+                  </div>
+                )}
+
                 {showDetails.timeSpent !== undefined && (
                   <div>
                     <label className="block text-sm font-medium text-gray-700">Time Spent</label>
@@ -776,6 +812,25 @@ const ResultsManagement = ({ institution, onStatsUpdate }) => {
                           {answer.isCorrect !== undefined && (
                             <div className={`text-xs mt-1 ${answer.isCorrect ? 'text-green-600' : 'text-red-600'}`}>
                               {answer.isCorrect ? 'Correct' : 'Incorrect'}
+                            </div>
+                          )}
+                          {answer.grading && (
+                            <div className="mt-2 p-2 rounded bg-purple-50 border border-purple-100 text-xs">
+                              <div className="flex justify-between">
+                                <span className="font-medium text-purple-800">
+                                  AI grade: {answer.grading.percent}%{answer.grading.gradedBy === 'heuristic' ? ' (heuristic fallback)' : ''}
+                                </span>
+                                <span className="text-purple-600">confidence {Math.round((answer.grading.confidence ?? 0) * 100)}%</span>
+                              </div>
+                              {answer.grading.feedback && (
+                                <div className="mt-1 text-gray-700">{answer.grading.feedback}</div>
+                              )}
+                              {answer.grading.hits?.length > 0 && (
+                                <div className="mt-1 text-green-700">Hit: {answer.grading.hits.join('; ')}</div>
+                              )}
+                              {answer.grading.misses?.length > 0 && (
+                                <div className="mt-1 text-red-700">Missed: {answer.grading.misses.join('; ')}</div>
+                              )}
                             </div>
                           )}
                         </div>

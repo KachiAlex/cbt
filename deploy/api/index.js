@@ -6,6 +6,7 @@ const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
 const { pool, q, toDoc, toDocs, byDateDesc } = require('./db');
 const { scoreSubmission, resolveCorrectAnswer } = require('./scoring');
+const grader = require('./grader');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -1821,6 +1822,16 @@ app.post('/api/results', auth, studentOnly, async (req, res) => {
     ...scoreSubmission(questions, answers, examData?.type),
   };
 
+  // AI grading path: heuristic result stays as `provisional` backup info while
+  // the real score/percentage are produced asynchronously by the grader queue.
+  const aiGrading = essayExam && grader.isEnabled();
+  if (aiGrading) {
+    data.score = null;
+    data.percentage = null;
+    data.status = 'grading';
+    data.grading = { provider: 'groq', state: 'queued', attempts: 0 };
+  }
+
   const id = newId();
   const client = await pool.connect();
   try {
@@ -1857,6 +1868,7 @@ app.post('/api/results', auth, studentOnly, async (req, res) => {
   } finally {
     client.release();
   }
+  if (aiGrading) grader.enqueue(id);
   if (settings.showResultsToStudents === false) {
     return res.json({ id, status: data.status, resultsPublished: false });
   }
@@ -1903,9 +1915,36 @@ app.get('/api/results/:id/review', auth, async (req, res) => {
       const normalize = value => String(value ?? '').trim().replace(/\s+/g, ' ').toLowerCase();
       item.isCorrect = Boolean(correctAnswer) && normalize(selectedAnswer) === normalize(correctAnswer);
     }
+    if (req.user.role !== 'student' && result.data.grading?.perQuestion?.[row.id]) {
+      item.grading = result.data.grading.perQuestion[row.id];
+    }
     return item;
   });
-  res.json({ id: result.id, examTitle: result.data.examTitle, status: result.data.status, score: result.data.score, percentage: result.data.percentage, questions });
+  const payload = { id: result.id, examTitle: result.data.examTitle, status: result.data.status, score: result.data.score, percentage: result.data.percentage, questions };
+  if (req.user.role !== 'student' && result.data.grading) {
+    const { perQuestion, ...summary } = result.data.grading;
+    payload.grading = { ...summary, perQuestion };
+  }
+  res.json(payload);
+});
+
+app.post('/api/results/:id/regrade', auth, staffOnly, async (req, res) => {
+  if (!grader.isEnabled()) return res.status(503).json({ error: 'AI grading is not configured' });
+  const { rows } = await q('SELECT institution_id, data FROM results WHERE id = $1', [req.params.id]);
+  if (!rows.length) return res.status(404).json({ error: 'Result not found' });
+  if (!tenantOk(req, rows[0].institution_id)) return res.status(403).json({ error: 'Forbidden' });
+  if (rows[0].data?.status === 'grading') return res.status(409).json({ error: 'Result is already being graded' });
+  const data = {
+    ...rows[0].data,
+    score: null,
+    percentage: null,
+    status: 'grading',
+    finalized: false,
+    grading: { ...(rows[0].data.grading || {}), provider: 'groq', state: 'queued', regradedBy: req.user.sub },
+  };
+  await q('UPDATE results SET data = $2 WHERE id = $1', [req.params.id, data]);
+  grader.enqueue(req.params.id);
+  res.json({ ok: true });
 });
 
 app.delete('/api/results/bulk', auth, staffOnly, async (req, res) => {
@@ -2083,6 +2122,7 @@ END $$`);
     );
     console.log('Seeded the initial super-admin account.');
   }
+  await grader.recoverStuck().catch(e => console.warn('Grader recovery skipped:', e.message));
   app.listen(PORT, () => console.log(`CBT API listening on :${PORT}`));
 }
 

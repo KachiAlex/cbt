@@ -124,4 +124,4 @@ function scoreSubmission(questions, answers, examType) {
   };
 }
 
-module.exports = { scoreSubmission, resolveCorrectAnswer };
+module.exports = { scoreSubmission, resolveCorrectAnswer, scoreEssayAnswer };

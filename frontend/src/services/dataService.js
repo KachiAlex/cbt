@@ -216,6 +216,7 @@ class PgDataService {
   async saveExamResult(data) { return post('/results', data); }
   async submitExamResult(data) { return post('/results', data); }
   async updateResult(id, data) { await patch(`/results/${id}`, data); return true; }
+  async regradeResult(id) { return post(`/results/${id}/regrade`); }
   async updateExamResult(id, data) { await patch(`/results/${id}`, data); return true; }
   async deleteResult(id) { await del(`/results/${id}`); return true; }
   async deleteResults(ids) { return request('/results/bulk', { method: 'DELETE', body: JSON.stringify({ ids }) }); }
