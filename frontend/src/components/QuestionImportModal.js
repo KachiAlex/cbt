@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { saveAs } from 'file-saver';
 
-const QuestionImportModal = ({ isOpen, onClose, onImport, examId, institutionId, institutionName }) => {
+const QuestionImportModal = ({ isOpen, onClose, onImport, examId, subjectId, institutionId, institutionName }) => {
   const [importStep, setImportStep] = useState('select'); // select, preview, import
   const [selectedFile, setSelectedFile] = useState(null);
   const [parsedQuestions, setParsedQuestions] = useState([]);
@@ -57,8 +57,8 @@ const QuestionImportModal = ({ isOpen, onClose, onImport, examId, institutionId,
 
   const handleImport = async () => {
     if (!parser) return setError('Import tools are still loading.');
-    if (!examId) {
-      setError('Please select an exam before importing questions.');
+    if (!examId && !subjectId) {
+      setError('Please select an exam or a subject before importing questions.');
       return;
     }
     setImporting(true);
@@ -73,10 +73,11 @@ const QuestionImportModal = ({ isOpen, onClose, onImport, examId, institutionId,
         return;
       }
 
-      // Add exam and institution info to each question
+      // Add exam/subject and institution info to each question
       const questionsToImport = validQuestions.map(question => ({
         ...question,
-        examId,
+        examId: examId || '',
+        subjectId: subjectId || '',
         institutionId,
         institutionName: institutionName || ''
       }));

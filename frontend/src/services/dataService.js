@@ -54,6 +54,12 @@ const post = (p, body) => request(p, { method: 'POST', body: JSON.stringify(body
 const patch = (p, body) => request(p, { method: 'PATCH', body: JSON.stringify(body) });
 const del = (p) => request(p, { method: 'DELETE' });
 
+// Short-lived per-institution subjects cache — subject lists change rarely but are
+// re-fetched every time the Exams/Questions tabs mount.
+const SUBJECTS_CACHE_TTL = 60_000;
+const subjectsCache = new Map();
+const invalidateSubjectsCache = (iid) => subjectsCache.delete(iid);
+
 class PgDataService {
   safeToDate(timestamp) {
     if (!timestamp) return null;
@@ -113,10 +119,27 @@ class PgDataService {
   async deleteInstitutionDepartment(iid, deptId) { await del(`/departments/${deptId}`); return true; }
 
   // ---- subjects ----
-  getInstitutionSubjects(iid) { return get(`/institutions/${iid}/subjects`); }
-  async createInstitutionSubject(iid, data) { return post(`/institutions/${iid}/subjects`, data); }
-  async updateInstitutionSubject(iid, subjectId, data) { await patch(`/subjects/${subjectId}`, data); return true; }
-  async deleteInstitutionSubject(iid, subjectId) { await del(`/subjects/${subjectId}`); return true; }
+  getInstitutionSubjects(iid, { force } = {}) {
+    const cached = subjectsCache.get(iid);
+    if (!force && cached && Date.now() - cached.at < SUBJECTS_CACHE_TTL) return Promise.resolve(cached.data);
+    return get(`/institutions/${iid}/subjects`).then(data => {
+      subjectsCache.set(iid, { at: Date.now(), data });
+      return data;
+    });
+  }
+  async createInstitutionSubject(iid, data) {
+    const created = await post(`/institutions/${iid}/subjects`, data);
+    invalidateSubjectsCache(iid);
+    return created;
+  }
+  async updateInstitutionSubject(iid, subjectId, data) { await patch(`/subjects/${subjectId}`, data); invalidateSubjectsCache(iid); return true; }
+  async deleteInstitutionSubject(iid, subjectId) { await del(`/subjects/${subjectId}`); invalidateSubjectsCache(iid); return true; }
+
+  // ---- subject question bank ----
+  getSubjectQuestions(iid, subjectId) { return get(`/institutions/${iid}/subjects/${subjectId}/questions`); }
+  async createSubjectQuestion(iid, subjectId, data) { return post(`/institutions/${iid}/subjects/${subjectId}/questions`, data); }
+  async addSubjectQuestions(iid, subjectId, questionsData) { return post(`/institutions/${iid}/subjects/${subjectId}/questions/bulk`, { questions: questionsData }); }
+  attachExamQuestions(examId, questionIds) { return post(`/exams/${examId}/questions/attach`, { questionIds }); }
 
   // ---- admins ----
   getInstitutionAdmins(iid) { return get(`/institutions/${iid}/admins`); }
@@ -166,7 +189,13 @@ class PgDataService {
   startExamAttempt(examId) { return post(`/exams/${examId}/attempts`, {}); }
 
   // ---- questions ----
-  getInstitutionQuestions(iid) { return get(`/institutions/${iid}/questions`); }
+  getInstitutionQuestions(iid, { scope, subjectId } = {}) {
+    const params = new URLSearchParams();
+    if (scope) params.set('scope', scope);
+    if (subjectId) params.set('subjectId', subjectId);
+    const qs = params.toString();
+    return get(`/institutions/${iid}/questions${qs ? `?${qs}` : ''}`);
+  }
   getQuestions(examId) { return get(`/exams/${examId}/questions`); }
   async createQuestion(data) { return post('/questions', data); }
   async addQuestions(examId, questionsData) { return post(`/exams/${examId}/questions/bulk`, { questions: questionsData }); }

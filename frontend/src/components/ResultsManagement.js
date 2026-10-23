@@ -7,13 +7,15 @@ const ResultsManagement = ({ institution, onStatsUpdate }) => {
   const [results, setResults] = useState([]);
   const [exams, setExams] = useState([]);
   const [students, setStudents] = useState([]);
+  const [subjects, setSubjects] = useState([]);
   const [loading, setLoading] = useState(false);
   const [selectedExam, setSelectedExam] = useState('');
   const [selectedStudent, setSelectedStudent] = useState('');
   const [filters, setFilters] = useState({
     department: '',
     level: '',
-    studentId: ''
+    studentId: '',
+    subject: ''
   });
   const [showDetails, setShowDetails] = useState(null);
   const [finalizeTarget, setFinalizeTarget] = useState(null);
@@ -32,15 +34,17 @@ const ResultsManagement = ({ institution, onStatsUpdate }) => {
   const loadData = async () => {
     try {
       setLoading(true);
-      const [resultsData, examsData, studentsData] = await Promise.all([
+      const [resultsData, examsData, studentsData, subjectsData] = await Promise.all([
         dataService.getInstitutionResults(institution.id),
         dataService.getInstitutionExams(institution.id),
-        dataService.getInstitutionUsers(institution.id)
+        dataService.getInstitutionUsers(institution.id),
+        dataService.getInstitutionSubjects(institution.id)
       ]);
-      
+
       setResults(resultsData);
       setExams(examsData);
       setStudents(studentsData);
+      setSubjects(subjectsData || []);
     } catch (error) {
       console.error('Error loading data:', error);
     } finally {
@@ -82,6 +86,10 @@ const ResultsManagement = ({ institution, onStatsUpdate }) => {
     const level = student?.level || result.level || '';
     if (filters.department && department !== filters.department) return false;
     if (filters.level && level !== filters.level) return false;
+    if (filters.subject) {
+      const subjectId = result.subjectId || examsById.get(result.examId)?.subjectId || '';
+      if (subjectId !== filters.subject) return false;
+    }
     if (filters.studentId) {
       const needle = filters.studentId.toLowerCase();
       const studentIdMatch = String(student?.studentId || '').toLowerCase().includes(needle);
@@ -89,7 +97,7 @@ const ResultsManagement = ({ institution, onStatsUpdate }) => {
       if (!studentIdMatch && !resultIdMatch) return false;
     }
     return examMatch && studentMatch;
-  }), [results, selectedExam, selectedStudent, filters, studentsByIdentifier]);
+  }), [results, selectedExam, selectedStudent, filters, studentsByIdentifier, examsById]);
 
   const findStudentForResult = (result) => [result?.userId, result?.studentId, result?.username, result?.studentName]
     .map(value => value && studentsByIdentifier.get(String(value).toLowerCase()))
@@ -266,7 +274,7 @@ const ResultsManagement = ({ institution, onStatsUpdate }) => {
   const clearFilters = () => {
     setSelectedExam('');
     setSelectedStudent('');
-    setFilters({ department: '', level: '', studentId: '' });
+    setFilters({ department: '', level: '', studentId: '', subject: '' });
     setSelectedResults([]);
   };
 
@@ -487,6 +495,24 @@ const ResultsManagement = ({ institution, onStatsUpdate }) => {
                 .filter((option, index, self) => 
                   index === self.findIndex(o => o.props.value === option.props.value)
                 )}
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Subject
+            </label>
+            <select
+              value={filters.subject}
+              onChange={(e) => handleFilterChange('subject', e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+            >
+              <option value="">All Subjects</option>
+              {subjects.map(subject => (
+                <option key={subject.id} value={subject.id}>
+                  {subject.name}{subject.code ? ` (${subject.code})` : ''}
+                </option>
+              ))}
             </select>
           </div>
 

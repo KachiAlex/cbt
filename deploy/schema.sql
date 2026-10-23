@@ -52,6 +52,7 @@ CREATE TABLE IF NOT EXISTS questions (
   id             TEXT PRIMARY KEY,
   institution_id TEXT REFERENCES institutions(id) ON DELETE CASCADE,
   exam_id        TEXT REFERENCES exams(id) ON DELETE CASCADE,
+  subject_id     TEXT REFERENCES subjects(id) ON DELETE SET NULL,
   data           JSONB NOT NULL,
   created_at     TIMESTAMPTZ DEFAULT now()
 );
@@ -118,15 +119,21 @@ CREATE UNIQUE INDEX IF NOT EXISTS uq_users_inst_email ON users(institution_id, l
 CREATE UNIQUE INDEX IF NOT EXISTS uq_admins_inst_username ON admins(institution_id, lower(coalesce(nullif(username,''), data->>'username'))) WHERE coalesce(data->>'isActive','true') <> 'false' AND nullif(btrim(coalesce(username, data->>'username')), '') IS NOT NULL;
 CREATE UNIQUE INDEX IF NOT EXISTS uq_admins_inst_email ON admins(institution_id, lower(coalesce(nullif(email,''), data->>'email'))) WHERE coalesce(data->>'isActive','true') <> 'false' AND nullif(btrim(coalesce(email, data->>'email')), '') IS NOT NULL;
 CREATE INDEX IF NOT EXISTS idx_subjects_inst    ON subjects(institution_id);
+CREATE UNIQUE INDEX IF NOT EXISTS uq_subjects_inst_name ON subjects(institution_id, lower(data->>'name'));
+CREATE UNIQUE INDEX IF NOT EXISTS uq_subjects_inst_code ON subjects(institution_id, lower(data->>'code')) WHERE nullif(btrim(data->>'code'), '') IS NOT NULL;
 CREATE INDEX IF NOT EXISTS idx_exams_inst       ON exams(institution_id);
+CREATE INDEX IF NOT EXISTS idx_exams_subject    ON exams(institution_id, (data->>'subjectId'));
 CREATE INDEX IF NOT EXISTS idx_questions_inst   ON questions(institution_id);
 CREATE INDEX IF NOT EXISTS idx_questions_exam   ON questions(exam_id);
+CREATE INDEX IF NOT EXISTS idx_questions_subject ON questions(subject_id);
+CREATE INDEX IF NOT EXISTS idx_questions_bank   ON questions(institution_id, subject_id) WHERE exam_id IS NULL;
 CREATE INDEX IF NOT EXISTS idx_results_inst     ON results(institution_id);
 CREATE INDEX IF NOT EXISTS idx_results_exam     ON results(exam_id);
 CREATE INDEX IF NOT EXISTS idx_results_user     ON results(user_id);
 CREATE INDEX IF NOT EXISTS idx_results_inst_created ON results(institution_id, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_results_exam_created ON results(exam_id, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_results_user_exam ON results(user_id, exam_id);
+CREATE INDEX IF NOT EXISTS idx_results_subject  ON results(institution_id, (data->>'subjectId'));
 CREATE UNIQUE INDEX IF NOT EXISTS uq_results_attempt ON results(attempt_id) WHERE attempt_id IS NOT NULL;
 CREATE UNIQUE INDEX IF NOT EXISTS uq_exam_attempt_active ON exam_attempts(exam_id, user_id) WHERE status = 'in_progress';
 CREATE INDEX IF NOT EXISTS idx_exam_attempt_user_exam ON exam_attempts(user_id, exam_id, status);

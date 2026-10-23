@@ -265,8 +265,10 @@ function questionValidationError(question, exam) {
   if (!question || typeof question.question !== 'string' || !question.question.trim()) return 'Question text is required';
   const type = String(question.type || 'multiple-choice').toLowerCase();
   if (!['multiple-choice', 'true-false', 'short-answer', 'essay'].includes(type)) return 'Unsupported question type';
-  const isEssayExam = String(exam.type || '').toLowerCase() === 'essay';
-  if (isEssayExam !== (type === 'essay')) return 'Question type must match the exam type';
+  if (exam) {
+    const isEssayExam = String(exam.type || '').toLowerCase() === 'essay';
+    if (isEssayExam !== (type === 'essay')) return 'Question type must match the exam type';
+  }
   if (type === 'multiple-choice' || type === 'true-false') {
     const options = Array.isArray(question.options) ? question.options.filter(option => typeof option === 'string' && option.trim()) : [];
     if (options.length < 2) return 'At least two non-empty options are required';
@@ -1008,8 +1010,12 @@ app.delete('/api/departments/:id', auth, staffOnly, async (req, res) => {
 
 app.get('/api/institutions/:iid/subjects', auth, staffOnly, async (req, res) => {
   if (!tenantOk(req, req.params.iid)) return res.status(403).json({ error: 'Forbidden' });
-  const { rows } = await q('SELECT * FROM subjects WHERE institution_id = $1', [req.params.iid]);
-  res.json(toDocs(rows).sort((a, b) => (a.name || '').localeCompare(b.name || '')));
+  const { rows } = await q(`SELECT s.*,
+    (SELECT count(*)::int FROM questions q WHERE q.subject_id = s.id AND q.exam_id IS NULL) AS question_count,
+    (SELECT count(*)::int FROM exams e WHERE e.institution_id = s.institution_id AND e.data->>'subjectId' = s.id) AS exam_count
+    FROM subjects s WHERE s.institution_id = $1`, [req.params.iid]);
+  res.json(rows.map(row => ({ ...toDoc(row), questionCount: Number(row.question_count) || 0, examCount: Number(row.exam_count) || 0 }))
+    .sort((a, b) => (a.name || '').localeCompare(b.name || '')));
 });
 
 app.post('/api/institutions/:iid/subjects', auth, staffOnly, async (req, res) => {
@@ -1029,21 +1035,58 @@ app.post('/api/institutions/:iid/subjects', auth, staffOnly, async (req, res) =>
 });
 
 app.patch('/api/subjects/:id', auth, staffOnly, async (req, res) => {
-  const current = await q('SELECT * FROM subjects WHERE id = $1', [req.params.id]);
-  if (!current.rows.length) return res.status(404).json({ error: 'Subject not found' });
-  if (!tenantOk(req, current.rows[0].institution_id)) return res.status(403).json({ error: 'Forbidden' });
-  const body = req.body || {};
-  const data = { ...current.rows[0].data, ...body, updatedAt: now() };
-  const name = typeof data.name === 'string' ? data.name.trim() : '';
-  const code = typeof data.code === 'string' ? data.code.trim().toUpperCase() : '';
-  if (!name || name.length > 120) return res.status(400).json({ error: 'Subject name is required (max 120 characters)' });
-  if (code.length > 40) return res.status(400).json({ error: 'Subject code must be at most 40 characters' });
-  if (typeof data.description !== 'string' || data.description.length > 500) return res.status(400).json({ error: 'Description must be at most 500 characters' });
-  const duplicate = await q("SELECT 1 FROM subjects WHERE institution_id=$1 AND id<>$2 AND (lower(data->>'name')=lower($3) OR ($4 <> '' AND lower(data->>'code')=lower($4))) LIMIT 1", [current.rows[0].institution_id, req.params.id, name, code]);
-  if (duplicate.rowCount) return res.status(409).json({ error: 'Subject name or code already exists' });
-  data.name = name; data.code = code || null; data.description = data.description.trim();
-  await q('UPDATE subjects SET data=$2 WHERE id=$1', [req.params.id, data]);
-  res.json({ ok: true });
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    const current = await client.query('SELECT * FROM subjects WHERE id = $1 FOR UPDATE', [req.params.id]);
+    if (!current.rows.length) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ error: 'Subject not found' });
+    }
+    const institutionId = current.rows[0].institution_id;
+    if (!tenantOk(req, institutionId)) {
+      await client.query('ROLLBACK');
+      return res.status(403).json({ error: 'Forbidden' });
+    }
+    const previous = current.rows[0].data || {};
+    const body = req.body || {};
+    const data = { ...previous, ...body, updatedAt: now() };
+    const name = typeof data.name === 'string' ? data.name.trim() : '';
+    const code = typeof data.code === 'string' ? data.code.trim().toUpperCase() : '';
+    if (!name || name.length > 120) {
+      await client.query('ROLLBACK');
+      return res.status(400).json({ error: 'Subject name is required (max 120 characters)' });
+    }
+    if (code.length > 40) {
+      await client.query('ROLLBACK');
+      return res.status(400).json({ error: 'Subject code must be at most 40 characters' });
+    }
+    if (typeof data.description !== 'string' || data.description.length > 500) {
+      await client.query('ROLLBACK');
+      return res.status(400).json({ error: 'Description must be at most 500 characters' });
+    }
+    const duplicate = await client.query("SELECT 1 FROM subjects WHERE institution_id=$1 AND id<>$2 AND (lower(data->>'name')=lower($3) OR ($4 <> '' AND lower(data->>'code')=lower($4))) LIMIT 1", [institutionId, req.params.id, name, code]);
+    if (duplicate.rowCount) {
+      await client.query('ROLLBACK');
+      return res.status(409).json({ error: 'Subject name or code already exists' });
+    }
+    data.name = name; data.code = code || null; data.description = data.description.trim();
+    await client.query('UPDATE subjects SET data=$2 WHERE id=$1', [req.params.id, data]);
+    if ((previous.name || '') !== name || (previous.code || '') !== code) {
+      // Keep the denormalized subject snapshot on exams in sync with the rename
+      await client.query(
+        "UPDATE exams SET data = data || jsonb_build_object('subject', $3::text, 'subjectCode', $4::text) WHERE institution_id=$1 AND data->>'subjectId'=$2",
+        [institutionId, req.params.id, name, code || null]
+      );
+    }
+    await client.query('COMMIT');
+    res.json({ ok: true });
+  } catch (error) {
+    await client.query('ROLLBACK');
+    throw error;
+  } finally {
+    client.release();
+  }
 });
 app.delete('/api/subjects/:id', auth, staffOnly, async (req, res) => {
   const subject = await q('SELECT * FROM subjects WHERE id=$1', [req.params.id]);
@@ -1052,8 +1095,77 @@ app.delete('/api/subjects/:id', auth, staffOnly, async (req, res) => {
   const data = subject.rows[0].data || {};
   const usage = await q("SELECT count(*)::int AS n FROM exams WHERE institution_id=$1 AND (data->>'subjectId'=$2 OR (coalesce(data->>'subjectId','')='' AND lower(data->>'subject')=lower($3)))", [subject.rows[0].institution_id, req.params.id, data.name || '']);
   if (usage.rows[0].n) return res.status(409).json({ error: 'Exams are assigned to this subject. Reassign them before deleting it.' });
+  const bankUsage = await q('SELECT count(*)::int AS n FROM questions WHERE subject_id=$1 AND exam_id IS NULL', [req.params.id]);
+  if (bankUsage.rows[0].n) return res.status(409).json({ error: 'This subject still has questions in its bank. Remove them before deleting it.' });
   await q('DELETE FROM subjects WHERE id=$1', [req.params.id]);
   res.json({ ok: true });
+});
+
+// ---------- subject question bank ----------
+
+// Bank questions live in a subject pool: questions rows with subject_id set and exam_id NULL.
+// Exams attach bank questions as copies (data.sourceQuestionId traces the bank item), so an
+// exam keeps a stable snapshot and a bank question can serve many exams.
+
+const subjectInInstitution = async (sid, iid) => {
+  const { rows } = await q('SELECT id FROM subjects WHERE id = $1 AND institution_id = $2', [sid, iid]);
+  return rows.length > 0;
+};
+
+app.get('/api/institutions/:iid/subjects/:sid/questions', auth, staffOnly, async (req, res) => {
+  if (!tenantOk(req, req.params.iid)) return res.status(403).json({ error: 'Forbidden' });
+  const { rows } = await q(
+    'SELECT * FROM questions WHERE institution_id = $1 AND subject_id = $2 AND exam_id IS NULL',
+    [req.params.iid, req.params.sid]
+  );
+  res.json(toDocs(rows).sort(byDateDesc('createdAt')));
+});
+
+app.post('/api/institutions/:iid/subjects/:sid/questions', auth, staffOnly, async (req, res) => {
+  if (!tenantOk(req, req.params.iid)) return res.status(403).json({ error: 'Forbidden' });
+  if (!(await subjectInInstitution(req.params.sid, req.params.iid))) return res.status(404).json({ error: 'Subject not found' });
+  const question = normalizeQuestionData(req.body || {});
+  const validationError = questionValidationError(question, null);
+  if (validationError) return res.status(400).json({ error: validationError });
+  const id = newId();
+  const data = { ...question, subjectId: req.params.sid, institutionId: req.params.iid, createdAt: now() };
+  await q('INSERT INTO questions (id, institution_id, exam_id, subject_id, data) VALUES ($1,$2,NULL,$3,$4)',
+    [id, req.params.iid, req.params.sid, data]);
+  res.json({ id, ...data });
+});
+
+app.post('/api/institutions/:iid/subjects/:sid/questions/bulk', auth, staffOnly, async (req, res) => {
+  if (!tenantOk(req, req.params.iid)) return res.status(403).json({ error: 'Forbidden' });
+  if (!(await subjectInInstitution(req.params.sid, req.params.iid))) return res.status(404).json({ error: 'Subject not found' });
+  const questions = req.body?.questions;
+  if (!Array.isArray(questions) || !questions.length || questions.length > 1000) {
+    return res.status(400).json({ error: 'Provide between 1 and 1000 questions' });
+  }
+  const normalizedQuestions = questions.map(normalizeQuestionData);
+  const validationErrors = normalizedQuestions
+    .map((question, index) => ({ index, error: questionValidationError(question, null) }))
+    .filter(item => item.error);
+  if (validationErrors.length) return res.status(400).json({ errors: validationErrors });
+
+  const client = await pool.connect();
+  const created = [];
+  try {
+    await client.query('BEGIN');
+    for (const question of normalizedQuestions) {
+      const id = newId();
+      const data = { ...question, subjectId: req.params.sid, institutionId: req.params.iid, createdAt: now() };
+      await client.query('INSERT INTO questions (id, institution_id, exam_id, subject_id, data) VALUES ($1,$2,NULL,$3,$4)',
+        [id, req.params.iid, req.params.sid, data]);
+      created.push({ id, ...data });
+    }
+    await client.query('COMMIT');
+  } catch (error) {
+    await client.query('ROLLBACK');
+    throw error;
+  } finally {
+    client.release();
+  }
+  res.json(created);
 });
 
 // ---------- admins ----------
@@ -1351,7 +1463,14 @@ app.delete('/api/exams/:id', auth, staffOnly, async (req, res) => {
 
 app.get('/api/institutions/:iid/questions', auth, staffOnly, async (req, res) => {
   if (!tenantOk(req, req.params.iid)) return res.status(403).json({ error: 'Forbidden' });
-  const { rows } = await q('SELECT * FROM questions WHERE institution_id = $1', [req.params.iid]);
+  const scope = String(req.query.scope || '').toLowerCase();
+  const subjectId = typeof req.query.subjectId === 'string' ? req.query.subjectId : '';
+  const params = [req.params.iid];
+  let sql = 'SELECT * FROM questions WHERE institution_id = $1';
+  if (scope === 'bank') sql += ' AND exam_id IS NULL';
+  else if (scope === 'exam') sql += ' AND exam_id IS NOT NULL';
+  if (subjectId) sql += ` AND subject_id = $${params.push(subjectId)}`;
+  const { rows } = await q(sql, params);
   res.json(toDocs(rows).sort(byDateDesc('createdAt')));
 });
 
@@ -1396,10 +1515,29 @@ app.post('/api/questions', auth, staffOnly, async (req, res) => {
   const question = normalizeQuestionData(body);
   const validationError = questionValidationError(question, exam.rows[0].data);
   if (validationError) return res.status(400).json({ error: validationError });
+  const subjectId = exam.rows[0].data?.subjectId || null;
   const id = newId();
-  const data = { ...question, institutionId, examId: body.examId, createdAt: now() };
-  await q('INSERT INTO questions (id, institution_id, exam_id, data) VALUES ($1,$2,$3,$4)',
-    [id, institutionId, body.examId, data]);
+  const data = { ...question, subjectId: subjectId || '', institutionId, examId: body.examId, createdAt: now() };
+  delete data.saveToBank;
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    await client.query('INSERT INTO questions (id, institution_id, exam_id, subject_id, data) VALUES ($1,$2,$3,$4,$5)',
+      [id, institutionId, body.examId, subjectId, data]);
+    if (body.saveToBank === true && subjectId) {
+      const bankId = newId();
+      const bankData = { ...question, subjectId, institutionId, sourceExamId: body.examId, createdAt: now() };
+      delete bankData.saveToBank;
+      await client.query('INSERT INTO questions (id, institution_id, exam_id, subject_id, data) VALUES ($1,$2,NULL,$3,$4)',
+        [bankId, institutionId, subjectId, bankData]);
+    }
+    await client.query('COMMIT');
+  } catch (error) {
+    await client.query('ROLLBACK');
+    throw error;
+  } finally {
+    client.release();
+  }
   res.json({ id, ...data });
 });
 
@@ -1415,6 +1553,7 @@ app.post('/api/exams/:examId/questions/bulk', auth, staffOnly, examTenant, async
     .filter(item => item.error);
   if (validationErrors.length) return res.status(400).json({ errors: validationErrors });
 
+  const subjectId = exam.rows[0].data?.subjectId || null;
   const client = await pool.connect();
   const created = [];
   try {
@@ -1425,10 +1564,16 @@ app.post('/api/exams/:examId/questions/bulk', auth, staffOnly, examTenant, async
     }
     for (const question of normalizedQuestions) {
       const id = newId();
-      const data = { ...question, examId: req.params.examId, institutionId: req.examInstitutionId, createdAt: now() };
-      await client.query('INSERT INTO questions (id, institution_id, exam_id, data) VALUES ($1,$2,$3,$4)',
-        [id, req.examInstitutionId, req.params.examId, data]);
+      const data = { ...question, subjectId: subjectId || '', examId: req.params.examId, institutionId: req.examInstitutionId, createdAt: now() };
+      await client.query('INSERT INTO questions (id, institution_id, exam_id, subject_id, data) VALUES ($1,$2,$3,$4,$5)',
+        [id, req.examInstitutionId, req.params.examId, subjectId, data]);
       created.push({ id, ...data });
+      if (req.body?.saveToBank === true && subjectId) {
+        const bankId = newId();
+        const bankData = { ...question, subjectId, institutionId: req.examInstitutionId, sourceExamId: req.params.examId, createdAt: now() };
+        await client.query('INSERT INTO questions (id, institution_id, exam_id, subject_id, data) VALUES ($1,$2,NULL,$3,$4)',
+          [bankId, req.examInstitutionId, subjectId, bankData]);
+      }
     }
     await client.query('COMMIT');
   } catch (error) {
@@ -1440,23 +1585,112 @@ app.post('/api/exams/:examId/questions/bulk', auth, staffOnly, examTenant, async
   res.json(created);
 });
 
+// Copy question-bank items into an exam. Copies keep data.sourceQuestionId pointing at the
+// bank item, so the exam snapshot stays stable when the bank question is later edited.
+app.post('/api/exams/:examId/questions/attach', auth, staffOnly, examTenant, async (req, res) => {
+  const ids = [...new Set(Array.isArray(req.body?.questionIds) ? req.body.questionIds.filter(id => typeof id === 'string' && id) : [])];
+  if (!ids.length || ids.length > 500) return res.status(400).json({ error: 'Provide between 1 and 500 question IDs' });
+  const exam = await q('SELECT data FROM exams WHERE id = $1', [req.params.examId]);
+  const examData = exam.rows[0].data || {};
+
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    if (await examHistoryCount(req.params.examId, client)) {
+      await client.query('ROLLBACK');
+      return res.status(409).json({ error: 'Questions cannot be changed after an exam has attempts or results' });
+    }
+    const found = await client.query(
+      'SELECT id, exam_id, subject_id, data FROM questions WHERE id = ANY($1::text[]) AND institution_id = $2 FOR UPDATE',
+      [ids, req.examInstitutionId]
+    );
+    const byId = new Map(found.rows.map(row => [row.id, row]));
+    if (found.rowCount !== ids.length) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ error: 'One or more bank questions were not found' });
+    }
+    if (found.rows.some(row => row.exam_id !== null)) {
+      await client.query('ROLLBACK');
+      return res.status(400).json({ error: 'Only question-bank items can be attached' });
+    }
+    if (examData.subjectId && found.rows.some(row => row.subject_id !== examData.subjectId)) {
+      await client.query('ROLLBACK');
+      return res.status(400).json({ error: 'Selected questions belong to a different subject' });
+    }
+    const errors = found.rows
+      .map(row => ({ index: ids.indexOf(row.id), error: questionValidationError(row.data || {}, examData) }))
+      .filter(item => item.error);
+    if (errors.length) {
+      await client.query('ROLLBACK');
+      return res.status(400).json({ errors });
+    }
+    const attached = await client.query(
+      "SELECT data->>'sourceQuestionId' AS src FROM questions WHERE exam_id = $1 AND data->>'sourceQuestionId' = ANY($2::text[])",
+      [req.params.examId, ids]
+    );
+    const alreadyAttached = new Set(attached.rows.map(row => row.src));
+    const created = [];
+    for (const questionId of ids) {
+      if (alreadyAttached.has(questionId)) continue;
+      const source = byId.get(questionId);
+      const id = newId();
+      const data = {
+        ...source.data, examId: req.params.examId, institutionId: req.examInstitutionId,
+        subjectId: source.subject_id || '', sourceQuestionId: source.id, createdAt: now()
+      };
+      delete data.sourceExamId;
+      await client.query('INSERT INTO questions (id, institution_id, exam_id, subject_id, data) VALUES ($1,$2,$3,$4,$5)',
+        [id, req.examInstitutionId, req.params.examId, source.subject_id, data]);
+      created.push({ id, ...data });
+    }
+    await client.query('COMMIT');
+    res.json({ attached: created.length, skipped: ids.length - created.length, questions: created });
+  } catch (error) {
+    await client.query('ROLLBACK');
+    throw error;
+  } finally {
+    client.release();
+  }
+});
+
 app.patch('/api/questions/:id', auth, staffOnly, async (req, res) => {
   const current = await q('SELECT * FROM questions WHERE id = $1', [req.params.id]);
   if (!current.rows.length) return res.status(404).json({ error: 'Question not found' });
-  if (!tenantOk(req, current.rows[0].institution_id)) return res.status(403).json({ error: 'Forbidden' });
-  const examId = req.body.examId || current.rows[0].exam_id;
-  const exam = await q('SELECT institution_id, data FROM exams WHERE id = $1', [examId]);
-  if (!exam.rows.length) return res.status(404).json({ error: 'Exam not found' });
-  if (!tenantOk(req, exam.rows[0].institution_id) || exam.rows[0].institution_id !== current.rows[0].institution_id) {
-    return res.status(403).json({ error: 'Question cannot be moved to another institution' });
+  const institutionId = current.rows[0].institution_id;
+  if (!tenantOk(req, institutionId)) return res.status(403).json({ error: 'Forbidden' });
+  const hasExamField = Object.hasOwn(req.body || {}, 'examId');
+  const examId = hasExamField ? (req.body.examId || null) : current.rows[0].exam_id;
+  let examData = null;
+  let subjectId = current.rows[0].subject_id;
+  if (examId) {
+    const exam = await q('SELECT institution_id, data FROM exams WHERE id = $1', [examId]);
+    if (!exam.rows.length) return res.status(404).json({ error: 'Exam not found' });
+    if (!tenantOk(req, exam.rows[0].institution_id) || exam.rows[0].institution_id !== institutionId) {
+      return res.status(403).json({ error: 'Question cannot be moved to another institution' });
+    }
+    examData = exam.rows[0].data;
+    subjectId = examData?.subjectId || subjectId;
   }
+  if (Object.hasOwn(req.body || {}, 'subjectId')) {
+    const requestedSubject = typeof req.body.subjectId === 'string' ? req.body.subjectId.trim() : '';
+    if (requestedSubject) {
+      const subject = await q('SELECT id FROM subjects WHERE id = $1 AND institution_id = $2', [requestedSubject, institutionId]);
+      if (!subject.rows.length) return res.status(400).json({ error: 'Selected subject is invalid' });
+      subjectId = requestedSubject;
+    } else if (!examId) {
+      return res.status(400).json({ error: 'Bank questions must belong to a subject' });
+    } else {
+      subjectId = null;
+    }
+  }
+  if (!examId && !subjectId) return res.status(400).json({ error: 'Bank questions must belong to a subject' });
   if (await examHistoryCount(current.rows[0].exam_id) || await examHistoryCount(examId)) {
     return res.status(409).json({ error: 'Questions cannot be changed after an exam has attempts or results' });
   }
-  const data = normalizeQuestionData({ ...current.rows[0].data, ...req.body, examId, institutionId: current.rows[0].institution_id, updatedAt: now() });
-  const validationError = questionValidationError(data, exam.rows[0].data);
+  const data = normalizeQuestionData({ ...current.rows[0].data, ...req.body, examId: examId || '', subjectId: subjectId || '', institutionId, updatedAt: now() });
+  const validationError = questionValidationError(data, examData);
   if (validationError) return res.status(400).json({ error: validationError });
-  await q('UPDATE questions SET exam_id = $2, data = $3 WHERE id = $1', [req.params.id, examId, data]);
+  await q('UPDATE questions SET exam_id = $2, subject_id = $3, data = $4 WHERE id = $1', [req.params.id, examId, subjectId, data]);
   res.json({ ok: true });
 });
 app.delete('/api/questions/bulk', auth, staffOnly, async (req, res) => {
@@ -1572,6 +1806,9 @@ app.post('/api/results', auth, studentOnly, async (req, res) => {
     studentId: student.studentId || student.id,
     studentName: student.fullName || student.username,
     institutionId,
+    subjectId: examData?.subjectId || '',
+    subject: examData?.subject || '',
+    subjectCode: examData?.subjectCode || null,
     departmentId: student.departmentId || '',
     department: student.department || '',
     departmentCode: student.departmentCode || null,
@@ -1811,6 +2048,22 @@ async function boot() {
     created_at TIMESTAMPTZ DEFAULT now()
   )`);
   await q('CREATE INDEX IF NOT EXISTS idx_subjects_inst ON subjects(institution_id)');
+  await q('ALTER TABLE questions ADD COLUMN IF NOT EXISTS subject_id TEXT');
+  await q(`DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'questions_subject_id_fkey') THEN
+    ALTER TABLE questions ADD CONSTRAINT questions_subject_id_fkey
+      FOREIGN KEY (subject_id) REFERENCES subjects(id) ON DELETE SET NULL;
+  END IF;
+END $$`);
+  await q('CREATE INDEX IF NOT EXISTS idx_questions_subject ON questions(subject_id)');
+  await q('CREATE INDEX IF NOT EXISTS idx_questions_bank ON questions(institution_id, subject_id) WHERE exam_id IS NULL');
+  await q("CREATE INDEX IF NOT EXISTS idx_exams_subject ON exams(institution_id, (data->>'subjectId'))");
+  await q("CREATE INDEX IF NOT EXISTS idx_results_subject ON results(institution_id, (data->>'subjectId'))");
+  await q("CREATE UNIQUE INDEX IF NOT EXISTS uq_subjects_inst_name ON subjects(institution_id, lower(data->>'name'))")
+    .catch(e => console.warn('uq_subjects_inst_name not created (existing duplicates?):', e.message));
+  await q("CREATE UNIQUE INDEX IF NOT EXISTS uq_subjects_inst_code ON subjects(institution_id, lower(data->>'code')) WHERE nullif(btrim(data->>'code'), '') IS NOT NULL")
+    .catch(e => console.warn('uq_subjects_inst_code not created (existing duplicates?):', e.message));
   await q("CREATE UNIQUE INDEX IF NOT EXISTS uq_users_inst_username ON users(institution_id, lower(coalesce(nullif(data->>'username',''), username))) WHERE coalesce(data->>'isActive','true') <> 'false' AND nullif(btrim(coalesce(data->>'username', username)), '') IS NOT NULL");
   await q("CREATE UNIQUE INDEX IF NOT EXISTS uq_users_inst_email ON users(institution_id, lower(data->>'email')) WHERE coalesce(data->>'isActive','true') <> 'false' AND nullif(btrim(data->>'email'), '') IS NOT NULL");
   await q("CREATE UNIQUE INDEX IF NOT EXISTS uq_admins_inst_username ON admins(institution_id, lower(coalesce(nullif(username,''), data->>'username'))) WHERE coalesce(data->>'isActive','true') <> 'false' AND nullif(btrim(coalesce(username, data->>'username')), '') IS NOT NULL");
