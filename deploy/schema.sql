@@ -77,6 +77,7 @@ CREATE TABLE IF NOT EXISTS exam_attempts (
   status         TEXT NOT NULL DEFAULT 'in_progress',
   submitted_at   TIMESTAMPTZ,
   result_id      TEXT,
+  data           JSONB NOT NULL DEFAULT '{}'::jsonb,
   created_at     TIMESTAMPTZ DEFAULT now()
 );
 

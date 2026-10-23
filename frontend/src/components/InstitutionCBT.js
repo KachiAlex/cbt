@@ -5,6 +5,7 @@ import CBTAdminDashboard from './CBTAdminDashboard';
 import StudentPortal from './StudentPortal';
 import InstitutionLoginPage from './InstitutionLoginPage';
 import ExamInterface from './ExamInterface';
+import ForcePasswordChange from './ForcePasswordChange';
 
 const InstitutionCBT = () => {
   const { slug: routeSlug } = useParams();
@@ -83,7 +84,7 @@ const InstitutionCBT = () => {
               try { setInstitution(await dataService.getInstitution(foundInstitution.id)); } catch (_) {}
             }
             setUser(sessionUser);
-            setCurrentView(sessionUser.role === 'admin' ? 'dashboard' : 'student');
+            setCurrentView(sessionUser.mustChangePassword ? 'change-password' : sessionUser.role === 'admin' ? 'dashboard' : 'student');
             restored = true;
           }
         } catch (_) {}
@@ -121,7 +122,7 @@ const InstitutionCBT = () => {
         }
         setUser(result.user);
         localStorage.setItem(`cbt_user_${institution.slug}`, JSON.stringify(result.user));
-        setCurrentView(result.user.role === 'admin' ? 'dashboard' : 'student');
+        setCurrentView(result.user.mustChangePassword ? 'change-password' : result.user.role === 'admin' ? 'dashboard' : 'student');
         return { success: true };
       }
 
@@ -187,6 +188,19 @@ const InstitutionCBT = () => {
               </div>
             </div>
           </div>
+        );
+      case 'change-password':
+        return (
+          <ForcePasswordChange
+            user={user}
+            onLogout={handleLogout}
+            onDone={() => {
+              const updatedUser = { ...user, mustChangePassword: false };
+              setUser(updatedUser);
+              localStorage.setItem(`cbt_user_${institution.slug}`, JSON.stringify(updatedUser));
+              setCurrentView(user.role === 'admin' ? 'dashboard' : 'student');
+            }}
+          />
         );
       case 'dashboard':
         return <CBTAdminDashboard institution={institution} user={user} onLogout={handleLogout} onInstitutionChange={handleInstitutionChange} />;

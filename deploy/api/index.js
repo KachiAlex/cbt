@@ -4,6 +4,7 @@ const cors = require('cors');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
+const { promisify } = require('util');
 const { pool, q, toDoc, toDocs, byDateDesc } = require('./db');
 const { scoreSubmission, resolveCorrectAnswer } = require('./scoring');
 const grader = require('./grader');
@@ -162,6 +163,7 @@ async function auth(req, res, next) {
     timezone: account.rows[0].institution_data.settings?.timezone || 'Africa/Lagos',
     dateFormat: account.rows[0].institution_data.settings?.dateFormat || 'DD/MM/YYYY',
     timeFormat: account.rows[0].institution_data.settings?.timeFormat || '24h',
+    mustChangePassword: data.mustChangePassword === true,
     ...(req.user.role === 'student' ? {
       studentId: data.studentId, departmentId: data.departmentId || '', department: data.department || '',
       departmentCode: data.departmentCode || null, level: data.level || ''
@@ -188,20 +190,36 @@ function studentOnly(req, res, next) {
   next();
 }
 
-// Password helpers — supports legacy plaintext values, upgrades to bcrypt on login
+// Password helpers — scrypt for new hashes, bcrypt + legacy plaintext still verify.
+// maybeUpgradeHash migrates older formats to scrypt transparently on login.
+const scryptAsync = promisify(crypto.scrypt);
+const SCRYPT_PARAMS = { N: 16384, r: 8, p: 1 };
 function isHash(v) { return typeof v === 'string' && v.startsWith('$2'); }
+function isScrypt(v) { return typeof v === 'string' && v.startsWith('scrypt$'); }
+async function hashPassword(plain) {
+  const salt = crypto.randomBytes(16);
+  const buf = await scryptAsync(plain, salt, 64, SCRYPT_PARAMS);
+  return `scrypt$${SCRYPT_PARAMS.N}$${SCRYPT_PARAMS.r}$${SCRYPT_PARAMS.p}$${salt.toString('hex')}$${buf.toString('hex')}`;
+}
 async function verifyPassword(stored, plain) {
   if (!stored) return false;
+  if (isScrypt(stored)) {
+    const parts = stored.split('$');
+    if (parts.length !== 6) return false;
+    const buf = await scryptAsync(plain, Buffer.from(parts[4], 'hex'), 64, { N: +parts[1], r: +parts[2], p: +parts[3] });
+    const expected = Buffer.from(parts[5], 'hex');
+    return buf.length === expected.length && crypto.timingSafeEqual(buf, expected);
+  }
   return isHash(stored) ? bcrypt.compare(plain, stored) : stored === plain;
 }
 async function maybeUpgradeHash(table, id, data, plain) {
-  if (isHash(data.password)) return;
-  const hash = await bcrypt.hash(plain, 10);
+  if (isScrypt(data.password)) return;
+  const hash = await hashPassword(plain);
   await q(`UPDATE ${table} SET data = $2 WHERE id = $1`, [id, { ...data, password: hash }]);
 }
 async function hashBodyPassword(body) {
-  if (!body?.password || isHash(body.password)) return body;
-  return { ...body, password: await bcrypt.hash(body.password, 10) };
+  if (!body?.password || isHash(body.password) || isScrypt(body.password)) return body;
+  return { ...body, password: await hashPassword(body.password) };
 }
 
 // Allow if super_admin or if the JWT's institution matches :iid (or a row's institution_id)
@@ -231,6 +249,13 @@ function examValidationError(exam) {
   if (exam.startDate && !start) return 'Start date is invalid';
   if (exam.endDate && !end) return 'End date is invalid';
   if (start && end && end <= start) return 'End date must be after start date';
+  if (exam.randomDrawCount !== undefined && exam.randomDrawCount !== null && exam.randomDrawCount !== '') {
+    const draw = Number(exam.randomDrawCount);
+    if (!Number.isInteger(draw) || draw < 1 || draw > 1000) return 'Random question draw must be a whole number between 1 and 1000';
+  }
+  if (exam.resultsVisibility !== undefined && exam.resultsVisibility !== null && !['', 'inherit', 'show', 'hide'].includes(exam.resultsVisibility)) {
+    return 'Results visibility must be inherit, show, or hide';
+  }
   return null;
 }
 
@@ -322,6 +347,38 @@ function examIsCurrentlyAvailable(examData, nowDate = new Date()) {
   if ((examData?.startDate && !startDate) || (examData?.endDate && !endDate)) return false;
   return (!startDate || startDate <= nowDate) && (!endDate || endDate >= nowDate);
 }
+
+// Per-exam result visibility override: 'hide'/'show' beat the institution setting.
+function examResultsPublished(examData, settings) {
+  const v = String(examData?.resultsVisibility || 'inherit');
+  if (v === 'show') return true;
+  if (v === 'hide') return false;
+  return settings.showResultsToStudents !== false;
+}
+
+// Deterministic seeded draw — a given attempt id always yields the same
+// question subset, so fetch, scoring, and review agree without any storage.
+function fnv1a(str) {
+  let h = 0x811c9dc5;
+  for (let i = 0; i < str.length; i++) { h ^= str.charCodeAt(i); h = Math.imul(h, 0x01000193); }
+  return h >>> 0;
+}
+function seededShuffle(items, seedStr) {
+  const arr = items.slice();
+  let s = fnv1a(seedStr) || 1;
+  for (let i = arr.length - 1; i > 0; i--) {
+    s ^= s << 13; s ^= s >>> 17; s ^= s << 5; s >>>= 0;
+    const j = s % (i + 1);
+    const tmp = arr[i]; arr[i] = arr[j]; arr[j] = tmp;
+  }
+  return arr;
+}
+function drawQuestions(questions, examData, attemptId) {
+  const n = Math.floor(Number(examData?.randomDrawCount) || 0);
+  if (!attemptId || n < 1 || n >= questions.length) return questions;
+  const ids = new Set(seededShuffle(questions.map(question => question.id), String(attemptId)).slice(0, n));
+  return questions.filter(question => ids.has(question.id));
+}
 setInterval(() => {
   const nowMs = Date.now();
   for (const [key, hits] of rateLimitBuckets) {
@@ -379,7 +436,7 @@ app.post('/api/auth/super-admin/login', authRateLimit, async (req, res) => {
     [String(email).toLowerCase()]
   );
   const admin = rows[0];
-  if (!admin || !(await bcrypt.compare(password, admin.password_hash))) {
+  if (!admin || !(await verifyPassword(admin.password_hash, password))) {
     return res.status(401).json({ error: 'Invalid credentials' });
   }
   res.json({
@@ -394,6 +451,30 @@ app.post('/api/auth/logout', auth, async (req, res) => {
   if (req.user.jti) {
     await q('INSERT INTO revoked_tokens (jti, expires_at) VALUES ($1, to_timestamp($2)) ON CONFLICT DO NOTHING', [req.user.jti, req.user.exp]);
   }
+  res.json({ ok: true });
+});
+
+// Self-service password change for any signed-in role. Clears mustChangePassword.
+app.post('/api/auth/change-password', auth, async (req, res) => {
+  const { currentPassword, newPassword } = req.body || {};
+  if (typeof currentPassword !== 'string' || typeof newPassword !== 'string' || newPassword.length < 8 || newPassword.length > 128) {
+    return res.status(400).json({ error: 'New password must be 8-128 characters' });
+  }
+  if (req.user.role === 'super_admin') {
+    const { rows } = await q('SELECT password_hash FROM super_admins WHERE id = $1', [req.user.sub]);
+    if (!rows.length || !(await verifyPassword(rows[0].password_hash, currentPassword))) {
+      return res.status(403).json({ error: 'Current password is incorrect' });
+    }
+    await q('UPDATE super_admins SET password_hash = $2 WHERE id = $1', [req.user.sub, await hashPassword(newPassword)]);
+    return res.json({ ok: true });
+  }
+  const table = req.user.role === 'admin' ? 'admins' : 'users';
+  const { rows } = await q(`SELECT data FROM ${table} WHERE id = $1`, [req.user.sub]);
+  const data = rows[0]?.data;
+  if (!data || !(await verifyPassword(data.password, currentPassword))) {
+    return res.status(403).json({ error: 'Current password is incorrect' });
+  }
+  await q(`UPDATE ${table} SET data = $2 WHERE id = $1`, [req.user.sub, { ...data, password: await hashPassword(newPassword), mustChangePassword: false }]);
   res.json({ ok: true });
 });
 
@@ -430,6 +511,7 @@ app.post('/api/auth/institution/:slug/login', authRateLimit, async (req, res) =>
       timezone: institution.settings?.timezone || 'Africa/Lagos',
       dateFormat: institution.settings?.dateFormat || 'DD/MM/YYYY',
       timeFormat: institution.settings?.timeFormat || '24h',
+      mustChangePassword: admin.data.mustChangePassword === true,
     };
     return res.json({ success: true, token: sign({ role: 'admin', institutionId: institution.id, sub: admin.id, authVersion: Number(admin.data.authVersion || 0) }), user });
   }
@@ -452,6 +534,7 @@ app.post('/api/auth/institution/:slug/login', authRateLimit, async (req, res) =>
         timeFormat: institution.settings?.timeFormat || '24h',
         departmentId: d.departmentId || '', department: d.department || '',
         departmentCode: d.departmentCode || null, level: d.level || '',
+        mustChangePassword: d.mustChangePassword === true,
       };
       return res.json({ success: true, token: sign({ role: 'student', institutionId: institution.id, sub: student.id, authVersion: Number(d.authVersion || 0) }), user });
     }
@@ -509,7 +592,7 @@ app.post('/api/public/institutions/:slug/register', publicRateLimit, async (req,
   const studentId = newStudentId();
   const data = {
     fullName, email, username,
-    password: await bcrypt.hash(password, 10),
+    password: await hashPassword(password),
     studentId,
     departmentId,
     department,
@@ -610,7 +693,7 @@ app.get('/api/exams', auth, async (req, res) => {
     autoSubmitOnTimeUp: settings.autoSubmitOnTimeUp !== false,
     allowReviewAfterSubmit: settings.allowReviewAfterSubmit !== false,
     showCorrectAnswers: settings.showCorrectAnswers === true,
-    showResultsToStudents: settings.showResultsToStudents !== false,
+    showResultsToStudents: examResultsPublished(exam, settings),
   })));
 });
 
@@ -687,6 +770,22 @@ app.post('/api/exams/:examId/attempts', auth, studentOnly, examTenant, async (re
   } finally {
     client.release();
   }
+});
+
+// Proctoring-lite: students report integrity events while an attempt is live.
+const PROCTOR_EVENT_TYPES = ['tab-hidden', 'tab-visible', 'focus-loss', 'copy', 'paste', 'fullscreen-exit'];
+app.post('/api/attempts/:id/events', auth, studentOnly, async (req, res) => {
+  const { rows } = await q('SELECT user_id, status, data FROM exam_attempts WHERE id = $1', [req.params.id]);
+  if (!rows.length) return res.status(404).json({ error: 'Attempt not found' });
+  const attempt = rows[0];
+  if (attempt.user_id !== req.user.sub) return res.status(403).json({ error: 'Forbidden' });
+  if (attempt.status !== 'in_progress') return res.status(409).json({ error: 'Attempt is not active' });
+  const type = String(req.body?.type || '');
+  if (!PROCTOR_EVENT_TYPES.includes(type)) return res.status(400).json({ error: 'Unsupported event type' });
+  const events = [...(Array.isArray(attempt.data?.events) ? attempt.data.events : []),
+    { type, at: new Date().toISOString(), detail: String(req.body?.detail || '').slice(0, 200) }].slice(-500);
+  await q('UPDATE exam_attempts SET data = $2 WHERE id = $1', [req.params.id, { ...(attempt.data || {}), events }]);
+  res.json({ ok: true, events: events.length });
 });
 
 app.get('/api/users', auth, staffOnly, async (req, res) => {
@@ -1190,7 +1289,8 @@ app.post('/api/institutions/:iid/admins', auth, superAdmin, async (req, res) => 
   const client = await pool.connect();
   const id = newId();
   const data = {
-    ...body, fullName, username, email, password: await bcrypt.hash(password, 10),
+    ...body, fullName, username, email, password: await hashPassword(password),
+    mustChangePassword: body.mustChangePassword === true,
     institutionId: req.params.iid, role: 'admin', authVersion: 0, isActive: true, createdAt: now()
   };
   try {
@@ -1231,7 +1331,7 @@ app.patch('/api/admins/:id/password', auth, staffOnly, async (req, res) => {
   }
   const data = {
     ...current.rows[0].data,
-    password: await bcrypt.hash(newPassword, 10),
+    password: await hashPassword(newPassword),
     authVersion: Number(current.rows[0].data.authVersion || 0) + 1,
     updatedAt: now(),
   };
@@ -1247,6 +1347,76 @@ app.patch('/api/admins/:id', auth, staffOnly, async (req, res) => {
   await patchRow('admins', req.params.id, body, res, req);
 });
 app.delete('/api/admins/:id', auth, superAdmin, (req, res) => deleteRow('admins', req.params.id, res, req));
+
+// ---------- question analytics ----------
+
+app.get('/api/institutions/:iid/analytics/questions', auth, staffOnly, async (req, res) => {
+  if (!tenantOk(req, req.params.iid)) return res.status(403).json({ error: 'Forbidden' });
+  // Results only persist {answers: {qid: value}} — per-question correctness is
+  // recomputed here by joining against the tenant's questions.
+  const questionRows = await q('SELECT id, exam_id, subject_id, data FROM questions WHERE institution_id = $1', [req.params.iid]);
+  const examRows = await q('SELECT id, data FROM exams WHERE institution_id = $1', [req.params.iid]);
+  const examById = new Map(examRows.rows.map(r => [r.id, r.data || {}]));
+  const questionById = new Map(questionRows.rows.map(r => [r.id, { id: r.id, examId: r.exam_id, subjectId: r.subject_id, ...(r.data || {}) }]));
+
+  const stats = new Map();
+  const ensure = qid => {
+    if (!stats.has(qid)) {
+      const question = questionById.get(qid) || {};
+      const exam = examById.get(question.examId) || {};
+      stats.set(qid, {
+        questionId: qid, text: question.question || question.text || '', type: question.type || null,
+        examId: question.examId || null, examTitle: exam.title || null,
+        subjectId: question.subjectId || exam.subjectId || null, subject: exam.subject || null,
+        attempts: 0, correct: 0, wrong: 0, scoreTotal: 0, graded: 0,
+        aiConfidenceTotal: 0, aiConfidenceCount: 0, aiFallbacks: 0,
+      });
+    }
+    return stats.get(qid);
+  };
+
+  const normalize = value => String(value ?? '').trim().replace(/\s+/g, ' ').toLowerCase();
+  const { rows } = await q(
+    "SELECT data FROM results WHERE institution_id = $1 AND coalesce(data->>'status','') <> 'grading'",
+    [req.params.iid]
+  );
+  for (const row of rows) {
+    const rd = row.data || {};
+    const perQuestion = rd.grading?.perQuestion || {};
+    const answered = rd.answers && typeof rd.answers === 'object' ? rd.answers : {};
+    for (const [qid, answer] of Object.entries(answered)) {
+      const question = questionById.get(qid);
+      if (!question) continue; // question deleted since the result was stored
+      const s = ensure(qid);
+      s.attempts += 1;
+      const isEssay = String(question.type || '').toLowerCase() === 'essay';
+      if (isEssay) {
+        const g = perQuestion[qid];
+        if (g?.percent != null) {
+          s.graded += 1;
+          s.scoreTotal += Number(g.percent);
+          if (g.confidence != null && g.scoredBy !== 'fallback') { s.aiConfidenceTotal += Number(g.confidence); s.aiConfidenceCount += 1; }
+          if (g.scoredBy === 'fallback') s.aiFallbacks += 1;
+        }
+      } else {
+        const correct = resolveCorrectAnswer(question);
+        const ok = Boolean(correct) && normalize(answer) === normalize(correct);
+        ok ? (s.correct += 1) : (s.wrong += 1);
+        s.graded += 1;
+        s.scoreTotal += ok ? 100 : 0;
+      }
+    }
+  }
+
+  const questions = [...stats.values()].map(s => ({
+    ...s,
+    correctPercent: s.attempts ? Math.round((s.correct / s.attempts) * 1000) / 10 : 0,
+    averageScore: s.graded ? Math.round((s.scoreTotal / s.graded) * 10) / 10 : 0,
+    averageAiConfidence: s.aiConfidenceCount ? Math.round((s.aiConfidenceTotal / s.aiConfidenceCount) * 100) / 100 : null,
+  }));
+  questions.sort((a, b) => b.attempts - a.attempts);
+  res.json({ questions, totalResults: rows.length });
+});
 
 // ---------- users / students ----------
 
@@ -1282,7 +1452,8 @@ app.post('/api/institutions/:iid/users', auth, staffOnly, async (req, res) => {
   const { departmentId, department, departmentCode } = departmentSelection;
   const id = newId();
   const data = {
-    ...body, fullName, username, email, password: await bcrypt.hash(password, 10), role: 'student', authVersion: 0,
+    ...body, fullName, username, email, password: await hashPassword(password), role: 'student', authVersion: 0,
+    mustChangePassword: body.mustChangePassword === true,
     studentId: newStudentId(), departmentId, department, departmentCode, level,
     institutionId: req.params.iid, createdAt: now()
   };
@@ -1353,7 +1524,8 @@ app.post('/api/institutions/:iid/users/bulk', auth, staffOnly, async (req, res) 
       const id = newId();
       const data = {
         fullName, username, email, level, role: 'student', authVersion: 0,
-        password: await bcrypt.hash(password, 10),
+        password: await hashPassword(password),
+        mustChangePassword: generated,
         studentId: newStudentId(),
         departmentId: selection.departmentId, department: selection.department, departmentCode: selection.departmentCode,
         phoneNumber: String(raw?.phoneNumber || raw?.phone || '').trim(),
@@ -1451,9 +1623,19 @@ app.get('/api/users/:id/results', auth, async (req, res) => {
   if (!tenantOk(req, owner.rows[0].institution_id)) return res.status(403).json({ error: 'Forbidden' });
   const institution = req.user.role === 'student' ? await q('SELECT data FROM institutions WHERE id = $1', [owner.rows[0].institution_id]) : null;
   const settings = institutionSettings(institution?.rows[0]?.data);
-  if (req.user.role === 'student' && settings.showResultsToStudents === false) return res.json([]);
   const { rows } = await q("SELECT id, institution_id, exam_id, user_id, data - 'answers' AS data, created_at FROM results WHERE user_id = $1 ORDER BY created_at DESC", [req.params.id]);
-  res.json(rows.map(row => ({
+  // Per-exam visibility overrides the institution default for students.
+  let visibleRows = rows;
+  if (req.user.role === 'student' && rows.length) {
+    const examIds = [...new Set(rows.map(row => row.exam_id))];
+    const exams = await q('SELECT id, data FROM exams WHERE id = ANY($1::text[])', [examIds]);
+    const examById = new Map(exams.rows.map(exam => [exam.id, exam.data]));
+    visibleRows = rows.filter(row => {
+      const examData = examById.get(row.exam_id);
+      return examData ? examResultsPublished(examData, settings) : settings.showResultsToStudents !== false;
+    });
+  }
+  res.json(visibleRows.map(row => ({
     ...toResultDoc(row, false),
     ...(req.user.role === 'student' ? { reviewAvailable: settings.allowReviewAfterSubmit !== false } : {})
   })));
@@ -1486,6 +1668,8 @@ app.post('/api/institutions/:iid/exams', auth, staffOnly, async (req, res) => {
     type: String(exam.type || 'Objective').toLowerCase() === 'essay' ? 'Essay' : 'Objective',
     startDate: exam.startDate ? parseStoredDate(exam.startDate).toISOString() : '',
     endDate: exam.endDate ? parseStoredDate(exam.endDate).toISOString() : '',
+    randomDrawCount: Math.max(0, Math.floor(Number(exam.randomDrawCount) || 0)),
+    resultsVisibility: ['show', 'hide'].includes(exam.resultsVisibility) ? exam.resultsVisibility : 'inherit',
     institutionId: req.params.iid, createdAt: now()
   };
   await q('INSERT INTO exams (id, institution_id, data) VALUES ($1,$2,$3)', [id, req.params.iid, data]);
@@ -1514,7 +1698,10 @@ app.patch('/api/exams/:id', auth, staffOnly, async (req, res) => {
     ...exam, ...subjectSelection, duration: Number(exam.duration), passingScore: Number(exam.passingScore),
     type: String(exam.type || 'Objective').toLowerCase() === 'essay' ? 'Essay' : 'Objective',
     startDate: exam.startDate ? parseStoredDate(exam.startDate).toISOString() : '',
-    endDate: exam.endDate ? parseStoredDate(exam.endDate).toISOString() : '', updatedAt: now()
+    endDate: exam.endDate ? parseStoredDate(exam.endDate).toISOString() : '',
+    randomDrawCount: Math.max(0, Math.floor(Number(exam.randomDrawCount) || 0)),
+    resultsVisibility: ['show', 'hide'].includes(exam.resultsVisibility) ? exam.resultsVisibility : 'inherit',
+    updatedAt: now()
   };
   await q('UPDATE exams SET data = $2 WHERE id = $1', [req.params.id, data]);
   res.json({ ok: true });
@@ -1565,12 +1752,18 @@ app.get('/api/institutions/:iid/questions', auth, staffOnly, async (req, res) =>
 });
 
 app.get('/api/exams/:examId/questions', auth, examTenant, async (req, res) => {
+  let studentAttemptId = null;
   if (req.user.role === 'student') {
     const active = await q("SELECT id FROM exam_attempts WHERE exam_id = $1 AND user_id = $2 AND status = 'in_progress' AND deadline_at > now()", [req.params.examId, req.user.sub]);
     if (!active.rows.length) return res.status(403).json({ error: 'Start the exam before viewing its questions' });
+    studentAttemptId = active.rows[0].id;
   }
   const { rows } = await q('SELECT * FROM questions WHERE exam_id = $1', [req.params.examId]);
-  const docs = toDocs(rows);
+  let docs = toDocs(rows);
+  if (studentAttemptId) {
+    const exam = await q('SELECT data FROM exams WHERE id = $1', [req.params.examId]);
+    docs = drawQuestions(docs, exam.rows[0]?.data, studentAttemptId);
+  }
   // Students must not receive answer keys or grading rubric data
   if (req.user.role === 'student') {
     for (const d of docs) {
@@ -1878,8 +2071,10 @@ app.post('/api/results', auth, studentOnly, async (req, res) => {
   if (questions.some(question => (String(question.type || 'multiple-choice').toLowerCase() === 'essay') !== essayExam)) {
     return res.status(409).json({ error: 'Question types do not match the configured exam type. Ask an administrator to correct the exam.' });
   }
+  // For random-draw exams, scoring must cover only the attempt's drawn subset.
+  const drawn = drawQuestions(questions, examData, body.attemptId);
   const answers = {};
-  for (const question of questions) {
+  for (const question of drawn) {
     const answer = body.answers?.[question.id];
     if (typeof answer === 'string' || typeof answer === 'number' || typeof answer === 'boolean') answers[question.id] = String(answer);
   }
@@ -1908,7 +2103,7 @@ app.post('/api/results', auth, studentOnly, async (req, res) => {
     timeSpent: Math.max(0, Math.min(duration, (submittedAt.getTime() - new Date(active.rows[0].started_at).getTime()) / 60_000)),
     completedAt,
     submittedAt: completedAt,
-    ...scoreSubmission(questions, answers, examData?.type),
+    ...scoreSubmission(drawn, answers, examData?.type),
   };
 
   // AI grading path: heuristic result stays as `provisional` backup info while
@@ -1958,7 +2153,7 @@ app.post('/api/results', auth, studentOnly, async (req, res) => {
     client.release();
   }
   if (aiGrading) grader.enqueue(id);
-  if (settings.showResultsToStudents === false) {
+  if (!examResultsPublished(examData, settings)) {
     return res.json({ id, status: data.status, resultsPublished: false });
   }
   res.json({ id, ...data });
@@ -1971,7 +2166,9 @@ app.get('/api/results/:id', auth, async (req, res) => {
   if (rows[0].institution_id && !tenantOk(req, rows[0].institution_id)) return res.status(403).json({ error: 'Forbidden' });
   if (req.user.role === 'student') {
     const institution = await q('SELECT data FROM institutions WHERE id = $1', [rows[0].institution_id]);
-    if (institutionSettings(institution.rows[0]?.data).showResultsToStudents === false) {
+    const settings = institutionSettings(institution.rows[0]?.data);
+    const exam = await q('SELECT data FROM exams WHERE id = $1', [rows[0].exam_id]);
+    if (!examResultsPublished(exam.rows[0]?.data, settings)) {
       return res.status(403).json({ error: 'Results are not published by your institution' });
     }
   }
@@ -1987,14 +2184,15 @@ app.get('/api/results/:id/review', auth, async (req, res) => {
   if (req.user.role === 'student' && result.data.status !== 'completed') return res.status(409).json({ error: 'This result is not finalized for review' });
   const institution = await q('SELECT data FROM institutions WHERE id = $1', [result.institution_id]);
   const settings = institutionSettings(institution.rows[0]?.data);
-  if (req.user.role === 'student' && settings.showResultsToStudents === false) return res.status(403).json({ error: 'Results are not published by your institution' });
+  const exam = await q('SELECT data FROM exams WHERE id = $1', [result.exam_id]);
+  if (req.user.role === 'student' && !examResultsPublished(exam.rows[0]?.data, settings)) return res.status(403).json({ error: 'Results are not published by your institution' });
   if (req.user.role === 'student' && settings.allowReviewAfterSubmit === false) return res.status(403).json({ error: 'Answer review is disabled by your institution' });
   const { rows: questionRows } = await q('SELECT id, data FROM questions WHERE exam_id = $1 ORDER BY created_at', [result.exam_id]);
-  const exam = await q('SELECT data FROM exams WHERE id = $1', [result.exam_id]);
+  const drawnRows = drawQuestions(questionRows.map(row => ({ id: row.id, ...row.data })), exam.rows[0]?.data, result.attempt_id);
   const revealCorrect = req.user.role !== 'student' || settings.showCorrectAnswers === true;
   const isEssay = String(exam.rows[0]?.data?.type || '').toLowerCase() === 'essay';
-  const questions = questionRows.map(row => {
-    const question = row.data;
+  const questions = drawnRows.map(row => {
+    const question = row;
     const selectedAnswer = result.data.answers?.[row.id] ?? '';
     const item = { id: row.id, question: question.question, options: question.options || [], selectedAnswer };
     if (revealCorrect && !isEssay && question.type !== 'essay') {
@@ -2013,6 +2211,11 @@ app.get('/api/results/:id/review', auth, async (req, res) => {
   if (req.user.role !== 'student' && result.data.grading) {
     const { perQuestion, ...summary } = result.data.grading;
     payload.grading = { ...summary, perQuestion };
+  }
+  if (req.user.role !== 'student' && result.attempt_id) {
+    const attempt = await q('SELECT data FROM exam_attempts WHERE id = $1', [result.attempt_id]);
+    const events = attempt.rows[0]?.data?.events;
+    if (Array.isArray(events) && events.length) payload.proctorEvents = events;
   }
   res.json(payload);
 });
@@ -2169,6 +2372,7 @@ async function boot() {
   )`);
   await q('ALTER TABLE exam_attempts ADD COLUMN IF NOT EXISTS submitted_at TIMESTAMPTZ');
   await q('ALTER TABLE exam_attempts ADD COLUMN IF NOT EXISTS result_id TEXT');
+  await q("ALTER TABLE exam_attempts ADD COLUMN IF NOT EXISTS data JSONB NOT NULL DEFAULT '{}'::jsonb");
   await q(`CREATE TABLE IF NOT EXISTS subjects (
     id TEXT PRIMARY KEY,
     institution_id TEXT NOT NULL REFERENCES institutions(id) ON DELETE CASCADE,
@@ -2204,7 +2408,7 @@ END $$`);
   const { rows } = await q('SELECT COUNT(*)::int AS n FROM super_admins');
   if (rows[0].n === 0) {
     if (!SUPER_ADMIN_PASSWORD) throw new Error('Set SUPER_ADMIN_PASSWORD before initializing an empty database');
-    const hash = await bcrypt.hash(SUPER_ADMIN_PASSWORD, 10);
+    const hash = await hashPassword(SUPER_ADMIN_PASSWORD);
     await q(
       'INSERT INTO super_admins (id, username, email, password_hash, data) VALUES ($1,$2,$3,$4,$5)',
       [newId(), 'admin', 'admin@pisairtel.com', hash, { fullName: 'Super Administrator', authVersion: 0 }]

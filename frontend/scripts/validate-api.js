@@ -28,6 +28,7 @@ const REQUIRED_METHODS = {
   'getPublicDepartments': 'Department[]',
   'registerStudent': 'User',
   'institutionLogin': 'Session',
+  'changePassword': 'boolean',
   'getSession': 'Session',
   'logout': 'boolean',
   'getInstitutionDepartments': 'Department[]',
@@ -52,6 +53,7 @@ const REQUIRED_METHODS = {
   'getInstitutionExams': 'Exam[]',
   'getExams': 'Exam[]',
   'startExamAttempt': 'Attempt',
+  'recordAttemptEvent': 'boolean',
   'createExam': 'Exam',
   'updateExam': 'boolean',
   'deleteExam': 'boolean',
@@ -78,8 +80,10 @@ const REQUIRED_METHODS = {
   'saveExamResult': 'Result',
   'submitExamResult': 'Result',
   'updateResult': 'boolean',
+  'regradeResult': 'boolean',
   'deleteResult': 'boolean',
   'deleteResults': 'number',
+  'getQuestionAnalytics': 'QuestionAnalytics',
 
   // Blogs and lead management
   'getBlogs': 'Blog[]',
@@ -98,17 +102,31 @@ const REQUIRED_METHODS = {
   'safeToDate': 'Date | null'
 };
 
+// Methods actually defined in dataService.js, detected from the source so
+// newly added methods are recognized without updating this script.
+const JS_KEYWORDS = new Set(['if', 'for', 'while', 'switch', 'return', 'catch', 'function', 'constructor', 'else', 'do', 'try']);
+function detectDefinedMethods(content) {
+  const defined = new Set();
+  const pattern = /^\s*(?:async\s+)?([a-zA-Z_$][\w$]*)\s*\([^)]*\)\s*\{/gm;
+  let match;
+  while ((match = pattern.exec(content)) !== null) {
+    if (!JS_KEYWORDS.has(match[1])) defined.add(match[1]);
+  }
+  return defined;
+}
+
 function validateDataService() {
   console.log('🔍 Validating Data Service API...\n');
 
   const dataServicePath = path.join(__dirname, '../src/services/dataService.js');
-  
+
   if (!fs.existsSync(dataServicePath)) {
     console.error('❌ Error: dataService.js not found at expected path');
     process.exit(1);
   }
 
   const dataServiceContent = fs.readFileSync(dataServicePath, 'utf8');
+  const definedMethods = detectDefinedMethods(dataServiceContent);
   
   let hasErrors = false;
   const missingMethods = [];
@@ -178,21 +196,28 @@ function checkUsageConsistency() {
     .filter(file => file.endsWith('.js') || file.endsWith('.jsx'))
     .map(file => path.join(componentsPath, file));
 
+  // Known methods = required contract + whatever is defined in dataService.js
+  const dataServicePath = path.join(__dirname, '../src/services/dataService.js');
+  const definedMethods = fs.existsSync(dataServicePath)
+    ? detectDefinedMethods(fs.readFileSync(dataServicePath, 'utf8'))
+    : new Set();
+  const knownMethods = new Set([...Object.keys(REQUIRED_METHODS), ...definedMethods]);
+
   const methodCalls = new Set();
-  
+
   componentFiles.forEach(filePath => {
     const content = fs.readFileSync(filePath, 'utf8');
     const fileName = path.basename(filePath);
-    
+
     // Look for dataService method calls
     const methodCallPattern = /\bdataService\.(\w+)\(/g;
     let match;
-    
+
     while ((match = methodCallPattern.exec(content)) !== null) {
       const methodName = match[1];
       methodCalls.add(methodName);
-      
-      if (!REQUIRED_METHODS.hasOwnProperty(methodName)) {
+
+      if (!knownMethods.has(methodName)) {
         console.log(`⚠️  ${fileName}: Calls unknown method '${methodName}'`);
       } else {
         console.log(`✅ ${fileName}: Calls '${methodName}' (valid)`);
@@ -202,8 +227,8 @@ function checkUsageConsistency() {
 
   console.log(`\n📊 Method Usage Summary:`);
   console.log(`   Total unique method calls found: ${methodCalls.size}`);
-  
-  const unusedMethods = Object.keys(REQUIRED_METHODS).filter(method => !methodCalls.has(method));
+
+  const unusedMethods = [...knownMethods].filter(method => !methodCalls.has(method));
   if (unusedMethods.length > 0) {
     console.log(`   Potentially unused methods: ${unusedMethods.join(', ')}`);
   }

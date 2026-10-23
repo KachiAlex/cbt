@@ -86,6 +86,7 @@ class PgDataService {
   getInstitutionSummary(id) { return get(`/institutions/${id}/summary`); }
   getInstitutionBySlug(slug) { return get(`/institutions/slug/${slug}`); }
   institutionLogin(slug, username, password) { return institutionLogin(slug, username, password); }
+  changePassword(currentPassword, newPassword) { return post('/auth/change-password', { currentPassword, newPassword }); }
   async createInstitution(data) { return post('/institutions', data); }
   async updateInstitution(id, data) { await patch(`/institutions/${id}`, data); return true; }
   async updateInstitutionStatus(id, status) { await patch(`/institutions/${id}`, { status }); return true; }
@@ -190,6 +191,10 @@ class PgDataService {
   async deleteExam(id) { await del(`/exams/${id}`); return true; }
   getExams() { return get('/exams'); } // flat, tenant-scoped server-side
   startExamAttempt(examId) { return post(`/exams/${examId}/attempts`, {}); }
+  // Proctoring-lite: fire-and-forget integrity events during a live attempt
+  recordAttemptEvent(attemptId, type, detail = '') {
+    return post(`/attempts/${attemptId}/events`, { type, detail }).catch(() => null);
+  }
 
   // ---- questions ----
   getInstitutionQuestions(iid, { scope, subjectId } = {}) {
@@ -223,6 +228,7 @@ class PgDataService {
   async updateExamResult(id, data) { await patch(`/results/${id}`, data); return true; }
   async deleteResult(id) { await del(`/results/${id}`); return true; }
   async deleteResults(ids) { return request('/results/bulk', { method: 'DELETE', body: JSON.stringify({ ids }) }); }
+  getQuestionAnalytics(iid) { return get(`/institutions/${iid}/analytics/questions`); }
 
   // ---- blogs ----
   getBlogs() { return get('/blogs'); }

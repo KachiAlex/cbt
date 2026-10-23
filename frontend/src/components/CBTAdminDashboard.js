@@ -3,6 +3,7 @@ import ExamManagement from './ExamManagement';
 import QuestionsManagement from './QuestionsManagement';
 import StudentsManagement from './StudentsManagement';
 import ResultsManagement from './ResultsManagement';
+import QuestionAnalytics from './QuestionAnalytics';
 import SettingsManagement from './SettingsManagement';
 import DepartmentsManagement from './DepartmentsManagement';
 import SubjectsManagement from './SubjectsManagement';
@@ -262,6 +263,8 @@ const CBTAdminDashboard = ({ institution, user, onLogout, onInstitutionChange })
             </div>
           </div>
         </div>
+
+        <QuestionAnalytics institution={institution} />
       </div>
     );
   };

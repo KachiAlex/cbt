@@ -19,7 +19,9 @@ const ExamManagement = ({ institution, onStatsUpdate }) => {
     startDate: '',
     endDate: '',
     instructions: '',
-    type: 'Objective'
+    type: 'Objective',
+    randomDrawCount: '',
+    resultsVisibility: 'inherit'
   });
 
   useEffect(() => {
@@ -61,6 +63,11 @@ const ExamManagement = ({ institution, onStatsUpdate }) => {
       alert('Enter a whole-number duration of 1-600 minutes and a passing score of 0-100.');
       return;
     }
+    const drawCount = formData.randomDrawCount === '' ? 0 : Number(formData.randomDrawCount);
+    if (!Number.isInteger(drawCount) || drawCount < 0 || drawCount > 1000) {
+      alert('Random question draw must be a whole number up to 1000, or left blank to use all questions.');
+      return;
+    }
     try {
       setLoading(true);
       const examData = {
@@ -69,6 +76,8 @@ const ExamManagement = ({ institution, onStatsUpdate }) => {
         passingScore,
         startDate,
         endDate,
+        randomDrawCount: drawCount,
+        resultsVisibility: ['show', 'hide'].includes(formData.resultsVisibility) ? formData.resultsVisibility : 'inherit',
         institutionId: institution.id,
         institutionName: institution.name,
         ...(editingExam ? {} : { createdAt: new Date().toISOString() })
@@ -105,7 +114,9 @@ const ExamManagement = ({ institution, onStatsUpdate }) => {
       startDate: isoToZonedInput(exam.startDate, timezone),
       endDate: isoToZonedInput(exam.endDate, timezone),
       instructions: exam.instructions,
-      type: exam.type || 'Objective'
+      type: exam.type || 'Objective',
+      randomDrawCount: Number(exam.randomDrawCount) > 0 ? Number(exam.randomDrawCount) : '',
+      resultsVisibility: exam.resultsVisibility || 'inherit'
     });
     setShowModal(true);
   };
@@ -134,7 +145,9 @@ const ExamManagement = ({ institution, onStatsUpdate }) => {
       startDate: '',
       endDate: '',
       instructions: '',
-      type: 'Objective'
+      type: 'Objective',
+      randomDrawCount: '',
+      resultsVisibility: 'inherit'
     });
   };
 
@@ -333,6 +346,38 @@ const ExamManagement = ({ institution, onStatsUpdate }) => {
                       onChange={(e) => setFormData({ ...formData, passingScore: e.target.value })}
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
                     />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Questions per attempt
+                    </label>
+                    <input
+                      type="number"
+                      min="1"
+                      max="1000"
+                      value={formData.randomDrawCount}
+                      onChange={(e) => setFormData({ ...formData, randomDrawCount: e.target.value })}
+                      placeholder="All"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                    />
+                    <p className="mt-1 text-xs text-gray-500">Blank = all questions. A number randomly draws that many per student.</p>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Results visibility
+                    </label>
+                    <select
+                      value={formData.resultsVisibility}
+                      onChange={(e) => setFormData({ ...formData, resultsVisibility: e.target.value })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                    >
+                      <option value="inherit">Use institution setting</option>
+                      <option value="show">Always show results</option>
+                      <option value="hide">Hide results from students</option>
+                    </select>
                   </div>
                 </div>
 

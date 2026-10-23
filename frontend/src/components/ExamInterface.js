@@ -131,6 +131,36 @@ const ExamInterface = ({ user, exam, onClose }) => {
     } catch {}
   }, [storageKey, attempt?.id, answers, currentQuestionIndex, phase]);
 
+  // Proctoring-lite: report integrity signals while the attempt is live.
+  // Events are fire-and-forget and never block exam interaction.
+  useEffect(() => {
+    if (phase !== 'exam' || !attempt?.id) return undefined;
+    const lastSent = {};
+    const send = (type, detail = '') => {
+      const nowMs = Date.now();
+      if (nowMs - (lastSent[type] || 0) < 750) return;
+      lastSent[type] = nowMs;
+      dataService.recordAttemptEvent(attempt.id, type, detail);
+    };
+    const onVisibility = () => send(document.hidden ? 'tab-hidden' : 'tab-visible');
+    const onBlur = () => send('focus-loss');
+    const onCopy = () => send('copy');
+    const onPaste = () => send('paste');
+    const onFullscreen = () => { if (!document.fullscreenElement) send('fullscreen-exit'); };
+    document.addEventListener('visibilitychange', onVisibility);
+    window.addEventListener('blur', onBlur);
+    document.addEventListener('copy', onCopy);
+    document.addEventListener('paste', onPaste);
+    document.addEventListener('fullscreenchange', onFullscreen);
+    return () => {
+      document.removeEventListener('visibilitychange', onVisibility);
+      window.removeEventListener('blur', onBlur);
+      document.removeEventListener('copy', onCopy);
+      document.removeEventListener('paste', onPaste);
+      document.removeEventListener('fullscreenchange', onFullscreen);
+    };
+  }, [phase, attempt?.id]);
+
   const setAnswer = (questionId, value) => {
     if (submitting) return;
     setAnswers(previous => ({ ...previous, [questionId]: value }));

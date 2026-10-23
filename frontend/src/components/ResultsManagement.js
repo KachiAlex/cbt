@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import ExcelJS from 'exceljs';
 import dataService from '../services/dataService';
 import { formatResultDate } from '../utils/resultDate';
 import { getAcademicStructure } from '../utils/academicStructure';
@@ -286,35 +287,46 @@ const ResultsManagement = ({ institution, onStatsUpdate }) => {
     setSelectedResults([]);
   };
 
-  const exportResults = () => {
-    const csvCell = value => {
-      let text = String(value ?? '');
-      if (/^\s*[=+\-@]/.test(text)) text = `'${text}`;
-      return `"${text.replace(/"/g, '""')}"`;
-    };
-    const csvContent = [
-      ['Student Name', 'Exam', 'Score', 'Percentage', 'Grade', 'Status', 'Date'],
-      ...filteredResults.map(result => {
-        const percentage = getPercent(result);
-        const scoreFormat = getScoreFormat(result);
-        
-        return [
-          getStudentName(result),
-          getExamTitle(result),
-          scoreFormat,
-          percentage !== null ? `${percentage}%` : '-',
-          percentage !== null ? getGradeLabel(percentage) : '-',
-          result.status,
-          formatResultDate(result, false, institution?.settings)
-        ];
-      })
-    ].map(row => row.map(csvCell).join(',')).join('\n');
-
-    const blob = new Blob([csvContent], { type: 'text/csv' });
-    const url = window.URL.createObjectURL(blob);
+  const exportResults = async () => {
+    const workbook = new ExcelJS.Workbook();
+    const sheet = workbook.addWorksheet('Results');
+    sheet.columns = [
+      { header: 'Student Name', key: 'name', width: 28 },
+      { header: 'Student ID', key: 'studentId', width: 18 },
+      { header: 'Department', key: 'department', width: 20 },
+      { header: 'Level', key: 'level', width: 14 },
+      { header: 'Subject', key: 'subject', width: 18 },
+      { header: 'Exam', key: 'exam', width: 30 },
+      { header: 'Score', key: 'score', width: 16 },
+      { header: 'Percentage', key: 'percentage', width: 12 },
+      { header: 'Grade', key: 'grade', width: 8 },
+      { header: 'Status', key: 'status', width: 16 },
+      { header: 'Date', key: 'date', width: 20 },
+    ];
+    sheet.getRow(1).font = { bold: true };
+    for (const result of filteredResults) {
+      const percentage = getPercent(result);
+      const student = findStudentForResult(result);
+      sheet.addRow({
+        name: getStudentName(result),
+        studentId: result.studentId || student?.studentId || '',
+        department: student?.department || result.department || '',
+        level: student?.level || result.level || '',
+        subject: result.subject || examsById.get(result.examId)?.subject || '',
+        exam: getExamTitle(result),
+        score: getScoreFormat(result),
+        percentage: percentage !== null ? percentage / 100 : null,
+        grade: percentage !== null ? getGradeLabel(percentage) : '',
+        status: result.status || '',
+        date: formatResultDate(result, false, institution?.settings),
+      });
+    }
+    sheet.getColumn('percentage').numFmt = '0.0%';
+    const buffer = await workbook.xlsx.writeBuffer();
+    const url = window.URL.createObjectURL(new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }));
     const a = document.createElement('a');
     a.href = url;
-    a.download = `exam-results-${new Date().toISOString().split('T')[0]}.csv`;
+    a.download = `exam-results-${new Date().toISOString().split('T')[0]}.xlsx`;
     a.click();
     window.URL.revokeObjectURL(url);
   };
@@ -345,7 +357,12 @@ const ResultsManagement = ({ institution, onStatsUpdate }) => {
         ]);
         const full = fullResult.status === 'fulfilled' ? fullResult.value : result;
         const review = reviewResult.status === 'fulfilled' ? reviewResult.value : null;
-        setShowDetails({ ...(full || result), reviewQuestions: review?.questions || [] });
+        setShowDetails({
+          ...(full || result),
+          reviewQuestions: review?.questions || [],
+          proctorEvents: review?.proctorEvents || [],
+          grading: review?.grading || full?.grading || result?.grading,
+        });
       } else {
         setShowDetails(result);
       }
@@ -781,6 +798,30 @@ const ResultsManagement = ({ institution, onStatsUpdate }) => {
                       {showDetails.grading.released ? ' · auto-released' : ''}
                       {showDetails.grading.fallback ? ' · heuristic fallback used' : ''}
                     </p>
+                  </div>
+                )}
+
+                {showDetails.proctorEvents?.length > 0 && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Proctoring Events ({showDetails.proctorEvents.length})
+                    </label>
+                    <div className="max-h-40 overflow-y-auto border rounded-md divide-y">
+                      {showDetails.proctorEvents.map((event, index) => {
+                        const countsAsFlag = ['tab-hidden', 'focus-loss', 'copy', 'paste', 'fullscreen-exit'].includes(event.type);
+                        return (
+                          <div key={index} className="px-3 py-1.5 flex justify-between items-center text-xs">
+                            <span className={countsAsFlag ? 'text-red-600 font-medium' : 'text-gray-600'}>
+                              {String(event.type || 'event').replace(/-/g, ' ')}
+                              {event.detail ? ` — ${event.detail}` : ''}
+                            </span>
+                            <span className="text-gray-400 ml-3 whitespace-nowrap">
+                              {event.at ? new Date(event.at).toLocaleTimeString() : ''}
+                            </span>
+                          </div>
+                        );
+                      })}
+                    </div>
                   </div>
                 )}
 
